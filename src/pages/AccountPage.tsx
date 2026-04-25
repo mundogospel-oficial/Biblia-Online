@@ -113,18 +113,14 @@ const AccountPage = () => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) return;
     
-    const hasTurnstileKey = typeof import.meta.env.VITE_CLOUDFLARE_SITE_KEY === 'string' && import.meta.env.VITE_CLOUDFLARE_SITE_KEY.trim() !== '';
-
-    if (hasTurnstileKey && !turnstileToken) {
+    if (!turnstileToken) {
       toast({ title: "Atenção", description: "Por favor, conclua a verificação de humano antes de continuar.", variant: "destructive" });
       return;
     }
 
     setAuthLoading(true);
     try {
-      const authOptions = hasTurnstileKey && turnstileToken 
-        ? { captchaToken: turnstileToken } 
-        : undefined;
+      const authOptions = { captchaToken: turnstileToken };
 
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({ 
@@ -452,7 +448,7 @@ const AccountPage = () => {
                   );
                 })()}
 
-                <button type="submit" disabled={authLoading || ((typeof import.meta.env.VITE_CLOUDFLARE_SITE_KEY === 'string' && import.meta.env.VITE_CLOUDFLARE_SITE_KEY.trim() !== '') && !turnstileToken) || (isSignUp && zxcvbn(password).score < 3)}
+                <button type="submit" disabled={authLoading || !turnstileToken || (isSignUp && zxcvbn(password).score < 3)}
                   className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed liquid-btn">
                   {authLoading ? "Carregando..." : isSignUp ? "Criar Conta" : "Entrar"}
                 </button>
@@ -463,22 +459,14 @@ const AccountPage = () => {
                   </button>
                 )}
 
-                <div className="flex justify-center overflow-hidden min-h-[65px]">
-                  {typeof import.meta.env.VITE_CLOUDFLARE_SITE_KEY === 'string' && import.meta.env.VITE_CLOUDFLARE_SITE_KEY.trim() !== '' ? (
-                    <Turnstile 
-                      siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY.trim()} 
-                      onSuccess={(token) => setTurnstileToken(token)}
-                      onError={() => {
-                        console.warn("Turnstile widget failed to load.");
-                        toast({ title: "Erro de Segurança", description: "Falha ao carregar a verificação humana (Cloudflare). Atualize a página ou verifique sua conexão.", variant: "destructive" });
-                      }}
-                    />
-                  ) : (
-                    <div className="text-xs text-destructive bg-destructive/10 p-3 rounded-lg text-center w-full">
-                      ⚠️ Chave do Cloudflare não encontrada. <br/> 
-                      Configure <code>VITE_CLOUDFLARE_SITE_KEY</code> como string válida.
-                    </div>
-                  )}
+                <div className="flex justify-center overflow-hidden min-h-[65px] mt-4">
+                  <Turnstile 
+                    siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || "1x00000000000000000000AA"} 
+                    onSuccess={(token) => setTurnstileToken(token)}
+                    onError={() => {
+                      console.warn("Turnstile widget failed to load.");
+                    }}
+                  />
                 </div>
               </form>
 
