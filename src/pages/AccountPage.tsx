@@ -46,6 +46,10 @@ const AccountPage = () => {
   // Configuração inteligente da chave do Cloudflare
   const isDev = window.location.hostname.includes('.run.app') || window.location.hostname.includes('localhost');
   const cloudflareSiteKey = import.meta.env.VITE_CLOUDFLARE_SITE_KEY;
+  
+  // LOG DE DEBUG - Verificando o valor exato da chave (Remova quando resolver o problema)
+  console.log("Minha Chave Cloudflare lida pela Vercel:", `"${cloudflareSiteKey}"`);
+
   const activeSiteKey = isDev ? "1x00000000000000000000AA" : cloudflareSiteKey;
 
   useEffect(() => {
