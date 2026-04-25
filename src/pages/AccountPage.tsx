@@ -18,6 +18,7 @@ const translateAuthError = (message: string) => {
   if (lowered.includes("user already registered")) return "Este e-mail já está em uso.";
   if (lowered.includes("password should be at least")) return "A senha deve ter pelo menos 6 caracteres.";
   if (lowered.includes("email not confirmed")) return "Por favor, verifique seu e-mail antes de entrar.";
+  if (lowered.includes("captcha")) return "Falha na verificação de segurança. Tente novamente.";
   return message; // fallback
 };
 
@@ -39,7 +40,13 @@ const AccountPage = () => {
   const { toast } = useToast();
 
   const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileError, setTurnstileError] = useState(false);
   const [appVersion, setAppVersion] = useState("");
+
+  // Configuração inteligente da chave do Cloudflare
+  const isDev = window.location.hostname.includes('.run.app') || window.location.hostname.includes('localhost');
+  const cloudflareSiteKey = import.meta.env.VITE_CLOUDFLARE_SITE_KEY;
+  const activeSiteKey = isDev ? "1x00000000000000000000AA" : cloudflareSiteKey;
 
   useEffect(() => {
     fetch('/version.json', { cache: 'no-store' })
@@ -113,14 +120,15 @@ const AccountPage = () => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) return;
     
-    if (!turnstileToken) {
-      toast({ title: "Atenção", description: "Por favor, conclua a verificação de humano antes de continuar.", variant: "destructive" });
+    // Se o Turnstile for exigido e não estiver com erro, bloqueia o submit até carregar
+    if (activeSiteKey && !turnstileError && !turnstileToken) {
+      toast({ title: "Atenção", description: "Por favor, aguarde a verificação de segurança.", variant: "destructive" });
       return;
     }
 
     setAuthLoading(true);
     try {
-      const authOptions = { captchaToken: turnstileToken };
+      const authOptions = turnstileToken ? { captchaToken: turnstileToken } : {};
 
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({ 
@@ -154,7 +162,7 @@ const AccountPage = () => {
       }
     } catch (e: any) {
       toast({ title: "Erro", description: translateAuthError(e.message), variant: "destructive" });
-      setTurnstileToken("");
+      setTurnstileToken(""); // Reseta o token em caso de erro para tentar novamente
     } finally {
       setAuthLoading(false);
     }
@@ -305,6 +313,11 @@ const AccountPage = () => {
     );
   }
 
+  // Verifica se o botão principal de submit deve estar desabilitado
+  const isSubmitDisabled = authLoading || 
+    (activeSiteKey && !turnstileError && !turnstileToken) || 
+    (isSignUp && zxcvbn(password).score < 3);
+
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
       <Header />
@@ -448,7 +461,7 @@ const AccountPage = () => {
                   );
                 })()}
 
-                <button type="submit" disabled={authLoading || !turnstileToken || (isSignUp && zxcvbn(password).score < 3)}
+                <button type="submit" disabled={isSubmitDisabled}
                   className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed liquid-btn">
                   {authLoading ? "Carregando..." : isSignUp ? "Criar Conta" : "Entrar"}
                 </button>
@@ -459,21 +472,21 @@ const AccountPage = () => {
                   </button>
                 )}
 
-                <div className="flex justify-center overflow-hidden min-h-[65px] w-[300px] mx-auto mt-4 relative">
-                  <Turnstile 
-                    siteKey={
-                      (window.location.hostname.includes('.run.app') || window.location.hostname.includes('localhost')) 
-                        ? "1x00000000000000000000AA" 
-                        : (import.meta.env.VITE_CLOUDFLARE_SITE_KEY || "1x00000000000000000000AA")
-                    } 
-                    onSuccess={(token) => setTurnstileToken(token)}
-                    onError={() => {
-                      console.warn("Turnstile widget failed to load.");
-                      setTurnstileToken("fallback-dev-token");
-                    }}
-                    options={{ theme: "auto" }}
-                  />
-                </div>
+                {/* Turnstile só é renderizado se houver uma chave válida e não tiver erro */}
+                {activeSiteKey && !turnstileError && (
+                  <div className="flex justify-center w-full mx-auto mt-4">
+                    <Turnstile 
+                      siteKey={activeSiteKey} 
+                      onSuccess={(token) => setTurnstileToken(token)}
+                      onError={() => {
+                        console.warn("Turnstile falhou ao carregar. Ocultando widget.");
+                        setTurnstileError(true); // Oculta o componente visualmente
+                        setTurnstileToken("fallback"); // Libera o frontend para prosseguir
+                      }}
+                      options={{ theme: "auto" }}
+                    />
+                  </div>
+                )}
               </form>
 
               <div className="my-4 flex items-center gap-3">
