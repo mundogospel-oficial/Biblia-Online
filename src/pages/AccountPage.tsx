@@ -459,13 +459,19 @@ const AccountPage = () => {
                   </button>
                 )}
 
-                <div className="flex justify-center overflow-hidden min-h-[65px] mt-4">
+                <div className="flex justify-center overflow-hidden min-h-[65px] w-[300px] mx-auto mt-4 relative">
                   <Turnstile 
-                    siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || "1x00000000000000000000AA"} 
+                    siteKey={
+                      (window.location.hostname.includes('.run.app') || window.location.hostname.includes('localhost')) 
+                        ? "1x00000000000000000000AA" 
+                        : (import.meta.env.VITE_CLOUDFLARE_SITE_KEY || "1x00000000000000000000AA")
+                    } 
                     onSuccess={(token) => setTurnstileToken(token)}
                     onError={() => {
                       console.warn("Turnstile widget failed to load.");
+                      setTurnstileToken("fallback-dev-token");
                     }}
+                    options={{ theme: "auto" }}
                   />
                 </div>
               </form>
