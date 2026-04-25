@@ -113,14 +113,16 @@ const AccountPage = () => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) return;
     
-    if (import.meta.env.VITE_CLOUDFLARE_SITE_KEY && !turnstileToken) {
+    const hasTurnstileKey = typeof import.meta.env.VITE_CLOUDFLARE_SITE_KEY === 'string' && import.meta.env.VITE_CLOUDFLARE_SITE_KEY.trim() !== '';
+
+    if (hasTurnstileKey && !turnstileToken) {
       toast({ title: "Atenção", description: "Por favor, conclua a verificação de humano antes de continuar.", variant: "destructive" });
       return;
     }
 
     setAuthLoading(true);
     try {
-      const authOptions = import.meta.env.VITE_CLOUDFLARE_SITE_KEY && turnstileToken !== "dummy-token-on-error" 
+      const authOptions = hasTurnstileKey && turnstileToken 
         ? { captchaToken: turnstileToken } 
         : undefined;
 
@@ -168,7 +170,7 @@ const AccountPage = () => {
     setAuthLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}/atualizar-senha`,
+        redirectTo: `https://online-biblia.vercel.app/atualizar-senha`,
       });
       if (error) throw error;
       toast({ title: "E-mail de recuperação enviado! 📧" });
@@ -185,7 +187,7 @@ const AccountPage = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/conta`
+          redirectTo: `https://online-biblia.vercel.app`
         }
       });
       if (error) throw error;
@@ -450,7 +452,7 @@ const AccountPage = () => {
                   );
                 })()}
 
-                <button type="submit" disabled={authLoading || (!!import.meta.env.VITE_CLOUDFLARE_SITE_KEY && !turnstileToken) || (isSignUp && zxcvbn(password).score < 3)}
+                <button type="submit" disabled={authLoading || ((typeof import.meta.env.VITE_CLOUDFLARE_SITE_KEY === 'string' && import.meta.env.VITE_CLOUDFLARE_SITE_KEY.trim() !== '') && !turnstileToken) || (isSignUp && zxcvbn(password).score < 3)}
                   className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed liquid-btn">
                   {authLoading ? "Carregando..." : isSignUp ? "Criar Conta" : "Entrar"}
                 </button>
@@ -462,20 +464,19 @@ const AccountPage = () => {
                 )}
 
                 <div className="flex justify-center overflow-hidden min-h-[65px]">
-                  {import.meta.env.VITE_CLOUDFLARE_SITE_KEY ? (
+                  {typeof import.meta.env.VITE_CLOUDFLARE_SITE_KEY === 'string' && import.meta.env.VITE_CLOUDFLARE_SITE_KEY.trim() !== '' ? (
                     <Turnstile 
-                      siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY} 
+                      siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY.trim()} 
                       onSuccess={(token) => setTurnstileToken(token)}
                       onError={() => {
-                        toast({ title: "Erro no Cloudflare", description: "Verifique se o domínio está autorizado no Cloudflare.", variant: "destructive" });
-                        // Fallback temporário para não bloquear o usuário durante o erro
-                        setTurnstileToken("dummy-token-on-error");
+                        console.warn("Turnstile widget failed to load.");
+                        toast({ title: "Erro de Segurança", description: "Falha ao carregar a verificação humana (Cloudflare). Atualize a página ou verifique sua conexão.", variant: "destructive" });
                       }}
                     />
                   ) : (
-                    <div className="text-xs text-muted-foreground bg-secondary/50 p-3 rounded-lg text-center w-full">
-                      ⚠️ Cloudflare Turnstile não configurado. <br/> 
-                      Adicione a chave pública em <code>VITE_CLOUDFLARE_SITE_KEY</code>
+                    <div className="text-xs text-destructive bg-destructive/10 p-3 rounded-lg text-center w-full">
+                      ⚠️ Chave do Cloudflare não encontrada. <br/> 
+                      Configure <code>VITE_CLOUDFLARE_SITE_KEY</code> como string válida.
                     </div>
                   )}
                 </div>
