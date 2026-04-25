@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <link rel="manifest" href="/manifest.json" />
+    
+    <meta name="theme-color" content="#121b27" />
+    
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Bíblia Online" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    
+    <title>Biblia Online</title>
+    <meta name="description" content="A bíblia com IA integrada!">
+    <meta name="author" content="Mundo Gospel" />
+
+    <meta property="og:type" content="website" />
+    
+    
+    <meta property="og:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f44fc456-10e1-420e-b6d4-cc9909f9ed20/id-preview-29eb5ca5--507cf41a-0dd1-4961-bbe6-643f9161367b.lovable.app-1772020951088.png">
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@MundoGospel" />
+    
+    
+    <meta name="twitter:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f44fc456-10e1-420e-b6d4-cc9909f9ed20/id-preview-29eb5ca5--507cf41a-0dd1-4961-bbe6-643f9161367b.lovable.app-1772020951088.png">
+
+    <style>
+      html, body { overflow-x: hidden; }
+      body { 
+        overscroll-behavior-y: none; 
+        position: fixed; 
+        width: 100%; 
+        height: 100%; 
+        overflow-y: auto; 
+        background-color: #121b27;
+        margin: 0;
+      }
+    </style>
+    
+  
+  
+  
+  <meta property="og:title" content="Biblia Online">
+  <meta name="twitter:title" content="Biblia Online">
+  <meta property="og:description" content="A bíblia com IA integrada!">
+  <meta name="twitter:description" content="A bíblia com IA integrada!">
+</head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
+  </body>
+</html>

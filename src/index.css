@@ -1,0 +1,221 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 215 40% 8%;
+    --foreground: 210 25% 93%;
+
+    --card: 215 35% 12%;
+    --card-foreground: 210 25% 93%;
+
+    --popover: 215 35% 12%;
+    --popover-foreground: 210 25% 93%;
+
+    --primary: 210 70% 55%;
+    --primary-foreground: 210 50% 98%;
+
+    --secondary: 215 30% 16%;
+    --secondary-foreground: 210 25% 93%;
+
+    --muted: 215 30% 14%;
+    --muted-foreground: 210 15% 55%;
+
+    --accent: 200 85% 55%;
+    --accent-foreground: 215 50% 8%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 215 28% 18%;
+    --input: 215 28% 18%;
+    --ring: 200 85% 55%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 215 40% 6%;
+    --sidebar-foreground: 210 30% 96%;
+    --sidebar-primary: 200 85% 55%;
+    --sidebar-primary-foreground: 215 50% 8%;
+    --sidebar-accent: 215 35% 16%;
+    --sidebar-accent-foreground: 210 30% 96%;
+    --sidebar-border: 215 28% 14%;
+    --sidebar-ring: 200 85% 55%;
+
+    --font-serif: 'Playfair Display', Georgia, serif;
+    --font-sans: 'Inter', system-ui, sans-serif;
+
+    --blue-gradient: linear-gradient(135deg, hsl(210 70% 55%), hsl(200 85% 60%));
+    --verse-shadow: 0 4px 24px hsl(215 40% 4% / 0.5);
+    --card-shadow: 0 2px 12px hsl(215 40% 4% / 0.3);
+
+    --highlight-yellow: 50 100% 70%;
+    --highlight-blue: 210 80% 70%;
+    --highlight-green: 140 60% 65%;
+    --highlight-pink: 330 80% 70%;
+
+  }
+
+  .dark {
+    --background: 215 40% 8%;
+    --foreground: 210 25% 93%;
+    --card: 215 35% 12%;
+    --card-foreground: 210 25% 93%;
+    --popover: 215 35% 12%;
+    --popover-foreground: 210 25% 93%;
+    --primary: 210 70% 55%;
+    --primary-foreground: 210 50% 98%;
+    --secondary: 215 30% 16%;
+    --secondary-foreground: 210 25% 93%;
+    --muted: 215 30% 14%;
+    --muted-foreground: 210 15% 55%;
+    --accent: 200 85% 55%;
+    --accent-foreground: 215 50% 8%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 215 28% 18%;
+    --input: 215 28% 18%;
+    --ring: 200 85% 55%;
+
+  }
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+html, body {
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+#root {
+  min-height: 100%;
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+#root::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: none;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-serif);
+  }
+}
+
+.safe-area-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) - 2px);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+@layer utilities {
+  .font-serif {
+    font-family: var(--font-serif);
+  }
+  .font-sans {
+    font-family: var(--font-sans);
+  }
+  .text-gradient-blue {
+    background: var(--blue-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .shadow-verse {
+    box-shadow: var(--verse-shadow);
+  }
+  .shadow-card {
+    box-shadow: var(--card-shadow);
+  }
+
+  .glass-card {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card) / 0.4),
+      hsl(var(--accent) / 0.05),
+      hsl(var(--card) / 0.45)
+    );
+    backdrop-filter: blur(24px) saturate(1.8);
+    -webkit-backdrop-filter: blur(24px) saturate(1.8);
+    border: 1px solid hsl(var(--accent) / 0.12);
+    box-shadow:
+      0 8px 32px hsl(var(--accent) / 0.06),
+      inset 0 1px 0 hsl(210 100% 95% / 0.08),
+      inset 0 -1px 0 hsl(var(--primary) / 0.04);
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
+  }
+
+  .glass-card:hover {
+    border-color: hsl(var(--accent) / 0.22);
+    box-shadow:
+      0 12px 40px hsl(var(--accent) / 0.1),
+      inset 0 1px 0 hsl(210 100% 95% / 0.12),
+      inset 0 -1px 0 hsl(var(--primary) / 0.06);
+  }
+
+  .liquid-btn {
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.15s ease, box-shadow 0.3s ease;
+  }
+  .liquid-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), hsl(var(--accent) / 0.18) 0%, transparent 65%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+  .liquid-btn:active {
+    transform: scale(0.96);
+  }
+  .liquid-btn:active::after {
+    opacity: 1;
+  }
+
+}
+
+/* Prevent iOS auto-zoom on input focus */
+@supports (-webkit-touch-callout: none) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+/* Ocultar badge do Lovable */
+[id*="lovable"],
+[class*="lovable-badge"],
+a[href*="lovable.dev"] {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}

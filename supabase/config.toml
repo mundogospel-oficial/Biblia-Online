@@ -1,0 +1,16 @@
+project_id = "uhsmgsghktvmfvewmnml"
+
+[functions.bible-chat]
+verify_jwt = false
+
+[functions.generate-chat-image]
+verify_jwt = false
+
+[functions.generate-verse-image]
+verify_jwt = false
+
+[functions.translate-verses]
+verify_jwt = false
+
+[functions.gemini-chat]
+verify_jwt = false
