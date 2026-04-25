@@ -6,6 +6,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
+const translateAuthError = (message: string) => {
+  const lowered = message.toLowerCase();
+  if (lowered.includes("password should be at least")) return "A senha deve ter pelo menos 6 caracteres.";
+  if (lowered.includes("new password should be different")) return "A nova senha deve ser diferente da antiga.";
+  return message;
+};
+
 const ResetPasswordPage = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,7 +37,7 @@ const ResetPasswordPage = () => {
       toast({ title: "Senha atualizada com sucesso! 🎉" });
       navigate("/conta");
     } catch (e: any) {
-      toast({ title: "Erro", description: e.message, variant: "destructive" });
+      toast({ title: "Erro", description: translateAuthError(e.message), variant: "destructive" });
     } finally {
       setLoading(false);
     }

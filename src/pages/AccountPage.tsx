@@ -7,10 +7,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Turnstile } from '@marsidev/react-turnstile';
-import { lovable } from "@/integrations/lovable";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
 const OFFLINE_KEY = "bible-offline-enabled";
+
+// Helper to translate common Supabase auth errors
+const translateAuthError = (message: string) => {
+  const lowered = message.toLowerCase();
+  if (lowered.includes("invalid login credentials")) return "Credenciais inválidas. Verifique seu e-mail e senha.";
+  if (lowered.includes("user already registered")) return "Este e-mail já está em uso.";
+  if (lowered.includes("password should be at least")) return "A senha deve ter pelo menos 6 caracteres.";
+  if (lowered.includes("email not confirmed")) return "Por favor, verifique seu e-mail antes de entrar.";
+  return message; // fallback
+};
 
 const AccountPage = () => {
   const authCtx = useAuth();
@@ -104,30 +113,37 @@ const AccountPage = () => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) return;
     
-    if (!turnstileToken) {
+    if (import.meta.env.VITE_CLOUDFLARE_SITE_KEY && !turnstileToken) {
       toast({ title: "Atenção", description: "Por favor, conclua a verificação de humano antes de continuar.", variant: "destructive" });
       return;
     }
 
     setAuthLoading(true);
     try {
+      const authOptions = import.meta.env.VITE_CLOUDFLARE_SITE_KEY && turnstileToken !== "dummy-token-on-error" 
+        ? { captchaToken: turnstileToken } 
+        : undefined;
+
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({ 
           email, 
           password,
-          options: { captchaToken: turnstileToken }
+          options: authOptions
         });
         if (error) throw error;
         if (data.session) {
           toast({ title: "Conta criada com sucesso! 🎉" });
         } else {
-          toast({ title: "Conta criada com sucesso! 🎉", description: "Faça login para continuar." });
+          toast({ 
+            title: "Conta criada! 🎉", 
+            description: "Por favor, verifique seu e-mail para confirmar a conta antes de entrar." 
+          });
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ 
           email, 
           password,
-          options: { captchaToken: turnstileToken }
+          options: authOptions
         });
         if (error) throw error;
         toast({ title: "Login realizado! 🎉" });
@@ -139,7 +155,7 @@ const AccountPage = () => {
         } catch {}
       }
     } catch (e: any) {
-      toast({ title: "Erro", description: e.message, variant: "destructive" });
+      toast({ title: "Erro", description: translateAuthError(e.message), variant: "destructive" });
       setTurnstileToken("");
     } finally {
       setAuthLoading(false);
@@ -152,13 +168,13 @@ const AccountPage = () => {
     setAuthLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${window.location.origin}/atualizar-senha`,
       });
       if (error) throw error;
       toast({ title: "E-mail de recuperação enviado! 📧" });
       setShowForgotPassword(false);
     } catch (e: any) {
-      toast({ title: "Erro", description: e.message, variant: "destructive" });
+      toast({ title: "Erro", description: translateAuthError(e.message), variant: "destructive" });
     } finally {
       setAuthLoading(false);
     }
@@ -166,27 +182,15 @@ const AccountPage = () => {
 
   const handleGoogleLogin = async () => {
     try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: `${window.location.origin}/conta`,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/conta`
+        }
       });
-      if (result && 'error' in result && result.error) {
-        toast({ title: "Erro ao entrar com Google", variant: "destructive" });
-      }
-    } catch {
-      toast({ title: "Erro ao entrar com Google", variant: "destructive" });
-    }
-  };
-
-  const handleAppleLogin = async () => {
-    try {
-      const result = await lovable.auth.signInWithOAuth("apple", {
-        redirect_uri: `${window.location.origin}/conta`,
-      });
-      if (result && 'error' in result && result.error) {
-        toast({ title: "Erro ao entrar com Apple", variant: "destructive" });
-      }
-    } catch {
-      toast({ title: "Erro ao entrar com Apple", variant: "destructive" });
+      if (error) throw error;
+    } catch (e: any) {
+      toast({ title: "Erro ao entrar com Google", description: translateAuthError(e.message), variant: "destructive" });
     }
   };
 
@@ -446,7 +450,7 @@ const AccountPage = () => {
                   );
                 })()}
 
-                <button type="submit" disabled={authLoading || !turnstileToken || (isSignUp && zxcvbn(password).score < 3)}
+                <button type="submit" disabled={authLoading || (!!import.meta.env.VITE_CLOUDFLARE_SITE_KEY && !turnstileToken) || (isSignUp && zxcvbn(password).score < 3)}
                   className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed liquid-btn">
                   {authLoading ? "Carregando..." : isSignUp ? "Criar Conta" : "Entrar"}
                 </button>
@@ -457,12 +461,23 @@ const AccountPage = () => {
                   </button>
                 )}
 
-                <div className="flex justify-center overflow-hidden">
-                  <Turnstile 
-                    siteKey="0x4AAAAAACq9pwmAwoFQtvOP" 
-                    onSuccess={(token) => setTurnstileToken(token)}
-                    onError={() => toast({ title: "Erro na verificação", description: "Falha ao carregar segurança", variant: "destructive" })}
-                  />
+                <div className="flex justify-center overflow-hidden min-h-[65px]">
+                  {import.meta.env.VITE_CLOUDFLARE_SITE_KEY ? (
+                    <Turnstile 
+                      siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY} 
+                      onSuccess={(token) => setTurnstileToken(token)}
+                      onError={() => {
+                        toast({ title: "Erro no Cloudflare", description: "Verifique se o domínio está autorizado no Cloudflare.", variant: "destructive" });
+                        // Fallback temporário para não bloquear o usuário durante o erro
+                        setTurnstileToken("dummy-token-on-error");
+                      }}
+                    />
+                  ) : (
+                    <div className="text-xs text-muted-foreground bg-secondary/50 p-3 rounded-lg text-center w-full">
+                      ⚠️ Cloudflare Turnstile não configurado. <br/> 
+                      Adicione a chave pública em <code>VITE_CLOUDFLARE_SITE_KEY</code>
+                    </div>
+                  )}
                 </div>
               </form>
 
@@ -482,13 +497,6 @@ const AccountPage = () => {
                     <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                   </svg>
                   Continuar com Google
-                </button>
-                <button onClick={handleAppleLogin}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary liquid-btn">
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-                  </svg>
-                  Continuar com Apple
                 </button>
               </div>
 

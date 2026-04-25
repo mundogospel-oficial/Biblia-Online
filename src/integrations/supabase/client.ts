@@ -3,13 +3,17 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
 const envUrl = import.meta.env.VITE_SUPABASE_URL;
-const envKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const envKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-const SUPABASE_URL = (envUrl && envUrl.startsWith('http')) ? envUrl : 'https://placeholder.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = envKey && envKey !== 'YOUR_SUPABASE_ANON_KEY' ? envKey : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder.placeholder';
+// We use 127.0.0.1 as a fallback to avoid DNS lookup failures if vars are missing
+const SUPABASE_URL = (envUrl && envUrl.startsWith('http')) ? envUrl : 'http://127.0.0.1';
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
+if (envUrl && !envUrl.startsWith('http')) {
+  console.error("The provided Supabase URL does not start with 'http'. It looks like you might have accidentally copied the SHA256 digest instead of the actual URL.");
+}
+
+const SUPABASE_PUBLISHABLE_KEY = envKey || 'YOUR_SUPABASE_ANON_KEY';
+
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
