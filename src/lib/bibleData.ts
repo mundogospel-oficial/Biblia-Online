@@ -173,7 +173,7 @@ async function loadBibliaLivre(): Promise<any[]> {
   
   let res: Response | undefined;
   try {
-    res = await fetch('/data/biblia-livre.json');
+    res = await fetch('/data/biblia-livre.json?v=' + Date.now(), { cache: 'no-store' });
   } catch {
     // Network failed, try cache
   }
@@ -181,7 +181,7 @@ async function loadBibliaLivre(): Promise<any[]> {
   if (!res || !res.ok) {
     // Try offline cache
     const cache = await caches.open('biblia-offline-data');
-    const cached = await cache.match('/data/biblia-livre.json');
+    const cached = await cache.match('/data/biblia-livre.json', { ignoreSearch: true });
     if (cached) {
       res = cached;
     } else {
@@ -189,9 +189,16 @@ async function loadBibliaLivre(): Promise<any[]> {
     }
   }
 
-  const data = await res.json();
-  bibliaLivreData = data.filter((item: any) => item.capitulos);
-  return bibliaLivreData;
+  let text = '';
+  try {
+    text = await res.text();
+    const data = JSON.parse(text);
+    bibliaLivreData = data.filter((item: any) => item.capitulos);
+    return bibliaLivreData;
+  } catch (e) {
+    console.error("Erro ao fazer parse da Bíblia Livre:", e);
+    throw new Error('Formato de dados inválido para Bíblia Livre.');
+  }
 }
 
 // ── Bíblia Livre fetch ──
@@ -305,7 +312,8 @@ export async function fetchChapter(
       const result = await fetchFromBibliaLivre(abbrev, chapter);
       chapterCache.set(cacheKey, result);
       return result;
-    } catch {
+    } catch (e) {
+      console.error(e);
       throw new Error(`Não foi possível carregar ${abbrev} ${chapter} na Bíblia Livre.`);
     }
   }

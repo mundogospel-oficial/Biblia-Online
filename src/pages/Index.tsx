@@ -4,7 +4,8 @@ import { bibleBooks } from "@/lib/bibleData";
 import { getDailyVerse } from "@/lib/dailyVerse";
 import { motion } from "framer-motion";
 import Header from "@/components/Header";
-import { BookOpen, ChevronRight, Sun, Youtube } from "lucide-react";
+import { ChevronRight, Sun, Youtube } from "lucide-react";
+import logoImg from "../assets/logo.svg.png";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<'old' | 'new'>('old');
@@ -30,7 +31,7 @@ const Index = () => {
             // AQUI: Aumentado max-w para 800px, padding (py-16 sm:py-24) e bordas (rounded-3xl)
             className="glass-card rounded-3xl px-6 py-16 sm:px-16 sm:py-24 mx-auto w-full max-w-[800px]"
           >
-            <BookOpen className="mx-auto mb-3 h-10 w-10 text-accent opacity-80" />
+            <img src={logoImg} className="mx-auto mb-4 h-14 w-14 object-contain" alt="Bíblia Online Logo" />
             <h1 className="font-serif text-3xl font-bold text-foreground sm:text-4xl lg:text-5xl">
               Biblia Online
             </h1>

@@ -177,7 +177,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.url.includes('/data/biblia-livre.json')) {
     event.respondWith(
       caches.open('biblia-offline-data').then((cache) => {
-        return cache.match(event.request).then((cached) => {
+        return cache.match(event.request, { ignoreSearch: true }).then((cached) => {
           if (cached) return cached;
           return fetch(event.request);
         });

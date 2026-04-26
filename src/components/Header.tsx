@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { Sparkles, Home, Search, Heart, Bot, Calendar, User } from "lucide-react";
+import logoImg from "../assets/logo.svg.png";
 
 const Header = () => {
   const location = useLocation();
@@ -30,7 +31,7 @@ const Header = () => {
       <header className="sticky top-0 z-50 hidden md:block glass-card safe-area-top !rounded-none">
         <div className="container mx-auto flex items-center justify-between px-4 py-2.5">
           <Link to="/" className="flex items-center gap-2">
-            <img src="/logo.png" className="h-6 w-6" alt="Logo" />
+            <img src={logoImg} className="h-6 w-6 object-contain" alt="Logo" />
             <span className="font-serif text-lg font-bold text-foreground">Biblia Online</span>
           </Link>
           <nav className="flex items-center gap-0.5">
@@ -54,7 +55,7 @@ const Header = () => {
       <header className="sticky top-0 z-50 md:hidden glass-card !rounded-none safe-area-top">
         <div className="flex items-center justify-center px-4 py-3">
           <Link to="/" className="flex items-center gap-2.5">
-            <img src="/logo.png" className="h-8 w-8" alt="Logo" />
+            <img src={logoImg} className="h-8 w-8 object-contain" alt="Logo" />
             <span className="font-serif text-xl font-bold text-foreground">Bíblia Online</span>
           </Link>
         </div>
