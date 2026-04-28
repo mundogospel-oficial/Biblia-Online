@@ -259,7 +259,7 @@ const AccountPage = () => {
       const cache = await caches.open('biblia-offline-data');
       
       const filesToCache = [
-        '/data/biblia-livre.json',
+        'https://raw.githubusercontent.com/eversondeveloper/bibialivrejson/main/biblialivrecorrecao1.json',
         '/manifest.json',
         '/placeholder.svg',
         '/',

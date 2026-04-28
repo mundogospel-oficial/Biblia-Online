@@ -1,11 +1,11 @@
-export interface BibleBook {
+interface BibleBook {
   name: string;
   abbrev: string;
   chapters: number;
   testament: 'old' | 'new';
 }
 
-export const bibleBooks: BibleBook[] = [
+const bibleBooks: BibleBook[] = [
   // Antigo Testamento
   { name: 'Gênesis', abbrev: 'gn', chapters: 50, testament: 'old' },
   { name: 'Êxodo', abbrev: 'ex', chapters: 40, testament: 'old' },
@@ -76,13 +76,13 @@ export const bibleBooks: BibleBook[] = [
   { name: 'Apocalipse', abbrev: 'ap', chapters: 22, testament: 'new' },
 ];
 
-export interface BibleTranslation {
+interface BibleTranslation {
   id: string;
   name: string;
   language: 'pt' | 'en';
 }
 
-export const translations: BibleTranslation[] = [
+const translations: BibleTranslation[] = [
   { id: 'almeida', name: 'Bíblia Sagrada de Almeida 1980', language: 'pt' },
   { id: 'blivre', name: 'Bíblia Livre 2018', language: 'pt' },
   { id: 'bbe', name: 'Bible in Basic English', language: 'en' },
@@ -150,14 +150,14 @@ const bollsBookIndex: Record<string, number> = {
   'jd': 65, 'ap': 66,
 };
 
-export interface VerseData {
+interface VerseData {
   book_name: string;
   chapter: number;
   verse: number;
   text: string;
 }
 
-export interface ChapterResponse {
+interface ChapterResponse {
   reference: string;
   verses: VerseData[];
   text: string;
@@ -304,7 +304,7 @@ async function fetchFromBolls(
 }
 
 // ── Public API: fetchChapter with cache + multi-source fallback ──
-export async function fetchChapter(
+async function fetchChapter(
   abbrev: string,
   chapter: number,
   translation: string = 'almeida'
@@ -360,7 +360,7 @@ export async function fetchChapter(
 }
 
 // ── Public API: fetchVerse (single verse) ──
-export async function fetchVerse(
+async function fetchVerse(
   abbrev: string,
   chapter: number,
   verse: number,
@@ -374,6 +374,9 @@ export async function fetchVerse(
   throw new Error('Versículo não encontrado');
 }
 
-export function getBookByAbbrev(abbrev: string): BibleBook | undefined {
+function getBookByAbbrev(abbrev: string): BibleBook | undefined {
   return bibleBooks.find(b => b.abbrev === abbrev);
 }
+
+
+loadBibliaLivre().then(d => console.log('Load OK! Length:', d.length, 'First:', d[0].abrev)).catch(e => console.error('Error loading:', e));

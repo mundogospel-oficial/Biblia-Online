@@ -222,7 +222,9 @@ const AIPage = () => {
     const link = document.createElement("a");
     link.download = `ia-biblica-${Date.now()}.png`;
     link.href = dataUrl;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
   };
 
   const handleFileAttach = (e: React.ChangeEvent<HTMLInputElement>) => {

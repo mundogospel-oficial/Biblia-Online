@@ -187,7 +187,9 @@ const CreatePage = () => {
       const link = document.createElement("a");
       link.download = `versiculo-${reference.replace(/\s+/g, "-")}.${exportFormat.key}`;
       link.href = canvas.toDataURL(exportFormat.mime, 0.95);
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
       toast({ title: "Imagem baixada! 📥" });
     } catch (err) {
       console.error("Erro ao gerar imagem:", err);
@@ -251,7 +253,9 @@ const CreatePage = () => {
         const link = document.createElement("a");
         link.download = file.name;
         link.href = URL.createObjectURL(blob);
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
         URL.revokeObjectURL(link.href);
         toast({ title: "Imagem baixada! 📥" });
       }, "image/png");
