@@ -1,28 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { bibleBooks, fetchChapter } from "@/lib/bibleData";
-import { getDailyVerseReference, type DailyVerseEntry } from "@/lib/dailyVerse";
+import { bibleBooks } from "@/lib/bibleData";
+import { getDailyVerse } from "@/lib/dailyVerse";
 import { motion } from "framer-motion";
 import Header from "@/components/Header";
-import { ChevronRight, Sun, Youtube, Loader2 } from "lucide-react";
-import logoImg from "@/assets/logo.png";
+import { ChevronRight, Sun, Youtube } from "lucide-react";
+
+// A MÁGICA ACONTECE AQUI: Importando a imagem direto pro código
+import logoOficial from "@/assets/logo.png";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<'old' | 'new'>('old');
-  const [dailyVerse, setDailyVerse] = useState<DailyVerseEntry | null>(null);
-
-  useEffect(() => {
-    const reference = getDailyVerseReference();
-    // Puxando da fonte original e certo: Bíblia Livre offline
-    fetchChapter(reference.abbrev, reference.chapter, 'blivre')
-      .then((chap) => {
-        const verseText = chap.verses.find(v => v.verse === reference.verse)?.text || "";
-        setDailyVerse({ ...reference, text: verseText });
-      })
-      .catch(() => {
-        setDailyVerse({ ...reference, text: "Não foi possível carregar o versículo. Verifique sua conexão ou dados offline." });
-      });
-  }, []);
+  const dailyVerse = getDailyVerse();
 
   const filteredBooks = bibleBooks.filter(b => b.testament === activeTab);
 
@@ -41,10 +30,15 @@ const Index = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            // AQUI: Aumentado max-w para 800px, padding (py-16 sm:py-24) e bordas (rounded-3xl)
             className="glass-card rounded-3xl px-6 py-16 sm:px-16 sm:py-24 mx-auto w-full max-w-[800px]"
           >
-            <img src={logoImg} alt="Logo Bíblia Online" className="mx-auto mb-4 h-14 w-14 object-contain transition-opacity duration-300" />
+            {/* AQUI ESTÁ A MUDANÇA: Usando a variável da imagem importada */}
+            <img 
+              src={logoOficial} 
+              alt="Logo Bíblia Online" 
+              className="mx-auto mb-4 h-20 w-auto object-contain sm:h-24" 
+            />
+            
             <h1 className="font-serif text-3xl font-bold text-foreground sm:text-4xl lg:text-5xl">
               Biblia Online
             </h1>
@@ -81,24 +75,18 @@ const Index = () => {
               Versículo do Dia
             </h2>
           </div>
-          {!dailyVerse ? (
-            <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Carregando...</div>
-          ) : (
-            <>
-              <blockquote className="font-serif text-base italic leading-relaxed text-card-foreground sm:text-lg">
-                "{dailyVerse.text}"
-              </blockquote>
-              <p className="mt-2 text-xs font-medium text-muted-foreground">
-                — {dailyVerse.reference}
-              </p>
-              <Link
-                to={`/criar?ref=${encodeURIComponent(dailyVerse.reference)}&text=${encodeURIComponent(dailyVerse.text || "")}`}
-                className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-accent/10 px-3 py-1.5 text-[11px] font-medium text-accent transition-colors hover:bg-accent/20"
-              >
-                Criar página com este versículo
-              </Link>
-            </>
-          )}
+          <blockquote className="font-serif text-base italic leading-relaxed text-card-foreground sm:text-lg">
+            "{dailyVerse.text}"
+          </blockquote>
+          <p className="mt-2 text-xs font-medium text-muted-foreground">
+            — {dailyVerse.reference}
+          </p>
+          <Link
+            to={`/criar?ref=${encodeURIComponent(dailyVerse.reference)}&text=${encodeURIComponent(dailyVerse.text)}`}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-accent/10 px-3 py-1.5 text-[11px] font-medium text-accent transition-colors hover:bg-accent/20"
+          >
+            Criar página com este versículo
+          </Link>
         </motion.div>
       </section>
 
