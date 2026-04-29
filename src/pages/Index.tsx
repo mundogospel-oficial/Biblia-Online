@@ -5,9 +5,7 @@ import { getDailyVerseReference, type DailyVerseEntry } from "@/lib/dailyVerse";
 import { motion } from "framer-motion";
 import Header from "@/components/Header";
 import { ChevronRight, Sun, Youtube, Loader2 } from "lucide-react";
-
-// A MÁGICA ACONTECE AQUI: Importando a imagem direto pro código
-import logoOficial from "@/assets/logo.png";
+import logoImg from "@/assets/logo.png";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<'old' | 'new'>('old');
@@ -43,15 +41,10 @@ const Index = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
+            // AQUI: Aumentado max-w para 800px, padding (py-16 sm:py-24) e bordas (rounded-3xl)
             className="glass-card rounded-3xl px-6 py-16 sm:px-16 sm:py-24 mx-auto w-full max-w-[800px]"
           >
-            {/* AQUI ESTÁ A MUDANÇA: Usando a variável da imagem importada */}
-            <img 
-              src={logoOficial} 
-              alt="Logo Bíblia Online" 
-              className="mx-auto mb-4 h-20 w-auto object-contain sm:h-24" 
-            />
-            
+            <img src={logoImg} alt="Logo Bíblia Online" className="mx-auto mb-4 h-14 w-14 object-contain transition-opacity duration-300" />
             <h1 className="font-serif text-3xl font-bold text-foreground sm:text-4xl lg:text-5xl">
               Biblia Online
             </h1>
