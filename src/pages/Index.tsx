@@ -1,17 +1,30 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { bibleBooks } from "@/lib/bibleData";
-import { getDailyVerse } from "@/lib/dailyVerse";
+import { bibleBooks, fetchChapter } from "@/lib/bibleData";
+import { getDailyVerseReference, type DailyVerseEntry } from "@/lib/dailyVerse";
 import { motion } from "framer-motion";
 import Header from "@/components/Header";
-import { ChevronRight, Sun, Youtube } from "lucide-react";
+import { ChevronRight, Sun, Youtube, Loader2 } from "lucide-react";
 
 // A MÁGICA ACONTECE AQUI: Importando a imagem direto pro código
 import logoOficial from "@/assets/logo.png";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<'old' | 'new'>('old');
-  const dailyVerse = getDailyVerse();
+  const [dailyVerse, setDailyVerse] = useState<DailyVerseEntry | null>(null);
+
+  useEffect(() => {
+    const reference = getDailyVerseReference();
+    // Puxando da fonte original e certo: Bíblia Livre offline
+    fetchChapter(reference.abbrev, reference.chapter, 'blivre')
+      .then((chap) => {
+        const verseText = chap.verses.find(v => v.verse === reference.verse)?.text || "";
+        setDailyVerse({ ...reference, text: verseText });
+      })
+      .catch(() => {
+        setDailyVerse({ ...reference, text: "Não foi possível carregar o versículo. Verifique sua conexão ou dados offline." });
+      });
+  }, []);
 
   const filteredBooks = bibleBooks.filter(b => b.testament === activeTab);
 
@@ -75,18 +88,24 @@ const Index = () => {
               Versículo do Dia
             </h2>
           </div>
-          <blockquote className="font-serif text-base italic leading-relaxed text-card-foreground sm:text-lg">
-            "{dailyVerse.text}"
-          </blockquote>
-          <p className="mt-2 text-xs font-medium text-muted-foreground">
-            — {dailyVerse.reference}
-          </p>
-          <Link
-            to={`/criar?ref=${encodeURIComponent(dailyVerse.reference)}&text=${encodeURIComponent(dailyVerse.text)}`}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-accent/10 px-3 py-1.5 text-[11px] font-medium text-accent transition-colors hover:bg-accent/20"
-          >
-            Criar página com este versículo
-          </Link>
+          {!dailyVerse ? (
+            <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Carregando...</div>
+          ) : (
+            <>
+              <blockquote className="font-serif text-base italic leading-relaxed text-card-foreground sm:text-lg">
+                "{dailyVerse.text}"
+              </blockquote>
+              <p className="mt-2 text-xs font-medium text-muted-foreground">
+                — {dailyVerse.reference}
+              </p>
+              <Link
+                to={`/criar?ref=${encodeURIComponent(dailyVerse.reference)}&text=${encodeURIComponent(dailyVerse.text || "")}`}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-accent/10 px-3 py-1.5 text-[11px] font-medium text-accent transition-colors hover:bg-accent/20"
+              >
+                Criar página com este versículo
+              </Link>
+            </>
+          )}
         </motion.div>
       </section>
 
