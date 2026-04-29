@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import zxcvbn from "zxcvbn";
 import { motion } from "framer-motion";
 import Header from "@/components/Header";
-import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle } from "lucide-react";
+import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +23,7 @@ const translateAuthError = (message: string) => {
 
 const AccountPage = () => {
   const authCtx = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -114,7 +115,7 @@ const AccountPage = () => {
     if (!email.trim() || !password.trim()) return;
     
     if (!turnstileToken) {
-      toast({ title: "Atenção", description: "Por favor, conclua a verificação de humano antes de continuar.", variant: "destructive" });
+      toast({ title: "Atenção", description: "Por favor, valide a verificação de segurança.", variant: "destructive" });
       return;
     }
 
@@ -424,8 +425,13 @@ const AccountPage = () => {
               <form onSubmit={handleAuth} className="space-y-3" autoComplete="on">
                 <input type="email" name="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-mail" required
                   className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
-                <input type="password" name="password" autoComplete={isSignUp ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Senha" required minLength={6}
-                  className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
+                <div className="relative">
+                  <input type={showPassword ? 'text' : 'password'} name="password" autoComplete={isSignUp ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Senha" required minLength={6}
+                    className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
                 
                 {isSignUp && password.length > 0 && (() => {
                   const result = zxcvbn(password);
