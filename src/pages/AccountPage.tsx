@@ -39,6 +39,7 @@ const AccountPage = () => {
   const [displayName, setDisplayName] = useState("");
   const [editingName, setEditingName] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const turnstileRef = useRef<any>(null);
   const { toast } = useToast();
 
   const [turnstileToken, setTurnstileToken] = useState("");
@@ -117,7 +118,7 @@ const AccountPage = () => {
     if (!email.trim() || !password.trim()) return;
     
     if (!turnstileToken) {
-      toast({ title: "Atenção", description: "Por favor, valide a verificação de segurança.", variant: "destructive" });
+      toast({ title: "Atenção", description: "Por favor, valide o captcha de segurança.", variant: "destructive" });
       return;
     }
 
@@ -131,33 +132,59 @@ const AccountPage = () => {
             captchaToken: turnstileToken
           }
         });
-        if (error) throw error;
-        if (data.session) {
-          toast({ title: "Conta criada com sucesso! 🎉" });
+
+        if (error) {
+          console.error("Erro Supabase:", error);
+          if (error.message?.includes("timeout-or-duplicate")) {
+            toast({ title: "Atenção", description: "A verificação de segurança expirou. Por favor, aguarde o recarregamento e tente novamente.", variant: "destructive" });
+          } else {
+            toast({ title: "Erro", description: translateAuthError(error.message), variant: "destructive" });
+          }
+          turnstileRef.current?.reset();
+          setTurnstileToken("");
+          return;
+        }
+
+        if (data.user) {
+          toast({ title: "Conta criada com sucesso! 🎉", description: "Redirecionando..." });
           navigate("/");
-        } else {
-          toast({ 
-            title: "Conta criada! 🎉", 
-            description: "Por favor, verifique seu e-mail para confirmar a conta antes de entrar." 
-          });
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ 
+        const { data, error } = await supabase.auth.signInWithPassword({ 
           email, 
-          password
+          password,
+          options: {
+            captchaToken: turnstileToken
+          }
         });
-        if (error) throw error;
-        toast({ title: "Login realizado! 🎉" });
-        navigate("/");
+
+        if (error) {
+          console.error("Erro Supabase:", error);
+          if (error.message?.includes("timeout-or-duplicate")) {
+            toast({ title: "Atenção", description: "A verificação de segurança expirou. Por favor, aguarde o recarregamento e tente novamente.", variant: "destructive" });
+          } else {
+            toast({ title: "Erro", description: translateAuthError(error.message), variant: "destructive" });
+          }
+          turnstileRef.current?.reset();
+          setTurnstileToken("");
+          return;
+        }
+
+        if (data.user) {
+          toast({ title: "Login realizado! 🎉" });
+          if ((window as any).PasswordCredential) {
+            try {
+              const cred = new (window as any).PasswordCredential({ id: email, password, name: email });
+              await navigator.credentials.store(cred);
+            } catch {}
+          }
+          navigate("/");
+        }
       }
-      if ((window as any).PasswordCredential) {
-        try {
-          const cred = new (window as any).PasswordCredential({ id: email, password, name: email });
-          await navigator.credentials.store(cred);
-        } catch {}
-      }
-    } catch (e: any) {
-      toast({ title: "Erro", description: translateAuthError(e.message), variant: "destructive" });
+    } catch (err: any) {
+      console.error("Erro inesperado:", err);
+      toast({ title: "Erro", description: "Ocorreu um erro inesperado ao criar a conta.", variant: "destructive" });
+      turnstileRef.current?.reset();
       setTurnstileToken("");
     } finally {
       setAuthLoading(false);
@@ -167,16 +194,38 @@ const AccountPage = () => {
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resetEmail.trim()) return;
+
+    if (!turnstileToken) {
+      toast({ title: "Atenção", description: "Por favor, valide o captcha de segurança.", variant: "destructive" });
+      return;
+    }
+
     setAuthLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
         redirectTo: `https://online-biblia.vercel.app/atualizar-senha`,
+        captchaToken: turnstileToken,
       });
-      if (error) throw error;
+
+      if (error) {
+        console.error("Erro Supabase:", error);
+        if (error.message?.includes("timeout-or-duplicate")) {
+          toast({ title: "Atenção", description: "A verificação de segurança expirou. Por favor, aguarde o recarregamento e tente novamente.", variant: "destructive" });
+        } else {
+          toast({ title: "Erro", description: translateAuthError(error.message), variant: "destructive" });
+        }
+        turnstileRef.current?.reset();
+        setTurnstileToken("");
+        return;
+      }
+
       toast({ title: "E-mail de recuperação enviado! 📧" });
       setShowForgotPassword(false);
-    } catch (e: any) {
-      toast({ title: "Erro", description: translateAuthError(e.message), variant: "destructive" });
+    } catch (err: any) {
+      console.error("Erro inesperado:", err);
+      toast({ title: "Erro", description: "Ocorreu um erro inesperado ao recuperar a senha.", variant: "destructive" });
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
     } finally {
       setAuthLoading(false);
     }
@@ -408,12 +457,34 @@ const AccountPage = () => {
               <form onSubmit={handleForgotPassword} className="space-y-3">
                 <input type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="Seu e-mail" required
                   className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
-                <button type="submit" disabled={authLoading}
+                
+                <div className="flex justify-center overflow-hidden min-h-[65px] w-[300px] mx-auto mt-4 relative">
+                  <Turnstile 
+                    ref={turnstileRef}
+                    siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || "0x4AAAAAACq9p8bcAjTj0aNS6nvTrL0RNes"} 
+                    onSuccess={(token) => setTurnstileToken(token)}
+                    onError={() => {
+                      console.warn("Turnstile widget failed to load or domain is not authorized.");
+                    }}
+                    options={{ theme: "auto" }}
+                  />
+                </div>
+
+                <button type="submit" disabled={authLoading || !turnstileToken}
                   className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50 liquid-btn">
                   {authLoading ? "Enviando..." : "Enviar Link"}
                 </button>
               </form>
-              <button onClick={() => setShowForgotPassword(false)} className="mt-4 w-full text-center text-sm text-accent hover:underline">Voltar ao login</button>
+              <button 
+                onClick={() => {
+                  setShowForgotPassword(false);
+                  setTurnstileToken("");
+                  turnstileRef.current?.reset();
+                }} 
+                className="mt-4 w-full text-center text-sm text-accent hover:underline"
+              >
+                Voltar ao login
+              </button>
             </>
           ) : (
             <>
@@ -463,13 +534,18 @@ const AccountPage = () => {
                 </button>
 
                 {!isSignUp && (
-                  <button type="button" onClick={() => setShowForgotPassword(true)} className="w-full text-center text-sm text-accent hover:underline">
+                  <button type="button" onClick={() => {
+                    setShowForgotPassword(true);
+                    setTurnstileToken("");
+                    turnstileRef.current?.reset();
+                  }} className="w-full text-center text-sm text-accent hover:underline">
                     Esqueci minha senha
                   </button>
                 )}
 
                 <div className="flex justify-center overflow-hidden min-h-[65px] w-[300px] mx-auto mt-4 relative">
                   <Turnstile 
+                    ref={turnstileRef}
                     siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || "0x4AAAAAACq9p8bcAjTj0aNS6nvTrL0RNes"} 
                     onSuccess={(token) => setTurnstileToken(token)}
                     onError={() => {
@@ -501,7 +577,11 @@ const AccountPage = () => {
 
               <p className="mt-4 text-center text-sm text-muted-foreground">
                 {isSignUp ? "Já tem conta?" : "Não tem conta?"}{" "}
-                <button onClick={() => setIsSignUp(!isSignUp)} className="font-medium text-accent hover:underline">
+                <button onClick={() => {
+                  setIsSignUp(!isSignUp);
+                  setTurnstileToken("");
+                  turnstileRef.current?.reset();
+                }} className="font-medium text-accent hover:underline">
                   {isSignUp ? "Entrar" : "Criar conta"}
                 </button>
               </p>
