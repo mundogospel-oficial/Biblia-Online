@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import zxcvbn from "zxcvbn";
 import { motion } from "framer-motion";
 import Header from "@/components/Header";
@@ -23,6 +24,7 @@ const translateAuthError = (message: string) => {
 
 const AccountPage = () => {
   const authCtx = useAuth();
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
@@ -121,17 +123,15 @@ const AccountPage = () => {
 
     setAuthLoading(true);
     try {
-      const authOptions = { captchaToken: turnstileToken };
-
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({ 
           email, 
-          password,
-          options: authOptions
+          password
         });
         if (error) throw error;
         if (data.session) {
           toast({ title: "Conta criada com sucesso! 🎉" });
+          navigate("/");
         } else {
           toast({ 
             title: "Conta criada! 🎉", 
@@ -141,11 +141,11 @@ const AccountPage = () => {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ 
           email, 
-          password,
-          options: authOptions
+          password
         });
         if (error) throw error;
         toast({ title: "Login realizado! 🎉" });
+        navigate("/");
       }
       if ((window as any).PasswordCredential) {
         try {
