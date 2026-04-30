@@ -126,7 +126,10 @@ const AccountPage = () => {
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({ 
           email, 
-          password
+          password,
+          options: {
+            captchaToken: turnstileToken
+          }
         });
         if (error) throw error;
         if (data.session) {
