@@ -17,6 +17,7 @@ const translateAuthError = (message: string) => {
   const lowered = message.toLowerCase();
   if (lowered.includes("invalid login credentials")) return "Credenciais inválidas. Verifique seu e-mail e senha.";
   if (lowered.includes("user already registered")) return "Este e-mail já está em uso.";
+  if (lowered.includes("password should contain at least one character of each")) return "A senha deve conter letras (maiúsculas e minúsculas), números e símbolos (!@#$).";
   if (lowered.includes("password should be at least")) return "A senha deve ter pelo menos 6 caracteres.";
   if (lowered.includes("email not confirmed")) return "Por favor, verifique seu e-mail antes de entrar.";
   return message; // fallback
