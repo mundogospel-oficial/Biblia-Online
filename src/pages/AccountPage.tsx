@@ -208,12 +208,12 @@ const AccountPage = () => {
     setAuthLoading(true);
     try {
       console.log("2. Enviando requisição para o Supabase...");
-      const { data, error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/atualizar-senha`,
         captchaToken: turnstileToken,
-        redirectTo: `${window.location.origin}/atualizar-senha` 
       });
 
-      console.log("3. Resposta do Supabase:", { data, error });
+      console.log("3. Resposta do Supabase:", { error });
 
       if (error) {
         toast({ title: "Erro", description: `Erro: ${translateAuthError(error.message)}`, variant: "destructive" });
