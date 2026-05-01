@@ -4,11 +4,14 @@ import Header from "@/components/Header";
 import {
   Send, Trash2, Sparkles, GraduationCap, X,
   Plus, Image, Video, Music, Diamond, Download, LogIn,
-  History, ChevronLeft, Zap, Bot, Paperclip, AlertCircle, MessageSquarePlus
+  History, ChevronLeft, Zap, Bot, Paperclip, AlertCircle, MessageSquarePlus, Square
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+
+import { askBibleAI } from "@/services/aiService";
+import { checkAndIncrementUsage } from "@/services/usageService";
 
 type Msg = { role: "user" | "assistant"; content: string; image?: string; fileName?: string };
 
@@ -69,6 +72,7 @@ const AIPage = () => {
   const [activeMode, setActiveMode] = useState<ModeKey | null>(null);
   const [aiEngine, setAiEngine] = useState<AIEngine>("simples");
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -248,6 +252,20 @@ const AIPage = () => {
   };
 
   const sendSpecialMode = async (text: string, mode: ModeKey) => {
+    if (!user) return;
+    
+    // Check quota before loading
+    const limitType = mode === 'image' || mode === 'video' || mode === 'music' ? 'image' : 'complex';
+    const hasQuota = await checkAndIncrementUsage(user.id, limitType as any);
+    if (!hasQuota) {
+      toast({ title: "Erro", description: "Limite diário atingido para este modo!", variant: "destructive" });
+      setLimitReached(true);
+      return;
+    }
+
+    const controller = new AbortController();
+    setAbortController(controller);
+    
     const userMsg: Msg = { role: "user", content: text };
     const currentMsgs = [...messages, userMsg];
     setMessages(currentMsgs);
@@ -266,6 +284,7 @@ const AIPage = () => {
           "Authorization": `Bearer ${token}` 
         },
         body: JSON.stringify({ prompt: text.replace(/\[Modo:.*?\]\s*/g, ""), mode }),
+        signal: controller.signal
       });
 
       if (!resp.ok) { 
@@ -281,60 +300,19 @@ const AIPage = () => {
       if (mode === "image") setImageUsed(prev => prev + 1);
       
     } catch (e: any) {
-      toast({ title: "Erro", description: e.message, variant: "destructive" });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const sendGemini = async (text: string) => {
-    const userMsg: Msg = { role: "user", content: text };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
-    setInput("");
-    setIsLoading(true);
-
-    try {
-      const token = await getFreshToken();
-      if (!token) { setIsLoading(false); return; }
-      
-      const resp = await fetch(GEMINI_URL, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json", 
-          "Authorization": `Bearer ${token}` 
-        },
-        body: JSON.stringify({ messages: newMessages.map(m => ({ role: m.role, content: m.content })) }),
-      });
-
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        if (resp.status === 429 && chatUsed < DAILY_CHAT_LIMIT) {
-          toast({ title: "Limite atingido, mudando para Complexo..." });
-          setMessages(prev => prev.filter((_, i) => i !== prev.length - 1));
-          setAiEngine("complexo");
-          setInput(text);
-          setIsLoading(false);
-          return;
-        }
-        throw new Error(err.error || "Erro ao conectar");
+      if (e.name === 'AbortError') {
+        // Ignorar AbortError
+      } else {
+        toast({ title: "Erro", description: e.message, variant: "destructive" });
       }
-      const data = await resp.json();
-      const content = data.choices?.[0]?.message?.content || "Sem resposta.";
-      const finalMsgs = [...newMessages, { role: "assistant" as const, content }];
-      setMessages(finalMsgs);
-      saveConversation(finalMsgs);
-      setGeminiUsed(prev => prev + 1);
-
-    } catch (e: any) {
-      toast({ title: "Erro", description: e.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
+      setAbortController(null);
     }
   };
 
   const send = async (text: string) => {
-    if (!text.trim() || isLoading || limitReached) return;
+    if (!user || !text.trim() || isLoading || limitReached) return;
 
     let finalText = text.trim();
     const currentMode = activeMode ? modes.find(m => m.key === activeMode) : null;
@@ -354,9 +332,16 @@ const AIPage = () => {
       return sendSpecialMode(finalText, activeMode);
     }
 
-    if (aiEngine === "simples") {
-      return sendGemini(finalText);
+    // Check quota before loading
+    const hasQuota = await checkAndIncrementUsage(user.id, aiEngine === "complexo" ? "complex" : "simple");
+    if (!hasQuota) {
+      toast({ title: "Erro", description: "Limite diário atingido para este modo!", variant: "destructive" });
+      setLimitReached(true);
+      return;
     }
+
+    const controller = new AbortController();
+    setAbortController(controller);
 
     const userMsg: Msg = { role: "user", content: finalText, fileName: attachedFile?.name };
     const newMessages = [...messages, userMsg];
@@ -366,81 +351,34 @@ const AIPage = () => {
     setIsLoading(true);
     setShowModes(false);
 
-    let assistantSoFar = "";
-
     try {
-      const token = await getFreshToken();
-      if (!token) { setIsLoading(false); return; }
-
-      const resp = await fetch(CHAT_URL, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json", 
-          "Authorization": `Bearer ${token}` 
-        },
-        body: JSON.stringify({ 
-          messages: newMessages.map(m => ({ role: m.role, content: m.content })), 
-          learningMode: activeMode === "learning" 
-        }),
-      });
-
-      if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}));
-        if (resp.status === 429 && geminiUsed < DAILY_GEMINI_LIMIT) {
-          toast({ title: "Limite atingido, mudando para Simples..." });
-          setMessages(prev => prev.filter((_, i) => i !== prev.length - 1));
-          setAiEngine("simples");
-          setInput(finalText);
-          setIsLoading(false);
-          return;
-        }
-        throw new Error(errData.error || "Erro de conexão");
-      }
-
-      const reader = resp.body?.getReader();
-      if (!reader) throw new Error("Falha no stream");
-      const decoder = new TextDecoder();
-      let textBuffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        textBuffer += decoder.decode(value, { stream: true });
-
-        let newlineIndex;
-        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex).trim();
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-          if (line.startsWith("data: ")) {
-            const jsonStr = line.slice(6);
-            if (jsonStr === "[DONE]") break;
-            try {
-              const parsed = JSON.parse(jsonStr);
-              const content = parsed.choices?.[0]?.delta?.content;
-              if (content) {
-                assistantSoFar += content;
-                setMessages((prev) => {
-                  const last = prev[prev.length - 1];
-                  if (last?.role === "assistant") {
-                    return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
-                  }
-                  return [...prev, { role: "assistant", content: assistantSoFar }];
-                });
-              }
-            } catch {}
-          }
-        }
-      }
-
-      const finalMessages = [...newMessages, { role: "assistant" as const, content: assistantSoFar }];
+      const responseText = await askBibleAI(finalText, aiEngine === "complexo" ? "complex" : "simple", controller.signal);
+      const finalMessages = [...newMessages, { role: "assistant" as const, content: responseText }];
+      setMessages(finalMessages);
       saveConversation(finalMessages);
-      setChatUsed(prev => prev + 1);
+      
+      if (aiEngine === "simples") {
+        setGeminiUsed(prev => prev + 1);
+      } else {
+        setChatUsed(prev => prev + 1);
+      }
 
-    } catch (e: any) {
-      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    } catch (error: any) {
+      if (error.name === 'AbortError' || error.message.includes('abort') || error.message.includes('The user aborted a request')) {
+        // Ignorar
+      } else {
+        toast({ title: "Erro na IA", description: error.message, variant: "destructive" });
+      }
     } finally {
       setIsLoading(false);
+      setAbortController(null);
     }
+  };
+
+  const handleStop = () => {
+    abortController?.abort();
+    setIsLoading(false);
+    toast({ description: "Geração cancelada." });
   };
 
   const handleModeSelect = (mode: typeof modes[0]) => {
@@ -721,10 +659,24 @@ const AIPage = () => {
               disabled={isLoading || limitReached}
               className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             />
-            <button type="submit" disabled={isLoading || !input.trim() || limitReached}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed liquid-btn"
+            <button
+              onClick={(e) => {
+                if (isLoading) {
+                  e.preventDefault();
+                  handleStop();
+                } else {
+                  if (!input.trim() || limitReached) e.preventDefault();
+                }
+              }}
+              type={isLoading ? "button" : "submit"}
+              disabled={(!isLoading && (!input.trim() || limitReached))}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all liquid-btn ${
+                isLoading
+                  ? "bg-transparent animate-pulse text-destructive"
+                  : "bg-accent text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+              }`}
             >
-              <Send className="h-4 w-4" />
+              {isLoading ? <Square className="h-4 w-4 fill-current" /> : <Send className="h-4 w-4" />}
             </button>
           </form>
         </div>
