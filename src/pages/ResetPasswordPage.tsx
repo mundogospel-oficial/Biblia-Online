@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import zxcvbn from "zxcvbn";
 import Header from "@/components/Header";
 import { KeyRound, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -71,7 +72,29 @@ const ResetPasswordPage = () => {
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
-              <button type="submit" disabled={loading}
+
+              {password.length > 0 && (() => {
+                const result = zxcvbn(password);
+                const score = result.score;
+                const colors = ['bg-destructive', 'bg-destructive', 'bg-[hsl(40,90%,50%)]', 'bg-[hsl(100,60%,45%)]', 'bg-[hsl(140,70%,40%)]'];
+                const widths = ['w-1/5', 'w-2/5', 'w-3/5', 'w-4/5', 'w-full'];
+                const labels = ['Muito fraca', 'Fraca', 'Razoável', 'Forte', 'Muito forte'];
+                return (
+                  <div className="space-y-1.5">
+                    <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
+                      <div className={`h-full rounded-full transition-all duration-300 ${colors[score]} ${widths[score]}`} />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[11px] font-medium ${score < 3 ? 'text-destructive' : 'text-muted-foreground'}`}>{labels[score]}</span>
+                    </div>
+                    {score < 3 && (
+                      <p className="text-[11px] text-destructive">Para sua segurança, crie uma senha mais forte e menos comum.</p>
+                    )}
+                  </div>
+                );
+              })()}
+
+              <button type="submit" disabled={loading || (password.length > 0 && zxcvbn(password).score < 3)}
                 className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed liquid-btn"
               >
                 {loading ? "Salvando..." : "Salvar Nova Senha"}
