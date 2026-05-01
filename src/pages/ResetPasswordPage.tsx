@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Header from "@/components/Header";
-import { KeyRound } from "lucide-react";
+import { KeyRound, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -15,6 +15,7 @@ const translateAuthError = (message: string) => {
 
 const ResetPasswordPage = () => {
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
   const { toast } = useToast();
@@ -22,7 +23,8 @@ const ResetPasswordPage = () => {
 
   useEffect(() => {
     const hash = window.location.hash;
-    if (hash.includes("type=recovery")) {
+    // When returning from Supabase password reset, it usually appends a hash like #access_token=...&type=recovery
+    if (hash.includes("type=recovery") || hash.includes("access_token")) {
       setReady(true);
     }
   }, []);
@@ -33,11 +35,14 @@ const ResetPasswordPage = () => {
     setLoading(true);
     try {
       const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
-      toast({ title: "Senha atualizada com sucesso! 🎉" });
+      if (error) {
+        toast({ title: "Erro", description: `Erro: ${translateAuthError(error.message)}`, variant: "destructive" });
+        return;
+      }
+      toast({ title: "Sucesso", description: "Senha atualizada com sucesso!" });
       navigate("/conta");
-    } catch (e: any) {
-      toast({ title: "Erro", description: translateAuthError(e.message), variant: "destructive" });
+    } catch (err: any) {
+      toast({ title: "Erro", description: "Ocorreu um erro ao atualizar a senha.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -48,27 +53,32 @@ const ResetPasswordPage = () => {
       <Header />
       <section className="container mx-auto max-w-sm px-4 py-8">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="mb-5 text-center">
-            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-primary">
-              <KeyRound className="h-6 w-6 text-primary-foreground" />
+          <div className="mb-6 text-center">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-primary">
+              <KeyRound className="h-7 w-7 text-primary-foreground" />
             </div>
-            <h1 className="font-serif text-lg font-bold text-foreground">Nova Senha</h1>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">Defina sua nova senha</p>
+            <h1 className="font-serif text-xl font-bold text-foreground">Criar Nova Senha</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Defina sua nova senha</p>
           </div>
 
           {ready ? (
-            <form onSubmit={handleReset} className="space-y-2.5">
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Nova senha (mínimo 6 caracteres)" required minLength={6}
-                className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-              />
+            <form onSubmit={handleReset} className="space-y-3">
+              <div className="relative">
+                <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Nova senha (mínimo 6 caracteres)" required minLength={6}
+                  className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
               <button type="submit" disabled={loading}
-                className="w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed liquid-btn"
               >
                 {loading ? "Salvando..." : "Salvar Nova Senha"}
               </button>
             </form>
           ) : (
-            <p className="text-center text-xs text-muted-foreground">Link inválido ou expirado. Solicite um novo link de recuperação.</p>
+            <p className="text-center text-sm text-muted-foreground">Link inválido ou expirado. Navegue de volta e solicite um novo link de recuperação.</p>
           )}
         </motion.div>
       </section>
@@ -77,3 +87,4 @@ const ResetPasswordPage = () => {
 };
 
 export default ResetPasswordPage;
+

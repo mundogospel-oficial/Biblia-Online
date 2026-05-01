@@ -193,7 +193,12 @@ const AccountPage = () => {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!resetEmail.trim()) return;
+    console.log("1. Iniciando recuperação de senha...");
+
+    if (!resetEmail.trim()) {
+      toast({ title: "Erro", description: "Por favor, digite seu e-mail.", variant: "destructive" });
+      return;
+    }
 
     if (!turnstileToken) {
       toast({ title: "Atenção", description: "Por favor, valide o captcha de segurança.", variant: "destructive" });
@@ -202,28 +207,29 @@ const AccountPage = () => {
 
     setAuthLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `https://online-biblia.vercel.app/atualizar-senha`,
+      console.log("2. Enviando requisição para o Supabase...");
+      const { data, error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
         captchaToken: turnstileToken,
+        redirectTo: `${window.location.origin}/atualizar-senha` 
       });
 
+      console.log("3. Resposta do Supabase:", { data, error });
+
       if (error) {
-        console.error("Erro Supabase:", error);
-        if (error.message?.includes("timeout-or-duplicate")) {
-          toast({ title: "Atenção", description: "A verificação de segurança expirou. Por favor, aguarde o recarregamento e tente novamente.", variant: "destructive" });
-        } else {
-          toast({ title: "Erro", description: translateAuthError(error.message), variant: "destructive" });
-        }
+        toast({ title: "Erro", description: `Erro: ${translateAuthError(error.message)}`, variant: "destructive" });
         turnstileRef.current?.reset();
         setTurnstileToken("");
         return;
       }
 
-      toast({ title: "E-mail de recuperação enviado! 📧" });
+      toast({ title: "Sucesso", description: "Link enviado! Verifique sua caixa de entrada e SPAM." });
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
       setShowForgotPassword(false);
-    } catch (err: any) {
-      console.error("Erro inesperado:", err);
-      toast({ title: "Erro", description: "Ocorreu um erro inesperado ao recuperar a senha.", variant: "destructive" });
+
+    } catch (err) {
+      console.error("Erro inesperado no catch:", err);
+      toast({ title: "Erro", description: "Ocorreu um erro ao processar o pedido.", variant: "destructive" });
       turnstileRef.current?.reset();
       setTurnstileToken("");
     } finally {
@@ -458,18 +464,6 @@ const AccountPage = () => {
                 <input type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="Seu e-mail" required
                   className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
                 
-                <div className="flex justify-center overflow-hidden min-h-[65px] w-[300px] mx-auto mt-4 relative">
-                  <Turnstile 
-                    ref={turnstileRef}
-                    siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || "0x4AAAAAACq9p8bcAjTj0aNS6nvTrL0RNes"} 
-                    onSuccess={(token) => setTurnstileToken(token)}
-                    onError={() => {
-                      console.warn("Turnstile widget failed to load or domain is not authorized.");
-                    }}
-                    options={{ theme: "auto" }}
-                  />
-                </div>
-
                 <button type="submit" disabled={authLoading || !turnstileToken}
                   className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50 liquid-btn">
                   {authLoading ? "Enviando..." : "Enviar Link"}
@@ -485,6 +479,18 @@ const AccountPage = () => {
               >
                 Voltar ao login
               </button>
+              
+              <div className="flex justify-center overflow-hidden min-h-[65px] w-[300px] mx-auto mt-4 relative">
+                <Turnstile 
+                  ref={turnstileRef}
+                  siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || "0x4AAAAAACq9p8bcAjTj0aNS6nvTrL0RNes"} 
+                  onSuccess={(token) => setTurnstileToken(token)}
+                  onError={() => {
+                    console.warn("Turnstile widget failed to load or domain is not authorized.");
+                  }}
+                  options={{ theme: "auto" }}
+                />
+              </div>
             </>
           ) : (
             <>
