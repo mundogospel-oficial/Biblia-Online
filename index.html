@@ -10,9 +10,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Bíblia Online" />
-    <link rel="icon" href="/logo.svg.png" type="image/png" />
-    <link rel="apple-touch-icon" href="/logo.svg.png" />
+    <meta name="apple-mobile-web-app-title" content="Biblia Online" />
+    <link rel="icon" href="/icons/logo.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/icons/logo.png" />
     
     <title>Biblia Online</title>
     <meta name="description" content="A bíblia com IA integrada!">
@@ -54,12 +54,5 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(() => {});
-        });
-      }
-    </script>
   </body>
 </html>

@@ -279,9 +279,22 @@ const AccountPage = () => {
         if (permission === "granted") {
           setNotificationsEnabled(true);
           localStorage.setItem(NOTIFICATIONS_KEY, "true");
-          const reg = await navigator.serviceWorker?.ready;
-          reg?.active?.postMessage({ type: 'ENABLE_NOTIFICATIONS' });
-          reg?.active?.postMessage({ type: 'TEST_NOTIFICATION' });
+          
+          if ("serviceWorker" in navigator) {
+            // Safe check to avoid hang
+            const regPromise = navigator.serviceWorker.ready;
+            const timeoutPromise = new Promise((_, reject) => 
+               setTimeout(() => reject(new Error("Timeout waiting for Service Worker")), 2000)
+            );
+            
+            Promise.race([regPromise, timeoutPromise])
+              .then((reg: any) => {
+                reg?.active?.postMessage({ type: 'ENABLE_NOTIFICATIONS' });
+                reg?.active?.postMessage({ type: 'TEST_NOTIFICATION' });
+              })
+              .catch(err => console.warn("SW for notifications not ready:", err));
+          }
+          
           toast({ title: "Notificações ativadas! 🔔" });
         } else {
           toast({ title: "Permissão negada", variant: "destructive" });
@@ -338,8 +351,15 @@ const AccountPage = () => {
       }
 
       if ('serviceWorker' in navigator) {
-        const reg = await navigator.serviceWorker.ready;
-        reg?.active?.postMessage({ type: 'CACHE_OFFLINE' });
+        try {
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Timeout waiting for Service Worker")), 3000)
+          );
+          const reg = await Promise.race([navigator.serviceWorker.ready, timeoutPromise]) as ServiceWorkerRegistration;
+          reg?.active?.postMessage({ type: 'CACHE_OFFLINE' });
+        } catch (swErr) {
+          console.warn("Service Worker not ready for offline cache:", swErr);
+        }
       }
       
       setOfflineProgress(100);

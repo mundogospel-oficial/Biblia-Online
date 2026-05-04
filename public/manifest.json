@@ -1,6 +1,6 @@
 {
-  "name": "Bíblia Online",
-  "short_name": "Bíblia",
+  "name": "Biblia Online",
+  "short_name": "Biblia Online",
   "description": "A Melhor Bíblia Grátis!",
   "start_url": "/",
   "display": "standalone",
@@ -9,12 +9,12 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/logo.svg.png",
+      "src": "/icons/logo.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/logo.svg.png",
+      "src": "/icons/logo.png",
       "sizes": "512x512",
       "type": "image/png"
     }

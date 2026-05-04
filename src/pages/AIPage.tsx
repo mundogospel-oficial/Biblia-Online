@@ -11,7 +11,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 import { askBibleAI } from "@/services/aiService";
-import { checkAndIncrementUsage } from "@/services/usageService";
+import { checkAndIncrementUsage, getUserUsage, refundUsage } from "@/services/usageService";
+import { saveAIHistory } from "@/services/userDataService";
+import { generateBiblicalImage } from "@/services/imageGenerationService";
+
+const formatMessageForDisplay = (text: string): string => {
+  if (!text) return "";
+  // Limpa as tags completas e também qualquer tag que possivelmente foi cortada no final
+  return text.replace(/\[.*?\]/g, '').replace(/\[[^\]]*$/, '').trim();
+};
 
 type Msg = { role: "user" | "assistant"; content: string; image?: string; fileName?: string };
 
@@ -83,6 +91,7 @@ const AIPage = () => {
   const [chatUsed, setChatUsed] = useState(0);
   const [imageUsed, setImageUsed] = useState(0);
   const [geminiUsed, setGeminiUsed] = useState(0);
+  const [usageStats, setUsageStats] = useState({ simple: 0, complex: 0, image: 0 });
   const [limitReached, setLimitReached] = useState(false);
 
   // Função blindada para garantir que o token JWT nunca seja inválido
@@ -103,54 +112,31 @@ const AIPage = () => {
     } catch {}
   }, []);
 
-  useEffect(() => {
+  const fetchUsage = async () => {
     if (!user) return;
-    const fetchUsage = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const today = new Date();
-      today.setUTCHours(0, 0, 0, 0);
-      const todayStr = today.toISOString();
+    const data = await getUserUsage();
+    setUsageStats({
+      simple: data.simple_count || 0,
+      complex: data.complex_count || 0,
+      image: data.image_count || 0,
+    });
+  };
 
-      const { count: chatCount } = await (supabase as any)
-        .from('user_ai_usage')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', session.user.id)
-        .eq('tipo_uso', 'chat')
-        .gte('created_at', todayStr);
-      
-      const { count: imgCount } = await (supabase as any)
-        .from('user_ai_usage')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', session.user.id)
-        .eq('tipo_uso', 'imagem')
-        .gte('created_at', todayStr);
-
-      const { count: gemCount } = await (supabase as any)
-        .from('user_ai_usage')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', session.user.id)
-        .eq('tipo_uso', 'gemini_chat')
-        .gte('created_at', todayStr);
-
-      setChatUsed(chatCount || 0);
-      setImageUsed(imgCount || 0);
-      setGeminiUsed(gemCount || 0);
-    };
+  useEffect(() => {
     fetchUsage();
   }, [user]);
 
   useEffect(() => {
     if (aiEngine === "simples") {
-      setLimitReached(geminiUsed >= DAILY_GEMINI_LIMIT);
+      setLimitReached(usageStats.simple >= DAILY_GEMINI_LIMIT);
     } else {
-      if (activeMode === "image") {
-        setLimitReached(imageUsed >= DAILY_IMAGE_LIMIT);
+      if (activeMode === "image" || activeMode === "video" || activeMode === "music") {
+        setLimitReached(usageStats.image >= DAILY_IMAGE_LIMIT);
       } else {
-        setLimitReached(chatUsed >= DAILY_CHAT_LIMIT);
+        setLimitReached(usageStats.complex >= DAILY_CHAT_LIMIT);
       }
     }
-  }, [aiEngine, activeMode, chatUsed, imageUsed, geminiUsed]);
+  }, [aiEngine, activeMode, usageStats]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -178,7 +164,7 @@ const AIPage = () => {
     if (msgs.length < 2) return;
     
     setConversations(prev => {
-      const title = msgs[0]?.content.slice(0, 50) || "Conversa";
+      const title = formatMessageForDisplay(msgs[0]?.content).slice(0, 50) || "Conversa";
       let updated;
 
       if (currentChatIdRef.current) {
@@ -256,10 +242,16 @@ const AIPage = () => {
     
     // Check quota before loading
     const limitType = mode === 'image' || mode === 'video' || mode === 'music' ? 'image' : 'complex';
-    const hasQuota = await checkAndIncrementUsage(user.id, limitType as any);
-    if (!hasQuota) {
-      toast({ title: "Erro", description: "Limite diário atingido para este modo!", variant: "destructive" });
-      setLimitReached(true);
+    try {
+      const hasQuota = await checkAndIncrementUsage(limitType as any);
+      if (!hasQuota) {
+        toast({ title: "Erro", description: "Limite atingido. Recarga em até 12h.", variant: "destructive" });
+        setLimitReached(true);
+        setIsLoading(false);
+        return;
+      }
+    } catch (error) {
+      toast({ title: "Erro", description: "Erro ao verificar cotas. Faça login novamente.", variant: "destructive" });
       return;
     }
 
@@ -297,14 +289,17 @@ const AIPage = () => {
       const finalMessages = [...currentMsgs, assistantMsg];
       setMessages(finalMessages);
       saveConversation(finalMessages);
-      if (mode === "image") setImageUsed(prev => prev + 1);
+      fetchUsage();
+      
+      saveAIHistory(text, assistantMsg.content, mode).catch(console.error);
       
     } catch (e: any) {
       if (e.name === 'AbortError') {
-        // Ignorar AbortError
+        toast({ description: "Geração interrompida." });
       } else {
-        toast({ title: "Erro", description: e.message, variant: "destructive" });
+        toast({ title: "Erro", description: e.message || "Erro ao gerar resposta.", variant: "destructive" });
       }
+      setMessages(prev => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
       setAbortController(null);
@@ -320,30 +315,40 @@ const AIPage = () => {
       finalText = currentMode.prefix + finalText;
     }
 
+    let base64Image: string | null = null;
+    let fileName: string | null = null;
     if (attachedFile && aiEngine === "complexo") {
       try {
-        await readFileAsBase64(attachedFile);
+        base64Image = await readFileAsBase64(attachedFile);
+        fileName = attachedFile.name;
         finalText = `[Arquivo: ${attachedFile.name}]\n${finalText}`;
       } catch {}
       setAttachedFile(null);
     }
 
-    if (activeMode && activeMode !== "learning" && ["image", "video", "music"].includes(activeMode)) {
+    if (activeMode && activeMode !== "learning" && ["video", "music"].includes(activeMode)) {
       return sendSpecialMode(finalText, activeMode);
     }
 
     // Check quota before loading
-    const hasQuota = await checkAndIncrementUsage(user.id, aiEngine === "complexo" ? "complex" : "simple");
-    if (!hasQuota) {
-      toast({ title: "Erro", description: "Limite diário atingido para este modo!", variant: "destructive" });
-      setLimitReached(true);
+    try {
+      const limitType = activeMode === "image" ? "image" : (aiEngine === "complexo" ? "complex" : "simple");
+      const hasQuota = await checkAndIncrementUsage(limitType);
+      if (!hasQuota) {
+        toast({ title: "Erro", description: activeMode === "image" ? "Limite diário de 5 imagens atingido. Recarga em 12h." : "Limite atingido. Recarga em até 12h.", variant: "destructive" });
+        setLimitReached(true);
+        setIsLoading(false);
+        return;
+      }
+    } catch (error) {
+      toast({ title: "Erro", description: "Erro ao verificar cotas. Faça login novamente.", variant: "destructive" });
       return;
     }
 
     const controller = new AbortController();
     setAbortController(controller);
 
-    const userMsg: Msg = { role: "user", content: finalText, fileName: attachedFile?.name };
+    const userMsg: Msg = { role: "user", content: finalText, fileName: fileName || attachedFile?.name };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
@@ -352,33 +357,49 @@ const AIPage = () => {
     setShowModes(false);
 
     try {
-      const responseText = await askBibleAI(finalText, aiEngine === "complexo" ? "complex" : "simple", controller.signal);
+      let responseText = "";
+      if (activeMode === 'image') {
+        responseText = await generateBiblicalImage(finalText, controller.signal);
+      } else {
+        responseText = await askBibleAI(finalText, aiEngine === "complexo" ? "complex" : "simple", controller.signal, base64Image);
+      }
+      
       const finalMessages = [...newMessages, { role: "assistant" as const, content: responseText }];
       setMessages(finalMessages);
       saveConversation(finalMessages);
+      fetchUsage();
       
-      if (aiEngine === "simples") {
-        setGeminiUsed(prev => prev + 1);
-      } else {
-        setChatUsed(prev => prev + 1);
-      }
+      saveAIHistory(finalText, responseText, aiEngine === "complexo" ? "complex" : "simple").catch(console.error);
 
     } catch (error: any) {
-      if (error.name === 'AbortError' || error.message.includes('abort') || error.message.includes('The user aborted a request')) {
-        // Ignorar
+      if (error.name === 'AbortError' || error.message?.includes('abort') || error.message?.includes('The user aborted a request')) {
+        toast({ description: "Geração interrompida." });
       } else {
-        toast({ title: "Erro na IA", description: error.message, variant: "destructive" });
+        toast({ title: "Erro na IA", description: error.message || "Erro ao gerar resposta.", variant: "destructive" });
+        if (
+          error.message?.includes('Chave da API') || 
+          error.message?.includes('Todos os modelos falharam') || 
+          error.message?.includes('Falha Gemini') ||
+          error.message?.includes('BLOQUEADO') ||
+          error.message?.includes('Falha de comunicação')
+        ) {
+          refundUsage(activeMode === "image" ? "image" : (aiEngine === "complexo" ? "complex" : "simple")).catch(console.error);
+        }
       }
+      setMessages(prev => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
       setAbortController(null);
     }
   };
 
-  const handleStop = () => {
-    abortController?.abort();
-    setIsLoading(false);
-    toast({ description: "Geração cancelada." });
+  const handleStopResponse = () => {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+      setIsLoading(false);
+      toast({ description: "Resposta interrompida." });
+    }
   };
 
   const handleModeSelect = (mode: typeof modes[0]) => {
@@ -407,6 +428,18 @@ const AIPage = () => {
           </div>
         )}
         {lines.map((line, i) => {
+          const imgMatch = line.match(/!\[.*?\]\((.*?)\)/);
+          if (imgMatch) {
+             return (
+               <div key={i} className="mb-2 mt-2">
+                 <img src={imgMatch[1]} alt="Imagem gerada" className="rounded-xl max-w-full w-full" />
+                 <button onClick={() => downloadImage(imgMatch[1])}
+                   className="mt-1.5 flex items-center gap-1 rounded-lg bg-accent/10 px-2.5 py-1.5 text-[10px] font-medium text-accent hover:bg-accent/20 transition-colors liquid-btn">
+                   <Download className="h-3 w-3" /> Baixar imagem
+                 </button>
+               </div>
+             );
+          }
           if (line.startsWith("**") && line.endsWith("**")) return <p key={i} className="text-xs font-bold text-foreground mt-1.5">{line.slice(2, -2)}</p>;
           if (line.startsWith("- ") || line.startsWith("* ")) return <p key={i} className="text-xs pl-2 border-l-2 border-accent/30 py-0.5">{line.slice(2)}</p>;
           if (line.match(/^\d+\.\s/)) return <p key={i} className="text-xs pl-2">{line}</p>;
@@ -427,9 +460,9 @@ const AIPage = () => {
   };
 
   const activeModeInfo = activeMode ? modes.find(m => m.key === activeMode) : null;
-  const chatRemaining = DAILY_CHAT_LIMIT - chatUsed;
-  const imageRemaining = DAILY_IMAGE_LIMIT - imageUsed;
-  const geminiRemaining = DAILY_GEMINI_LIMIT - geminiUsed;
+  const chatRemaining = DAILY_CHAT_LIMIT - usageStats.complex;
+  const imageRemaining = DAILY_IMAGE_LIMIT - usageStats.image;
+  const geminiRemaining = DAILY_GEMINI_LIMIT - usageStats.simple;
 
   if (showHistory) {
     return (
@@ -468,8 +501,10 @@ const AIPage = () => {
               <div className="space-y-2">
                 {conversations.map((conv) => (
                   <div key={conv.id} className="glass-card flex items-center justify-between rounded-xl px-4 py-3">
-                    <button onClick={() => loadConversation(conv)} className="flex-1 text-left liquid-btn">
-                      <p className="text-sm font-medium text-foreground truncate">{conv.title}</p>
+                    <button onClick={() => loadConversation(conv)} className="flex-1 text-left liquid-btn min-w-0">
+                      <h3 className="text-sm font-normal not-italic truncate w-full text-left text-white">
+                        { formatMessageForDisplay(conv.title || conv.messages?.[0]?.content || "") || "Conversa Bíblica" }
+                      </h3>
                       <p className="text-[10px] text-muted-foreground">{new Date(conv.timestamp).toLocaleDateString('pt-BR')} · {conv.messages.length} msgs</p>
                     </button>
                     <button onClick={() => deleteConversation(conv.id)} className="ml-3 p-2 text-muted-foreground hover:text-destructive rounded-lg hover:bg-destructive/10 transition-colors">
@@ -529,7 +564,7 @@ const AIPage = () => {
         {limitReached && (
           <div className="shrink-0 flex items-center gap-2 rounded-xl bg-destructive/10 border border-destructive/20 px-3 py-2 mb-2">
             <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-            <p className="text-xs text-destructive font-medium">Limite diário atingido. Volte amanhã!</p>
+            <p className="text-xs text-destructive font-medium">Limite atingido. Recarga em até 12h.</p>
           </div>
         )}
 
@@ -573,7 +608,7 @@ const AIPage = () => {
                     <Paperclip className="h-3 w-3" /> {m.fileName}
                   </div>
                 )}
-                {m.role === "assistant" ? renderAssistantContent(m) : <span className="text-sm">{m.content}</span>}
+                {m.role === "assistant" ? renderAssistantContent(m) : <span className="text-sm">{formatMessageForDisplay(m.content)}</span>}
               </div>
             </motion.div>
           ))}
@@ -659,25 +694,25 @@ const AIPage = () => {
               disabled={isLoading || limitReached}
               className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             />
-            <button
-              onClick={(e) => {
-                if (isLoading) {
-                  e.preventDefault();
-                  handleStop();
-                } else {
-                  if (!input.trim() || limitReached) e.preventDefault();
-                }
-              }}
-              type={isLoading ? "button" : "submit"}
-              disabled={(!isLoading && (!input.trim() || limitReached))}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all liquid-btn ${
-                isLoading
-                  ? "bg-transparent animate-pulse text-destructive"
-                  : "bg-accent text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-              }`}
-            >
-              {isLoading ? <Square className="h-4 w-4 fill-current" /> : <Send className="h-4 w-4" />}
-            </button>
+            {isLoading ? (
+              <button
+                type="button"
+                onClick={handleStopResponse}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive text-destructive-foreground transition-colors liquid-btn"
+                title="Parar resposta"
+              >
+                <Square size={18} fill="currentColor" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!input.trim() || limitReached}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground transition-colors liquid-btn disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Enviar"
+              >
+                <Send size={18} />
+              </button>
+            )}
           </form>
         </div>
       </div>

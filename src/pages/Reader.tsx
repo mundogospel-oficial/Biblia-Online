@@ -18,6 +18,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 const DICT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bible-chat`;
 
+import { translateVersesAI, checkAndIncrementQuota } from "@/services/translationService";
+
 const Reader = () => {
   const { abbrev, chapter } = useParams<{ abbrev: string; chapter: string }>();
   const navigate = useNavigate();
@@ -33,9 +35,6 @@ const Reader = () => {
   const [favSet, setFavSet] = useState<Set<number>>(new Set());
   const [translation, setTranslation] = useState("almeida");
   const [bilingual, setBilingual] = useState(false);
-  
-  // TRAVA DE SEGURANÇA: Contador de uso da IA de tradução
-  const [bilingualCount, setBilingualCount] = useState(0);
 
   const [activeVerse, setActiveVerse] = useState<number | null>(null);
   const [noteText, setNoteText] = useState("");
@@ -91,7 +90,7 @@ const Reader = () => {
       return;
     }
 
-    const cacheKey = `bilingual:${abbrev}:${chapter}:${translation}`;
+    const cacheKey = `bilingual_v2:${abbrev}:${chapter}:${translation}`;
     const cached = sessionStorage.getItem(cacheKey);
     if (cached) {
       try {
@@ -111,6 +110,31 @@ const Reader = () => {
           return;
         }
 
+        // Verificar e Incrementar Cota
+        const quotaResult = await checkAndIncrementQuota(session.user.id);
+        if (!quotaResult.success) {
+          toast({ 
+            title: "Limite de Tradução Atingido", 
+            description: "Você atingiu o limite de 5 capítulos traduzidos por dia no modo gratuito.", 
+            variant: "destructive" 
+          });
+          setBilingual(false);
+          setBilingualLoading(false);
+          return;
+        }
+
+        if (quotaResult.remaining !== undefined) {
+          toast({ 
+            title: "Capítulo Traduzido", 
+            description: `Você ainda pode traduzir mais ${quotaResult.remaining} capítulos hoje.` 
+          });
+        }
+
+        // Determinar o idioma de destino com base na versão atual
+        const selectedTranslation = translations.find(t => t.id === translation);
+        const currentLang = selectedTranslation?.language || 'pt';
+        const targetLang = currentLang === 'pt' ? 'en' : 'pt';
+
         const allVerses = verses.map((v) => ({ verse: v.verse, text: v.text.trim() }));
         const BATCH_SIZE = 10;
         const batches = [];
@@ -120,22 +144,8 @@ const Reader = () => {
 
         const allTranslations: any[] = [];
         for (const batch of batches) {
-          const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/translate-verses`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({ verses: batch, targetLang: "en" }),
-          });
-
-          if (!resp.ok) {
-            const err = await resp.json().catch(() => ({}));
-            throw new Error(err.error || "Erro ao traduzir");
-          }
-
-          const data = await resp.json();
-          allTranslations.push(...(data.translations || []));
+          const results = await translateVersesAI(batch, targetLang as 'en' | 'pt');
+          allTranslations.push(...results);
         }
 
         const translated: VerseData[] = (allTranslations).map((t: any) => ({
@@ -149,7 +159,7 @@ const Reader = () => {
         sessionStorage.setItem(cacheKey, JSON.stringify(translated));
       } catch (e: any) {
         toast({ title: e.message || "Erro ao traduzir versículos", variant: "destructive" });
-        setBilingual(false); // Desliga o modo bilingue se der erro
+        setBilingual(false);
       } finally {
         setBilingualLoading(false);
       }
@@ -334,34 +344,18 @@ const Reader = () => {
             ))}
           </select>
           <button
-            disabled={bilingualCount >= 10 && !bilingual}
             onClick={() => {
               if (!authUser) { toast({ title: "Faça login para usar o modo bilíngue" }); return; }
-              
-              if (!bilingual) { 
-                if (bilingualCount >= 10) {
-                  toast({ 
-                    title: "Limite de IA atingido 🛑", 
-                    description: "Você atingiu o limite de 10 traduções nesta sessão. Atualize a página para continuar.", 
-                    variant: "destructive" 
-                  });
-                  return;
-                }
-                setBilingualCount(prev => prev + 1);
-              }
-              
               setBilingual(!bilingual);
             }}
             className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
               bilingual
                 ? "bg-accent text-accent-foreground"
-                : bilingualCount >= 10
-                ? "bg-secondary opacity-50 cursor-not-allowed text-secondary-foreground"
                 : "bg-secondary text-secondary-foreground hover:bg-muted"
             }`}
           >
             <Languages className="h-3.5 w-3.5" />
-            {bilingualCount >= 10 && !bilingual ? "Limite Atingido" : "Bilíngue"}
+            Bilíngue
           </button>
           {bilingual && (
             <div className="flex items-center gap-1.5">
