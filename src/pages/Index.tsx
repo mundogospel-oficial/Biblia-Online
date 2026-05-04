@@ -43,7 +43,7 @@ const Index = () => {
             // AQUI: Aumentado max-w para 800px, padding (py-16 sm:py-24) e bordas (rounded-3xl)
             className="glass-card rounded-3xl px-6 py-16 sm:px-16 sm:py-24 mx-auto w-full max-w-[800px]"
           >
-            <img src="/icons/logo.png" alt="Logo Bíblia Online" className="mx-auto mb-4 h-14 w-14 object-contain transition-opacity duration-300" />
+            <img src="/icons/logo1.png" alt="Logo Bíblia Online" className="mx-auto mb-4 h-14 w-14 object-contain transition-opacity duration-300" />
             <h1 className="font-serif text-3xl font-bold text-foreground sm:text-4xl lg:text-5xl">
               Biblia Online
             </h1>
