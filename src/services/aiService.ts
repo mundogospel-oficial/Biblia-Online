@@ -64,6 +64,8 @@ REGRAS ABSOLUTAS:
 
     for (const model of modelsToTry) {
       try {
+        if (!navigator.onLine) throw new Error("Sem conexão com a internet.");
+
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -107,6 +109,8 @@ Versículo: "${verseText}" — ${reference}`;
   let lastError = "";
   for (const model of geminiModels) {
     try {
+      if (!navigator.onLine) throw new Error("Sem conexão com a internet.");
+      
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -153,6 +157,8 @@ export const askBibleAI = async (prompt: string, complexity: 'simple' | 'complex
       
       for (const model of geminiModels) {
         try {
+          if (!navigator.onLine) throw new Error("Sem conexão com a internet.");
+
           const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -226,6 +232,8 @@ export const askBibleAI = async (prompt: string, complexity: 'simple' | 'complex
 
       for (const model of freeModels) {
         try {
+          if (!navigator.onLine) throw new Error("Sem conexão com a internet.");
+
           const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: 'POST',
             headers: {
@@ -269,6 +277,9 @@ export const askBibleAI = async (prompt: string, complexity: 'simple' | 'complex
     }
   } catch (error: any) {
     if (error.name === 'AbortError' || error.message?.includes('abort')) throw error;
+    if (error.message === 'Failed to fetch') {
+      throw new Error("Erro de conexão: Não foi possível alcançar o servidor da IA. Verifique sua internet.");
+    }
     throw new Error(error.message || "Ocorreu um erro inesperado ao consultar a IA.");
   }
 };

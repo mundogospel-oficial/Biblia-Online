@@ -4,5 +4,49 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.supabase.in https://*.supabase.net https://*.google.com https://*.vercel.app https://*.vercel.live https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; frame-src 'self' https://*.vercel.live https://challenges.cloudflare.com; connect-src 'self' https://*.supabase.co https://*.supabase.in https://*.supabase.net https://*.googleapis.com wss://*.supabase.co wss://*.supabase.in https://raw.githubusercontent.com https://bible-api.com https://bolls.life https://openrouter.ai https://*.cloudflare.com https://*.vercel.live;"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains; preload"
+        }
+      ]
+    },
+    {
+      "source": "/icons/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
   ]
 }

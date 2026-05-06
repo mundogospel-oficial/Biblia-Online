@@ -16,6 +16,11 @@ if (envUrl && !envUrl.startsWith('http')) {
   console.error("The provided Supabase URL does not start with 'http'. It looks like you might have accidentally copied the SHA256 digest instead of the actual URL.");
 }
 
+// Interceptor opcional ou log para debug de rede
+if (import.meta.env.DEV) {
+  console.log("Supabase URL:", SUPABASE_URL);
+}
+
 const SUPABASE_PUBLISHABLE_KEY = envKey || 'YOUR_SUPABASE_ANON_KEY';
 
 

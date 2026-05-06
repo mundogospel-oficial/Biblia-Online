@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import zxcvbn from "zxcvbn";
 import { motion } from "framer-motion";
 import Header from "@/components/Header";
-import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff } from "lucide-react";
+import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, ShieldAlert, FileJson, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +15,8 @@ const OFFLINE_KEY = "bible-offline-enabled";
 // Helper to translate common Supabase auth errors
 const translateAuthError = (message: string) => {
   const lowered = message.toLowerCase();
+  if (lowered.includes("timeout-or-duplicate")) return "A verificação de segurança expirou. Por favor, tente novamente.";
+  if (lowered.includes("failed to fetch")) return "Erro de conexão. Verifique sua internet ou se o serviço está disponível.";
   if (lowered.includes("invalid login credentials")) return "Credenciais inválidas. Verifique seu e-mail e senha.";
   if (lowered.includes("user already registered")) return "Este e-mail já está em uso.";
   if (lowered.includes("password should contain at least one character of each")) return "A senha deve conter letras (maiúsculas e minúsculas), números e símbolos (!@#$).";
@@ -27,7 +29,7 @@ const AccountPage = () => {
   const authCtx = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(authCtx.loading);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
@@ -47,37 +49,39 @@ const AccountPage = () => {
   const [appVersion, setAppVersion] = useState("");
 
   useEffect(() => {
+    setLoading(authCtx.loading);
+  }, [authCtx.loading]);
+
+  useEffect(() => {
     fetch('/version.json', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => setAppVersion(data.version))
       .catch(() => setAppVersion("1.7"));
 
-    const loadFromDb = async () => {
+    const loadProfile = async () => {
       if (authCtx.user) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('display_name, avatar_url')
-            .eq('id', session.user.id)
-            .single();
-          if (profile) {
-            setDisplayName(profile.display_name || authCtx.user.name || "");
-            setAvatarUrl(profile.avatar_url || authCtx.user.picture || null);
-          } else {
-            setDisplayName(authCtx.user.name || "");
-            setAvatarUrl(authCtx.user.picture || null);
-          }
+        // Se já temos o usuário, podemos carregar o resto em silêncio
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('display_name, avatar_url')
+          .eq('id', authCtx.user.sub)
+          .single();
+
+        if (profile) {
+          setDisplayName(profile.display_name || authCtx.user.name || "");
+          setAvatarUrl(profile.avatar_url || authCtx.user.picture || null);
         } else {
           setDisplayName(authCtx.user.name || "");
           setAvatarUrl(authCtx.user.picture || null);
         }
       }
-      setLoading(authCtx.loading);
+    };
+
+    if (!authCtx.loading) {
+      loadProfile();
       setNotificationsEnabled(localStorage.getItem(NOTIFICATIONS_KEY) === "true");
       setOfflineEnabled(localStorage.getItem(OFFLINE_KEY) === "true");
-    };
-    loadFromDb();
+    }
   }, [authCtx.loading, authCtx.user]);
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -136,11 +140,7 @@ const AccountPage = () => {
 
         if (error) {
           console.error("Erro Supabase:", error);
-          if (error.message?.includes("timeout-or-duplicate")) {
-            toast({ title: "Atenção", description: "A verificação de segurança expirou. Por favor, aguarde o recarregamento e tente novamente.", variant: "destructive" });
-          } else {
-            toast({ title: "Erro", description: translateAuthError(error.message), variant: "destructive" });
-          }
+          toast({ title: "Erro", description: translateAuthError(error.message), variant: "destructive" });
           turnstileRef.current?.reset();
           setTurnstileToken("");
           return;
@@ -161,11 +161,7 @@ const AccountPage = () => {
 
         if (error) {
           console.error("Erro Supabase:", error);
-          if (error.message?.includes("timeout-or-duplicate")) {
-            toast({ title: "Atenção", description: "A verificação de segurança expirou. Por favor, aguarde o recarregamento e tente novamente.", variant: "destructive" });
-          } else {
-            toast({ title: "Erro", description: translateAuthError(error.message), variant: "destructive" });
-          }
+          toast({ title: "Erro", description: translateAuthError(error.message), variant: "destructive" });
           turnstileRef.current?.reset();
           setTurnstileToken("");
           return;
@@ -255,6 +251,117 @@ const AccountPage = () => {
   const handleLogout = () => {
     authCtx.logout();
     toast({ title: "Logout realizado" });
+  };
+
+  const handleExportData = async () => {
+    if (!authCtx.user) return;
+    toast({ title: "Preparando exportação...", description: "Isso pode levar alguns segundos." });
+    
+    try {
+      // Collect Local Data
+      const localData = {
+        favorites: JSON.parse(localStorage.getItem("bible-favorites") || "[]"),
+        markings: JSON.parse(localStorage.getItem("bible-markings") || "[]"),
+        notes: JSON.parse(localStorage.getItem("bible-notes") || "[]"),
+        highlights: JSON.parse(localStorage.getItem("bible-highlights") || "[]"),
+        ai_conversations: JSON.parse(localStorage.getItem("ia-biblica-conversations") || "[]"),
+        settings: {
+          notifications: localStorage.getItem("bible-notifications-enabled"),
+          offline: localStorage.getItem("bible-offline-enabled"),
+          theme: localStorage.getItem("theme")
+        }
+      };
+
+      // Fetch Remote Data
+      const userId = authCtx.user.sub;
+      
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
+      const { data: posts } = await supabase.from('posts').select('*').eq('user_id', userId);
+      const { data: postLikes } = await supabase.from('post_likes').select('*').eq('user_id', userId);
+      const { data: postComments } = await supabase.from('post_comments').select('*').eq('user_id', userId);
+      const { data: stories } = await supabase.from('stories').select('*').eq('user_id', userId);
+      const { data: aiUsage } = await supabase.from('user_ai_usage').select('*').eq('user_id', userId);
+      
+      // Combine all
+      const fullExport = {
+        export_date: new Date().toISOString(),
+        user_info: {
+          email: authCtx.user.email,
+          id: userId,
+          profile
+        },
+        social: {
+          posts,
+          likes: postLikes,
+          comments: postComments,
+          stories
+        },
+        usage: {
+          ai_usage: aiUsage
+        },
+        app_data: localData
+      };
+
+      // Trigger download
+      const blob = new Blob([JSON.stringify(fullExport, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dados-biblia-online-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      
+      toast({ title: "Dados exportados com sucesso! 📄" });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({ title: "Erro na exportação", description: "Não foi possível compilar todos os seus dados.", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteData = async () => {
+    if (!authCtx.user) return;
+    
+    const confirm = window.confirm(
+      "Deseja realmente EXCLUIR permanentEMENTE todos os seus dados e conta?\n\n" +
+      "Isso apagará seu perfil, posts, curtidas, comentários, anotações e favoritos."
+    );
+    
+    if (!confirm) return;
+    
+    setLoading(true);
+    try {
+      const userId = authCtx.user.sub;
+      
+      // 1. Clear Remote Data (Social/Usage)
+      // Note: Depending on RLS, some of these might need manual loops or cascade
+      await supabase.from('post_likes').delete().eq('user_id', userId);
+      await supabase.from('post_comments').delete().eq('user_id', userId);
+      await supabase.from('posts').delete().eq('user_id', userId);
+      await supabase.from('stories').delete().eq('user_id', userId);
+      await supabase.from('user_ai_usage').delete().eq('user_id', userId);
+      
+      // Delete profile
+      await supabase.from('profiles').delete().eq('id', userId);
+      
+      // 2. Clear Local Storage
+      const keysToRemove = [
+        "bible-favorites", "bible-markings", "bible-notes", "bible-highlights",
+        "ia-biblica-conversations", "bible-notifications-enabled", "bible-offline-enabled"
+      ];
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+      
+      // 3. Logout
+      await supabase.auth.signOut();
+      authCtx.logout();
+      
+      toast({ title: "Dados excluídos", description: "Todos os seus dados foram removidos conforme solicitado." });
+      navigate("/");
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast({ title: "Erro na exclusão", description: "Ocorreu uma falha ao tentar apagar seus dados.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const isIOSPWA = () => {
@@ -498,6 +605,41 @@ const AccountPage = () => {
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive/10 py-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 liquid-btn">
                   <LogOut className="h-4 w-4" /> Sair da Conta
                 </button>
+
+                <div className="mt-4 pt-4 border-t border-border/50">
+                  <div className="glass-card rounded-xl p-4">
+                    <h3 className="mb-3 text-sm font-semibold text-foreground flex items-center gap-2">
+                      <ShieldAlert className="h-4 w-4 text-accent" /> Privacidade e Dados (LGPD)
+                    </h3>
+                    <p className="mb-4 text-[11px] text-muted-foreground leading-relaxed">
+                      Em conformidade com a LGPD (Art. 18), você tem controle total sobre seus dados. 
+                      Você pode baixar uma cópia das suas informações ou excluir permanentemente sua conta e dados.
+                    </p>
+                    <div className="space-y-2">
+                      <button 
+                        onClick={handleExportData}
+                        className="flex w-full items-center gap-3 rounded-xl bg-secondary/50 p-3 transition-colors hover:bg-secondary liquid-btn"
+                      >
+                        <FileJson className="h-4 w-4 text-muted-foreground" />
+                        <div className="text-left">
+                          <p className="text-sm font-medium text-foreground">Exportar Meus Dados</p>
+                          <p className="text-[10px] text-muted-foreground">Baixar arquivo .JSON com seus dados</p>
+                        </div>
+                      </button>
+                      
+                      <button 
+                        onClick={handleDeleteData}
+                        className="flex w-full items-center gap-3 rounded-xl bg-destructive/5 p-3 transition-colors hover:bg-destructive/10 text-destructive liquid-btn"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <div className="text-left">
+                          <p className="text-sm font-medium">Excluir Tudo e Sair</p>
+                          <p className="text-[10px] opacity-70">Excluir perfil, favoritos, notas e posts</p>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </>
           ) : showForgotPassword ? (
@@ -532,8 +674,12 @@ const AccountPage = () => {
               <div className="flex justify-center overflow-hidden min-h-[65px] w-[300px] mx-auto mt-4 relative">
                 <Turnstile 
                   ref={turnstileRef}
-                  siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || "0x4AAAAAACq9p8bcAjTj0aNS6nvTrL0RNes"} 
+                  siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || ""} 
                   onSuccess={(token) => setTurnstileToken(token)}
+                  onExpire={() => {
+                    setTurnstileToken("");
+                    turnstileRef.current?.reset();
+                  }}
                   onError={() => {
                     console.warn("Turnstile widget failed to load or domain is not authorized.");
                   }}
@@ -601,8 +747,12 @@ const AccountPage = () => {
                 <div className="flex justify-center overflow-hidden min-h-[65px] w-[300px] mx-auto mt-4 relative">
                   <Turnstile 
                     ref={turnstileRef}
-                    siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || "0x4AAAAAACq9p8bcAjTj0aNS6nvTrL0RNes"} 
+                    siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || ""} 
                     onSuccess={(token) => setTurnstileToken(token)}
+                    onExpire={() => {
+                      setTurnstileToken("");
+                      turnstileRef.current?.reset();
+                    }}
                     onError={() => {
                       console.warn("Turnstile widget failed to load or domain is not authorized.");
                     }}

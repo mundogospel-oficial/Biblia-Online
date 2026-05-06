@@ -59,12 +59,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // 2. Then check existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
       initialSessionChecked = true;
+      if (error) {
+        console.warn("Erro ao recuperar sessão inicial:", error.message);
+        if (error.message.includes("Failed to fetch")) {
+          // Offline ou bloqueado por CSP/Rede
+          console.error("Erro de conexão com o Supabase. Verifique sua internet.");
+        } else if (error.message.includes("Refresh Token Not Found") || error.message.includes("invalid_grant")) {
+          // Limpa tokens inválidos para evitar loops de erro
+          supabase.auth.signOut().catch(() => {});
+          setUser(null);
+        }
+      }
       if (session?.user) {
         const mapped = mapSupabaseUser(session.user);
         setUser(mapped);
       }
+      setLoading(false);
+    }).catch(err => {
+      console.error("Erro crítico na sessão do Supabase:", err);
       setLoading(false);
     });
 

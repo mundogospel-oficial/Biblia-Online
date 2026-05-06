@@ -174,20 +174,29 @@ async function loadBibliaLivre(): Promise<any[]> {
   const url = 'https://raw.githubusercontent.com/eversondeveloper/bibialivrejson/main/biblialivrecorrecao1.json';
   let res: Response | undefined;
   try {
-    res = await fetch(url, { cache: 'no-store' });
-  } catch {
-    // Network failed, try cache
+    // Tenta carregar normalmente (o navegador gerencia o cache HTTP)
+    res = await fetch(url);
+  } catch (err) {
+    console.warn("Fetch failed, likely offline:", err);
   }
 
   if (!res || !res.ok) {
-    // Try offline cache
-    const cache = await caches.open('biblia-offline-data');
-    const cached = await cache.match(url, { ignoreSearch: true });
-    if (cached) {
-      res = cached;
-    } else {
-      throw new Error('Sem conexão e sem dados offline. Baixe a Bíblia Offline na aba Conta.');
+    // Se falhar (offline), tenta o cache manual do PWA
+    try {
+      const cache = await caches.open('biblia-offline-data');
+      if (cache) {
+        const cached = await cache.match(url, { ignoreSearch: true });
+        if (cached) {
+          res = cached;
+        }
+      }
+    } catch (cacheErr) {
+      console.error("Error accessing offline cache:", cacheErr);
     }
+  }
+
+  if (!res || !res.ok) {
+    throw new Error('OFFLINE_DATA_MISSING: Sem conexão e dados offline não encontrados.');
   }
 
   let text = '';
@@ -358,9 +367,7 @@ export async function fetchChapter(
     return result;
   } catch {}
 
-  throw new Error(
-    `Não foi possível carregar ${abbrev} ${chapter}. Verifique sua conexão ou baixe a Bíblia Offline.`
-  );
+  throw new Error('OFFLINE_DATA_MISSING: Sem conexão e dados offline não encontrados.');
 }
 
 // ── Public API: fetchVerse (single verse) ──

@@ -17,6 +17,8 @@ export const checkAndIncrementUsage = async (type: 'simple' | 'complex' | 'image
   const tipoUso = type === 'translation' ? 'simple' : type;
 
   try {
+    if (!navigator.onLine) throw new Error("A verificação de cotas requer internet.");
+
     // Usar a função atômica do Supabase para garantir consistência
     const { data, error } = await supabase.rpc('registrar_uso_ia_atomico', {
       p_user_id: userId,
@@ -26,6 +28,12 @@ export const checkAndIncrementUsage = async (type: 'simple' | 'complex' | 'image
 
     if (error) {
       console.error("Erro ao registrar uso via RPC:", error);
+      if (error.message.includes("Failed to fetch")) {
+        // Se falhar a conexão, vamos permitir o uso localmente (graceful degradation)
+        // ou pelo menos dar um aviso melhor.
+        console.warn("Conexão falhou ao verificar cota. Permitindo ação local.");
+        return true; 
+      }
       // Fallback básico se a função não existir ou falhar
       throw new Error(`Erro ao verificar cota: ${error.message}`);
     }
@@ -47,6 +55,8 @@ export const getUserUsage = async (providedUserId?: string) => {
   }
   
   try {
+    if (!navigator.onLine) return { simple_count: 0, complex_count: 0, image_count: 0 };
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayISO = today.toISOString();

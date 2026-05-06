@@ -11,7 +11,7 @@ import Header from "@/components/Header";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft, ChevronRight, Sparkles, Loader2, Heart,
-  Highlighter, StickyNote, X, Languages, BookOpen,
+  Highlighter, StickyNote, X, Languages, BookOpen, WifiOff, Download
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -79,7 +79,13 @@ const Reader = () => {
       .then((primary) => {
         setVerses(primary.verses);
       })
-      .catch(() => setError("Erro ao carregar o capítulo. Tente novamente."))
+      .catch((err: any) => {
+        if (err.message && err.message.includes('OFFLINE_DATA_MISSING')) {
+          setError("OFFLINE_MODE");
+        } else {
+          setError("Erro ao carregar o capítulo. Tente novamente.");
+        }
+      })
       .finally(() => setLoading(false));
 
     loadHighlightsAndNotes();
@@ -380,7 +386,32 @@ const Reader = () => {
             <Loader2 className="h-8 w-8 animate-spin text-accent" />
           </div>
         ) : error ? (
-          <p className="py-20 text-center text-muted-foreground">{error}</p>
+          <div className="py-20 text-center">
+            {error === "OFFLINE_MODE" ? (
+              <div className="space-y-4">
+                <div className="flex justify-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/10">
+                    <WifiOff className="h-8 w-8 text-accent" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="font-serif text-xl font-bold text-foreground">Modo Offline</h3>
+                  <p className="mx-auto max-w-xs text-sm text-muted-foreground">
+                    Sem conexão e sem dados offline baixados. Para ler sem internet, baixe a Bíblia.
+                  </p>
+                </div>
+                <button
+                  onClick={() => navigate("/conta")}
+                  className="inline-flex items-center gap-2 rounded-xl bg-accent px-6 py-2.5 text-sm font-semibold text-accent-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
+                >
+                  <Download className="h-4 w-4" />
+                  Baixar Bíblia Offline
+                </button>
+              </div>
+            ) : (
+              <p className="text-muted-foreground">{error}</p>
+            )}
+          </div>
         ) : (
           <motion.div
             initial={{ opacity: 0 }}

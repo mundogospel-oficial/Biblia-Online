@@ -111,13 +111,33 @@ const AIPage = () => {
 
   // Função blindada para garantir que o token JWT nunca seja inválido
   const getFreshToken = async () => {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (error || !session || !session.access_token) {
-      toast({ title: "Sessão expirada ou inválida. Faça login novamente.", variant: "destructive" });
-      await supabase.auth.signOut();
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.warn("Auth session error:", error.message);
+        if (error.message.includes("Failed to fetch")) {
+          toast({ title: "Erro de conexão", description: "Não foi possível conectar ao servidor. Verifique sua internet.", variant: "destructive" });
+          return null;
+        }
+        if (error.message.includes("Refresh Token Not Found") || error.message.includes("invalid_grant")) {
+          toast({ title: "Sessão expirada", description: "Faça login novamente para continuar.", variant: "destructive" });
+          await supabase.auth.signOut();
+          return null;
+        }
+        throw error;
+      }
+
+      if (!session || !session.access_token) {
+        toast({ title: "Sessão expirada ou inválida. Faça login novamente.", variant: "destructive" });
+        await supabase.auth.signOut();
+        return null;
+      }
+      return session.access_token;
+    } catch (e: any) {
+      console.error("Erro crítico ao obter token:", e);
       return null;
     }
-    return session.access_token;
   };
 
   useEffect(() => {
