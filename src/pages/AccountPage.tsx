@@ -50,7 +50,7 @@ const AccountPage = () => {
     fetch('/version.json', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => setAppVersion(data.version))
-      .catch(() => setAppVersion("1.4"));
+      .catch(() => setAppVersion("1.7"));
 
     const loadFromDb = async () => {
       if (authCtx.user) {
@@ -332,10 +332,18 @@ const AccountPage = () => {
       const cache = await caches.open('biblia-offline-data');
       
       const filesToCache = [
-        'https://raw.githubusercontent.com/eversondeveloper/bibialivrejson/main/biblialivrecorrecao1.json',
-        '/manifest.json',
-        '/placeholder.svg',
         '/',
+        '/index.html',
+        '/manifest.json',
+        '/favicon.ico',
+        '/placeholder.svg',
+        '/criar',
+        '/ai',
+        '/pesquisa',
+        '/favoritos',
+        '/devocional',
+        '/conta',
+        'https://raw.githubusercontent.com/eversondeveloper/bibialivrejson/main/biblialivrecorrecao1.json',
       ];
 
       let completed = 0;
@@ -434,13 +442,33 @@ const AccountPage = () => {
                         <span className="text-muted-foreground">{notificationsEnabled ? <Bell className="h-4 w-4 text-accent" /> : <BellOff className="h-4 w-4" />}</span>
                         <div className="text-left">
                           <p className="text-sm font-medium text-foreground">Notificações</p>
-                          <p className="text-[10px] text-muted-foreground">{notificationsEnabled ? "Versículos às 08h, 12h e 20h" : "Desativadas"}</p>
+                          <p className="text-[10px] text-muted-foreground">{notificationsEnabled ? "Mensagens Diárias (8h e 20h)" : "Desativadas"}</p>
                         </div>
                       </div>
                       <div className={`h-5 w-9 rounded-full transition-colors ${notificationsEnabled ? "bg-accent" : "bg-muted"} flex items-center px-0.5`}>
                         <div className={`h-4 w-4 rounded-full bg-white transition-transform ${notificationsEnabled ? "translate-x-4" : "translate-x-0"}`} />
                       </div>
                     </button>
+
+                    {notificationsEnabled && (
+                      <div className="mt-2 flex gap-2">
+                        <button 
+                          onClick={() => {
+                            if ("serviceWorker" in navigator) {
+                              navigator.serviceWorker.ready.then(reg => reg.active?.postMessage({ type: 'TEST_NOTIFICATION' }));
+                              toast({ title: "Teste enviado! 🔔", description: "Você deve receber uma notificação em instantes." });
+                            }
+                          }}
+                          className="flex-1 rounded-lg bg-accent/10 py-2 text-[10px] font-medium text-accent hover:bg-accent/20 transition-colors"
+                        >
+                          Testar Agora
+                        </button>
+                        <div className="flex-[1.5] rounded-lg bg-secondary/30 px-3 py-2 flex items-center justify-between">
+                          <span className="text-[10px] text-muted-foreground">Status do Relógio:</span>
+                          <span className="text-[10px] font-mono text-accent animate-pulse">Ativo</span>
+                        </div>
+                      </div>
+                    )}
 
                     <button onClick={toggleOffline} disabled={isDownloading} className="flex w-full items-center justify-between rounded-xl bg-secondary/50 p-3 transition-colors hover:bg-secondary disabled:opacity-70 liquid-btn">
                       <div className="flex items-center gap-3">
@@ -617,7 +645,7 @@ const AccountPage = () => {
 
           <div className="mt-8 pb-4 text-center">
             <p className="text-xs text-muted-foreground font-sans font-medium tracking-wide">
-              Bíblia Online — Versão {appVersion || "1.4"}
+              Bíblia Online — Versão {appVersion || "1.7"}
             </p>
           </div>
 

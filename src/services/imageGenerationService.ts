@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { getSystemRule } from './aiService';
 
 export const generateBiblicalImage = async (userPrompt: string, signal?: AbortSignal): Promise<string> => {
   let googleKey = import.meta.env.VITE_GOOGLE_AI_KEY || "";
@@ -13,6 +14,7 @@ export const generateBiblicalImage = async (userPrompt: string, signal?: AbortSi
     if (!settingsError && settings && settings.length > 0) {
       const dbKey = settings.find(s => s.config_key === 'google_ai_key')?.config_value;
       const dbModel = settings.find(s => s.config_key === 'gemini_model_default')?.config_value;
+      
       if (dbKey) googleKey = dbKey.trim();
       if (dbModel) modelName = dbModel.trim();
     }
@@ -20,11 +22,13 @@ export const generateBiblicalImage = async (userPrompt: string, signal?: AbortSi
     console.warn("Aviso: Falha ao ler config do Supabase. Usando fallback de ambiente.");
   }
 
+  const masterPrompt = await getSystemRule();
+
   if (!googleKey) {
     throw new Error("ERRO CRÍTICO: Chave da API do Google não encontrada (nem no DB, nem no .env).");
   }
 
-  const systemInstruction = `Você é um Diretor de Arte de imagens bíblicas. 
+  const systemInstruction = `REGRAS MESTRAS: ${masterPrompt}\n\nVocê é um Diretor de Arte de imagens bíblicas. 
 REGRA 1: Verifique se o pedido é sobre a Bíblia/Cristianismo. Se NÃO for, responda EXATAMENTE: "BLOQUEADO".
 REGRA 2: Se válido, traduza para o INGLÊS adicionando: cinematic lighting, hyperrealistic, 8k resolution, highly detailed.
 Responda APENAS com o prompt em inglês, sem aspas.`;

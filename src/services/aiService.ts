@@ -17,6 +17,28 @@ const sanitizeAIResponse = (text: string): string => {
     .trim();
 };
 
+export const getSystemRule = async (specificKey?: string): Promise<string> => {
+  try {
+    const keysToFetch = ['system_prompt_master'];
+    if (specificKey) keysToFetch.push(specificKey);
+
+    const { data } = await supabase
+      .from('ai_settings')
+      .select('config_key, config_value')
+      .in('config_key', keysToFetch);
+    
+    if (data) {
+      const master = data.find(d => d.config_key === 'system_prompt_master')?.config_value || "";
+      const specific = specificKey ? (data.find(d => d.config_key === specificKey)?.config_value || "") : "";
+      
+      return `${master}\n\n${specific}`.trim() || "Você SÓ PODE responder sobre a Bíblia. Use markdown limpo.";
+    }
+  } catch (err) {
+    console.warn("Falha ao ler regras do Supabase, usando fallback.");
+  }
+  return "Você SÓ PODE responder sobre a Bíblia. Use markdown limpo.";
+};
+
 export const generateChatTitle = async (userPrompt: string, aiResponse: string): Promise<string> => {
   const cleanPrompt = userPrompt ? userPrompt.replace(/\[.*?\]/g, '').trim() : "";
   const safeFallback = cleanPrompt.length > 0 
@@ -29,30 +51,24 @@ export const generateChatTitle = async (userPrompt: string, aiResponse: string):
 
     const context = cleanPrompt ? `Usuário: ${cleanPrompt}` : `IA gerou imagem baseada em: ${aiResponse}`;
 
-    const systemInstruction = `Você é um gerador de títulos curtos. Crie um título de NO MÁXIMO 4 a 5 palavras para esta interação.
+    const rules = await getSystemRule();
+    const systemInstruction = `Você é um gerador de títulos curtos. REGRAS MESTRAS: ${rules}. Crie um título de NO MÁXIMO 4 a 5 palavras para esta interação.
 REGRAS ABSOLUTAS: 
 1. NÃO use aspas, não use ponto final.
 2. NÃO use formatação Markdown.
 3. Retorne APENAS o texto puro do título.`;
 
-    // Mesclamos a instrução com o contexto para os modelos mais antigos entenderem
-    const combinedPrompt = `${systemInstruction}\n\nContexto da interação: ${context}`;
+    const combinedPrompt = `Tarefa: Crie um título curto de 3-5 palavras para o seguinte contexto: ${context}`;
 
-    // Array de resiliência com o 'gemini-pro' como salvador da pátria
-    const modelsToTry = [
-      'gemini-1.5-flash',
-      'gemini-1.5-pro',
-      'gemini-pro',
-      'gemini-1.0-pro'
-    ];
+    const modelsToTry = ['gemini-1.5-flash', 'gemini-pro'];
 
     for (const model of modelsToTry) {
       try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          // Enviamos APENAS contents (sem systemInstruction)
           body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemInstruction }] },
             contents: [{ role: "user", parts: [{ text: combinedPrompt }] }] 
           })
         });
@@ -60,59 +76,79 @@ REGRAS ABSOLUTAS:
         if (response.ok) {
           const data = await response.json();
           const title = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-          
-          if (title) {
-            return title.replace(/["*]/g, ''); // Sucesso! Limpa aspas ou markdown rebelde.
-          }
+          if (title) return title.replace(/["*]/g, '');
         }
       } catch (e) {
-        console.warn(`[Aviso] Modelo ${model} falhou ao gerar título. Tentando o próximo...`);
+        console.warn(`[Aviso] Modelo ${model} falhou ao gerar título.`);
       }
     }
-
-    // Se TODOS falharem, usa a string limpa
     return safeFallback;
   } catch (error) {
     return safeFallback;
   }
 };
 
+export const askDictionaryAI = async (verseText: string, reference: string, signal?: AbortSignal): Promise<string> => {
+  const googleKey = import.meta.env.VITE_GOOGLE_AI_KEY;
+  if (!googleKey) throw new Error("Chave VITE_GOOGLE_AI_KEY não configurada.");
+
+  const combinedRule = await getSystemRule('gemini_prompt_dicionario');
+  const dictPrompt = `Aja como um Dicionário Bíblico Erudito. Analise o versículo abaixo.
+Versículo: "${verseText}" — ${reference}`;
+
+  const geminiModels = [
+    'gemini-1.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-pro',
+    'gemini-2.0-flash-lite-preview-02-05',
+    'gemini-pro'
+  ];
+
+  let lastError = "";
+  for (const model of geminiModels) {
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: combinedRule }] },
+          contents: [{ parts: [{ text: dictPrompt }] }]
+        }),
+        signal
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (content) return sanitizeAIResponse(content);
+      }
+    } catch (e: any) {
+      if (e.name === 'AbortError') throw e;
+      lastError = e.message;
+    }
+  }
+  throw new Error(`Dicionário indisponível: ${lastError}`);
+};
+
 export const askBibleAI = async (prompt: string, complexity: 'simple' | 'complex' = 'simple', signal?: AbortSignal, base64Image?: string | null): Promise<string> => {
   const googleKey = import.meta.env.VITE_GOOGLE_AI_KEY;
   const openRouterKey = import.meta.env.VITE_OPENROUTER_API_KEY;
 
-  const cleanPrompt = prompt.replace(/\[.*?\]/g, '').trim();
-
-  let SYSTEM_RULE = "Você SÓ PODE responder sobre a Bíblia. Use linguagem erudita, markdown limpo e evite caracteres de controle ilegais.";
-  
-  // Cache de Regras para velocidade máxima
-  const now = Date.now();
-  if (cachedSystemRule && (now - lastCacheUpdate < CACHE_DURATION)) {
-    SYSTEM_RULE = cachedSystemRule;
-  } else {
-    try {
-      const { data } = await supabase
-        .from('ai_settings')
-        .select('config_value')
-        .eq('config_key', 'system_prompt_master')
-        .maybeSingle(); // Usar maybeSingle para evitar erros se não existir
-      
-      if (data?.config_value) {
-        SYSTEM_RULE = data.config_value;
-        cachedSystemRule = SYSTEM_RULE;
-        lastCacheUpdate = now;
-      }
-    } catch (err) {
-      console.warn("Usando regra local temporária.");
-    }
-  }
+  const ruleKey = complexity === 'simple' ? 'gemini_prompt_simples' : 'gemini_prompt_complexo';
+  const SYSTEM_RULE = await getSystemRule(ruleKey);
 
   try {
     if (complexity === 'complex') {
       if (!googleKey) throw new Error("Chave VITE_GOOGLE_AI_KEY não configurada.");
       
-      // Modelos Flash são MUITO mais rápidos e confiáveis
-      const geminiModels = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp', 'gemini-pro'];
+      const cleanPrompt = prompt ? prompt.replace(/\[.*?\]/g, '').trim() : "";
+      const geminiModels = [
+        'gemini-1.5-flash',
+        'gemini-2.0-flash',
+        'gemini-1.5-pro',
+        'gemini-2.0-flash-lite-preview-02-05',
+        'gemini-pro'
+      ];
       let lastErrorMessage = "";
       
       for (const model of geminiModels) {
@@ -135,9 +171,7 @@ export const askBibleAI = async (prompt: string, complexity: 'simple' | 'complex
               }],
               generationConfig: { 
                 temperature: 0.4, 
-                topP: 0.8, 
-                topK: 40,
-                maxOutputTokens: 800 // Limita resposta para ser mais rápida
+                maxOutputTokens: 1000 
               }
             }),
             signal
@@ -154,22 +188,40 @@ export const askBibleAI = async (prompt: string, complexity: 'simple' | 'complex
           }
         } catch (e: any) {
           if (e.name === 'AbortError' || e.message?.includes('abort')) throw e;
-          console.warn(`[Aviso] Modelo Gemini ${model} falhou:`, e.message);
           lastErrorMessage = e.message;
         }
       }
       throw new Error(`O modo Complexo (Gemini) está indisponível no momento. Detalhe: ${lastErrorMessage}`);
 
     } else {
-      // --- MODO SIMPLES: EXCLUSIVO OPENROUTER ---
       if (!openRouterKey) throw new Error("Chave VITE_OPENROUTER_API_KEY não configurada.");
 
-      const freeModels = [
-        "google/gemini-2.0-flash-exp:free", 
-        "google/gemini-flash-1.5-8b:free", 
-        "meta-llama/llama-3.1-8b-instruct:free",
-        "mistralai/mistral-7b-instruct:free"
-      ];
+      const cleanPrompt = prompt ? prompt.replace(/\[.*?\]/g, '').trim() : "";
+      
+      // Busca modelos gratuitos dinamicamente
+      let freeModels: string[] = [];
+      try {
+        const modelsRes = await fetch("https://openrouter.ai/api/v1/models");
+        if (modelsRes.ok) {
+          const modelsData = await modelsRes.json();
+          freeModels = modelsData.data
+            .filter((m: any) => m.id.endsWith(':free'))
+            .map((m: any) => m.id);
+        }
+      } catch (e) {
+        console.warn("Falha ao buscar modelos free do OpenRouter, usando fallback local.");
+      }
+
+      // Fallback caso a busca falhe ou retorne vazio
+      if (freeModels.length === 0) {
+        freeModels = [
+          "google/gemma-2-9b-it:free",
+          "meta-llama/llama-3.3-70b-instruct:free",
+          "qwen/qwen-2.5-72b-instruct:free",
+          "mistralai/mistral-7b-instruct:free"
+        ];
+      }
+
       let lastErrorMessage = "";
 
       for (const model of freeModels) {
@@ -180,7 +232,7 @@ export const askBibleAI = async (prompt: string, complexity: 'simple' | 'complex
               'Authorization': `Bearer ${openRouterKey}`,
               'Content-Type': 'application/json',
               'HTTP-Referer': window.location.origin,
-              'X-Title': 'Bíblia Online'
+              'X-Title': 'IA Bíblica'
             },
             body: JSON.stringify({
               model: model,
@@ -192,14 +244,15 @@ export const askBibleAI = async (prompt: string, complexity: 'simple' | 'complex
                 ] : cleanPrompt }
               ],
               temperature: 0.5,
-              max_tokens: 800
+              max_tokens: 1000
             }),
             signal
           });
 
           if (!response.ok) {
-            const errorData = await response.json().catch(() => null);
-            throw new Error(errorData?.error?.message || `Status HTTP: ${response.status}`);
+            const errorData = await response.json().catch(() => ({}));
+            lastErrorMessage = errorData.error?.message || response.statusText;
+            continue; 
           }
           
           const data = await response.json();
@@ -207,17 +260,15 @@ export const askBibleAI = async (prompt: string, complexity: 'simple' | 'complex
             return sanitizeAIResponse(data.choices[0].message.content);
           }
         } catch (e: any) {
-          if (e.name === 'AbortError' || e.message?.includes('abort')) throw e;
-          console.warn(`[Aviso] Modelo OpenRouter ${model} falhou:`, e.message);
+          if (e.name === 'AbortError') throw e;
           lastErrorMessage = e.message;
         }
       }
-      
-      throw new Error(`O modo Simples (OpenRouter) está indisponível no momento. Tente o modo Complexo. Detalhe: ${lastErrorMessage}`);
+
+      throw new Error(`O modo Simples (OpenRouter) está indisponível no momento. Detalhe: ${lastErrorMessage}`);
     }
   } catch (error: any) {
     if (error.name === 'AbortError' || error.message?.includes('abort')) throw error;
-    console.error("Erro fatal no serviço de IA:", error);
     throw new Error(error.message || "Ocorreu um erro inesperado ao consultar a IA.");
   }
 };

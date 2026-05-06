@@ -4,11 +4,13 @@ import { bibleBooks, fetchChapter } from "@/lib/bibleData";
 import { getDailyVerseReference, type DailyVerseEntry } from "@/lib/dailyVerse";
 import { motion } from "framer-motion";
 import Header from "@/components/Header";
+import TermsModal from "@/components/TermsModal";
 import { ChevronRight, Sun, Youtube, Loader2 } from "lucide-react";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<'old' | 'new'>('old');
   const [dailyVerse, setDailyVerse] = useState<DailyVerseEntry | null>(null);
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
 
   useEffect(() => {
     const reference = getDailyVerseReference();
@@ -30,18 +32,17 @@ const Index = () => {
       <Header />
       
       {/* Hero */}
-      <section className="relative overflow-hidden border-b border-border bg-card px-4 py-12 sm:py-20">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute right-0 top-0 h-96 w-96 rounded-full bg-primary blur-3xl" />
-          <div className="absolute bottom-0 left-0 h-64 w-64 rounded-full bg-accent blur-3xl" />
+      <section className="relative overflow-hidden border-b border-border bg-card px-4 py-12 sm:py-24 flex items-center justify-center">
+        <div className="absolute inset-0 opacity-10 pointer-events-none">
+          <div className="absolute right-0 top-0 h-96 w-96 rounded-full bg-primary blur-[120px]" />
+          <div className="absolute bottom-0 left-0 h-64 w-64 rounded-full bg-accent blur-[100px]" />
         </div>
-        <div className="container relative mx-auto text-center">
+        <div className="container relative z-10 mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            // AQUI: Aumentado max-w para 800px, padding (py-16 sm:py-24) e bordas (rounded-3xl)
-            className="glass-card rounded-3xl px-6 py-16 sm:px-16 sm:py-24 mx-auto w-full max-w-[800px]"
+            className="glass-card rounded-[2rem] px-6 py-16 sm:px-16 sm:py-24 mx-auto w-full max-w-[720px] text-center shadow-xl border-white/10"
           >
             <img src="/icons/logo1.png" alt="Logo Bíblia Online" className="mx-auto mb-4 h-14 w-14 object-contain transition-opacity duration-300" />
             <h1 className="font-serif text-3xl font-bold text-foreground sm:text-4xl lg:text-5xl">
@@ -144,6 +145,23 @@ const Index = () => {
           ))}
         </div>
       </section>
+
+      {/* Footer */}
+      <footer className="container mx-auto px-4 py-12 border-t border-border/30 text-center">
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-xs text-muted-foreground font-medium">
+            © 2026 Biblia Online. Todos os direitos reservados.
+          </p>
+          <button 
+            onClick={() => setIsTermsOpen(true)}
+            className="text-[11px] text-accent hover:text-accent/80 transition-all font-bold hover:underline underline-offset-4"
+          >
+            Termos de Uso
+          </button>
+        </div>
+      </footer>
+
+      <TermsModal isOpen={isTermsOpen} onClose={() => setIsTermsOpen(false)} />
     </div>
   );
 };

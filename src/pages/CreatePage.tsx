@@ -11,6 +11,9 @@ import html2canvas from "html2canvas-pro";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { GoogleGenAI } from "@google/genai";
+
+import { downloadBibleImage, shareBibleImage } from "@/lib/downloadUtils";
 
 const formats: { key: CardFormat; label: string; icon: React.ReactNode }[] = [
   { key: "square", label: "Quadrado", icon: <Square className="h-3.5 w-3.5" /> },
@@ -67,6 +70,7 @@ const CreatePage = () => {
   const [activeFormat, setActiveFormat] = useState<CardFormat>("square");
   const [exportFormat, setExportFormat] = useState<(typeof exportFormats)[number]>(exportFormats[0]);
   const [activeFont, setActiveFont] = useState("serif");
+  const [fontSize, setFontSize] = useState(24);
   const [customColor, setCustomColor] = useState("#1a2744");
   const [useCustomColor, setUseCustomColor] = useState(false);
   const cardContainerRef = useRef<HTMLDivElement>(null);
@@ -79,6 +83,18 @@ const CreatePage = () => {
   const [aiImageLoading, setAiImageLoading] = useState(false);
   const [aiStyle, setAiStyle] = useState(imageStyles[0]);
   const [customAiPrompt, setCustomAiPrompt] = useState("");
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   const handleSearchVerse = async (q?: string) => {
     const query = q || searchQuery;
@@ -139,17 +155,61 @@ const CreatePage = () => {
       await (supabase as any).from('user_ai_usage').insert({ user_id: session.user.id, tipo_uso: 'create_image' });
       setCreateImageCount(prev => prev + 1);
 
-      const prompt = customAiPrompt.trim() || aiStyle;
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-verse-image`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ verse: verseText, reference, style: prompt }),
+      const stylePrompt = customAiPrompt.trim() || aiStyle;
+      const fullPrompt = `Gere uma imagem de fundo inspiradora e pacífica para o versículo bíblico: "${verseText}". Estilo visual: ${stylePrompt}. A imagem DEVE PREENCHER COMPLETAMENTE O QUADRO (fill the entire frame), sem bordas, sem molduras brancas, sem marcas d'água e SEM TEXTO escrito na imagem.`;
+
+      const apiKey = (typeof process !== 'undefined' && process.env.GEMINI_API_KEY) || "";
+      if (!apiKey) throw new Error("Chave da API Gemini não configurada.");
+      
+      const ai = new GoogleGenAI({ apiKey });
+      
+      // Discover available image models
+      let models = [];
+      try {
+        const modelsResponse = await (ai as any).listModels?.() || await (ai as any).models?.list?.();
+        models = Array.isArray(modelsResponse) ? modelsResponse : (modelsResponse as any).models || [];
+      } catch (err) {
+        console.warn("Could not list models, using fallback", err);
+      }
+      
+      const imageModels = models.filter((m: any) => 
+        m.name.includes('image') || 
+        m.name.includes('imagen') || 
+        (m.supportedActions && m.supportedActions.includes('generateContent') && m.name.includes('flash-image'))
+      );
+      
+      // Prefer 3.1 flash image preview, then 2.5 flash image, then any image model, fallback to a known one
+      const selectedModelName = imageModels.find((m: any) => m.name.includes('gemini-3.1-flash-image'))?.name || 
+                               imageModels.find((m: any) => m.name.includes('gemini-2.5-flash-image'))?.name ||
+                               imageModels[0]?.name || 
+                               'gemini-2.5-flash-image';
+
+      console.log("Using model for image generation:", selectedModelName);
+
+      const response = await ai.models.generateContent({
+        model: selectedModelName,
+        contents: [{ parts: [{ text: fullPrompt }] }],
+        config: {
+          imageConfig: {
+            aspectRatio: activeFormat === "square" ? "1:1" : activeFormat === "story" ? "9:16" : "16:9"
+          }
+        }
       });
-      if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.error || "Erro ao gerar imagem"); }
-      const data = await resp.json();
-      if (data.imageUrl) { setAiImageUrl(data.imageUrl); toast({ title: "Imagem gerada! 🎨" }); }
+
+      if (response.candidates && response.candidates[0]?.content?.parts) {
+        for (const part of response.candidates[0].content.parts) {
+          if (part.inlineData) {
+            setAiImageUrl(`data:image/png;base64,${part.inlineData.data}`);
+            toast({ title: "Imagem gerada com sucesso! ✨" });
+            return;
+          }
+        }
+      }
+      
+      throw new Error("O modelo não retornou uma imagem. Tente novamente.");
     } catch (e: any) {
-      toast({ title: e.message, variant: "destructive" });
+      console.error("AI Image Error:", e);
+      toast({ title: "Erro na IA", description: e.message || "Falha ao gerar imagem", variant: "destructive" });
     } finally {
       setAiImageLoading(false);
     }
@@ -184,13 +244,8 @@ const CreatePage = () => {
       
       document.body.removeChild(clone);
 
-      const link = document.createElement("a");
-      link.download = `versiculo-${reference.replace(/\s+/g, "-")}.${exportFormat.key}`;
-      link.href = canvas.toDataURL(exportFormat.mime, 0.95);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast({ title: "Imagem baixada! 📥" });
+      const dataUrl = canvas.toDataURL(exportFormat.mime, 0.95);
+      await downloadBibleImage(dataUrl);
     } catch (err) {
       console.error("Erro ao gerar imagem:", err);
       toast({ title: "Erro ao baixar imagem", variant: "destructive" });
@@ -211,55 +266,20 @@ const CreatePage = () => {
       document.body.appendChild(clone);
 
       const canvas = await html2canvas(clone, {
-        scale: 3, useCORS: true, allowTaint: true, backgroundColor: null, logging: false,
-        width: clone.scrollWidth, height: clone.scrollHeight,
+        scale: 3, 
+        useCORS: true, 
+        allowTaint: true, 
+        backgroundColor: null, 
+        logging: false,
+        width: clone.scrollWidth, 
+        height: clone.scrollHeight,
       });
       document.body.removeChild(clone);
 
-      canvas.toBlob(async (blob) => {
-        if (!blob) return;
-        const file = new File([blob], `versiculo-${reference.replace(/\s+/g, "-")}.png`, { type: "image/png" });
-        
-        // Try native share with files (works on mobile)
-        try {
-          if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({ files: [file], title: reference, text: `"${verseText}" — ${reference}` });
-            return;
-          }
-        } catch {
-          // cancelled or failed
-        }
-
-        // Try native share without files (some desktop browsers)
-        try {
-          if (navigator.share) {
-            await navigator.share({ title: reference, text: `"${verseText}" — ${reference}` });
-            return;
-          }
-        } catch {
-          // cancelled or failed
-        }
-
-        // Fallback: copy image to clipboard
-        try {
-          await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-          toast({ title: "Imagem copiada para área de transferência! 📋", description: "Cole no WhatsApp, Instagram ou onde quiser." });
-          return;
-        } catch {
-          // clipboard failed
-        }
-
-        // Last fallback: download
-        const link = document.createElement("a");
-        link.download = file.name;
-        link.href = URL.createObjectURL(blob);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(link.href);
-        toast({ title: "Imagem baixada! 📥" });
-      }, "image/png");
-    } catch {
+      const dataUrl = canvas.toDataURL("image/png", 0.95);
+      await shareBibleImage(dataUrl);
+    } catch (err) {
+      console.error("Share error:", err);
       toast({ title: "Erro ao compartilhar", variant: "destructive" });
     }
   };
@@ -285,11 +305,12 @@ const CreatePage = () => {
               <div className="glass-card rounded-xl p-4">
                 <label className="mb-2 block text-sm font-medium text-foreground">🔍 Buscar Versículo</label>
                 <div className="flex gap-2">
-                  <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Ex: João 3:16"
-                    onKeyDown={(e) => e.key === "Enter" && handleSearchVerse()}
-                    className="flex-1 rounded-lg border border-input bg-secondary/50 px-3 py-2 text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={!isOnline ? "Indisponível offline" : "Ex: João 3:16"}
+                    onKeyDown={(e) => e.key === "Enter" && isOnline && handleSearchVerse()}
+                    disabled={!isOnline}
+                    className="flex-1 rounded-lg border border-input bg-secondary/50 px-3 py-2 text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
                   />
-                  <button onClick={() => handleSearchVerse()} disabled={searchLoading} className="rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50">
+                  <button onClick={() => { if (isOnline) handleSearchVerse(); }} disabled={searchLoading || !isOnline} className="rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50">
                     {searchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                   </button>
                 </div>
@@ -311,15 +332,22 @@ const CreatePage = () => {
 
               {/* AI / Theme toggle */}
               <div className="flex gap-2">
-                <button onClick={() => setUseAIImage(true)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-medium border ${useAIImage ? "border-accent bg-accent/10 text-foreground" : "border-border text-muted-foreground"}`}
+                <button 
+                  onClick={() => { if (isOnline) setUseAIImage(true); else toast({ title: "Modo Offline", description: "Conecte-se à internet para usar a IA." }); }}
+                  className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-medium border transition-all ${useAIImage ? "border-accent bg-accent/10 text-foreground" : "border-border text-muted-foreground"} ${!isOnline ? "opacity-50 grayscale" : ""}`}
                 ><Wand2 className="h-3.5 w-3.5" /> IA</button>
                 <button onClick={() => setUseAIImage(false)}
                   className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-medium border ${!useAIImage ? "border-accent bg-accent/10 text-foreground" : "border-border text-muted-foreground"}`}
                 ><Palette className="h-3.5 w-3.5" /> Cor</button>
               </div>
 
-              {useAIImage && (
+              {useAIImage && !isOnline && (
+                <div className="flex items-center gap-2 rounded-xl bg-orange-500/10 p-3 text-xs font-medium text-orange-500 border border-orange-500/20">
+                  <Wand2 className="h-4 w-4" /> A geração de imagens requer internet.
+                </div>
+              )}
+
+              {useAIImage && isOnline && (
                 <div className="glass-card rounded-xl p-4 space-y-2">
                   <div className="flex flex-wrap gap-1.5">
                     {imageStyles.map((s) => (
@@ -374,14 +402,31 @@ const CreatePage = () => {
               )}
 
               {/* Font */}
-              <div className="glass-card rounded-xl p-4">
-                <p className="mb-2 text-sm font-medium text-foreground flex items-center gap-1.5"><Type className="h-4 w-4" /> Fonte</p>
-                <div className="flex flex-wrap gap-1">
-                  {fontOptions.map((f) => (
-                    <button key={f.key} onClick={() => setActiveFont(f.key)}
-                      className={`rounded-lg px-2.5 py-1 text-xs font-medium border ${f.className} ${activeFont === f.key ? "border-accent bg-accent/10 text-foreground" : "border-border text-muted-foreground"}`}
-                    >{f.label}</button>
-                  ))}
+              <div className="glass-card rounded-xl p-4 space-y-3">
+                <div>
+                  <p className="mb-2 text-sm font-medium text-foreground flex items-center gap-1.5"><Type className="h-4 w-4" /> Fonte</p>
+                  <div className="flex flex-wrap gap-1">
+                    {fontOptions.map((f) => (
+                      <button key={f.key} onClick={() => setActiveFont(f.key)}
+                        className={`rounded-lg px-2.5 py-1 text-xs font-medium border ${f.className} ${activeFont === f.key ? "border-accent bg-accent/10 text-foreground" : "border-border text-muted-foreground"}`}
+                      >{f.label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-foreground">Tamanho do Texto</p>
+                    <span className="text-xs text-muted-foreground font-mono">{fontSize}px</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="14" 
+                    max="64" 
+                    step="1" 
+                    value={fontSize} 
+                    onChange={(e) => setFontSize(parseInt(e.target.value))}
+                    className="w-full accent-accent bg-secondary h-1.5 rounded-lg appearance-none cursor-pointer"
+                  />
                 </div>
               </div>
 
@@ -443,14 +488,26 @@ const CreatePage = () => {
                         <div className="absolute inset-0 bg-black/40" />
                         <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-md text-primary-foreground">
                           <div className="mb-4 flex justify-center"><div className="h-px w-12 bg-primary-foreground/50" /></div>
-                          <blockquote className={`text-lg leading-relaxed sm:text-xl text-center italic ${selectedFont?.className || "font-serif"}`}>"{verseText}"</blockquote>
+                          <blockquote 
+                            className={`leading-relaxed text-center italic ${selectedFont?.className || "font-serif"}`}
+                            style={{ fontSize: `${fontSize}px` }}
+                          >
+                            "{verseText}"
+                          </blockquote>
                           <div className="mt-4 flex justify-center"><div className="h-px w-12 bg-primary-foreground/50" /></div>
                           <p className="mt-3 text-center text-xs font-sans font-medium opacity-80 tracking-wider uppercase">{reference}</p>
                         </div>
                       </div>
                     ) : (
                       <div style={useCustomColor ? { backgroundColor: customColor } : undefined}>
-                        <VerseCard text={verseText} reference={reference} theme={useCustomColor ? { ...currentTheme, bg: "" } : currentTheme} format={activeFormat} animate={false} />
+                        <VerseCard 
+                          text={verseText} 
+                          reference={reference} 
+                          theme={useCustomColor ? { ...currentTheme, bg: "" } : currentTheme} 
+                          format={activeFormat} 
+                          animate={false} 
+                          fontSize={fontSize}
+                        />
                       </div>
                     )}
                   </div>

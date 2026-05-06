@@ -1,108 +1,84 @@
 import { supabase } from '@/integrations/supabase/client';
 
-export const checkAndIncrementUsage = async (type: 'simple' | 'complex' | 'image' | 'translation'): Promise<boolean> => {
-  // 1. Busca o usuário logado com segurança direto do servidor Auth
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Usuário não autenticado no sistema.");
-  const userId = user.id;
-
-  const limits = { simple: 10, complex: 7, image: 5, translation: 15 };
-  const column = type === 'translation' ? 'simple_count' : `${type}_count` as keyof typeof limits;
-  const now = new Date();
-
-  // 2. Busca o registro de uso atual (usa maybeSingle para evitar erro caso não exista)
-  let { data, error: fetchError } = await supabase
-    .from('user_ai_usage')
-    .select('*')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  // 3. Se não existe registro, CRIA O REGISTRO INICIAL
-  if (!data) {
-    const { error: insertError } = await supabase
-      .from('user_ai_usage')
-      .insert({ 
-        user_id: userId, 
-        simple_count: 0, 
-        complex_count: 0, 
-        image_count: 0, 
-        last_reset_time: now.toISOString(),
-        tipo_uso: 'chat'
-      });
-      
-    if (insertError) {
-      console.error("Erro RLS/Insert Completo:", JSON.stringify(insertError, null, 2));
-      throw new Error(`Falha ao inicializar cotas de IA: ${insertError.message || insertError.code}`);
+export const checkAndIncrementUsage = async (type: 'simple' | 'complex' | 'image' | 'translation', providedUserId?: string): Promise<boolean> => {
+  let userId = providedUserId;
+  
+  if (!userId) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error("Erro de autenticação ao verificar cotas:", authError);
+      throw new Error("Usuário não autenticado no sistema.");
     }
-
-    const { data: fetchNewData } = await supabase
-      .from('user_ai_usage')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (!fetchNewData) throw new Error("Cotas inicializadas, mas não foi possível ler do banco. Verifique as políticas RLS (SELECT).");
-    data = fetchNewData;
-  } else {
-    // 4. Se existe, verifica se já passaram 12 horas para resetar (Recarga de 12h)
-    const lastReset = new Date(data.last_reset_time);
-    const diffHours = (now.getTime() - lastReset.getTime()) / (1000 * 60 * 60);
-    
-    if (diffHours >= 12) {
-      const { error: updateError } = await supabase
-        .from('user_ai_usage')
-        .update({ 
-          simple_count: 0, 
-          complex_count: 0, 
-          image_count: 0, 
-          last_reset_time: now.toISOString() 
-        })
-        .eq('user_id', userId);
-        
-      if (updateError) throw new Error("Falha ao recarregar as cotas.");
-      
-      const { data: fetchUpdatedData } = await supabase
-        .from('user_ai_usage')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      data = fetchUpdatedData || data;
-    }
+    userId = user.id;
   }
 
-  // 5. VERIFICAÇÃO DE LIMITE DIÁRIO/12H: Bloqueia a ação se bater no teto
-  // @ts-ignore
-  if (data[column] >= limits[type]) return false;
+  const limits = { simple: 10, complex: 7, image: 5, translation: 20 };
+  const limitValue = limits[type];
+  const tipoUso = type === 'translation' ? 'simple' : type;
 
-  // 6. Incrementa o uso de forma segura
-  const { error: finalUpdateError } = await supabase
-    .from('user_ai_usage')
-    // @ts-ignore
-    .update({ [column]: data[column] + 1 })
-    .eq('user_id', userId);
-    
-  if (finalUpdateError) throw new Error("Falha ao registrar uso da IA.");
+  try {
+    // Usar a função atômica do Supabase para garantir consistência
+    const { data, error } = await supabase.rpc('registrar_uso_ia_atomico', {
+      p_user_id: userId,
+      p_tipo_uso: tipoUso,
+      p_limite_diario: limitValue
+    });
 
-  return true;
+    if (error) {
+      console.error("Erro ao registrar uso via RPC:", error);
+      // Fallback básico se a função não existir ou falhar
+      throw new Error(`Erro ao verificar cota: ${error.message}`);
+    }
+
+    return !!data;
+  } catch (error: any) {
+    console.error("Erro geral no usageService:", error);
+    throw error;
+  }
 };
 
-export const getUserUsage = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { simple_count: 0, complex_count: 0, image_count: 0 };
+export const getUserUsage = async (providedUserId?: string) => {
+  let userId = providedUserId;
   
-  const { data } = await supabase.from('user_ai_usage').select('*').eq('user_id', user.id).maybeSingle();
-
-  const now = new Date();
-  if (data) {
-    const lastReset = data.last_reset_time ? new Date(data.last_reset_time) : new Date(0);
-    const diffHours = (now.getTime() - lastReset.getTime()) / (1000 * 60 * 60);
-    if (diffHours >= 12) {
-      return { simple_count: 0, complex_count: 0, image_count: 0 };
-    }
+  if (!userId) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { simple_count: 0, complex_count: 0, image_count: 0 };
+    userId = user.id;
   }
   
-  return data || { simple_count: 0, complex_count: 0, image_count: 0 };
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayISO = today.toISOString();
+
+    const { data, error } = await supabase
+      .from('user_ai_usage')
+      .select('tipo_uso')
+      .eq('user_id', userId)
+      .gte('created_at', todayISO);
+
+    if (error) {
+      console.error("Erro ao buscar uso do usuário:", error);
+      return { simple_count: 0, complex_count: 0, image_count: 0 };
+    }
+
+    const usage = {
+      simple_count: 0,
+      complex_count: 0,
+      image_count: 0
+    };
+
+    data?.forEach(row => {
+      if (row.tipo_uso === 'simple' || row.tipo_uso === 'translation') usage.simple_count++;
+      else if (row.tipo_uso === 'complex') usage.complex_count++;
+      else if (row.tipo_uso === 'image') usage.image_count++;
+    });
+
+    return usage;
+  } catch (error) {
+    console.error("Erro ao processar uso:", error);
+    return { simple_count: 0, complex_count: 0, image_count: 0 };
+  }
 };
 
 export const refundUsage = async (type: 'simple' | 'complex' | 'image'): Promise<void> => {
@@ -110,18 +86,28 @@ export const refundUsage = async (type: 'simple' | 'complex' | 'image'): Promise
   if (!user) return;
   const userId = user.id;
 
-  const column = `${type}_count`;
-
-  const { data } = await supabase
-    .from('user_ai_usage')
-    .select(column)
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  if (data && data[column as keyof typeof data] > 0) {
-    await supabase
+  try {
+    // Remove o último registro de uso desse tipo hoje
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const { data: lastUsage } = await supabase
       .from('user_ai_usage')
-      .update({ [column]: (data[column as keyof typeof data] as number) - 1 })
-      .eq('user_id', userId);
+      .select('id')
+      .eq('user_id', userId)
+      .eq('tipo_uso', type)
+      .gte('created_at', today.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (lastUsage) {
+      await supabase
+        .from('user_ai_usage')
+        .delete()
+        .eq('id', lastUsage.id);
+    }
+  } catch (error) {
+    console.error("Erro ao reembolsar uso:", error);
   }
 };

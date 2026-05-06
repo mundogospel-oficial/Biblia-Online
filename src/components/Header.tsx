@@ -8,7 +8,7 @@ const Header = () => {
     { to: "/", label: "Início", icon: <Home className="h-4 w-4" /> },
     { to: "/buscar", label: "Buscar", icon: <Search className="h-4 w-4" /> },
     { to: "/ia", label: "IA", icon: <Bot className="h-4 w-4" /> },
-    { to: "/favoritos", label: "Favoritos", icon: <Heart className="h-4 w-4" /> },
+    { to: "/favoritos", label: "Reações", icon: <Heart className="h-4 w-4" /> },
     { to: "/devocionais", label: "Devocional", icon: <Calendar className="h-4 w-4" /> },
     { to: "/criar", label: "Criar", icon: <Sparkles className="h-4 w-4" /> },
     { to: "/conta", label: "Conta", icon: <User className="h-4 w-4" /> },

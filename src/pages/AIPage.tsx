@@ -1,14 +1,17 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, Fragment } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
 import {
   Send, Trash2, Sparkles, GraduationCap, X,
   Plus, Image, Video, Music, Diamond, Download, LogIn,
-  History, ChevronLeft, Zap, Bot, Paperclip, AlertCircle, MessageSquarePlus, Square
+  History, ChevronLeft, Zap, Bot, Paperclip, AlertCircle, MessageSquarePlus, Square, Share2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { GoogleGenAI } from "@google/genai";
+
+import { downloadBibleImage, shareBibleImage } from "@/lib/downloadUtils";
 
 import { askBibleAI } from "@/services/aiService";
 import { checkAndIncrementUsage, getUserUsage, refundUsage } from "@/services/usageService";
@@ -37,10 +40,10 @@ const GEMINI_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gemini-cha
 const GEN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-chat-image`;
 const CONVERSATIONS_KEY = "ia-biblica-conversations";
 
-// Daily limits
-const DAILY_CHAT_LIMIT = 7;
-const DAILY_IMAGE_LIMIT = 5;
-const DAILY_GEMINI_LIMIT = 10;
+// Daily limits - Sincronizado com usageService.ts
+const LIMIT_COMPLEX = 7;
+const LIMIT_SIMPLE = 10;
+const LIMIT_IMAGE = 5;
 
 interface Conversation {
   id: string;
@@ -93,6 +96,18 @@ const AIPage = () => {
   const [geminiUsed, setGeminiUsed] = useState(0);
   const [usageStats, setUsageStats] = useState({ simple: 0, complex: 0, image: 0 });
   const [limitReached, setLimitReached] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Função blindada para garantir que o token JWT nunca seja inválido
   const getFreshToken = async () => {
@@ -114,12 +129,16 @@ const AIPage = () => {
 
   const fetchUsage = async () => {
     if (!user) return;
-    const data = await getUserUsage();
-    setUsageStats({
-      simple: data.simple_count || 0,
-      complex: data.complex_count || 0,
-      image: data.image_count || 0,
-    });
+    try {
+      const data = await getUserUsage(user.sub);
+      setUsageStats({
+        simple: data.simple_count || 0,
+        complex: data.complex_count || 0,
+        image: data.image_count || 0,
+      });
+    } catch (e) {
+      console.error("Erro ao buscar estatísticas de uso:", e);
+    }
   };
 
   useEffect(() => {
@@ -128,12 +147,12 @@ const AIPage = () => {
 
   useEffect(() => {
     if (aiEngine === "simples") {
-      setLimitReached(usageStats.simple >= DAILY_GEMINI_LIMIT);
+      setLimitReached(usageStats.simple >= LIMIT_SIMPLE);
     } else {
       if (activeMode === "image" || activeMode === "video" || activeMode === "music") {
-        setLimitReached(usageStats.image >= DAILY_IMAGE_LIMIT);
+        setLimitReached(usageStats.image >= LIMIT_IMAGE);
       } else {
-        setLimitReached(usageStats.complex >= DAILY_CHAT_LIMIT);
+        setLimitReached(usageStats.complex >= LIMIT_COMPLEX);
       }
     }
   }, [aiEngine, activeMode, usageStats]);
@@ -208,13 +227,8 @@ const AIPage = () => {
     }
   };
 
-  const downloadImage = (dataUrl: string) => {
-    const link = document.createElement("a");
-    link.download = `ia-biblica-${Date.now()}.png`;
-    link.href = dataUrl;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const downloadImage = async (dataUrl: string) => {
+    await downloadBibleImage(dataUrl);
   };
 
   const handleFileAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -243,15 +257,17 @@ const AIPage = () => {
     // Check quota before loading
     const limitType = mode === 'image' || mode === 'video' || mode === 'music' ? 'image' : 'complex';
     try {
-      const hasQuota = await checkAndIncrementUsage(limitType as any);
+      const hasQuota = await checkAndIncrementUsage(limitType as any, user.sub);
       if (!hasQuota) {
-        toast({ title: "Erro", description: "Limite atingido. Recarga em até 12h.", variant: "destructive" });
+        toast({ title: "Limite atingido", description: "Sua cota diária para este recurso acabou. Recarga em até 12h.", variant: "destructive" });
         setLimitReached(true);
         setIsLoading(false);
         return;
       }
-    } catch (error) {
-      toast({ title: "Erro", description: "Erro ao verificar cotas. Faça login novamente.", variant: "destructive" });
+    } catch (error: any) {
+      console.error("Erro na verificação de cotas:", error);
+      toast({ title: "Aviso", description: error.message || "Não foi possível verificar suas cotas de uso.", variant: "destructive" });
+      setIsLoading(false);
       return;
     }
 
@@ -333,15 +349,21 @@ const AIPage = () => {
     // Check quota before loading
     try {
       const limitType = activeMode === "image" ? "image" : (aiEngine === "complexo" ? "complex" : "simple");
-      const hasQuota = await checkAndIncrementUsage(limitType);
+      const hasQuota = await checkAndIncrementUsage(limitType, user.sub);
       if (!hasQuota) {
-        toast({ title: "Erro", description: activeMode === "image" ? "Limite diário de 5 imagens atingido. Recarga em 12h." : "Limite atingido. Recarga em até 12h.", variant: "destructive" });
+        toast({ 
+          title: "Limite atingido", 
+          description: activeMode === "image" ? "Limite de 5 imagens atingido. Recarga em 12h." : "Sua cota diária de mensagens acabou. Recarga em até 12h.", 
+          variant: "destructive" 
+        });
         setLimitReached(true);
         setIsLoading(false);
         return;
       }
-    } catch (error) {
-      toast({ title: "Erro", description: "Erro ao verificar cotas. Faça login novamente.", variant: "destructive" });
+    } catch (error: any) {
+      console.error("Erro na verificação de cotas:", error);
+      toast({ title: "Aviso", description: error.message || "Não foi possível verificar suas cotas de uso.", variant: "destructive" });
+      setIsLoading(false);
       return;
     }
 
@@ -359,7 +381,62 @@ const AIPage = () => {
     try {
       let responseText = "";
       if (activeMode === 'image') {
-        responseText = await generateBiblicalImage(finalText, controller.signal);
+        try {
+          const apiKey = (typeof process !== 'undefined' && process.env.GEMINI_API_KEY) || "";
+          if (!apiKey) throw new Error("Chave da API Gemini não configurada.");
+          
+          const ai = new GoogleGenAI({ apiKey });
+          
+          let models = [];
+          try {
+            const modelsResponse = await (ai as any).listModels?.() || await (ai as any).models?.list?.();
+            models = Array.isArray(modelsResponse) ? modelsResponse : (modelsResponse as any).models || [];
+          } catch (err) {
+            console.warn("Could not list models, using fallback", err);
+          }
+          
+          const imageModels = models.filter((m: any) => 
+            m.name.includes('image') || 
+            m.name.includes('imagen') || 
+            (m.supportedActions && m.supportedActions.includes('generateContent') && m.name.includes('flash-image'))
+          );
+          
+          const selectedModelName = imageModels.find((m: any) => m.name.includes('gemini-3.1-flash-image'))?.name || 
+                                   imageModels.find((m: any) => m.name.includes('gemini-2.5-flash-image'))?.name ||
+                                   imageModels[0]?.name || 
+                                   'gemini-2.5-flash-image';
+
+          console.log("AIPage Image Generation using model:", selectedModelName);
+          
+          const promptWithoutPrefix = finalText.replace(/\[Modo:.*?\]\s*/g, "");
+          const fullPrompt = `Gere uma imagem bíblica inspiradora baseada na descrição: "${promptWithoutPrefix}". Estilo: Cinematográfico, 8k, altamente detalhado. A imagem DEVE PREENCHER COMPLETAMENTE O QUADRO (fill the entire frame), sem bordas, sem molduras brancas e SEM TEXTO na imagem.`;
+
+          const response = await ai.models.generateContent({
+            model: selectedModelName,
+            contents: [{ parts: [{ text: fullPrompt }] }],
+            config: {
+              imageConfig: { aspectRatio: "1:1" }
+            }
+          });
+
+          if (response.candidates && response.candidates[0]?.content?.parts) {
+            for (const part of response.candidates[0].content.parts) {
+              if (part.inlineData) {
+                const base64 = `data:image/png;base64,${part.inlineData.data}`;
+                responseText = `Aqui está a imagem gerada para: "${promptWithoutPrefix}"\n\n![${promptWithoutPrefix}](${base64})`;
+                break;
+              }
+            }
+          }
+
+          if (!responseText) {
+            // Fallback to old service if no image returned from direct model
+            responseText = await generateBiblicalImage(finalText, controller.signal);
+          }
+        } catch (imgErr) {
+          console.error("Gemini Image Direct Mode error, falling back:", imgErr);
+          responseText = await generateBiblicalImage(finalText, controller.signal);
+        }
       } else {
         responseText = await askBibleAI(finalText, aiEngine === "complexo" ? "complex" : "simple", controller.signal, base64Image);
       }
@@ -415,29 +492,46 @@ const AIPage = () => {
   };
 
   const renderAssistantContent = (msg: Msg) => {
-    const lines = msg.content.split("\n");
+    const lines = (msg.content || "").split("\n");
     return (
       <div className="space-y-1">
         {msg.image && (
-          <div className="mb-2">
-            <img src={msg.image} alt="Imagem gerada" className="rounded-xl max-w-full w-full" />
-            <button onClick={() => downloadImage(msg.image!)}
-              className="mt-1.5 flex items-center gap-1 rounded-lg bg-accent/10 px-2.5 py-1.5 text-[10px] font-medium text-accent hover:bg-accent/20 transition-colors liquid-btn">
-              <Download className="h-3 w-3" /> Baixar imagem
-            </button>
-          </div>
+          <Fragment>
+            <div className="mb-2 relative w-full aspect-square overflow-hidden rounded-xl bg-muted">
+              <img src={msg.image} alt="Imagem gerada" className="absolute inset-0 w-full h-full object-cover" />
+            </div>
+            <div className="mt-1.5 flex gap-2">
+              <button onClick={() => downloadImage(msg.image!)}
+                className="flex items-center gap-1 rounded-lg bg-accent/10 px-2.5 py-1.5 text-[10px] font-medium text-accent hover:bg-accent/20 transition-colors liquid-btn">
+                <Download className="h-3 w-3" /> Baixar
+              </button>
+              <button onClick={() => shareBibleImage(msg.image!)}
+                className="flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors liquid-btn">
+                <Share2 className="h-3 w-3" /> Compartilhar
+              </button>
+            </div>
+          </Fragment>
         )}
         {lines.map((line, i) => {
           const imgMatch = line.match(/!\[.*?\]\((.*?)\)/);
           if (imgMatch) {
+             const imageUrl = imgMatch[1];
              return (
-               <div key={i} className="mb-2 mt-2">
-                 <img src={imgMatch[1]} alt="Imagem gerada" className="rounded-xl max-w-full w-full" />
-                 <button onClick={() => downloadImage(imgMatch[1])}
-                   className="mt-1.5 flex items-center gap-1 rounded-lg bg-accent/10 px-2.5 py-1.5 text-[10px] font-medium text-accent hover:bg-accent/20 transition-colors liquid-btn">
-                   <Download className="h-3 w-3" /> Baixar imagem
-                 </button>
-               </div>
+               <Fragment key={i}>
+                 <div className="mb-2 mt-2 relative w-full aspect-square overflow-hidden rounded-xl bg-muted">
+                   <img src={imageUrl} alt="Imagem gerada" className="absolute inset-0 w-full h-full object-cover" />
+                 </div>
+                 <div className="mt-1.5 flex gap-2">
+                   <button onClick={() => downloadImage(imageUrl)}
+                     className="flex items-center gap-1 rounded-lg bg-accent/10 px-2.5 py-1.5 text-[10px] font-medium text-accent hover:bg-accent/20 transition-colors liquid-btn">
+                     <Download className="h-3 w-3" /> Baixar
+                   </button>
+                   <button onClick={() => shareBibleImage(imageUrl)}
+                     className="flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors liquid-btn">
+                     <Share2 className="h-3 w-3" /> Compartilhar
+                   </button>
+                 </div>
+               </Fragment>
              );
           }
           if (line.startsWith("**") && line.endsWith("**")) return <p key={i} className="text-xs font-bold text-foreground mt-1.5">{line.slice(2, -2)}</p>;
@@ -460,9 +554,9 @@ const AIPage = () => {
   };
 
   const activeModeInfo = activeMode ? modes.find(m => m.key === activeMode) : null;
-  const chatRemaining = DAILY_CHAT_LIMIT - usageStats.complex;
-  const imageRemaining = DAILY_IMAGE_LIMIT - usageStats.image;
-  const geminiRemaining = DAILY_GEMINI_LIMIT - usageStats.simple;
+  const chatRemaining = LIMIT_COMPLEX - usageStats.complex;
+  const imageRemaining = LIMIT_IMAGE - usageStats.image;
+  const geminiRemaining = LIMIT_SIMPLE - usageStats.simple;
 
   if (showHistory) {
     return (
@@ -671,8 +765,14 @@ const AIPage = () => {
             )}
           </AnimatePresence>
 
-          <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="flex items-end gap-2">
-            {aiEngine === "complexo" && (
+          <form onSubmit={(e) => { e.preventDefault(); if (isOnline) send(input); }} className="flex flex-col gap-2">
+            {!isOnline && (
+              <div className="flex items-center gap-2 rounded-lg bg-orange-500/10 p-2 text-[10px] font-medium text-orange-500 border border-orange-500/20">
+                <Zap className="h-3 w-3" /> A IA requer conexão com a internet.
+              </div>
+            )}
+            <div className="flex items-end gap-2">
+              {aiEngine === "complexo" && (
               <div className="flex gap-1">
                 <button type="button" onClick={() => setShowModes(!showModes)}
                   className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors liquid-btn ${showModes ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
@@ -690,8 +790,8 @@ const AIPage = () => {
             )}
             <input
               value={input} onChange={(e) => setInput(e.target.value)}
-              placeholder={limitReached ? "Limite diário atingido" : activeModeInfo ? `Descreva (${activeModeInfo.label})...` : aiEngine === "simples" ? "Pergunta simples..." : "Pergunte qualquer coisa..."}
-              disabled={isLoading || limitReached}
+              placeholder={!isOnline ? "Necessário internet para IA" : limitReached ? "Limite diário atingido" : activeModeInfo ? `Descreva (${activeModeInfo.label})...` : aiEngine === "simples" ? "Pergunta simples..." : "Pergunte qualquer coisa..."}
+              disabled={isLoading || limitReached || !isOnline}
               className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             />
             {isLoading ? (
@@ -706,13 +806,14 @@ const AIPage = () => {
             ) : (
               <button
                 type="submit"
-                disabled={!input.trim() || limitReached}
+                disabled={!input.trim() || limitReached || !isOnline}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground transition-colors liquid-btn disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Enviar"
               >
                 <Send size={18} />
               </button>
             )}
+            </div>
           </form>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -48,6 +49,15 @@ const ConfigErrorScreen = () => (
 );
 
 const App = () => {
+  useEffect(() => {
+    // Notify Service Worker that app is opened (for inactivity tracking)
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.active?.postMessage({ type: 'APP_OPENED' });
+      }).catch(err => console.warn("App: SW not ready for signal", err));
+    }
+  }, []);
+
   if (isSupabaseMisconfigured()) {
     return <ConfigErrorScreen />;
   }

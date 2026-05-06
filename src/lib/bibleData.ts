@@ -247,9 +247,8 @@ async function fetchFromBibleApi(
 
   for (const apiName of names) {
     try {
-      const res = await fetch(
-        `https://bible-api.com/${encodeURIComponent(apiName)}+${chapter}?translation=${translation}`
-      );
+      const url = `https://bible-api.com/${encodeURIComponent(apiName)}+${chapter}?translation=${translation}`;
+      const res = await fetch(url);
       if (!res.ok) continue;
       const data = await res.json();
       if (data.error || !data.verses?.length) continue;
@@ -264,7 +263,8 @@ async function fetchFromBibleApi(
         })),
         text: data.text || '',
       };
-    } catch {
+    } catch (err: any) {
+      console.warn(`[BibleAPI] Falha ao buscar em ${apiName}:`, err.message);
       continue;
     }
   }
@@ -283,24 +283,28 @@ async function fetchFromBolls(
   const book = bibleBooks.find(b => b.abbrev === abbrev);
   const bookName = book?.name || abbrev;
 
-  const res = await fetch(
-    `https://bolls.life/get-text/ARC/${bookId}/${chapter}/`
-  );
-  if (!res.ok) throw new Error('bolls.life failed');
+  try {
+    const url = `https://bolls.life/get-text/ARC/${bookId}/${chapter}/`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Status HTTP: ${res.status}`);
 
-  const data: Array<{ verse: number; text: string }> = await res.json();
-  if (!data?.length) throw new Error('No verses');
+    const data: Array<{ verse: number; text: string }> = await res.json();
+    if (!data?.length) throw new Error('No verses');
 
-  return {
-    reference: `${bookName} ${chapter}`,
-    verses: data.map((v) => ({
-      book_name: bookName,
-      chapter,
-      verse: v.verse,
-      text: v.text,
-    })),
-    text: data.map(v => v.text).join(' '),
-  };
+    return {
+      reference: `${bookName} ${chapter}`,
+      verses: data.map((v) => ({
+        book_name: bookName,
+        chapter,
+        verse: v.verse,
+        text: v.text,
+      })),
+      text: data.map(v => v.text).join(' '),
+    };
+  } catch (err: any) {
+    console.error('[Bolls API Error]:', err.message);
+    throw new Error(`Erro ao conectar com bolls.life: ${err.message}`);
+  }
 }
 
 // ── Public API: fetchChapter with cache + multi-source fallback ──

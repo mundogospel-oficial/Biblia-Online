@@ -8,6 +8,10 @@ const envKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.
 // We use 127.0.0.1 as a fallback to avoid DNS lookup failures if vars are missing
 const SUPABASE_URL = (envUrl && envUrl.startsWith('http')) ? envUrl : 'http://127.0.0.1';
 
+if (!envUrl || !envUrl.startsWith('http')) {
+  console.warn("Supabase URL is not configured. Some features (Auth, AI History, Realtime) will fail with 'Failed to fetch'. Set VITE_SUPABASE_URL in Secrets.");
+}
+
 if (envUrl && !envUrl.startsWith('http')) {
   console.error("The provided Supabase URL does not start with 'http'. It looks like you might have accidentally copied the SHA256 digest instead of the actual URL.");
 }

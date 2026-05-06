@@ -1,4 +1,4 @@
-const CACHE_NAME = 'biblia-online-v2';
+const CACHE_NAME = 'biblia-online-v3';
 
 // ── Curated verses (same as dailyVerse.ts) ──
 const VERSES = [
@@ -28,85 +28,112 @@ const VERSES = [
 function getVerseForSlot(slotIndex) {
   const today = new Date();
   const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000);
-  const index = (dayOfYear * 3 + slotIndex) % VERSES.length;
+  const index = (dayOfYear * 2 + slotIndex) % VERSES.length;
   return VERSES[index];
 }
 
-// ── Notification scheduling: 8h, 12h, 20h ──
-const NOTIFICATION_HOURS = [8, 12, 20];
-
+// ── Notification scheduling: 8h, 20h (As requested) ──
 const SLOT_TITLES = [
   '📖 Bíblia Online — Bom Dia!',
-  '📖 Bíblia Online — Meio-Dia',
-  '📖 Bíblia Online — Boa Noite!',
+  '📖 Bíblia Online — Versículo Destaque',
 ];
 
-// Track if user opened the app today
-const LAST_VISIT_KEY = 'bible-last-visit-day';
+// Tracking Last Visit via IndexedDB
+const DB_NAME = 'biblia-usage-db';
+const STORE_NAME = 'usage';
+const LAST_VISIT_KEY = 'last-visit';
 
-function getTodayKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+function getDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(STORE_NAME)) {
+        request.result.createObjectStore(STORE_NAME);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
 }
 
-function msUntilNext() {
-  const now = new Date();
-  let nearest = Infinity;
-  let nearestSlot = 0;
-
-  for (let i = 0; i < NOTIFICATION_HOURS.length; i++) {
-    const next = new Date(now);
-    next.setHours(NOTIFICATION_HOURS[i], 0, 0, 0);
-    if (now >= next) next.setDate(next.getDate() + 1);
-    const diff = next.getTime() - now.getTime();
-    if (diff < nearest) {
-      nearest = diff;
-      nearestSlot = i;
-    }
+async function updateVisitInDB() {
+  try {
+    const db = await getDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).put(Date.now(), LAST_VISIT_KEY);
+  } catch (e) {
+    console.error("SW: DB Update failed", e);
   }
-
-  return { ms: nearest, slot: nearestSlot };
 }
 
-let scheduledTimer = null;
-
-function scheduleNotification() {
-  if (scheduledTimer) clearTimeout(scheduledTimer);
-  const { ms, slot } = msUntilNext();
-  scheduledTimer = setTimeout(async () => {
-    await showNotification(slot);
-    scheduleNotification();
-  }, ms);
-
-  // Also schedule the "forgot to read" reminder at 21:00
-  scheduleReminder();
-}
-
-function scheduleReminder() {
-  const now = new Date();
-  const reminder = new Date(now);
-  reminder.setHours(21, 0, 0, 0);
-  if (now >= reminder) reminder.setDate(reminder.getDate() + 1);
-  const ms = reminder.getTime() - now.getTime();
-
-  setTimeout(async () => {
-    // Check if user visited today
+async function getLastVisitFromDB() {
+  return new Promise(async (resolve) => {
     try {
-      const allClients = await self.clients.matchAll({ type: 'window' });
-      // If no clients are open and we haven't seen user today, send reminder
-      if (allClients.length === 0) {
+      const db = await getDB();
+      const request = db.transaction(STORE_NAME).objectStore(STORE_NAME).get(LAST_VISIT_KEY);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve(null);
+    } catch (e) {
+      resolve(null);
+    }
+  });
+}
+
+function msUntilNext(hour) {
+  const now = new Date();
+  const next = new Date(now);
+  next.setHours(hour, 0, 0, 0);
+  if (now >= next) next.setDate(next.getDate() + 1);
+  return next.getTime() - now.getTime();
+}
+
+let notificationTimers = [];
+
+function clearTimers() {
+  notificationTimers.forEach(t => clearTimeout(t));
+  notificationTimers = [];
+}
+
+function scheduleDailyNotifications() {
+  clearTimers();
+  
+  // Morning (8 AM)
+  const msMorning = msUntilNext(8);
+  notificationTimers.push(setTimeout(() => {
+    showNotification(0);
+    scheduleDailyNotifications();
+  }, msMorning));
+
+  // Evening (8 PM / 20:00)
+  const msEvening = msUntilNext(20);
+  notificationTimers.push(setTimeout(() => {
+    showNotification(1);
+    scheduleDailyNotifications();
+  }, msEvening));
+}
+
+async function checkInactivityAlert() {
+  const lastVisit = await getLastVisitFromDB();
+  if (lastVisit) {
+    const diff = Date.now() - lastVisit;
+    const oneDayInMs = 24 * 60 * 60 * 1000;
+    
+    if (diff > oneDayInMs) {
+      try {
         await self.registration.showNotification('📖 Bíblia Online', {
-          body: 'Você esqueceu de ler a Bíblia hoje! Que tal dedicar alguns minutos agora? 🙏',
-          icon: '/icons/icon-192.png',
-          badge: '/icons/icon-192.png',
-          tag: 'daily-reminder',
+          body: 'Você esqueceu de ler! Faz mais de um dia. Que tal ler um versículo agora? 🙏',
+          icon: '/favicon.ico',
+          badge: '/favicon.ico',
+          tag: 'inactivity-alert',
           renotify: true,
           data: { url: '/' },
         });
-      }
-    } catch (e) {}
-    scheduleReminder();
-  }, ms);
+      } catch (e) {}
+    }
+  }
+  
+  // Re-check in 6 hours
+  setTimeout(checkInactivityAlert, 6 * 60 * 60 * 1000);
 }
 
 async function showNotification(slotIndex) {
@@ -114,8 +141,8 @@ async function showNotification(slotIndex) {
   try {
     await self.registration.showNotification(SLOT_TITLES[slotIndex], {
       body: `"${verse.text}" — ${verse.ref}`,
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
+      icon: '/favicon.ico',
+      badge: '/favicon.ico',
       tag: 'daily-verse-' + slotIndex,
       renotify: true,
       data: { url: '/' },
@@ -136,19 +163,30 @@ self.addEventListener('activate', (event) => {
       );
     }).then(() => clients.claim())
   );
-  scheduleNotification();
+  scheduleDailyNotifications();
+  checkInactivityAlert();
 });
 
 // ── Listen for messages from the app ──
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'ENABLE_NOTIFICATIONS') {
-    scheduleNotification();
+    scheduleDailyNotifications();
+  }
+  if (event.data && event.data.type === 'APP_OPENED') {
+    updateVisitInDB();
   }
   if (event.data && event.data.type === 'TEST_NOTIFICATION') {
     showNotification(0);
   }
-  if (event.data && event.data.type === 'APP_OPENED') {
-    // User opened the app - tracked for reminder
+  if (event.data && event.data.type === 'CACHE_OFFLINE') {
+    // Force cache all assets currently in view
+    clients.matchAll().then(clients => {
+      clients.forEach(client => {
+        const urlSplit = client.url.split('/');
+        const path = '/' + urlSplit.slice(3).join('/');
+        caches.open(CACHE_NAME).then(cache => cache.add(path));
+      });
+    });
   }
 });
 
@@ -167,66 +205,40 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// ── Fetch handler (caching) ──
+// ── Fetch handler (Basic caching) ──
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  if (event.request.url.includes('/~oauth')) return;
   if (!event.request.url.startsWith('http')) return;
 
-  // Serve offline Bible data from dedicated cache
-  if (event.request.url.includes('eversondeveloper/bibialivrejson/main/biblialivrecorrecao1.json') || event.request.url.includes('biblia-livre.json')) {
+  // Handle navigation requests
+  if (event.request.mode === 'navigate') {
     event.respondWith(
-      caches.open('biblia-offline-data').then((cache) => {
-        return cache.match(event.request, { ignoreSearch: true }).then((cached) => {
-          if (cached) return cached;
-          return fetch(event.request);
-        });
-      }).catch(() => fetch(event.request))
+      fetch(event.request).catch(() => {
+        return caches.match('/');
+      })
     );
     return;
   }
 
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
+      return cached || fetch(event.request).then((response) => {
         if (response.ok && (
           event.request.url.endsWith('.js') ||
           event.request.url.endsWith('.css') ||
           event.request.url.endsWith('.png') ||
-          event.request.url.endsWith('.ico')
+          event.request.url.endsWith('.ico') ||
+          event.request.url.includes('googleusercontent')
         )) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
         return response;
       }).catch(() => {
-        if (event.request.headers.get('accept')?.includes('text/html')) {
-          return new Response(
-            `<!DOCTYPE html>
-            <html lang="pt-BR">
-            <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-              <title>Sem Conexão</title>
-              <style>
-                body { font-family: system-ui, sans-serif; text-align: center; padding: 2rem; background-color: #121b27; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-                h1 { font-size: 2rem; margin-bottom: 0.5rem; color: #3b82f6; }
-                p { color: #94a3b8; margin-bottom: 2rem; line-height: 1.5; }
-                button { background: #3b82f6; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; }
-                button:active { background: #2563eb; }
-              </style>
-            </head>
-            <body>
-              <h1>Você está offline 📡</h1>
-              <p>Parece que você perdeu a conexão com a internet.<br>Verifique sua rede e tente novamente.</p>
-              <button onclick="window.location.reload()">Tentar novamente</button>
-            </body>
-            </html>`,
-            { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-          );
-        }
-        return new Response('', { status: 408, statusText: 'Request Timeout' });
+        // Fallback for offline data if it was explicitly cached in biblia-offline-data
+        return caches.match(event.request, { cacheName: 'biblia-offline-data' }).then(offlineData => {
+          return offlineData || new Response('Offline', { status: 408 });
+        });
       });
     })
   );

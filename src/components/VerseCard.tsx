@@ -9,6 +9,7 @@ interface VerseCardProps {
   theme: CardTheme;
   format?: CardFormat;
   animate?: boolean;
+  fontSize?: number;
 }
 
 export interface CardTheme {
@@ -41,7 +42,7 @@ const formatClasses: Record<CardFormat, string> = {
 };
 
 const VerseCard = forwardRef<HTMLDivElement, VerseCardProps>(
-  ({ text, reference, theme, format = "square", animate = true }, ref) => {
+  ({ text, reference, theme, format = "square", animate = true, fontSize = 24 }, ref) => {
     const Wrapper = animate ? motion.div : "div";
     const wrapperProps = animate
       ? { initial: { opacity: 0, scale: 0.95 }, animate: { opacity: 1, scale: 1 }, transition: { duration: 0.4 } }
@@ -63,7 +64,10 @@ const VerseCard = forwardRef<HTMLDivElement, VerseCardProps>(
           <div className="mb-6 flex justify-center">
             <div className="h-px w-16 bg-current opacity-30" />
           </div>
-          <blockquote className="font-serif text-xl leading-relaxed sm:text-2xl text-center italic">
+          <blockquote 
+            className="font-serif leading-relaxed text-center italic"
+            style={{ fontSize: `${fontSize}px` }}
+          >
             "{text}"
           </blockquote>
           <div className="mt-6 flex justify-center">

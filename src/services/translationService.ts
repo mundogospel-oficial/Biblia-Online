@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { checkAndIncrementUsage } from './usageService';
+import { getSystemRule } from './aiService';
 
 export interface VerseToTranslate {
   verse: number;
@@ -43,15 +44,19 @@ export const translateVersesAI = async (
     "openrouter/free"
   ];
 
+  const systemRule = await getSystemRule();
   const sourceLang = targetLang === 'en' ? 'Português' : 'Inglês';
   const languageName = targetLang === 'en' ? 'Inglês' : 'Português';
   
-  const prompt = `Você é um tradutor bíblico especializado. Sua missão é traduzir versículos do ${sourceLang} para o ${languageName}.
+  const prompt = `REGRAS MESTRAS: ${systemRule}
+
+Você é um tradutor bíblico especializado. Sua missão é traduzir versículos do ${sourceLang} para o ${languageName}.
 Diretrizes:
 - Use uma linguagem reverente e erudita (Almeida no PT, KJV/NIV no EN).
 - Mantenha a numeração original dos versículos.
 - NÃO adicione justificativas, comentários ou explicações.
 - Responda apenas com o JSON solicitado.
+- Respeite as REGRAS MESTRAS acima.
 
 Formato esperado:
 {

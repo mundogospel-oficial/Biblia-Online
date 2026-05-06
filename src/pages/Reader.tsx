@@ -11,7 +11,7 @@ import Header from "@/components/Header";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft, ChevronRight, Sparkles, Loader2, Heart,
-  Highlighter, MessageSquare, X, Languages, BookOpen,
+  Highlighter, StickyNote, X, Languages, BookOpen,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 const DICT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bible-chat`;
 
 import { translateVersesAI, checkAndIncrementQuota } from "@/services/translationService";
+import { askDictionaryAI } from "@/services/aiService";
 
 const Reader = () => {
   const { abbrev, chapter } = useParams<{ abbrev: string; chapter: string }>();
@@ -179,11 +180,16 @@ const Reader = () => {
 
   const handleHighlight = (verseNum: number, color: HighlightColor) => {
     const id = `${abbrev}:${chapterNum}:${verseNum}`;
+    const verseText = verses.find(v => v.verse === verseNum)?.text.trim() || "";
+    const reference = `${book?.name} ${chapterNum}:${verseNum}`;
+
     if (highlightsMap[verseNum] === color) {
       removeHighlight(id);
+      removeFavorite(id, "markings");
       setHighlightsMap((p) => { const n = { ...p }; delete n[verseNum]; return n; });
     } else {
       setHighlight(id, color);
+      addFavorite({ id, text: verseText, reference }, "markings");
       setHighlightsMap((p) => ({ ...p, [verseNum]: color }));
     }
     setActiveVerse(null);
@@ -191,7 +197,16 @@ const Reader = () => {
 
   const handleSaveNote = (verseNum: number) => {
     const id = `${abbrev}:${chapterNum}:${verseNum}`;
+    const verseText = verses.find(v => v.verse === verseNum)?.text.trim() || "";
+    const reference = `${book?.name} ${chapterNum}:${verseNum}`;
+
     setNote(id, noteText);
+    if (noteText.trim()) {
+      addFavorite({ id, text: verseText, reference }, "notes");
+    } else {
+      removeFavorite(id, "notes");
+    }
+
     setNotesMap((p) => noteText.trim() ? { ...p, [verseNum]: noteText.trim() } : (() => { const n = { ...p }; delete n[verseNum]; return n; })());
     setShowNoteInput(null);
     setNoteText("");
@@ -219,54 +234,13 @@ const Reader = () => {
     setDictContent("");
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast({ title: "Faça login para usar o dicionário" }); setDictLoading(false); return; }
-      const resp = await fetch(DICT_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          messages: [{
-            role: "user",
-            content: `Seja conciso e direto. Analise o versículo como dicionário bíblico. REGRAS: Sem cabeçalhos (#). Use **negrito** para subtítulos. Use bullet points (•) para listas. Máximo 5-8 bullets no total. Frases curtas. Inclua: • Palavras-chave (significado original) • Contexto histórico (1-2 frases) • Aplicação prática (1-2 frases). Versículo: "${v.text.trim()}" — ${book.name} ${chapterNum}:${verseNum}`,
-          }],
-        }),
-      });
-
-      if (!resp.ok || !resp.body) throw new Error("Erro");
-
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let textBuffer = "";
-      let result = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        textBuffer += decoder.decode(value, { stream: true });
-
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (!line.startsWith("data: ")) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") break;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              result += content;
-              setDictContent(result);
-            }
-          } catch {}
-        }
-      }
-    } catch {
+      const reference = `${book.name} ${chapterNum}:${verseNum}`;
+      const content = await askDictionaryAI(v.text.trim(), reference);
+      setDictContent(content);
+    } catch (error: any) {
+      console.error("Erro no dicionário:", error);
       setDictContent("Erro ao carregar o dicionário. Tente novamente.");
+      toast({ title: "Erro no dicionário", description: error.message, variant: "destructive" });
     } finally {
       setDictLoading(false);
     }
@@ -489,7 +463,7 @@ const Reader = () => {
                         }}
                         className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:text-accent"
                       >
-                        <MessageSquare className={`h-3.5 w-3.5 ${note ? "text-accent fill-accent/30" : ""}`} />
+                        <StickyNote className={`h-3.5 w-3.5 ${note ? "text-accent fill-accent/30" : ""}`} />
                       </button>
                     </div>
                   </div>

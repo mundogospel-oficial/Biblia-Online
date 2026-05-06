@@ -4,6 +4,9 @@ import Header from "@/components/Header";
 import { Search, Loader2, Clock, X, Filter } from "lucide-react";
 import { Link } from "react-router-dom";
 import { bibleBooks } from "@/lib/bibleData";
+import { isFavorite, addFavorite, removeFavorite, ReactionType } from "@/lib/favorites";
+import { useToast } from "@/hooks/use-toast";
+import { Heart, Highlighter, StickyNote } from "lucide-react";
 
 interface SearchResult {
   book_name: string;
@@ -39,6 +42,9 @@ const SearchPage = () => {
   const [searched, setSearched] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState("all");
+
+  const { toast } = useToast();
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     try {
@@ -97,10 +103,13 @@ const SearchPage = () => {
 
           <form onSubmit={(e) => { e.preventDefault(); handleSearch(""); }} className="mb-3 flex gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ex: João 3:16, amor, Davi..."
-                className="w-full rounded-xl glass-card py-3 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              <input 
+                value={query} 
+                onChange={(e) => setQuery(e.target.value)} 
+                placeholder="Ex: João 3:16, amor, Davi..."
+                className={`w-full rounded-xl glass-card py-3 ${query ? "pl-4" : "pl-10"} pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent transition-all duration-200`}
               />
+              {!query && <Search className="absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />}
             </div>
             <button type="submit" disabled={loading} className="rounded-xl bg-primary px-5 py-3 text-sm font-medium text-primary-foreground disabled:opacity-50 liquid-btn">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
@@ -164,14 +173,46 @@ const SearchPage = () => {
 
           {!loading && results.length > 0 && (
             <div className="mt-3 space-y-2">
-              {results.map((r, i) => (
-                <motion.div key={i} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}>
-                  <Link to={`/livro/${findAbbrev(r.book_name)}/${r.chapter}`} className="block rounded-xl glass-card p-4 transition-colors hover:!border-accent liquid-btn">
-                    <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-accent">{r.book_name} {r.chapter}:{r.verse}</p>
-                    <p className="font-serif text-sm leading-relaxed text-card-foreground">{r.text}</p>
-                  </Link>
-                </motion.div>
-              ))}
+              {results.map((r, i) => {
+                const abbrev = findAbbrev(r.book_name);
+                const verseId = `${abbrev}:${r.chapter}:${r.verse}`;
+                const reference = `${r.book_name} ${r.chapter}:${r.verse}`;
+
+                const toggleReaction = (e: React.MouseEvent, type: ReactionType) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (isFavorite(verseId, type)) {
+                    removeFavorite(verseId, type);
+                    toast({ title: "Removido" });
+                  } else {
+                    addFavorite({ id: verseId, text: r.text, reference }, type);
+                    toast({ title: "Salvo!" });
+                  }
+                  setRefreshTrigger(p => p + 1);
+                };
+
+                return (
+                  <motion.div key={`${i}-${refreshTrigger}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}>
+                    <Link to={`/livro/${abbrev}/${r.chapter}`} className="relative block rounded-xl glass-card p-4 transition-colors hover:!border-accent liquid-btn">
+                      <div className="flex items-start justify-between mb-1">
+                        <p className="text-[10px] font-medium uppercase tracking-wider text-accent">{reference}</p>
+                        <div className="flex items-center gap-2">
+                          <button onClick={(e) => toggleReaction(e, "favorites")} className={`p-1 transition-colors ${isFavorite(verseId, "favorites") ? "text-accent" : "text-muted-foreground hover:text-accent"}`}>
+                            <Heart className={`h-3.5 w-3.5 ${isFavorite(verseId, "favorites") ? "fill-accent" : ""}`} />
+                          </button>
+                          <button onClick={(e) => toggleReaction(e, "markings")} className={`p-1 transition-colors ${isFavorite(verseId, "markings") ? "text-accent" : "text-muted-foreground hover:text-accent"}`}>
+                            <Highlighter className="h-3.5 w-3.5" />
+                          </button>
+                          <button onClick={(e) => toggleReaction(e, "notes")} className={`p-1 transition-colors ${isFavorite(verseId, "notes") ? "text-accent" : "text-muted-foreground hover:text-accent"}`}>
+                            <StickyNote className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <p className="font-serif text-sm leading-relaxed text-card-foreground">{r.text}</p>
+                    </Link>
+                  </motion.div>
+                );
+              })}
             </div>
           )}
         </motion.div>
