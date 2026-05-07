@@ -268,16 +268,16 @@ const AccountPage = () => {
     
     setLoading(true);
     try {
-      // 1. Chamar a função RPC para deletar o usuário do auth.users (necessário SQL no dashboard)
+      // 1. Chamar a função RPC para deletar o usuário do auth.users
       const { error: rpcError } = await supabase.rpc('delete_user_account');
       
+      // SE A FUNÇÃO FALHAR, INTERROMPE TUDO AQUI (Não faz logout falso)
       if (rpcError) {
         console.error("Erro ao deletar no Supabase:", rpcError);
-        // Se o RPC falhar (ex: função não existe), tentamos deletar o perfil público
-        await supabase.from('profiles').delete().eq('id', authCtx.user.sub);
+        throw new Error("Falha na exclusão do banco de dados.");
       }
       
-      // 2. Limpeza Local
+      // 2. Limpeza Local - SÓ CHEGA AQUI SE A CONTA REALMENTE FOI EXCLUÍDA NO BANCO
       localStorage.clear();
       
       // 3. Logout e redirecionamento (igual ao handleLogout)
@@ -288,7 +288,7 @@ const AccountPage = () => {
       navigate("/", { replace: true });
     } catch (error) {
       console.error("Erro fatal na exclusão:", error);
-      toast({ title: "Erro na exclusão", description: "Não foi possível completar a ação. Tente novamente.", variant: "destructive" });
+      toast({ title: "Erro na exclusão", description: "Não foi possível excluir a conta. Tente novamente.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
