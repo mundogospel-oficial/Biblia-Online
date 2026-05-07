@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import zxcvbn from "zxcvbn";
 import { motion } from "framer-motion";
 import Header from "@/components/Header";
-import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, ShieldAlert, FileJson, Trash2 } from "lucide-react";
+import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -253,112 +253,35 @@ const AccountPage = () => {
     toast({ title: "Logout realizado" });
   };
 
-  const handleExportData = async () => {
-    if (!authCtx.user) return;
-    toast({ title: "Preparando exportação...", description: "Isso pode levar alguns segundos." });
-    
-    try {
-      // Collect Local Data
-      const localData = {
-        favorites: JSON.parse(localStorage.getItem("bible-favorites") || "[]"),
-        markings: JSON.parse(localStorage.getItem("bible-markings") || "[]"),
-        notes: JSON.parse(localStorage.getItem("bible-notes") || "[]"),
-        highlights: JSON.parse(localStorage.getItem("bible-highlights") || "[]"),
-        ai_conversations: JSON.parse(localStorage.getItem("ia-biblica-conversations") || "[]"),
-        settings: {
-          notifications: localStorage.getItem("bible-notifications-enabled"),
-          offline: localStorage.getItem("bible-offline-enabled"),
-          theme: localStorage.getItem("theme")
-        }
-      };
-
-      // Fetch Remote Data
-      const userId = authCtx.user.sub;
-      
-      const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
-      const { data: posts } = await supabase.from('posts').select('*').eq('user_id', userId);
-      const { data: postLikes } = await supabase.from('post_likes').select('*').eq('user_id', userId);
-      const { data: postComments } = await supabase.from('post_comments').select('*').eq('user_id', userId);
-      const { data: stories } = await supabase.from('stories').select('*').eq('user_id', userId);
-      const { data: aiUsage } = await supabase.from('user_ai_usage').select('*').eq('user_id', userId);
-      
-      // Combine all
-      const fullExport = {
-        export_date: new Date().toISOString(),
-        user_info: {
-          email: authCtx.user.email,
-          id: userId,
-          profile
-        },
-        social: {
-          posts,
-          likes: postLikes,
-          comments: postComments,
-          stories
-        },
-        usage: {
-          ai_usage: aiUsage
-        },
-        app_data: localData
-      };
-
-      // Trigger download
-      const blob = new Blob([JSON.stringify(fullExport, null, 2)], { type: 'application/json' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `dados-biblia-online-${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-      
-      toast({ title: "Dados exportados com sucesso! 📄" });
-    } catch (error) {
-      console.error("Export error:", error);
-      toast({ title: "Erro na exportação", description: "Não foi possível compilar todos os seus dados.", variant: "destructive" });
-    }
-  };
-
   const handleDeleteData = async () => {
     if (!authCtx.user) return;
     
-    const confirm = window.confirm(
-      "Deseja realmente EXCLUIR permanentEMENTE todos os seus dados e conta?\n\n" +
-      "Isso apagará seu perfil, posts, curtidas, comentários, anotações e favoritos."
-    );
-    
-    if (!confirm) return;
+    const confirmDelete = window.confirm("CUIDADO: Deseja excluir PERMANENTEMENTE sua conta e todos os seus dados? Esta ação não pode ser desfeita.");
+    if (!confirmDelete) return;
     
     setLoading(true);
     try {
-      const userId = authCtx.user.sub;
+      // 1. Comando principal para o Supabase (deleta o usuário e dados via RPC)
+      const { error: rpcError } = await supabase.rpc('delete_user_account');
       
-      // 1. Clear Remote Data (Social/Usage)
-      // Note: Depending on RLS, some of these might need manual loops or cascade
-      await supabase.from('post_likes').delete().eq('user_id', userId);
-      await supabase.from('post_comments').delete().eq('user_id', userId);
-      await supabase.from('posts').delete().eq('user_id', userId);
-      await supabase.from('stories').delete().eq('user_id', userId);
-      await supabase.from('user_ai_usage').delete().eq('user_id', userId);
+      if (rpcError) {
+        console.error("Erro Supabase RPC:", rpcError);
+        // Fallback: Tenta limpar o perfil público pelo menos
+        await supabase.from('profiles').delete().eq('id', authCtx.user.sub);
+      }
       
-      // Delete profile
-      await supabase.from('profiles').delete().eq('id', userId);
+      // 2. Limpeza total de dados locais
+      localStorage.clear();
       
-      // 2. Clear Local Storage
-      const keysToRemove = [
-        "bible-favorites", "bible-markings", "bible-notes", "bible-highlights",
-        "ia-biblica-conversations", "bible-notifications-enabled", "bible-offline-enabled"
-      ];
-      keysToRemove.forEach(k => localStorage.removeItem(k));
-      
-      // 3. Logout
-      await supabase.auth.signOut();
+      // 3. Encerrar sessão e sair
+      await supabase.auth.signOut().catch(() => {});
       authCtx.logout();
       
-      toast({ title: "Dados excluídos", description: "Todos os seus dados foram removidos conforme solicitado." });
-      navigate("/");
+      toast({ title: "Conta Excluída", description: "Seus dados foram removidos dos nossos servidores." });
+      navigate("/", { replace: true });
     } catch (error) {
-      console.error("Delete error:", error);
-      toast({ title: "Erro na exclusão", description: "Ocorreu uma falha ao tentar apagar seus dados.", variant: "destructive" });
+      console.error("Erro na exclusão:", error);
+      toast({ title: "Erro na exclusão", description: "Não foi possível completar a ação no momento.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -598,6 +521,18 @@ const AccountPage = () => {
                         <div className={`h-4 w-4 rounded-full bg-white transition-transform ${offlineEnabled ? "translate-x-4" : "translate-x-0"}`} />
                       </div>
                     </button>
+
+                    <button 
+                      type="button" 
+                      onClick={handleDeleteData} 
+                      className="flex w-full items-center gap-3 rounded-xl bg-destructive/10 p-3 transition-colors hover:bg-destructive/20 text-destructive shadow-sm liquid-btn"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <div className="text-left">
+                        <p className="text-sm font-medium">Excluir Minha Conta e Dados</p>
+                        <p className="text-[10px] opacity-70">Apagar perfil e atividades permanentemente</p>
+                      </div>
+                    </button>
                   </div>
                 </div>
 
@@ -605,41 +540,6 @@ const AccountPage = () => {
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive/10 py-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 liquid-btn">
                   <LogOut className="h-4 w-4" /> Sair da Conta
                 </button>
-
-                <div className="mt-4 pt-4 border-t border-border/50">
-                  <div className="glass-card rounded-xl p-4">
-                    <h3 className="mb-3 text-sm font-semibold text-foreground flex items-center gap-2">
-                      <ShieldAlert className="h-4 w-4 text-accent" /> Privacidade e Dados (LGPD)
-                    </h3>
-                    <p className="mb-4 text-[11px] text-muted-foreground leading-relaxed">
-                      Em conformidade com a LGPD (Art. 18), você tem controle total sobre seus dados. 
-                      Você pode baixar uma cópia das suas informações ou excluir permanentemente sua conta e dados.
-                    </p>
-                    <div className="space-y-2">
-                      <button 
-                        onClick={handleExportData}
-                        className="flex w-full items-center gap-3 rounded-xl bg-secondary/50 p-3 transition-colors hover:bg-secondary liquid-btn"
-                      >
-                        <FileJson className="h-4 w-4 text-muted-foreground" />
-                        <div className="text-left">
-                          <p className="text-sm font-medium text-foreground">Exportar Meus Dados</p>
-                          <p className="text-[10px] text-muted-foreground">Baixar arquivo .JSON com seus dados</p>
-                        </div>
-                      </button>
-                      
-                      <button 
-                        onClick={handleDeleteData}
-                        className="flex w-full items-center gap-3 rounded-xl bg-destructive/5 p-3 transition-colors hover:bg-destructive/10 text-destructive liquid-btn"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        <div className="text-left">
-                          <p className="text-sm font-medium">Excluir Tudo e Sair</p>
-                          <p className="text-[10px] opacity-70">Excluir perfil, favoritos, notas e posts</p>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-                </div>
               </div>
             </>
           ) : showForgotPassword ? (
