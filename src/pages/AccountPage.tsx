@@ -248,40 +248,47 @@ const AccountPage = () => {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {}
     authCtx.logout();
     toast({ title: "Logout realizado" });
+    navigate("/");
   };
 
   const handleDeleteData = async () => {
-    if (!authCtx.user) return;
+    if (!authCtx.user) {
+      toast({ title: "Sessão não encontrada", variant: "destructive" });
+      return;
+    }
     
     const confirmDelete = window.confirm("CUIDADO: Deseja excluir PERMANENTEMENTE sua conta e todos os seus dados? Esta ação não pode ser desfeita.");
     if (!confirmDelete) return;
     
     setLoading(true);
     try {
-      // 1. Comando principal para o Supabase (deleta o usuário e dados via RPC)
+      // 1. Chamar a função RPC para deletar o usuário do auth.users (necessário SQL no dashboard)
       const { error: rpcError } = await supabase.rpc('delete_user_account');
       
       if (rpcError) {
-        console.error("Erro Supabase RPC:", rpcError);
-        // Fallback: Tenta limpar o perfil público pelo menos
+        console.error("Erro ao deletar no Supabase:", rpcError);
+        // Se o RPC falhar (ex: função não existe), tentamos deletar o perfil público
         await supabase.from('profiles').delete().eq('id', authCtx.user.sub);
       }
       
-      // 2. Limpeza total de dados locais
+      // 2. Limpeza Local
       localStorage.clear();
       
-      // 3. Encerrar sessão e sair
+      // 3. Logout e redirecionamento (igual ao handleLogout)
       await supabase.auth.signOut().catch(() => {});
       authCtx.logout();
       
-      toast({ title: "Conta Excluída", description: "Seus dados foram removidos dos nossos servidores." });
+      toast({ title: "Conta Excluída", description: "Todos os seus dados foram removidos com sucesso." });
       navigate("/", { replace: true });
     } catch (error) {
-      console.error("Erro na exclusão:", error);
-      toast({ title: "Erro na exclusão", description: "Não foi possível completar a ação no momento.", variant: "destructive" });
+      console.error("Erro fatal na exclusão:", error);
+      toast({ title: "Erro na exclusão", description: "Não foi possível completar a ação. Tente novamente.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -524,8 +531,8 @@ const AccountPage = () => {
 
                     <button 
                       type="button" 
-                      onClick={handleDeleteData} 
-                      className="flex w-full items-center gap-3 rounded-xl bg-destructive/10 p-3 transition-colors hover:bg-destructive/20 text-destructive shadow-sm liquid-btn"
+                      onClick={() => handleDeleteData()} 
+                      className="flex w-full items-center gap-3 rounded-xl bg-destructive/10 p-3 text-destructive transition-colors hover:bg-destructive/20 liquid-btn"
                     >
                       <Trash2 className="h-4 w-4" />
                       <div className="text-left">
