@@ -63,12 +63,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       initialSessionChecked = true;
       if (error) {
         console.warn("Erro ao recuperar sessão inicial:", error.message);
+        
+        // Comprehensive check for invalid/expired tokens
+        const isAuthError = 
+          error.message.includes("Refresh Token Not Found") || 
+          error.message.includes("invalid_grant") ||
+          error.message.includes("refresh_token_not_found") ||
+          error.message.includes("Invalid Refresh Token") ||
+          error.message.includes("refresh token") ||
+          error.status === 400 || 
+          error.status === 401;
+
         if (error.message.includes("Failed to fetch")) {
           // Offline ou bloqueado por CSP/Rede
           console.error("Erro de conexão com o Supabase. Verifique sua internet.");
-        } else if (error.message.includes("Refresh Token Not Found") || error.message.includes("invalid_grant")) {
-          // Limpa tokens inválidos para evitar loops de erro
+        } else if (isAuthError) {
+          // Limpa tokens inválidos para evitar loops de erro e logs irritantes
+          console.log("Detectado token inválido, limpando sessão local...");
           supabase.auth.signOut().catch(() => {});
+          localStorage.removeItem("supabase.auth.token"); // Manual cleanup if signOut fails
           setUser(null);
         }
       }

@@ -34,8 +34,8 @@ function getVerseForSlot(slotIndex) {
 
 // ── Notification scheduling: 8h, 20h (As requested) ──
 const SLOT_TITLES = [
-  '📖 Bíblia Online — Bom Dia!',
-  '📖 Bíblia Online — Versículo Destaque',
+  '📖 Biblia Online — Bom Dia!',
+  '📖 Biblia Online — Versículo Destaque',
 ];
 
 // Tracking Last Visit via IndexedDB
@@ -120,7 +120,7 @@ async function checkInactivityAlert() {
     
     if (diff > oneDayInMs) {
       try {
-        await self.registration.showNotification('📖 Bíblia Online', {
+        await self.registration.showNotification('📖 Biblia Online', {
           body: 'Você esqueceu de ler! Faz mais de um dia. Que tal ler um versículo agora? 🙏',
           icon: '/favicon.ico',
           badge: '/favicon.ico',

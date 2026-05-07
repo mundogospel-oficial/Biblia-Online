@@ -22,6 +22,7 @@ const translateAuthError = (message: string) => {
   if (lowered.includes("password should contain at least one character of each")) return "A senha deve conter letras (maiúsculas e minúsculas), números e símbolos (!@#$).";
   if (lowered.includes("password should be at least")) return "A senha deve ter pelo menos 6 caracteres.";
   if (lowered.includes("email not confirmed")) return "Por favor, verifique seu e-mail antes de entrar.";
+  if (lowered.includes("refresh token") || lowered.includes("refresh_token")) return "Sessão expirada. Por favor, entre novamente.";
   return message; // fallback
 };
 
@@ -418,7 +419,7 @@ const AccountPage = () => {
       setOfflineProgress(100);
       setOfflineEnabled(true);
       localStorage.setItem(OFFLINE_KEY, "true");
-      toast({ title: "Bíblia baixada com sucesso! 📖", description: "Agora funciona sem internet." });
+      toast({ title: "Biblia baixada com sucesso! 📖", description: "Agora funciona sem internet." });
     } catch {
       toast({ title: "Erro ao baixar", description: "Verifique sua conexão.", variant: "destructive" });
     } finally {
@@ -521,7 +522,7 @@ const AccountPage = () => {
                           {offlineEnabled ? <CheckCircle className="h-4 w-4 text-accent" /> : isDownloading ? <Download className="h-4 w-4 animate-bounce text-accent" /> : <WifiOff className="h-4 w-4" />}
                         </span>
                         <div className="text-left">
-                          <p className="text-sm font-medium text-foreground">Bíblia Offline</p>
+                          <p className="text-sm font-medium text-foreground">Biblia Offline</p>
                           <p className="text-[10px] text-muted-foreground">
                             {isDownloading ? `Baixando... ${offlineProgress}%` : offlineEnabled ? "Baixada — funciona sem internet" : "Baixar para usar offline"}
                           </p>
@@ -710,7 +711,7 @@ const AccountPage = () => {
 
           <div className="mt-8 pb-4 text-center">
             <p className="text-xs text-muted-foreground font-sans font-medium tracking-wide">
-              Bíblia Online — Versão {appVersion || "1.7"}
+              Biblia Online — Versão {appVersion || "1.7"}
             </p>
           </div>
 

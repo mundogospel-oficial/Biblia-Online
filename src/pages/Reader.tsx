@@ -397,7 +397,7 @@ const Reader = () => {
                 <div className="space-y-2">
                   <h3 className="font-serif text-xl font-bold text-foreground">Modo Offline</h3>
                   <p className="mx-auto max-w-xs text-sm text-muted-foreground">
-                    Sem conexão e sem dados offline baixados. Para ler sem internet, baixe a Bíblia.
+                    Sem conexão e sem dados offline baixados. Para ler sem internet, baixe a Biblia.
                   </p>
                 </div>
                 <button
@@ -405,7 +405,7 @@ const Reader = () => {
                   className="inline-flex items-center gap-2 rounded-xl bg-accent px-6 py-2.5 text-sm font-semibold text-accent-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
                 >
                   <Download className="h-4 w-4" />
-                  Baixar Bíblia Offline
+                  Baixar Biblia Offline
                 </button>
               </div>
             ) : (

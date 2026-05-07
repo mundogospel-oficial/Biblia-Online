@@ -44,7 +44,7 @@ const Index = () => {
             transition={{ duration: 0.6 }}
             className="glass-card rounded-[2rem] px-6 py-16 sm:px-16 sm:py-24 mx-auto w-full max-w-[720px] text-center shadow-xl border-white/10"
           >
-            <img src="/icons/logo2.png" alt="Logo Bíblia Online" className="mx-auto mb-4 h-14 w-14 object-contain transition-opacity duration-300" />
+            <img src="/icons/logo2.png" alt="Logo Biblia Online" className="mx-auto mb-4 h-14 w-14 object-contain transition-opacity duration-300" />
             <h1 className="font-serif text-3xl font-bold text-foreground sm:text-4xl lg:text-5xl">
               Biblia Online
             </h1>

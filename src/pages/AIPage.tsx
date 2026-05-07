@@ -116,13 +116,24 @@ const AIPage = () => {
       
       if (error) {
         console.warn("Auth session error:", error.message);
+        
+        const isAuthError = 
+          error.message.includes("Refresh Token Not Found") || 
+          error.message.includes("invalid_grant") ||
+          error.message.includes("refresh_token_not_found") ||
+          error.message.includes("Invalid Refresh Token") ||
+          error.message.includes("refresh token") ||
+          error.status === 400 || 
+          error.status === 401;
+
         if (error.message.includes("Failed to fetch")) {
           toast({ title: "Erro de conexão", description: "Não foi possível conectar ao servidor. Verifique sua internet.", variant: "destructive" });
           return null;
         }
-        if (error.message.includes("Refresh Token Not Found") || error.message.includes("invalid_grant")) {
+        
+        if (isAuthError) {
           toast({ title: "Sessão expirada", description: "Faça login novamente para continuar.", variant: "destructive" });
-          await supabase.auth.signOut();
+          await supabase.auth.signOut().catch(() => {});
           return null;
         }
         throw error;
@@ -652,7 +663,7 @@ const AIPage = () => {
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-primary">
               <Bot className="h-4 w-4 text-primary-foreground" />
             </div>
-            <h1 className="font-serif text-base font-bold text-foreground">IA Bíblica</h1>
+            <h1 className="font-serif text-base font-bold text-foreground">IA Biblia</h1>
           </div>
 
           <div className="flex items-center rounded-xl border border-border bg-secondary/50 p-0.5">
@@ -686,7 +697,7 @@ const AIPage = () => {
           {messages.length === 0 && (
             <div className="py-8">
               <p className="text-center text-sm text-muted-foreground mb-1">
-                {aiEngine === "simples" ? "IA Simples — perguntas diretas sobre a Bíblia" : "IA Complexa — respostas detalhadas, imagens e mais"}
+                {aiEngine === "simples" ? "IA Simples — perguntas diretas sobre a Biblia" : "IA Complexa — respostas detalhadas, imagens e mais"}
               </p>
               <p className="text-center text-[10px] text-muted-foreground/60 mb-4">
                 {aiEngine === "simples" ? `${Math.max(0, geminiRemaining)} msgs restantes` : `${Math.max(0, chatRemaining)} msgs restantes`}
@@ -835,6 +846,9 @@ const AIPage = () => {
             )}
             </div>
           </form>
+          <p className="mt-2 text-center text-[10px] text-muted-foreground/60 font-medium italic">
+            A IA biblica é uma IA ela comete erros
+          </p>
         </div>
       </div>
     </div>

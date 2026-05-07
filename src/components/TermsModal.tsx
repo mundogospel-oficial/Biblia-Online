@@ -32,7 +32,7 @@ const TermsModal = ({ isOpen, onClose }: TermsModalProps) => {
               </div>
 
               <div className="relative flex items-center justify-between p-8 border-b border-white/5 bg-white/5">
-                <h2 className="text-xl font-bold text-foreground font-serif tracking-tight">Termos de Uso – Bíblia Online</h2>
+                <h2 className="text-xl font-bold text-foreground font-serif tracking-tight">Termos de Uso – Biblia Online</h2>
                 <button 
                   onClick={onClose} 
                   className="rounded-full p-2 bg-white/5 hover:bg-white/10 hover:scale-110 transition-all duration-300"
@@ -44,12 +44,12 @@ const TermsModal = ({ isOpen, onClose }: TermsModalProps) => {
                 <div className="space-y-6 text-[13px] leading-relaxed text-foreground/80 pb-6">
                 <section>
                   <h3 className="font-bold text-foreground mb-1">1. Aceitação dos Termos</h3>
-                  <p>Ao acessar ou utilizar o site e o aplicativo Bíblia Online, o usuário manifesta sua concordância integral com estes Termos de Uso. Caso não concorde com quaisquer das diretrizes aqui estabelecidas, orientamos que se abstenha de utilizar nossos serviços.</p>
+                  <p>Ao acessar ou utilizar o site e o aplicativo Biblia Online, o usuário manifesta sua concordância integral com estes Termos de Uso. Caso não concorde com quaisquer das diretrizes aqui estabelecidas, orientamos que se abstenha de utilizar nossos serviços.</p>
                 </section>
 
                 <section>
                   <h3 className="font-bold text-foreground mb-1">2. Uso da Inteligência Artificial (IA) e Isenção de Responsabilidade</h3>
-                  <p>Nossa Inteligência Artificial atua exclusivamente como uma ferramenta assistiva para pesquisas e estudos bíblicos, não substituindo, sob nenhuma hipótese, o aconselhamento humano ou pastoral. O Bíblia Online exime-se de responsabilidade por eventuais inconsistências ou "alucinações" (erros técnicos) geradas pela IA, bem como por decisões tomadas pelo usuário com base nas informações fornecidas.</p>
+                  <p>Nossa Inteligência Artificial atua exclusivamente como uma ferramenta assistiva para pesquisas e estudos bíblicos, não substituindo, sob nenhuma hipótese, o aconselhamento humano ou pastoral. O Biblia Online exime-se de responsabilidade por eventuais inconsistências ou "alucinações" (erros técnicos) geradas pela IA, bem como por decisões tomadas pelo usuário com base nas informações fornecidas.</p>
                   <p className="mt-2 text-accent font-semibold italic text-xs">Aviso de Segurança: É expressamente desaconselhado o compartilhamento de dados pessoais, senhas ou informações financeiras no ambiente de chat da IA.</p>
                 </section>
 
@@ -70,12 +70,12 @@ const TermsModal = ({ isOpen, onClose }: TermsModalProps) => {
 
                 <section>
                   <h3 className="font-bold text-foreground mb-1">6. Modificações dos Termos</h3>
-                  <p>O Bíblia Online reserva-se o direito de revisar e atualizar estes Termos de Uso a qualquer momento. A utilização contínua da plataforma após a implementação de eventuais alterações configurará a concordância tácita do usuário com os novos termos.</p>
+                  <p>O Biblia Online reserva-se o direito de revisar e atualizar estes Termos de Uso a qualquer momento. A utilização contínua da plataforma após a implementação de eventuais alterações configurará a concordância tácita do usuário com os novos termos.</p>
                 </section>
 
                 <section>
                   <h3 className="font-bold text-foreground mb-1">7. Suporte e Atendimento ao Usuário</h3>
-                  <p>Dúvidas, solicitações de suporte ou reclamações deverão ser encaminhadas exclusivamente por meio do Fórum Bíblia Online, ferramenta devidamente integrada ao nosso sistema.</p>
+                  <p>Dúvidas, solicitações de suporte ou reclamações deverão ser encaminhadas exclusivamente por meio do Fórum Biblia Online, ferramenta devidamente integrada ao nosso sistema.</p>
                 </section>
 
                 <div className="pt-8 border-t border-white/5">
@@ -103,7 +103,7 @@ const TermsModal = ({ isOpen, onClose }: TermsModalProps) => {
 
                   <section>
                     <h3 className="font-bold text-foreground mb-2 text-sm">12. Usuários Menores de Idade</h3>
-                    <p>O Bíblia Online incentiva o estudo das escrituras por jovens. Usuários menores de 18 anos declaram estar sob supervisão de seus pais ou responsáveis ao utilizar esta plataforma. No caso de crianças (menores de 12 anos), o cadastro e o fornecimento de dados devem ser realizados exclusivamente pelo responsável legal, em conformidade com o Art. 14 da LGPD.</p>
+                    <p>O Biblia Online incentiva o estudo das escrituras por jovens. Usuários menores de 18 anos declaram estar sob supervisão de seus pais ou responsáveis ao utilizar esta plataforma. No caso de crianças (menores de 12 anos), o cadastro e o fornecimento de dados devem ser realizados exclusivamente pelo responsável legal, em conformidade com o Art. 14 da LGPD.</p>
                   </section>
                 </div>
               </div>

@@ -116,7 +116,7 @@ const FavoritesPage = () => {
               <BookOpen className="mb-3 h-12 w-12 text-muted-foreground/30" />
               <p className="text-sm text-muted-foreground">{getEmptyMessage()}</p>
               <p className="mt-0.5 text-[11px] text-muted-foreground/70">{getInstructions()}</p>
-              <Link to="/" className="mt-4 rounded-lg bg-primary px-4 py-2 text-xs font-medium text-primary-foreground">Explorar Bíblia</Link>
+              <Link to="/" className="mt-4 rounded-lg bg-primary px-4 py-2 text-xs font-medium text-primary-foreground">Explorar Biblia</Link>
             </div>
           ) : (
             <div className="space-y-2">

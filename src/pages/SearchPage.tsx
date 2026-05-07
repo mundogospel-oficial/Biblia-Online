@@ -99,7 +99,7 @@ const SearchPage = () => {
       <Header />
       <section className="container mx-auto px-4 py-5 sm:py-8">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-4xl">
-          <h1 className="mb-3 font-serif text-xl font-bold text-foreground sm:text-2xl">Buscar na Bíblia</h1>
+          <h1 className="mb-3 font-serif text-xl font-bold text-foreground sm:text-2xl">Buscar na Biblia</h1>
 
           <form onSubmit={(e) => { e.preventDefault(); handleSearch(""); }} className="mb-3 flex gap-2">
             <div className="relative flex-1">
