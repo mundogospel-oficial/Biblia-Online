@@ -273,8 +273,12 @@ const AccountPage = () => {
       
       // SE A FUNÇÃO FALHAR, INTERROMPE TUDO AQUI (Não faz logout falso)
       if (rpcError) {
-        console.error("Erro ao deletar no Supabase:", rpcError);
-        throw new Error("Falha na exclusão do banco de dados.");
+        console.error("Erro Supabase RPC:", rpcError);
+        // Verifica se é erro de função não encontrada (provavelmente falta rodar o SQL)
+        if (rpcError.message?.includes("function") && rpcError.message?.includes("not found")) {
+          throw new Error("A função 'delete_user_account' não foi encontrada no seu Supabase. Por favor, execute o SQL de configuração.");
+        }
+        throw new Error(rpcError.message || "Falha na exclusão do banco de dados.");
       }
       
       // 2. Limpeza Local - SÓ CHEGA AQUI SE A CONTA REALMENTE FOI EXCLUÍDA NO BANCO
@@ -286,9 +290,13 @@ const AccountPage = () => {
       
       toast({ title: "Conta Excluída", description: "Todos os seus dados foram removidos com sucesso." });
       navigate("/", { replace: true });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro fatal na exclusão:", error);
-      toast({ title: "Erro na exclusão", description: "Não foi possível excluir a conta. Tente novamente.", variant: "destructive" });
+      toast({ 
+        title: "Erro na exclusão", 
+        description: error.message || "Não foi possível excluir a conta. Tente novamente.", 
+        variant: "destructive" 
+      });
     } finally {
       setLoading(false);
     }
