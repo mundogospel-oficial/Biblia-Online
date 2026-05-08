@@ -1,7 +1,31 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import fs from "node:fs";
 import { componentTagger } from "lovable-tagger";
+
+// Simple version bumper plugin
+const versionBumper = () => {
+  return {
+    name: 'version-bumper',
+    buildStart() {
+      try {
+        const versionFile = path.resolve(__dirname, 'public/version.json');
+        if (fs.existsSync(versionFile)) {
+          const data = JSON.parse(fs.readFileSync(versionFile, 'utf8'));
+          const parts = data.version.split('.');
+          const minor = parseInt(parts[parts.length - 1] || '0') + 1;
+          parts[parts.length - 1] = minor.toString();
+          data.version = parts.join('.');
+          fs.writeFileSync(versionFile, JSON.stringify(data, null, 2) + '\n');
+          console.log(`[version-bumper] Version bumped to ${data.version}`);
+        }
+      } catch (err) {
+        console.warn('[version-bumper] Failed to bump version:', err);
+      }
+    }
+  };
+};
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -12,7 +36,11 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       hmr: process.env.DISABLE_HMR !== 'true',
     },
-    plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+    plugins: [
+      react(), 
+      versionBumper(),
+      mode === "development" && componentTagger()
+    ].filter(Boolean),
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
@@ -22,19 +50,13 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.SUPABASE_URL || env.VITE_SUPABASE_URL || ''),
       'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify(env.SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY || ''),
       'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY || ''),
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || null),
     },
     build: {
-      chunkSizeWarningLimit: 1000,
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            if (id.includes('node_modules')) {
-              return id.toString().split('node_modules/')[1].split('/')[0].toString();
-            }
-          }
-        }
-      }
+      outDir: 'dist',
+      emptyOutDir: true,
+      chunkSizeWarningLimit: 2000,
+      reportCompressedSize: true,
     }
   };
 });

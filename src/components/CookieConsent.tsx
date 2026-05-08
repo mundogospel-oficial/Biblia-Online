@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheck, X, Settings, Check } from 'lucide-react';
 
 const COOKIE_KEY = 'biblia-online-cookies-v1';
