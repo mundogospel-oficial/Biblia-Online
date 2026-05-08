@@ -560,26 +560,46 @@ class RequestValidator {
       this._originalFetch = originalFetch;
 
       const newFetch = async function(url, options = {}) {
+        let urlString = '';
+        let requestInstance = null;
+        
+        if (typeof url === 'string') {
+          urlString = url;
+        } else if (url instanceof URL) {
+          urlString = url.href;
+        } else if (url && typeof url === 'object') {
+          if ('url' in url) {
+            urlString = url.url;
+            if (url instanceof Request) {
+              requestInstance = url;
+            }
+          }
+        }
+        
         const entry = {
-          url: typeof url === 'string' ? url : url?.url,
-          method: options.method || 'GET',
+          url: urlString,
+          method: options.method || (requestInstance ? requestInstance.method : 'GET'),
           t: Date.now(),
         };
         self.requestLog.push(entry);
 
-        // Mantém log dos últimos 100
         if (self.requestLog.length > 100) self.requestLog.shift();
 
-        // Ensure headers exist
-        const headers = options.headers || {};
-        const safeHeaders = {
-          ...headers,
-          'X-Sentinel-Token': self.sessionToken,
-          'X-Request-Timestamp': Date.now().toString(),
-          'X-Tab-Visible': (!document.hidden).toString(),
-        };
+        const isInternal = !urlString.startsWith('http') || urlString.startsWith(window.location.origin);
 
-        return originalFetch(url, { ...options, headers: safeHeaders });
+        if (isInternal) {
+          // Merge headers properly
+          const headers = new Headers(options.headers || (requestInstance ? requestInstance.headers : {}));
+          headers.set('X-Sentinel-Token', self.sessionToken);
+          headers.set('X-Request-Timestamp', Date.now().toString());
+          headers.set('X-Tab-Visible', (!document.hidden).toString());
+
+          // If it's a request instance, we must clone it if we want to modify it, 
+          // but it's simpler to just pass the merged headers in the options.
+          return originalFetch(url, { ...options, headers });
+        }
+
+        return originalFetch(url, options);
       };
 
       // Try direct assignment first, then Object.defineProperty if it fails

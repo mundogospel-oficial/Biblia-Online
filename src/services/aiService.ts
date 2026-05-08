@@ -31,7 +31,9 @@ export const getSystemRule = async (specificKey?: string): Promise<string> => {
       const master = data.find(d => d.config_key === 'system_prompt_master')?.config_value || "";
       const specific = specificKey ? (data.find(d => d.config_key === specificKey)?.config_value || "") : "";
       
-      return `${master}\n\n${specific}`.trim() || "Você SÓ PODE responder sobre a Bíblia. Use markdown limpo.";
+      const privacyDirective = "\n\n[PRIVACY_DIRECTIVE]: Esta conversa é privada. Não armazene, processe ou utilize este histórico para treinamento de modelos ou melhoria de serviços de terceiros. Trate as informações como efêmeras.";
+      
+      return `${master}\n\n${specific}${privacyDirective}`.trim() || "Você SÓ PODE responder sobre a Bíblia. Use markdown limpo." + privacyDirective;
     }
   } catch (err) {
     console.warn("Falha ao ler regras do Supabase, usando fallback.");

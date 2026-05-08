@@ -38,3 +38,9 @@ export const saveUserNote = async (verseReference: string | null, noteText: stri
   if (!user) throw new Error("Usuário não autenticado");
   await supabase.from('user_notes').insert({ user_id: user.id, verse_reference: verseReference, note_text: noteText });
 };
+
+export const clearAIHistoryOnServer = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from('user_ai_history').delete().eq('user_id', user.id);
+};

@@ -338,11 +338,18 @@ const Reader = () => {
             Bilíngue
           </button>
           {bilingual && (
-            <div className="flex items-center gap-1.5">
-              {bilingualLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />}
-              <span className="text-[10px] text-muted-foreground">
-                {bilingualLoading ? "Traduzindo com IA..." : "Tradução IA ativa"}
-              </span>
+            <div className="flex flex-col gap-0.5">
+              <div className="flex items-center gap-1.5">
+                {bilingualLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />}
+                <span className="text-[10px] text-muted-foreground">
+                  {bilingualLoading ? "Traduzindo com IA..." : "Tradução IA ativa"}
+                </span>
+              </div>
+              {!bilingualLoading && (
+                <span className="text-[9px] text-muted-foreground/60 italic">
+                  O modo Bilíngue é uma IA ela comete erros.
+                </span>
+              )}
             </div>
           )}
           <button
@@ -572,9 +579,14 @@ const Reader = () => {
                         className="ml-3 py-2"
                       >
                         <div className="rounded-xl border border-accent/20 bg-accent/5 p-3">
-                          <div className="flex items-center gap-1.5 mb-2">
-                            <BookOpen className="h-3.5 w-3.5 text-accent" />
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-accent">Dicionário Bíblico</span>
+                          <div className="flex items-center justify-between gap-1.5 mb-2">
+                            <div className="flex items-center gap-1.5">
+                              <BookOpen className="h-3.5 w-3.5 text-accent" />
+                              <span className="text-[10px] font-semibold uppercase tracking-wider text-accent">Dicionário Bíblico</span>
+                            </div>
+                            <span className="text-[9px] text-muted-foreground/60 italic">
+                              O modo Dicionário é uma IA ela comete erros.
+                            </span>
                           </div>
                           {dictLoading ? (
                             <div className="flex items-center gap-2 py-2">
