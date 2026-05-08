@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, forceSignOut } from "@/contexts/AuthContext";
 import { GoogleGenAI } from "@google/genai";
 
 import { downloadBibleImage, shareBibleImage } from "@/lib/downloadUtils";
@@ -133,7 +133,10 @@ const AIPage = () => {
         
         if (isAuthError) {
           toast({ title: "Sessão expirada", description: "Faça login novamente para continuar.", variant: "destructive" });
-          await supabase.auth.signOut().catch(() => {});
+          
+          // Limpeza profunda centralizada
+          await forceSignOut();
+          
           return null;
         }
         throw error;

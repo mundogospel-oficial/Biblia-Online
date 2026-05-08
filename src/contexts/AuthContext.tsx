@@ -35,6 +35,28 @@ function mapSupabaseUser(su: SupaUser): GoogleUser {
   };
 }
 
+export const forceSignOut = async () => {
+  try {
+    localStorage.removeItem("bible-google-user"); // Legacy
+    
+    // 1. Tenta signOut suave (pode falhar se o token for inválido)
+    await supabase.auth.signOut().catch(() => {});
+    
+    // 2. Limpeza manual agressiva de TODOS os possíveis tokens do Supabase no localStorage
+    // Isso resolve o erro "Invalid Refresh Token: Refresh Token Not Found" que trava a conta
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('sb-') || key.includes('supabase.auth.token')) {
+        localStorage.removeItem(key);
+      }
+    });
+
+    // 3. Limpa estados locais adicionais se necessário
+    console.log("Limpeza profunda de sessão concluída.");
+  } catch (err) {
+    console.error("Erro durante a limpeza de sessão:", err);
+  }
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<GoogleUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,10 +101,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error("Erro de conexão com o Supabase. Verifique sua internet.");
         } else if (isAuthError) {
           // Limpa tokens inválidos para evitar loops de erro e logs irritantes
-          console.log("Detectado token inválido, limpando sessão local...");
-          supabase.auth.signOut().catch(() => {});
-          localStorage.removeItem("supabase.auth.token"); // Manual cleanup if signOut fails
-          setUser(null);
+          console.warn("Detectado token inválido, realizando limpeza profunda da sessão...");
+          forceSignOut().then(() => {
+            setUser(null);
+            setLoading(false);
+          });
+          return;
         }
       }
       if (session?.user) {
@@ -104,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     setUser(null);
-    await supabase.auth.signOut().catch(() => {});
+    await forceSignOut();
   };
 
   return (
