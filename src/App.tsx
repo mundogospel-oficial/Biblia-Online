@@ -57,6 +57,21 @@ const App = () => {
         reg.active?.postMessage({ type: 'APP_OPENED' });
       }).catch(err => console.warn("App: SW not ready for signal", err));
     }
+
+    // Proactively request notification permissions if supported
+    if ("Notification" in window && Notification.permission === "default") {
+      // Delay it slightly to not overwhelm the user on first load
+      setTimeout(async () => {
+        try {
+          const permission = await Notification.requestPermission();
+          if (permission === "granted") {
+            console.log("Notification permission granted");
+          }
+        } catch (e) {
+          console.warn("Error requesting notification permission:", e);
+        }
+      }, 8000); // 8 seconds delay
+    }
   }, []);
 
   if (isSupabaseMisconfigured()) {

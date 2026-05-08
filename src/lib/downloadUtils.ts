@@ -11,18 +11,31 @@ export const downloadBibleImage = async (dataUrl: string, fileNamePrefix: string
   try {
     if (isMobile) {
       toast({
-        title: "Solicitando permissão",
-        description: "Permita o acesso para salvar a imagem em suas fotos.",
+        title: "Iniciando download",
+        description: "A imagem será salva em sua pasta de downloads ou fotos.",
       });
-      await new Promise(resolve => setTimeout(resolve, 800));
+    }
+
+    let downloadUrl = dataUrl;
+    
+    // For external URLs, fetch the blob to avoid CORS issues and ensure download attribute works
+    if (dataUrl.startsWith('http')) {
+      const response = await fetch(dataUrl, { mode: 'cors' });
+      const blob = await response.blob();
+      downloadUrl = URL.createObjectURL(blob);
     }
 
     const link = document.createElement("a");
-    link.href = dataUrl;
+    link.href = downloadUrl;
     link.download = fileName;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
+    if (downloadUrl.startsWith('blob:')) {
+      // Clean up the object URL after a short delay
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 100);
+    }
     
     toast({ 
       title: isMobile ? "Download iniciado" : "Imagem baixada! 📥",
@@ -32,7 +45,7 @@ export const downloadBibleImage = async (dataUrl: string, fileNamePrefix: string
     console.error("Download error:", error);
     toast({ 
       title: "Erro ao baixar", 
-      description: "Não foi possível completar o download.",
+      description: "Houve um problema de permissão ou rede. Tente usar o botão Compartilhar.",
       variant: "destructive" 
     });
   }

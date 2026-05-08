@@ -122,8 +122,8 @@ async function checkInactivityAlert() {
       try {
         await self.registration.showNotification('📖 Biblia Online', {
           body: 'Você esqueceu de ler! Faz mais de um dia. Que tal ler um versículo agora? 🙏',
-          icon: '/favicon.ico',
-          badge: '/favicon.ico',
+          icon: '/icons/logo2.png',
+          badge: '/icons/logo2.png',
           tag: 'inactivity-alert',
           renotify: true,
           data: { url: '/' },
@@ -141,8 +141,8 @@ async function showNotification(slotIndex) {
   try {
     await self.registration.showNotification(SLOT_TITLES[slotIndex], {
       body: `"${verse.text}" — ${verse.ref}`,
-      icon: '/favicon.ico',
-      badge: '/favicon.ico',
+      icon: '/icons/logo2.png',
+      badge: '/icons/logo2.png',
       tag: 'daily-verse-' + slotIndex,
       renotify: true,
       data: { url: '/' },

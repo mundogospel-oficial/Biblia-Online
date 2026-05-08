@@ -528,38 +528,47 @@ const AIPage = () => {
       <div className="space-y-1">
         {msg.image && (
           <Fragment>
-            <div className="mb-2 relative w-full aspect-square overflow-hidden rounded-xl bg-muted">
-              <img src={msg.image} alt="Imagem gerada" className="absolute inset-0 w-full h-full object-cover" />
+            <div className="mb-2 relative w-full aspect-square overflow-hidden rounded-xl bg-muted border border-border shadow-inner">
+              <img src={msg.image} alt="Imagem bíblica gerada" className="absolute inset-0 w-full h-full object-cover" referrerPolicy="no-referrer" />
             </div>
             <div className="mt-1.5 flex gap-2">
               <button onClick={() => downloadImage(msg.image!)}
-                className="flex items-center gap-1 rounded-lg bg-accent/10 px-2.5 py-1.5 text-[10px] font-medium text-accent hover:bg-accent/20 transition-colors liquid-btn">
-                <Download className="h-3 w-3" /> Baixar
+                className="flex items-center gap-1.5 rounded-lg bg-accent/15 px-3 py-1.8 text-[11px] font-semibold text-accent hover:bg-accent/25 transition-all liquid-btn">
+                <Download className="h-3.5 w-3.5" /> Baixar
               </button>
               <button onClick={() => shareBibleImage(msg.image!)}
-                className="flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors liquid-btn">
-                <Share2 className="h-3 w-3" /> Compartilhar
+                className="flex items-center gap-1.5 rounded-lg bg-primary/15 px-3 py-1.8 text-[11px] font-semibold text-primary hover:bg-primary/25 transition-all liquid-btn">
+                <Share2 className="h-3.5 w-3.5" /> Compartilhar
               </button>
             </div>
           </Fragment>
         )}
         {lines.map((line, i) => {
-          const imgMatch = line.match(/!\[.*?\]\((.*?)\)/);
+          const imgMatch = line.match(/!\[.*?\]\((https?:\/\/.*?\?.*|data:image\/.*?;base64,.*?)\)/);
           if (imgMatch) {
              const imageUrl = imgMatch[1];
              return (
                <Fragment key={i}>
-                 <div className="mb-2 mt-2 relative w-full aspect-square overflow-hidden rounded-xl bg-muted">
-                   <img src={imageUrl} alt="Imagem gerada" className="absolute inset-0 w-full h-full object-cover" />
+                 <div className="mb-2 mt-2 relative w-full aspect-square overflow-hidden rounded-xl bg-muted border border-border shadow-inner">
+                   <img 
+                     src={imageUrl} 
+                     alt="Imagem bíblica gerada" 
+                     className="absolute inset-0 w-full h-full object-cover" 
+                     referrerPolicy="no-referrer"
+                     onError={(e) => {
+                       (e.target as HTMLImageElement).src = "/icons/logo2.png";
+                       (e.target as HTMLImageElement).className = "absolute inset-0 m-auto w-10 h-10 opacity-20 grayscale";
+                     }}
+                   />
                  </div>
                  <div className="mt-1.5 flex gap-2">
                    <button onClick={() => downloadImage(imageUrl)}
-                     className="flex items-center gap-1 rounded-lg bg-accent/10 px-2.5 py-1.5 text-[10px] font-medium text-accent hover:bg-accent/20 transition-colors liquid-btn">
-                     <Download className="h-3 w-3" /> Baixar
+                     className="flex items-center gap-1.5 rounded-lg bg-accent/15 px-3 py-1.8 text-[11px] font-semibold text-accent hover:bg-accent/25 transition-all liquid-btn">
+                     <Download className="h-3.5 w-3.5" /> Baixar
                    </button>
                    <button onClick={() => shareBibleImage(imageUrl)}
-                     className="flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors liquid-btn">
-                     <Share2 className="h-3 w-3" /> Compartilhar
+                     className="flex items-center gap-1.5 rounded-lg bg-primary/15 px-3 py-1.8 text-[11px] font-semibold text-primary hover:bg-primary/25 transition-all liquid-btn">
+                     <Share2 className="h-3.5 w-3.5" /> Compartilhar
                    </button>
                  </div>
                </Fragment>
