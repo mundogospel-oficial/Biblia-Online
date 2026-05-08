@@ -304,11 +304,20 @@ const AccountPage = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`
+          "Authorization": `Bearer ${session.access_token}`,
+          "x-sentinel-token": localStorage.getItem('sentinel_token') || "0".repeat(32),
+          "x-request-timestamp": Date.now().toString()
         }
       });
 
-      const result = await response.json();
+      const responseText = await response.text();
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (e) {
+        console.error("Erro ao processar resposta do servidor:", responseText);
+        throw new Error("O servidor retornou uma resposta inválida. Por favor, tente novamente.");
+      }
       
       if (!response.ok) {
         console.error("Erro na API de exclusão:", result);

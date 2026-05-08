@@ -114,8 +114,13 @@ async function startServer() {
 
   // 2. Validação de Token de Sessão Sentinel
   const validateSentinelToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    // Ignora rotas públicas se necessário, mas aqui aplicaremos a tudo exceto o report
-    if (req.path === '/api/security/report' || req.path.startsWith('/@vite') || req.path.startsWith('/src')) {
+    // Ignora rotas públicas, recursos estáticos e rota de exclusão (já protegida por Supabase JWT)
+    if (
+      req.path === '/api/security/report' || 
+      req.path === '/api/user/delete' ||
+      req.path.startsWith('/@vite') || 
+      req.path.startsWith('/src')
+    ) {
       return next();
     }
 
