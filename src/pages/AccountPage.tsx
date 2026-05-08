@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Turnstile } from '@marsidev/react-turnstile';
+import { useSentinel } from "@/hooks/useSentinel";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
 const OFFLINE_KEY = "bible-offline-enabled";
@@ -45,6 +46,7 @@ const AccountPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const turnstileRef = useRef<any>(null);
   const { toast } = useToast();
+  const { checkRisk } = useSentinel();
 
   const [turnstileToken, setTurnstileToken] = useState("");
   const [appVersion, setAppVersion] = useState("");
@@ -123,6 +125,18 @@ const AccountPage = () => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) return;
     
+    // Sentinel check as first layer
+    const risk = await checkRisk();
+    if (risk.score >= 70) {
+      console.warn("[Sentinel] Blocked suspicious attempt:", risk.reasons);
+      toast({ 
+        title: "Acesso Restrito", 
+        description: "Detectamos uma atividade incomum. Por favor, tente novamente mais tarde ou contate o suporte.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+    
     if (!turnstileToken) {
       toast({ title: "Atenção", description: "Por favor, valide o captcha de segurança.", variant: "destructive" });
       return;
@@ -195,6 +209,18 @@ const AccountPage = () => {
 
     if (!resetEmail.trim()) {
       toast({ title: "Erro", description: "Por favor, digite seu e-mail.", variant: "destructive" });
+      return;
+    }
+
+    // Sentinel check as first layer
+    const risk = await checkRisk();
+    if (risk.score >= 70) {
+      console.warn("[Sentinel] Blocked suspicious recovery attempt:", risk.reasons);
+      toast({ 
+        title: "Acesso Restrito", 
+        description: "Detectamos uma atividade incomum. Por favor, tente novamente mais tarde.", 
+        variant: "destructive" 
+      });
       return;
     }
 

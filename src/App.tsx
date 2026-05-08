@@ -16,6 +16,7 @@ import DevotionalPage from "./pages/DevotionalPage";
 import AccountPage from "./pages/AccountPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import { useSentinel } from "./hooks/useSentinel";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,8 @@ const ConfigErrorScreen = () => (
 );
 
 const App = () => {
+  useSentinel(); // Global security monitoring
+  
   useEffect(() => {
     // Notify Service Worker that app is opened (for inactivity tracking)
     if ("serviceWorker" in navigator) {

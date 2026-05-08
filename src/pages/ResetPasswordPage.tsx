@@ -6,6 +6,7 @@ import { KeyRound, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { useSentinel } from "@/hooks/useSentinel";
 
 const translateAuthError = (message: string) => {
   const lowered = message.toLowerCase();
@@ -21,6 +22,7 @@ const ResetPasswordPage = () => {
   const [ready, setReady] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { checkRisk } = useSentinel();
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -33,6 +35,18 @@ const ResetPasswordPage = () => {
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 6) return;
+    
+    // Sentinel check
+    const risk = await checkRisk();
+    if (risk.score >= 70) {
+      toast({ 
+        title: "Ação Bloqueada", 
+        description: "Atividade suspeita detectada. Tente novamente mais tarde.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+    
     setLoading(true);
     try {
       const { error } = await supabase.auth.updateUser({ password });
