@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { createClient } from "@supabase/supabase-js";
+import rateLimit from "express-rate-limit";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,6 +32,21 @@ async function startServer() {
 
   // --- SISTEMA DE BANIMENTO PERSISTENTE (SIMULADO COM STORE LOCAL + SUPABASE) ---
   const bannedEntities = new Set<string>(); // Cache rápido para IPs/Fingerprints banidos
+
+  // --- RATE LIMITERS ---
+  const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    max: 100, // Limite de 100 requisições por janela de 15m
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "TOO_MANY_REQUESTS", message: "Muitas requisições. Tente novamente mais tarde." }
+  });
+
+  const securityLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hora
+    max: 5, // Apenas 5 tentativas por hora para operações sensíveis
+    message: { error: "SECURITY_THRESHOLD", message: "Limite de segurança atingido. Tente novamente em uma hora." }
+  });
 
   // Middleware de Verificação de Banimento (Executado antes de qualquer outra coisa)
   const checkBanned = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -151,8 +167,9 @@ async function startServer() {
   };
 
   // Aplicando middlewares de segurança às rotas de API
+  app.use('/api', apiLimiter); // Limite geral para API
+  app.use('/api/user/delete', securityLimiter); // Limite rígido para exclusão
   app.use('/api', detectAttacks);
-  app.use('/api', customRateLimiter);
   app.use('/api', validateSentinelToken);
 
   // Endpoint de relatório
