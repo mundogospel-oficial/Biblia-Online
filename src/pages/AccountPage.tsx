@@ -295,20 +295,30 @@ const AccountPage = () => {
     
     setLoading(true);
     try {
-      // 1. Chamar a função RPC para deletar o usuário do auth.users
-      const { error: rpcError } = await supabase.rpc('delete_user_account');
-      
-      // SE A FUNÇÃO FALHAR, INTERROMPE TUDO AQUI (Não faz logout falso)
-      if (rpcError) {
-        console.error("Erro Supabase RPC:", rpcError);
-        // Verifica se é erro de função não encontrada (provavelmente falta rodar o SQL)
-        if (rpcError.message?.includes("function") && rpcError.message?.includes("not found")) {
-          throw new Error("A função 'delete_user_account' não foi encontrada no seu Supabase. Por favor, execute o SQL de configuração.");
+      // 1. Obter a sessão atual para o token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Sessão não encontrada.");
+
+      // 2. Chamar a API do backend para deletar a conta usando o Service Role (Admin)
+      const response = await fetch("/api/user/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`
         }
-        throw new Error(rpcError.message || "Falha na exclusão do banco de dados.");
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        console.error("Erro na API de exclusão:", result);
+        if (result.error === "SERVER_CONFIG_ERROR") {
+          throw new Error("O servidor não está configurado corretamente (Secret SUPABASE_SERVICE_ROLE_KEY ausente). Por favor, verifique as configurações.");
+        }
+        throw new Error(result.message || "Falha na exclusão do banco de dados.");
       }
       
-      // 2. Limpeza Local - SÓ CHEGA AQUI SE A CONTA REALMENTE FOI EXCLUÍDA NO BANCO
+      // 3. Limpeza Local - SÓ CHEGA AQUI SE A CONTA REALMENTE FOI EXCLUÍDA NO BANCO
       localStorage.clear();
       
       // 3. Logout e redirecionamento (igual ao handleLogout)

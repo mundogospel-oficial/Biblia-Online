@@ -4,9 +4,26 @@ import path from "path";
 import { fileURLToPath } from "url";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import { createClient } from "@supabase/supabase-js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Initialize Supabase Admin Client (for sensitive operations)
+const getSupabaseAdmin = () => {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!url || !key) {
+    return null;
+  }
+  return createClient(url, key, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+};
 
 async function startServer() {
   const app = express();
@@ -160,6 +177,50 @@ async function startServer() {
   // API Health check
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // --- ACCOUNT DELETION ROUTE ---
+  app.post("/api/user/delete", async (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: "Missing authorization header" });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const adminClient = getSupabaseAdmin();
+
+    if (!adminClient) {
+      console.error("[Account] Supabase Service Role Key is missing in environment variables.");
+      return res.status(500).json({ 
+        error: "SERVER_CONFIG_ERROR", 
+        message: "O servidor não está configurado para exclusão de contas. Contate o administrador." 
+      });
+    }
+
+    try {
+      // 1. Validate the user token
+      const { data: { user }, error: authError } = await adminClient.auth.getUser(token);
+      
+      if (authError || !user) {
+        return res.status(401).json({ error: "Invalid or expired session" });
+      }
+
+      console.log(`[Account] Deleting user: ${user.id} (${user.email})`);
+
+      // 2. Delete the user (this will trigger CASCADE deletes if set up in DB, 
+      // or at least remove them from auth.users)
+      const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
+
+      if (deleteError) {
+        console.error("[Account] Error deleting user:", deleteError);
+        return res.status(500).json({ error: "DELETE_FAILED", message: deleteError.message });
+      }
+
+      res.json({ status: "success", message: "Conta excluída com sucesso." });
+    } catch (err: any) {
+      console.error("[Account] Unexpected error during deletion:", err);
+      res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: err.message });
+    }
   });
 
   // Vite middleware setup
