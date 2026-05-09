@@ -36,7 +36,7 @@ Responda APENAS com o prompt em inglês, sem aspas.`;
   const combinedPrompt = `${systemInstruction}\n\nPedido: ${userPrompt}`;
 
   // Lista base de modelos conhecidos e estáveis
-  let modelsToTry = [modelName, 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro', 'gemini-2.0-flash'];
+  let modelsToTry = [modelName, 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.0-flash'];
   
   // Tentar descobrir modelos dinamicamente apenas como bônus e sem travar
   try {

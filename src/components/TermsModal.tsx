@@ -133,10 +133,10 @@ const TermsModal = ({ isOpen, onClose }: TermsModalProps) => {
                     </section>
                   </div>
 
-                  <div className="pt-8 flex justify-end pb-4">
+                  <div className="pt-4 flex justify-end pb-4 pr-1">
                     <button
                       onClick={onClose}
-                      className="px-10 py-3 rounded-xl bg-primary text-sm font-bold text-primary-foreground shadow-lg transition-all hover:scale-[1.05] active:scale-95 liquid-btn"
+                      className="px-6 py-2 rounded-xl bg-primary text-[12px] font-bold text-primary-foreground shadow-lg transition-all hover:scale-[1.05] active:scale-95 liquid-btn"
                     >
                       Entendi
                     </button>

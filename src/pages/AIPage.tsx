@@ -435,10 +435,10 @@ const AIPage = () => {
             (m.supportedActions && m.supportedActions.includes('generateContent') && m.name.includes('flash-image'))
           );
           
-          const selectedModelName = imageModels.find((m: any) => m.name.includes('gemini-3.1-flash-image'))?.name || 
-                                   imageModels.find((m: any) => m.name.includes('gemini-2.5-flash-image'))?.name ||
+          const selectedModelName = imageModels.find((m: any) => m.name.includes('gemini-2.0-flash'))?.name || 
+                                   imageModels.find((m: any) => m.name.includes('gemini-1.5-flash'))?.name ||
                                    imageModels[0]?.name || 
-                                   'gemini-2.5-flash-image';
+                                   'gemini-1.5-flash';
 
           console.log("AIPage Image Generation using model:", selectedModelName);
           

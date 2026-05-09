@@ -10,7 +10,7 @@ const corsHeaders = {
 const MAX_MESSAGES = 15;
 const MAX_MESSAGE_LENGTH = 1500;
 const DAILY_LIMIT = 10;
-const MODEL = "google/gemini-2.5-flash-lite";
+const MODEL = "google/gemini-1.5-flash";
 
 const systemInstruction = `Você é uma assistente bíblica simples e direta. Regras:
 - Responda APENAS sobre a Bíblia, versículos, personagens bíblicos e temas cristãos.

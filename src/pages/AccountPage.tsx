@@ -72,18 +72,24 @@ const AccountPage = () => {
 
           if (profile) {
             setDisplayName(profile.display_name || authCtx.user.name || "");
+            // Preferimos a imagem do perfil do Supabase se houver, senão usamos a do Google
             setAvatarUrl(profile.avatar_url || authCtx.user.picture || null);
           } else {
-            // Tentativa de criar o profile caso não exista
+            // Se o perfil não existir no banco, usamos os dados do Google
             setDisplayName(authCtx.user.name || "");
-            setAvatarUrl(authCtx.user.picture || null);
+            const googlePicture = authCtx.user.picture || null;
+            setAvatarUrl(googlePicture);
             
-            // Criação silenciosa do perfil se possível
-            await supabase.from('profiles').upsert({ 
-              id: authCtx.user.sub, 
-              display_name: authCtx.user.name, 
-              avatar_url: authCtx.user.picture 
-            }).select().maybeSingle();
+            // Criação silenciosa do perfil se possível para garantir persistência
+            try {
+              await supabase.from('profiles').upsert({ 
+                id: authCtx.user.sub, 
+                display_name: authCtx.user.name, 
+                avatar_url: googlePicture 
+              });
+            } catch (upsertErr) {
+              console.warn("Silent profile creation failed:", upsertErr);
+            }
           }
         } catch (err) {
           console.error("Error loading profile:", err);
@@ -513,8 +519,13 @@ const AccountPage = () => {
                       className="h-24 w-24 rounded-full object-cover border-3 border-accent"
                       referrerPolicy="no-referrer"
                       onError={(e) => {
-                        console.warn("Avatar image failed to load, falling back to icon");
-                        setAvatarUrl(null);
+                        console.warn("Avatar image failed to load, trying fallback");
+                        // Se falhou a imagem do Supabase e temos a do Google, tenta a do Google
+                        if (avatarUrl !== authCtx.user?.picture && authCtx.user?.picture) {
+                          setAvatarUrl(authCtx.user.picture);
+                        } else {
+                          setAvatarUrl(null);
+                        }
                       }}
                     />
                   ) : (
