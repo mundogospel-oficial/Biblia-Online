@@ -62,7 +62,7 @@ REGRAS ABSOLUTAS:
 
     const combinedPrompt = `Tarefa: Crie um título curto de 3-5 palavras para o seguinte contexto: ${context}`;
 
-    const modelsToTry = ['gemini-1.5-flash', 'gemini-pro'];
+    const modelsToTry = ['gemini-1.5-flash', 'gemini-1.5-pro'];
 
     for (const model of modelsToTry) {
       try {
@@ -104,8 +104,7 @@ Versículo: "${verseText}" — ${reference}`;
     'gemini-1.5-flash',
     'gemini-2.0-flash',
     'gemini-1.5-pro',
-    'gemini-2.0-flash-lite-preview-02-05',
-    'gemini-pro'
+    'gemini-2.0-flash-lite-preview-02-05'
   ];
 
   let lastError = "";
@@ -152,8 +151,7 @@ export const askBibleAI = async (prompt: string, complexity: 'simple' | 'complex
         'gemini-1.5-flash',
         'gemini-2.0-flash',
         'gemini-1.5-pro',
-        'gemini-2.0-flash-lite-preview-02-05',
-        'gemini-pro'
+        'gemini-2.0-flash-lite-preview-02-05'
       ];
       let lastErrorMessage = "";
       
