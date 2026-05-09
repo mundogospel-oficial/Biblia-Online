@@ -30,6 +30,10 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Habilita confiança no proxy para o express-rate-limit identificar o IP real do cliente
+  // quando rodando atrás de um balanceador de carga ou proxy (como Cloud Run)
+  app.set("trust proxy", 1);
+
   // --- SISTEMA DE BANIMENTO PERSISTENTE (SIMULADO COM STORE LOCAL + SUPABASE) ---
   const bannedEntities = new Set<string>(); // Cache rápido para IPs/Fingerprints banidos
 
@@ -39,12 +43,20 @@ async function startServer() {
     max: 100, // Limite de 100 requisições por janela de 15m
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: (req) => {
+      return (req.headers["x-forwarded-for"] as string || req.ip || "unknown").split(",")[0].trim();
+    },
+    validate: { trustProxy: false },
     message: { error: "TOO_MANY_REQUESTS", message: "Muitas requisições. Tente novamente mais tarde." }
   });
 
   const securityLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hora
     max: 5, // Apenas 5 tentativas por hora para operações sensíveis
+    keyGenerator: (req) => {
+      return (req.headers["x-forwarded-for"] as string || req.ip || "unknown").split(",")[0].trim();
+    },
+    validate: { trustProxy: false },
     message: { error: "SECURITY_THRESHOLD", message: "Limite de segurança atingido. Tente novamente em uma hora." }
   });
 

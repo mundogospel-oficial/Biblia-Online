@@ -63,17 +63,30 @@ const AccountPage = () => {
 
     const loadProfile = async () => {
       if (authCtx.user) {
-        // Se já temos o usuário, podemos carregar o resto em silêncio
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('display_name, avatar_url')
-          .eq('id', authCtx.user.sub)
-          .single();
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('display_name, avatar_url')
+            .eq('id', authCtx.user.sub)
+            .maybeSingle();
 
-        if (profile) {
-          setDisplayName(profile.display_name || authCtx.user.name || "");
-          setAvatarUrl(profile.avatar_url || authCtx.user.picture || null);
-        } else {
+          if (profile) {
+            setDisplayName(profile.display_name || authCtx.user.name || "");
+            setAvatarUrl(profile.avatar_url || authCtx.user.picture || null);
+          } else {
+            // Tentativa de criar o profile caso não exista
+            setDisplayName(authCtx.user.name || "");
+            setAvatarUrl(authCtx.user.picture || null);
+            
+            // Criação silenciosa do perfil se possível
+            await supabase.from('profiles').upsert({ 
+              id: authCtx.user.sub, 
+              display_name: authCtx.user.name, 
+              avatar_url: authCtx.user.picture 
+            }).select().maybeSingle();
+          }
+        } catch (err) {
+          console.error("Error loading profile:", err);
           setDisplayName(authCtx.user.name || "");
           setAvatarUrl(authCtx.user.picture || null);
         }
@@ -494,7 +507,16 @@ const AccountPage = () => {
               <div className="mb-4 text-center">
                 <div className="relative mx-auto mb-3 h-24 w-24">
                   {avatarUrl ? (
-                    <img src={avatarUrl} alt="Avatar" className="h-24 w-24 rounded-full object-cover border-3 border-accent" />
+                    <img 
+                      src={avatarUrl} 
+                      alt="" 
+                      className="h-24 w-24 rounded-full object-cover border-3 border-accent"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        console.warn("Avatar image failed to load, falling back to icon");
+                        setAvatarUrl(null);
+                      }}
+                    />
                   ) : (
                     <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-accent to-primary">
                       <User className="h-12 w-12 text-primary-foreground" />
