@@ -41,6 +41,7 @@ const AccountPage = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [offlineEnabled, setOfflineEnabled] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [editingName, setEditingName] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -309,61 +310,42 @@ const AccountPage = () => {
       return;
     }
     
-    const confirmDelete = window.confirm("CUIDADO: Deseja excluir PERMANENTEMENTE sua conta e todos os seus dados? Esta ação não pode ser desfeita.");
+    // Confirmação Dupla: Passo 1
+    const confirmDelete = window.confirm("CUIDADO: Esta ação é PERMANENTE e apagará todos os seus dados vinculados. Deseja prosseguir?");
     if (!confirmDelete) return;
     
-    setLoading(true);
+    // Confirmação Dupla: Passo 2
+    const secondConfirm = window.confirm("Tem certeza absoluta? Você perderá acesso imediato e não poderá recuperar seus dados.");
+    if (!secondConfirm) return;
+    
+    setDeleting(true);
     try {
-      // 1. Obter a sessão atual para o token
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Sessão não encontrada.");
-
-      // 2. Chamar a API do backend para deletar a conta usando o Service Role (Admin)
-      const response = await fetch("/api/user/delete", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
-          "x-sentinel-token": localStorage.getItem('sentinel_token') || "0".repeat(32),
-          "x-request-timestamp": Date.now().toString()
-        }
-      });
-
-      const responseText = await response.text();
-      let result;
-      try {
-        result = JSON.parse(responseText);
-      } catch (e) {
-        console.error("Erro ao processar resposta do servidor:", responseText);
-        throw new Error("O servidor retornou uma resposta inválida. Por favor, tente novamente.");
+      // 1. Chamada RPC: Função no banco que deleta o usuário da auth.users
+      const { error } = await supabase.rpc('delete_user_account');
+      
+      if (error) {
+        console.error("RPC Error:", error);
+        throw new Error("Falha ao comunicar com o servidor de banco de dados.");
       }
       
-      if (!response.ok) {
-        console.error("Erro na API de exclusão:", result);
-        if (result.error === "SERVER_CONFIG_ERROR") {
-          throw new Error("O servidor não está configurado corretamente (Secret SUPABASE_SERVICE_ROLE_KEY ausente). Por favor, verifique as configurações.");
-        }
-        throw new Error(result.message || "Falha na exclusão do banco de dados.");
-      }
-      
-      // 3. Limpeza Local - SÓ CHEGA AQUI SE A CONTA REALMENTE FOI EXCLUÍDA NO BANCO
+      // 2. Limpeza local e logout seguro
       localStorage.clear();
-      
-      // 3. Logout e redirecionamento (igual ao handleLogout)
       await supabase.auth.signOut().catch(() => {});
       authCtx.logout();
       
-      toast({ title: "Conta Excluída", description: "Todos os seus dados foram removidos com sucesso." });
+      toast({ title: "Conta Excluída", description: "Todos os seus dados foram removidos permanentemente." });
+      
+      // 3. Redirecionamento imediato
       navigate("/", { replace: true });
     } catch (error: any) {
       console.error("Erro fatal na exclusão:", error);
       toast({ 
         title: "Erro na exclusão", 
-        description: error.message || "Não foi possível excluir a conta. Tente novamente.", 
+        description: "Ocorreu um problema ao processar sua solicitação. Tente novamente mais tarde.", 
         variant: "destructive" 
       });
     } finally {
-      setLoading(false);
+      setDeleting(false);
     }
   };
 
@@ -619,11 +601,12 @@ const AccountPage = () => {
                     <button 
                       type="button" 
                       onClick={() => handleDeleteData()} 
-                      className="flex w-full items-center gap-3 rounded-xl bg-destructive/10 p-3 text-destructive transition-colors hover:bg-destructive/20 liquid-btn"
+                      disabled={deleting}
+                      className="flex w-full items-center gap-3 rounded-xl bg-destructive/10 p-3 text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50 disabled:cursor-not-allowed liquid-btn"
                     >
                       <Trash2 className="h-4 w-4" />
                       <div className="text-left">
-                        <p className="text-sm font-medium">Excluir Minha Conta e Dados</p>
+                        <p className="text-sm font-medium">{deleting ? "Carregando..." : "Excluir Minha Conta e Dados"}</p>
                         <p className="text-[10px] opacity-70">Apagar perfil e atividades permanentemente</p>
                       </div>
                     </button>
