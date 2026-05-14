@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth, forceSignOut } from "@/contexts/AuthContext";
+import { useAuth, forceSignOut, handleAuthError } from "@/contexts/AuthContext";
 import { GoogleGenAI } from "@google/genai";
 
 import { downloadBibleImage, shareBibleImage } from "@/lib/downloadUtils";
@@ -115,28 +115,14 @@ const AIPage = () => {
       const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error) {
-        console.warn("Auth session error:", error.message);
-        
-        const isAuthError = 
-          error.message.includes("Refresh Token Not Found") || 
-          error.message.includes("invalid_grant") ||
-          error.message.includes("refresh_token_not_found") ||
-          error.message.includes("Invalid Refresh Token") ||
-          error.message.includes("refresh token") ||
-          error.status === 400 || 
-          error.status === 401;
+        const wasCleaned = await handleAuthError(error);
+        if (wasCleaned) {
+          toast({ title: "Sessão expirada", description: "Faça login novamente para continuar.", variant: "destructive" });
+          return null;
+        }
 
         if (error.message.includes("Failed to fetch")) {
           toast({ title: "Erro de conexão", description: "Não foi possível conectar ao servidor. Verifique sua internet.", variant: "destructive" });
-          return null;
-        }
-        
-        if (isAuthError) {
-          toast({ title: "Sessão expirada", description: "Faça login novamente para continuar.", variant: "destructive" });
-          
-          // Limpeza profunda centralizada
-          await forceSignOut();
-          
           return null;
         }
         throw error;
@@ -144,7 +130,7 @@ const AIPage = () => {
 
       if (!session || !session.access_token) {
         toast({ title: "Sessão expirada ou inválida. Faça login novamente.", variant: "destructive" });
-        await supabase.auth.signOut();
+        await supabase.auth.signOut().catch(() => {});
         return null;
       }
       return session.access_token;

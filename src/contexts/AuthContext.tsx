@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User as SupaUser } from "@supabase/supabase-js";
+import { setupPushNotifications, updateLastActive } from "@/services/pushService";
 
 export interface GoogleUser {
   name: string;
@@ -37,24 +38,52 @@ function mapSupabaseUser(su: SupaUser): GoogleUser {
 
 export const forceSignOut = async () => {
   try {
-    localStorage.removeItem("bible-google-user"); // Legacy
-    
-    // 1. Tenta signOut suave (pode falhar se o token for inválido)
-    await supabase.auth.signOut().catch(() => {});
-    
-    // 2. Limpeza manual agressiva de TODOS os possíveis tokens do Supabase no localStorage
-    // Isso resolve o erro "Invalid Refresh Token: Refresh Token Not Found" que trava a conta
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('sb-') || key.includes('supabase.auth.token')) {
-        localStorage.removeItem(key);
-      }
-    });
+    localStorage.removeItem("bible-google-user");
 
-    // 3. Limpa estados locais adicionais se necessário
+    // 1. Tenta signOut suave
+    await supabase.auth.signOut().catch(() => {});
+
+    // 2. Limpeza manual agressiva de TODOS os tokens do Supabase
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('sb-') || key.includes('supabase.auth.token'))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+
+    // 3. Notifica outras abas sobre a limpeza
+    localStorage.setItem('auth-sync-logout', Date.now().toString());
+
     console.log("Limpeza profunda de sessão concluída.");
   } catch (err) {
     console.error("Erro durante a limpeza de sessão:", err);
   }
+};
+
+/**
+ * Centrally handles auth errors, specifically "Invalid Refresh Token"
+ */
+export const handleAuthError = async (error: any): Promise<boolean> => {
+  if (!error) return false;
+  
+  const errMsg = error.message || String(error);
+  const isInvalidToken = 
+    errMsg.includes("Refresh Token Not Found") || 
+    errMsg.includes("invalid_grant") ||
+    errMsg.includes("refresh_token_not_found") ||
+    errMsg.includes("Invalid Refresh Token") ||
+    errMsg.includes("session_not_found") ||
+    error.status === 400 || 
+    error.status === 401;
+
+  if (isInvalidToken) {
+    console.warn("Auth error detected:", errMsg, "Cleaning up session...");
+    await forceSignOut();
+    return true;
+  }
+  return false;
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -62,64 +91,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let initialSessionChecked = false;
+    let isSubscribed = true;
 
-    // Clean up legacy localStorage auth data
-    localStorage.removeItem("bible-google-user");
-
-    // 1. Listen for auth state changes FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) {
-        const mapped = mapSupabaseUser(session.user);
-        setUser(mapped);
-      } else if (event === 'SIGNED_OUT') {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'auth-sync-logout') {
         setUser(null);
-      }
-      if (initialSessionChecked) {
         setLoading(false);
       }
-    });
+    };
+    window.addEventListener('storage', handleStorageChange);
 
-    // 2. Then check existing session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      initialSessionChecked = true;
-      if (error) {
-        console.warn("Erro ao recuperar sessão inicial:", error.message);
+    // Initial session check
+    const checkInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
         
-        // Comprehensive check for invalid/expired tokens
-        const isAuthError = 
-          error.message.includes("Refresh Token Not Found") || 
-          error.message.includes("invalid_grant") ||
-          error.message.includes("refresh_token_not_found") ||
-          error.message.includes("Invalid Refresh Token") ||
-          error.message.includes("refresh token") ||
-          error.status === 400 || 
-          error.status === 401;
-
-        if (error.message.includes("Failed to fetch")) {
-          // Offline ou bloqueado por CSP/Rede
-          console.error("Erro de conexão com o Supabase. Verifique sua internet.");
-        } else if (isAuthError) {
-          // Limpa tokens inválidos para evitar loops de erro e logs irritantes
-          console.warn("Detectado token inválido, realizando limpeza profunda da sessão...");
-          forceSignOut().then(() => {
+        if (error) {
+          const wasCleaned = await handleAuthError(error);
+          if (wasCleaned && isSubscribed) {
             setUser(null);
             setLoading(false);
-          });
-          return;
+            return;
+          }
+          if (error.message.includes("Failed to fetch")) {
+            console.warn("Sem conexão para verificar sessão.");
+          }
         }
+
+        if (isSubscribed && session?.user) {
+          setUser(mapSupabaseUser(session.user));
+          updateLastActive(session.user.id);
+          setupPushNotifications(session.user.id);
+        }
+      } catch (err) {
+        await handleAuthError(err);
+      } finally {
+        if (isSubscribed) setLoading(false);
       }
+    };
+
+    checkInitialSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!isSubscribed) return;
+      
       if (session?.user) {
-        const mapped = mapSupabaseUser(session.user);
-        setUser(mapped);
+        setUser(mapSupabaseUser(session.user));
+      } else {
+        // Se houve erro no refresh silencioso disparado pelo Supabase, o session virá nulo
+        // e o evento pode não ser SIGNED_OUT se for um erro de rede/token
+        if (!session) setUser(null);
       }
-      setLoading(false);
-    }).catch(err => {
-      console.error("Erro crítico na sessão do Supabase:", err);
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isSubscribed = false;
+      subscription.unsubscribe();
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   // login kept for interface compatibility but is a no-op;

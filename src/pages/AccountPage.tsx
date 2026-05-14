@@ -5,10 +5,11 @@ import { motion } from "framer-motion";
 import Header from "@/components/Header";
 import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth, forceSignOut } from "@/contexts/AuthContext";
+import { useAuth, forceSignOut, handleAuthError } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Turnstile } from '@marsidev/react-turnstile';
 import { useSentinel } from "@/hooks/useSentinel";
+import { setupPushNotifications } from "@/services/pushService";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
 const OFFLINE_KEY = "bible-offline-enabled";
@@ -23,7 +24,7 @@ const translateAuthError = (message: string) => {
   if (lowered.includes("password should contain at least one character of each")) return "A senha deve conter letras (maiúsculas e minúsculas), números e símbolos (!@#$).";
   if (lowered.includes("password should be at least")) return "A senha deve ter pelo menos 6 caracteres.";
   if (lowered.includes("email not confirmed")) return "Por favor, verifique seu e-mail antes de entrar.";
-  if (lowered.includes("refresh token") || lowered.includes("refresh_token")) return "Sessão expirada. Por favor, entre novamente.";
+  if (lowered.includes("refresh token") || lowered.includes("refresh_token") || lowered.includes("not found")) return "Sessão expirada ou inválida. Por favor, entre novamente.";
   return message; // fallback
 };
 
@@ -111,7 +112,8 @@ const AccountPage = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) await handleAuthError(error);
       if (session?.user) {
         const ext = file.name.split('.').pop() || 'jpg';
         const path = `avatars/${session.user.id}/avatar.${ext}`;
@@ -133,7 +135,8 @@ const AccountPage = () => {
   const saveName = async () => {
     setEditingName(false);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) await handleAuthError(error);
       if (session?.user) {
         await supabase.from('profiles').upsert({ id: session.user.id, display_name: displayName });
       }
@@ -357,46 +360,24 @@ const AccountPage = () => {
 
   const toggleNotifications = async () => {
     if (!notificationsEnabled) {
-      const { isIOS, isStandalone } = isIOSPWA();
-      if (!('Notification' in window)) {
-        toast({ title: "Sem suporte", description: "Seu navegador não suporta notificações.", variant: "destructive" });
+      if (!authCtx.user) {
+        toast({ title: "Erro", description: "Faça login para ativar notificações.", variant: "destructive" });
         return;
       }
-      if (isIOS && !isStandalone) {
-        toast({ title: "Adicione à tela inicial", description: "No iOS, as notificações só funcionam se o app estiver adicionado à tela inicial.", variant: "destructive" });
-        return;
-      }
-      try {
-        const permission = await Notification.requestPermission();
-        if (permission === "granted") {
-          setNotificationsEnabled(true);
-          localStorage.setItem(NOTIFICATIONS_KEY, "true");
-          
-          if ("serviceWorker" in navigator) {
-            // Safe check to avoid hang
-            const regPromise = navigator.serviceWorker.ready;
-            const timeoutPromise = new Promise((_, reject) => 
-               setTimeout(() => reject(new Error("Timeout waiting for Service Worker")), 2000)
-            );
-            
-            Promise.race([regPromise, timeoutPromise])
-              .then((reg: any) => {
-                reg?.active?.postMessage({ type: 'ENABLE_NOTIFICATIONS' });
-                reg?.active?.postMessage({ type: 'TEST_NOTIFICATION' });
-              })
-              .catch(err => console.warn("SW for notifications not ready:", err));
-          }
-          
-          toast({ title: "Notificações ativadas! 🔔" });
-        } else {
-          toast({ title: "Permissão negada", variant: "destructive" });
-        }
-      } catch {
-        toast({ title: "Erro", description: "Não foi possível ativar notificações.", variant: "destructive" });
-      }
+
+      await setupPushNotifications(authCtx.user.sub);
+      setNotificationsEnabled(true);
+      localStorage.setItem(NOTIFICATIONS_KEY, "true");
+      toast({ title: "Notificações ativadas! 🔔" });
     } else {
       setNotificationsEnabled(false);
       localStorage.setItem(NOTIFICATIONS_KEY, "false");
+      
+      // Opcional: Remover inscrição do Supabase ao desativar
+      if (authCtx.user) {
+        await supabase.from('profiles').update({ push_subscription: null }).eq('id', authCtx.user.sub);
+      }
+      
       toast({ title: "Notificações desativadas" });
     }
   };

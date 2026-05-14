@@ -6,6 +6,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { createClient } from "@supabase/supabase-js";
 import rateLimit from "express-rate-limit";
+import webpush from "web-push";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -254,6 +255,76 @@ async function startServer() {
     } catch (err: any) {
       console.error("[Account] Unexpected error during deletion:", err);
       res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: err.message });
+    }
+  });
+
+  // --- WEB PUSH CRON ROUTE ---
+  app.get("/api/cron/send-push", async (req, res) => {
+    // Basic auth check for cron (can be improved with a dedicated secret)
+    const cronSecret = req.headers["x-cron-secret"];
+    if (process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const adminClient = getSupabaseAdmin();
+    const publicKey = process.env.VITE_VAPID_PUBLIC_KEY;
+    const privateKey = process.env.VAPID_PRIVATE_KEY;
+    const subject = process.env.VAPID_SUBJECT || "mailto:support@bibliaonline.com";
+
+    if (!adminClient || !publicKey || !privateKey) {
+      return res.status(500).json({ error: "Push configuration missing" });
+    }
+
+    webpush.setVapidDetails(subject, publicKey, privateKey);
+
+    const verses = [
+      "O Senhor é o meu pastor; nada me faltará.",
+      "Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito.",
+      "Tudo posso naquele que me fortalece.",
+      "O Senhor te guardará de todo o mal; ele guardará a tua alma.",
+      "Lâmpada para os meus pés é tua palavra, e luz para o meu caminho."
+    ];
+
+    try {
+      const { data: users, error } = await adminClient
+        .from("profiles")
+        .select("id, push_subscription, last_active_at")
+        .not("push_subscription", "is", null);
+
+      if (error) throw error;
+
+      const now = new Date();
+      const results = { sent: 0, failed: 0 };
+
+      for (const user of users) {
+        const lastActive = new Date(user.last_active_at);
+        const diffDays = (now.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24);
+        
+        let title = "Bíblia Online";
+        let body = "";
+
+        if (diffDays > 2) {
+          body = "Você esqueceu de ler a Bíblia?";
+        } else {
+          body = verses[Math.floor(Math.random() * verses.length)];
+        }
+
+        try {
+          await webpush.sendNotification(
+            user.push_subscription,
+            JSON.stringify({ title, body, url: "/reader" })
+          );
+          results.sent++;
+        } catch (pushErr) {
+          console.error(`Failed to send push to user ${user.id}:`, pushErr);
+          results.failed++;
+        }
+      }
+
+      res.json({ status: "completed", results });
+    } catch (err: any) {
+      console.error("Cron Error:", err);
+      res.status(500).json({ error: "Cron execution failed", details: err.message });
     }
   });
 
