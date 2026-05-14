@@ -540,27 +540,41 @@ const AccountPage = () => {
                     {notificationsEnabled && (
                       <div className="mt-2 flex gap-2">
                         <button 
-                          onClick={async () => {
+                          onClick={async (e) => {
+                            e.stopPropagation();
                             if (!authCtx.user) return;
-                            const res = await fetch('/api/push/test', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ 
-                                subscription: await (await navigator.serviceWorker.ready).pushManager.getSubscription() 
-                              })
-                            });
-                            if (res.ok) {
-                              toast({ title: "Teste enviado! 🚀", description: "Verifique sua Central de Notificações." });
-                            } else {
-                              const err = await res.json();
-                              toast({ 
-                                title: "Erro no teste", 
-                                description: err.message || "Tente novamente mais tarde.", 
-                                variant: "destructive" 
+                            
+                            try {
+                              const reg = await navigator.serviceWorker.ready;
+                              const sub = await reg.pushManager.getSubscription();
+                              
+                              if (!sub) {
+                                toast({ title: "Assinatura não encontrada", description: "Tente desativar e ativar as notificações novamente.", variant: "destructive" });
+                                return;
+                              }
+
+                              const res = await fetch('/api/push/test', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ subscription: sub.toJSON() })
                               });
+                              
+                              if (res.ok) {
+                                toast({ title: "Teste enviado! 🚀", description: "Verifique sua Central de Notificações." });
+                              } else {
+                                const err = await res.json();
+                                toast({ 
+                                  title: "Erro no teste", 
+                                  description: err.message || "Tente novamente mais tarde.", 
+                                  variant: "destructive" 
+                                });
+                              }
+                            } catch (err) {
+                              console.error("Erro no teste de push:", err);
+                              toast({ title: "Erro no teste", description: "Não foi possível enviar o teste.", variant: "destructive" });
                             }
                           }}
-                          className="flex-1 rounded-lg bg-accent/10 py-2 text-[10px] font-medium text-accent hover:bg-accent/20 transition-colors"
+                          className="flex-1 rounded-lg bg-accent/10 py-2 text-[10px] font-medium text-accent hover:bg-accent/20 cursor-pointer active:scale-95 transition-all shadow-sm"
                         >
                           Testar Agora
                         </button>
