@@ -300,11 +300,17 @@ async function startServer() {
         const lastActive = new Date(user.last_active_at);
         const diffDays = (now.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24);
         
-        let title = "Bíblia Online";
+        // Lógica de saudação baseada no horário (UTC-3 ou horário do servidor)
+        const hour = now.getHours();
+        let greeting = "Bom dia";
+        if (hour >= 12 && hour < 18) greeting = "Boa tarde";
+        else if (hour >= 18 || hour < 5) greeting = "Boa noite";
+
+        let title = `📖 Biblia Online — ${greeting}!`;
         let body = "";
 
         if (diffDays > 2) {
-          body = "Você esqueceu de ler a Bíblia?";
+          body = "Sentimos sua falta! Que tal ler um versículo hoje?";
         } else {
           body = verses[Math.floor(Math.random() * verses.length)];
         }

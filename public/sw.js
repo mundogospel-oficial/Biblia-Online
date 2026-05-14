@@ -4,7 +4,7 @@ self.addEventListener('push', (event) => {
 
   try {
     const data = event.data.json();
-    const title = data.title || 'Bíblia Online';
+    const title = data.title || 'Biblia Online';
     const options = {
       body: data.body,
       icon: '/icons/icon-192x192.png',
