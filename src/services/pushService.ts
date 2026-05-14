@@ -63,17 +63,6 @@ export async function setupPushNotifications(userId: string) {
 
     if (error) throw error;
     console.log('Inscrição Push salva com sucesso.');
-
-    // 5. Enviar notificação de teste para confirmar que funciona
-    try {
-      await fetch('/api/push/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscription })
-      });
-    } catch (testErr) {
-      console.warn('Falha ao enviar notificação de teste:', testErr);
-    }
   } catch (err) {
     console.error('Erro ao configurar Push Notifications:', err);
   }

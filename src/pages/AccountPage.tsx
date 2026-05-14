@@ -540,47 +540,19 @@ const AccountPage = () => {
                     {notificationsEnabled && (
                       <div className="mt-2 flex gap-2">
                         <button 
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            if (!authCtx.user) return;
-                            
-                            try {
-                              const reg = await navigator.serviceWorker.ready;
-                              const sub = await reg.pushManager.getSubscription();
-                              
-                              if (!sub) {
-                                toast({ title: "Assinatura não encontrada", description: "Tente desativar e ativar as notificações novamente.", variant: "destructive" });
-                                return;
-                              }
-
-                              const res = await fetch('/api/push/test', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ subscription: sub.toJSON() })
-                              });
-                              
-                              if (res.ok) {
-                                toast({ title: "Teste enviado! 🚀", description: "Verifique sua Central de Notificações." });
-                              } else {
-                                const err = await res.json();
-                                toast({ 
-                                  title: "Erro no teste", 
-                                  description: err.message || "Tente novamente mais tarde.", 
-                                  variant: "destructive" 
-                                });
-                              }
-                            } catch (err) {
-                              console.error("Erro no teste de push:", err);
-                              toast({ title: "Erro no teste", description: "Não foi possível enviar o teste.", variant: "destructive" });
+                          onClick={() => {
+                            if ("serviceWorker" in navigator) {
+                              navigator.serviceWorker.ready.then(reg => reg.active?.postMessage({ type: 'TEST_NOTIFICATION' }));
+                              toast({ title: "Teste enviado! 🔔", description: "Você deve receber uma notificação em instantes." });
                             }
                           }}
-                          className="flex-1 rounded-lg bg-accent/10 py-2 text-[10px] font-medium text-accent hover:bg-accent/20 cursor-pointer active:scale-95 transition-all shadow-sm"
+                          className="flex-1 rounded-lg bg-accent/10 py-2 text-[10px] font-medium text-accent hover:bg-accent/20 transition-colors"
                         >
                           Testar Agora
                         </button>
                         <div className="flex-[1.5] rounded-lg bg-secondary/30 px-3 py-2 flex items-center justify-between">
-                          <span className="text-[10px] text-muted-foreground">Saudação horária:</span>
-                          <span className="text-[10px] font-mono text-accent animate-pulse">Ativada</span>
+                          <span className="text-[10px] text-muted-foreground">Status do Relógio:</span>
+                          <span className="text-[10px] font-mono text-accent animate-pulse">Ativo</span>
                         </div>
                       </div>
                     )}

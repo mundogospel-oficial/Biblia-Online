@@ -258,43 +258,10 @@ async function startServer() {
     }
   });
 
-  // --- WEB PUSH TEST ROUTE ---
-  app.post("/api/push/test", async (req, res) => {
-    const { subscription } = req.body;
-    if (!subscription) return res.status(400).json({ error: "Subscription missing" });
-
-    const publicKey = process.env.VITE_VAPID_PUBLIC_KEY;
-    const privateKey = process.env.VAPID_PRIVATE_KEY;
-    const subject = process.env.VAPID_SUBJECT || "mailto:support@bibliaonline.com";
-
-    if (!publicKey || !privateKey) {
-      return res.status(500).json({ 
-        error: "VAPID_KEYS_MISSING", 
-        message: "As chaves VAPID não foram configuradas no servidor." 
-      });
-    }
-
-    try {
-      webpush.setVapidDetails(subject, publicKey, privateKey);
-      await webpush.sendNotification(
-        subscription,
-        JSON.stringify({ 
-          title: "🚀 Teste de Notificação", 
-          body: "Se você está vendo isso, as notificações estão configuradas corretamente!",
-          url: "/account"
-        })
-      );
-      res.json({ success: true });
-    } catch (err: any) {
-      console.error("Test Push Error:", err);
-      res.status(500).json({ error: "FAILED_TO_SEND", message: err.message });
-    }
-  });
-
   // --- WEB PUSH CRON ROUTE ---
   app.get("/api/cron/send-push", async (req, res) => {
     // Basic auth check for cron (can be improved with a dedicated secret)
-    const cronSecret = req.headers["x-cron-secret"] || req.query.secret;
+    const cronSecret = req.headers["x-cron-secret"];
     if (process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -304,8 +271,9 @@ async function startServer() {
     const privateKey = process.env.VAPID_PRIVATE_KEY;
     const subject = process.env.VAPID_SUBJECT || "mailto:support@bibliaonline.com";
 
-    if (!adminClient) return res.status(500).json({ error: "Admin client missing" });
-    if (!publicKey || !privateKey) return res.status(500).json({ error: "VAPID keys missing" });
+    if (!adminClient || !publicKey || !privateKey) {
+      return res.status(500).json({ error: "Push configuration missing" });
+    }
 
     webpush.setVapidDetails(subject, publicKey, privateKey);
 
@@ -332,17 +300,11 @@ async function startServer() {
         const lastActive = new Date(user.last_active_at);
         const diffDays = (now.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24);
         
-        // Lógica de saudação baseada no horário (UTC-3 ou horário do servidor)
-        const hour = now.getHours();
-        let greeting = "Bom dia";
-        if (hour >= 12 && hour < 18) greeting = "Boa tarde";
-        else if (hour >= 18 || hour < 5) greeting = "Boa noite";
-
-        let title = `📖 Biblia Online — ${greeting}!`;
+        let title = "Bíblia Online";
         let body = "";
 
         if (diffDays > 2) {
-          body = "Sentimos sua falta! Que tal ler um versículo hoje?";
+          body = "Você esqueceu de ler a Bíblia?";
         } else {
           body = verses[Math.floor(Math.random() * verses.length)];
         }
