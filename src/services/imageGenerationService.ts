@@ -1,7 +1,12 @@
 import { supabase } from '@/integrations/supabase/client';
 import { getSystemRule } from './aiService';
 
-export const generateBiblicalImage = async (userPrompt: string, signal?: AbortSignal): Promise<string> => {
+export const generateBiblicalImage = async (
+  userPrompt: string, 
+  signal?: AbortSignal,
+  aspectRatio: 'square' | 'story' | 'landscape' = 'square',
+  returnRawUrl: boolean = false
+): Promise<string> => {
   let googleKey = import.meta.env.VITE_GOOGLE_AI_KEY || "";
   let modelName = 'gemini-1.5-flash'; // Fallback
 
@@ -96,9 +101,24 @@ Responda APENAS com o prompt em inglês, sem aspas.`;
   
   if (enhancedPrompt === "BLOQUEADO") throw new Error("Apenas imagens de temas bíblicos/cristãos são permitidas.");
 
+  // Config do tamanho conforme o aspect ratio
+  let width = 1024;
+  let height = 1024;
+  if (aspectRatio === 'story') {
+    width = 576;
+    height = 1024;
+  } else if (aspectRatio === 'landscape') {
+    width = 1024;
+    height = 576;
+  }
+
   const seed = Math.floor(Math.random() * 100000);
   const encodedPrompt = encodeURIComponent(enhancedPrompt);
-  const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?nologo=true&seed=${seed}&width=1024&height=1024`;
+  const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?nologo=true&seed=${seed}&width=${width}&height=${height}`;
+
+  if (returnRawUrl) {
+    return imageUrl;
+  }
 
   return `Aqui está a imagem gerada para: "${userPrompt}"\n\n![${userPrompt}](${imageUrl})`;
 };

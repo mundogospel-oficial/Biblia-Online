@@ -9,7 +9,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, forceSignOut, handleAuthError } from "@/contexts/AuthContext";
-import { GoogleGenAI } from "@google/genai";
 
 import { downloadBibleImage, shareBibleImage } from "@/lib/downloadUtils";
 
@@ -401,62 +400,7 @@ const AIPage = () => {
     try {
       let responseText = "";
       if (activeMode === 'image') {
-        try {
-          const apiKey = (typeof process !== 'undefined' && process.env.GEMINI_API_KEY) || "";
-          if (!apiKey) throw new Error("Chave da API Gemini não configurada.");
-          
-          const ai = new GoogleGenAI({ apiKey });
-          
-          let models = [];
-          try {
-            const modelsResponse = await (ai as any).listModels?.() || await (ai as any).models?.list?.();
-            models = Array.isArray(modelsResponse) ? modelsResponse : (modelsResponse as any).models || [];
-          } catch (err) {
-            console.warn("Could not list models, using fallback", err);
-          }
-          
-          const imageModels = models.filter((m: any) => 
-            m.name.includes('image') || 
-            m.name.includes('imagen') || 
-            (m.supportedActions && m.supportedActions.includes('generateContent') && m.name.includes('flash-image'))
-          );
-          
-          const selectedModelName = imageModels.find((m: any) => m.name.includes('gemini-2.0-flash'))?.name || 
-                                   imageModels.find((m: any) => m.name.includes('gemini-1.5-flash'))?.name ||
-                                   imageModels[0]?.name || 
-                                   'gemini-1.5-flash';
-
-          console.log("AIPage Image Generation using model:", selectedModelName);
-          
-          const promptWithoutPrefix = finalText.replace(/\[Modo:.*?\]\s*/g, "");
-          const fullPrompt = `Gere uma imagem bíblica inspiradora baseada na descrição: "${promptWithoutPrefix}". Estilo: Cinematográfico, 8k, altamente detalhado. A imagem DEVE PREENCHER COMPLETAMENTE O QUADRO (fill the entire frame), sem bordas, sem molduras brancas e SEM TEXTO na imagem.`;
-
-          const response = await ai.models.generateContent({
-            model: selectedModelName,
-            contents: [{ parts: [{ text: fullPrompt }] }],
-            config: {
-              imageConfig: { aspectRatio: "1:1" }
-            }
-          });
-
-          if (response.candidates && response.candidates[0]?.content?.parts) {
-            for (const part of response.candidates[0].content.parts) {
-              if (part.inlineData) {
-                const base64 = `data:image/png;base64,${part.inlineData.data}`;
-                responseText = `Aqui está a imagem gerada para: "${promptWithoutPrefix}"\n\n![${promptWithoutPrefix}](${base64})`;
-                break;
-              }
-            }
-          }
-
-          if (!responseText) {
-            // Fallback to old service if no image returned from direct model
-            responseText = await generateBiblicalImage(finalText, controller.signal);
-          }
-        } catch (imgErr) {
-          console.error("Gemini Image Direct Mode error, falling back:", imgErr);
-          responseText = await generateBiblicalImage(finalText, controller.signal);
-        }
+        responseText = await generateBiblicalImage(finalText, controller.signal);
       } else {
         responseText = await askBibleAI(finalText, aiEngine === "complexo" ? "complex" : "simple", controller.signal, base64Image);
       }

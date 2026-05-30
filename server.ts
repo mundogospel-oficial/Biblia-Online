@@ -47,7 +47,7 @@ async function startServer() {
     keyGenerator: (req) => {
       return (req.headers["x-forwarded-for"] as string || req.ip || "unknown").split(",")[0].trim();
     },
-    validate: { trustProxy: false },
+    validate: { trustProxy: false, keyGenerator: false },
     message: { error: "TOO_MANY_REQUESTS", message: "Muitas requisições. Tente novamente mais tarde." }
   });
 
@@ -57,7 +57,7 @@ async function startServer() {
     keyGenerator: (req) => {
       return (req.headers["x-forwarded-for"] as string || req.ip || "unknown").split(",")[0].trim();
     },
-    validate: { trustProxy: false },
+    validate: { trustProxy: false, keyGenerator: false },
     message: { error: "SECURITY_THRESHOLD", message: "Limite de segurança atingido. Tente novamente em uma hora." }
   });
 

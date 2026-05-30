@@ -11,9 +11,8 @@ import html2canvas from "html2canvas-pro";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { GoogleGenAI } from "@google/genai";
-
 import { downloadBibleImage, shareBibleImage } from "@/lib/downloadUtils";
+import { generateBiblicalImage } from "@/services/imageGenerationService";
 
 const formats: { key: CardFormat; label: string; icon: React.ReactNode }[] = [
   { key: "square", label: "Quadrado", icon: <Square className="h-3.5 w-3.5" /> },
@@ -156,54 +155,14 @@ const CreatePage = () => {
       setCreateImageCount(prev => prev + 1);
 
       const stylePrompt = customAiPrompt.trim() || aiStyle;
-      const fullPrompt = `Gere uma imagem de fundo inspiradora e pacífica para o versículo bíblico: "${verseText}". Estilo visual: ${stylePrompt}. A imagem DEVE PREENCHER COMPLETAMENTE O QUADRO (fill the entire frame), sem bordas, sem molduras brancas, sem marcas d'água e SEM TEXTO escrito na imagem.`;
+      const fullPrompt = `${verseText}. Estilo visual: ${stylePrompt}`;
 
-      const apiKey = (typeof process !== 'undefined' && process.env.GEMINI_API_KEY) || "";
-      if (!apiKey) throw new Error("Chave da API Gemini não configurada.");
-      
-      const ai = new GoogleGenAI({ apiKey });
-      
-      // Discover available image models
-      let models = [];
-      try {
-        const modelsResponse = await (ai as any).listModels?.() || await (ai as any).models?.list?.();
-        models = Array.isArray(modelsResponse) ? modelsResponse : (modelsResponse as any).models || [];
-      } catch (err) {
-        console.warn("Could not list models, using fallback", err);
-      }
-      
-      const imageModels = models.filter((m: any) => 
-        m.name.includes('image') || 
-        m.name.includes('imagen') || 
-        (m.supportedActions && m.supportedActions.includes('generateContent') && m.name.includes('flash-image'))
-      );
-      
-      // Prefer 3.1 flash image preview, then 2.5 flash image, then any image model, fallback to a known one
-      const selectedModelName = imageModels.find((m: any) => m.name.includes('gemini-2.0-flash'))?.name || 
-                               imageModels.find((m: any) => m.name.includes('gemini-1.5-flash'))?.name ||
-                               imageModels[0]?.name || 
-                               'gemini-1.5-flash';
+      const imageUrl = await generateBiblicalImage(fullPrompt, undefined, activeFormat, true);
 
-      console.log("Using model for image generation:", selectedModelName);
-
-      const response = await ai.models.generateContent({
-        model: selectedModelName,
-        contents: [{ parts: [{ text: fullPrompt }] }],
-        config: {
-          imageConfig: {
-            aspectRatio: activeFormat === "square" ? "1:1" : activeFormat === "story" ? "9:16" : "16:9"
-          }
-        }
-      });
-
-      if (response.candidates && response.candidates[0]?.content?.parts) {
-        for (const part of response.candidates[0].content.parts) {
-          if (part.inlineData) {
-            setAiImageUrl(`data:image/png;base64,${part.inlineData.data}`);
-            toast({ title: "Imagem gerada com sucesso! ✨" });
-            return;
-          }
-        }
+      if (imageUrl) {
+        setAiImageUrl(imageUrl);
+        toast({ title: "Imagem gerada com sucesso! ✨" });
+        return;
       }
       
       throw new Error("O modelo não retornou uma imagem. Tente novamente.");
