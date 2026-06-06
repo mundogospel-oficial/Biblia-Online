@@ -61,7 +61,7 @@ const AccountPage = () => {
     fetch('/version.json', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => setAppVersion(data.version))
-      .catch(() => setAppVersion("1.7"));
+      .catch(() => setAppVersion("1.6"));
 
     const loadProfile = async () => {
       if (authCtx.user) {
@@ -753,7 +753,7 @@ const AccountPage = () => {
 
           <div className="mt-8 pb-4 text-center">
             <p className="text-xs text-muted-foreground font-sans font-medium tracking-wide">
-              Biblia Online — Versão {appVersion || "1.7"}
+              Biblia Online — Versão {appVersion || "1.6"}
             </p>
           </div>
 

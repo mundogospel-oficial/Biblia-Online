@@ -99,7 +99,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
     };
+    
+    const handleLogoutLocal = () => {
+      setUser(null);
+      setLoading(false);
+    };
+
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('auth-sync-logout-local', handleLogoutLocal);
 
     // Initial session check
     const checkInitialSession = async () => {
@@ -149,6 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isSubscribed = false;
       subscription.unsubscribe();
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('auth-sync-logout-local', handleLogoutLocal);
     };
   }, []);
 

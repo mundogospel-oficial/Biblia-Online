@@ -31,3 +31,73 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+// Guard session against "Invalid Refresh Token" crash loop
+const originalGetSession = supabase.auth.getSession.bind(supabase.auth);
+const originalGetUser = supabase.auth.getUser.bind(supabase.auth);
+
+const clearStaleSession = () => {
+  console.warn("Stale or invalid Supabase session detected. Automatically cleaning up...");
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+       const key = localStorage.key(i);
+       if (key && (key.startsWith('sb-') || key.includes('supabase.auth.token') || key === 'bible-google-user')) {
+         keysToRemove.push(key);
+       }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+    localStorage.setItem('auth-sync-logout', Date.now().toString());
+    window.dispatchEvent(new Event('auth-sync-logout-local'));
+  } catch (e) {
+    console.error("Failed to clean up stale localStorage keys:", e);
+  }
+};
+
+const isAuthRefreshError = (error: any) => {
+  if (!error) return false;
+  const errMsg = error.message || String(error);
+  return (
+    errMsg.includes("Refresh Token Not Found") ||
+    errMsg.includes("invalid_grant") ||
+    errMsg.includes("refresh_token_not_found") ||
+    errMsg.includes("Invalid Refresh Token") ||
+    errMsg.includes("session_not_found") ||
+    error.status === 400 ||
+    error.status === 401
+  );
+};
+
+supabase.auth.getSession = async () => {
+  try {
+    const res = await originalGetSession();
+    if (res.error && isAuthRefreshError(res.error)) {
+      clearStaleSession();
+      return { data: { session: null }, error: null };
+    }
+    return res;
+  } catch (err) {
+    if (isAuthRefreshError(err)) {
+      clearStaleSession();
+      return { data: { session: null }, error: null };
+    }
+    throw err;
+  }
+};
+
+supabase.auth.getUser = async (jwt?: string) => {
+  try {
+    const res = await originalGetUser(jwt);
+    if (res.error && isAuthRefreshError(res.error)) {
+      clearStaleSession();
+      return { data: { user: null }, error: null };
+    }
+    return res;
+  } catch (err) {
+    if (isAuthRefreshError(err)) {
+      clearStaleSession();
+      return { data: { user: null }, error: null };
+    }
+    throw err;
+  }
+};
