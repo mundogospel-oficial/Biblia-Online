@@ -8,7 +8,7 @@ export const generateBiblicalImage = async (
   returnRawUrl: boolean = false
 ): Promise<string> => {
   let googleKey = import.meta.env.VITE_GOOGLE_AI_KEY || "";
-  let modelName = 'gemini-1.5-flash'; // Fallback
+  let modelName = 'gemini-3.5-flash'; // Fallback
 
   try {
     const { data: settings, error: settingsError } = await supabase
@@ -41,7 +41,7 @@ Responda APENAS com o prompt em inglês, sem aspas.`;
   const combinedPrompt = `${systemInstruction}\n\nPedido: ${userPrompt}`;
 
   // Lista base de modelos conhecidos e estáveis
-  let modelsToTry = [modelName, 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.0-flash'];
+  let modelsToTry = [modelName, 'gemini-3.5-flash', 'gemini-3.1-flash-lite'];
   
   // Tentar descobrir modelos dinamicamente apenas como bônus e sem travar
   try {

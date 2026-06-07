@@ -4,6 +4,202 @@ let cachedSystemRule: string | null = null;
 let lastCacheUpdate = 0;
 const CACHE_DURATION = 1000 * 60 * 5; // 5 minutos
 
+let cachedGoogleKey: string | null = null;
+let cachedOpenRouterKey: string | null = null;
+let lastKeyFetchTime = 0;
+
+const fetchKeys = async (): Promise<{ googleKey: string; openRouterKey: string }> => {
+  const now = Date.now();
+  if (cachedGoogleKey !== null && cachedOpenRouterKey !== null && (now - lastKeyFetchTime < CACHE_DURATION)) {
+    return { googleKey: cachedGoogleKey, openRouterKey: cachedOpenRouterKey };
+  }
+
+  let envGoogle = (import.meta.env.VITE_GOOGLE_AI_KEY || "").trim();
+  let envOpenRouter = (import.meta.env.VITE_OPENROUTER_API_KEY || "").trim();
+
+  try {
+    const { data, error } = await supabase
+      .from('ai_settings')
+      .select('config_key, config_value')
+      .in('config_key', ['google_ai_key', 'openrouter_api_key']);
+      
+    if (!error && data) {
+      const dbGoogle = data.find(d => d.config_key === 'google_ai_key')?.config_value;
+      const dbOpenRouter = data.find(d => d.config_key === 'openrouter_api_key')?.config_value;
+      
+      if (dbGoogle && dbGoogle.trim()) envGoogle = dbGoogle.trim();
+      if (dbOpenRouter && dbOpenRouter.trim()) envOpenRouter = dbOpenRouter.trim();
+    }
+  } catch (err) {
+    console.warn("Falha ao buscar chaves no banco de dados, usando do ambiente:", err);
+  }
+
+  cachedGoogleKey = envGoogle;
+  cachedOpenRouterKey = envOpenRouter;
+  lastKeyFetchTime = now;
+
+  return { googleKey: envGoogle, openRouterKey: envOpenRouter };
+};
+
+const tryComplexGemini = async (
+  prompt: string,
+  googleKey: string,
+  systemRule: string,
+  base64Image?: string | null,
+  signal?: AbortSignal
+): Promise<string> => {
+  if (!googleKey) throw new Error("Chave Gemini não disponível.");
+  
+  const geminiModels = [
+    'gemini-3.5-flash',
+    'gemini-3.1-flash-lite'
+  ];
+  let lastErrorMessage = "";
+  
+  for (const model of geminiModels) {
+    try {
+      if (!navigator.onLine) throw new Error("Sem conexão com a internet.");
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemRule }] },
+          contents: [{ 
+            parts: [
+              { text: prompt },
+              ...(base64Image ? [{
+                inlineData: {
+                  mimeType: base64Image.substring(base64Image.indexOf(':') + 1, base64Image.indexOf(';')),
+                  data: base64Image.substring(base64Image.indexOf(',') + 1)
+                }
+              }] : [])
+            ] 
+          }],
+          generationConfig: { 
+            temperature: 0.4, 
+            maxOutputTokens: 1000 
+          }
+        }),
+        signal
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error?.message || `Status HTTP: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+        return sanitizeAIResponse(data.candidates[0].content.parts[0].text);
+      }
+    } catch (e: any) {
+      if (e.name === 'AbortError' || e.message?.includes('abort')) throw e;
+      lastErrorMessage = e.message;
+    }
+  }
+  throw new Error(lastErrorMessage || "Falha ao gerar resposta com modelos do Gemini.");
+};
+
+const trySimpleOpenRouter = async (
+  prompt: string,
+  openRouterKey: string,
+  systemRule: string,
+  base64Image?: string | null,
+  signal?: AbortSignal
+): Promise<string> => {
+  if (!openRouterKey) throw new Error("Chave OpenRouter não disponível.");
+
+  let freeModels: string[] = [];
+  const preferredFreeModels = [
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "google/gemma-2-9b-it:free",
+    "qwen/qwen-2.5-72b-instruct:free",
+    "deepseek/deepseek-r1-distill-llama-70b:free",
+    "mistralai/mistral-7b-instruct:free"
+  ];
+
+  try {
+    const modelsRes = await fetch("https://openrouter.ai/api/v1/models");
+    if (modelsRes.ok) {
+      const modelsData = await modelsRes.json();
+      const fetchedFree = modelsData.data
+        .filter((m: any) => {
+          const id = m.id.toLowerCase();
+          return id.endsWith(':free') && 
+            !id.includes('guard') && 
+            !id.includes('safety') && 
+            !id.includes('moderator') && 
+            !id.includes('moderation') && 
+            !id.includes('embed') && 
+            !id.includes('classifier') && 
+            !id.includes('classify');
+        })
+        .map((m: any) => m.id);
+
+      const orderedModels = [
+        ...preferredFreeModels.filter(p => fetchedFree.includes(p)),
+        ...fetchedFree.filter((f: string) => !preferredFreeModels.includes(f))
+      ];
+
+      freeModels = orderedModels.length > 0 ? orderedModels : preferredFreeModels;
+    }
+  } catch (e) {
+    console.warn("Falha ao buscar modelos do OpenRouter:", e);
+  }
+
+  if (freeModels.length === 0) {
+    freeModels = preferredFreeModels;
+  }
+
+  let lastErrorMessage = "";
+
+  for (const model of freeModels) {
+    try {
+      if (!navigator.onLine) throw new Error("Sem conexão com a internet.");
+
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openRouterKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': window.location.origin,
+          'X-Title': 'IA Bíblica'
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: [
+            { role: "system", "content": systemRule },
+            { role: "user", "content": base64Image ? [
+              { type: "text", text: prompt },
+              { type: "image_url", image_url: { url: base64Image } }
+            ] : prompt }
+          ],
+          temperature: 0.5,
+          max_tokens: 1000
+        }),
+        signal
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        lastErrorMessage = errorData.error?.message || response.statusText;
+        continue; 
+      }
+      
+      const data = await response.json();
+      if (data?.choices?.[0]?.message?.content) {
+        return sanitizeAIResponse(data.choices[0].message.content);
+      }
+    } catch (e: any) {
+      if (e.name === 'AbortError') throw e;
+      lastErrorMessage = e.message;
+    }
+  }
+
+  throw new Error(lastErrorMessage || "Falha ao gerar resposta com modelos do OpenRouter.");
+};
+
 const sanitizeAIResponse = (text: string): string => {
   if (!text) return "";
   // Remove tags técnicas, caracteres de controle (\x00-\x1F exceto \n \r \t)
@@ -48,7 +244,7 @@ export const generateChatTitle = async (userPrompt: string, aiResponse: string):
     : "Geração de Imagem";
 
   try {
-    const googleKey = import.meta.env.VITE_GOOGLE_AI_KEY;
+    const { googleKey } = await fetchKeys();
     if (!googleKey) return safeFallback;
 
     const context = cleanPrompt ? `Usuário: ${cleanPrompt}` : `IA gerou imagem baseada em: ${aiResponse}`;
@@ -62,7 +258,7 @@ REGRAS ABSOLUTAS:
 
     const combinedPrompt = `Tarefa: Crie um título curto de 3-5 palavras para o seguinte contexto: ${context}`;
 
-    const modelsToTry = ['gemini-1.5-flash'];
+    const modelsToTry = ['gemini-3.5-flash', 'gemini-3.1-flash-lite'];
 
     for (const model of modelsToTry) {
       try {
@@ -93,17 +289,16 @@ REGRAS ABSOLUTAS:
 };
 
 export const askDictionaryAI = async (verseText: string, reference: string, signal?: AbortSignal): Promise<string> => {
-  const googleKey = import.meta.env.VITE_GOOGLE_AI_KEY;
-  if (!googleKey) throw new Error("Chave VITE_GOOGLE_AI_KEY não configurada.");
+  const { googleKey } = await fetchKeys();
+  if (!googleKey) throw new Error("Chave do Google AI/Gemini não configurada no ambiente ou no banco de dados.");
 
   const combinedRule = await getSystemRule('gemini_prompt_dicionario');
   const dictPrompt = `Aja como um Dicionário Bíblico Erudito. Analise o versículo abaixo.
 Versículo: "${verseText}" — ${reference}`;
 
   const geminiModels = [
-    'gemini-1.5-flash',
-    'gemini-2.0-flash',
-    'gemini-2.0-flash-lite-preview-02-05'
+    'gemini-3.5-flash',
+    'gemini-3.1-flash-lite'
   ];
 
   let lastError = "";
@@ -134,170 +329,33 @@ Versículo: "${verseText}" — ${reference}`;
   throw new Error(`Dicionário indisponível: ${lastError}`);
 };
 
-export const askBibleAI = async (prompt: string, complexity: 'simple' | 'complex' = 'simple', signal?: AbortSignal, base64Image?: string | null): Promise<string> => {
-  const googleKey = import.meta.env.VITE_GOOGLE_AI_KEY;
-  const openRouterKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+export const askBibleAI = async (
+  prompt: string, 
+  complexity: 'simple' | 'complex' = 'simple', 
+  signal?: AbortSignal, 
+  base64Image?: string | null
+): Promise<string> => {
+  const { googleKey, openRouterKey } = await fetchKeys();
+
+  if (!googleKey && !openRouterKey) {
+    throw new Error("Chave de API não configurada. Configure a sua chave do Gemini ou OpenRouter nas configurações da Conta ou no painel administrativo.");
+  }
 
   const ruleKey = complexity === 'simple' ? 'gemini_prompt_simples' : 'gemini_prompt_complexo';
   const SYSTEM_RULE = await getSystemRule(ruleKey);
 
+  const cleanPrompt = prompt ? prompt.replace(/\[.*?\]/g, '').trim() : "";
+
   try {
     if (complexity === 'complex') {
-      if (!googleKey) throw new Error("Chave VITE_GOOGLE_AI_KEY não configurada.");
-      
-      const cleanPrompt = prompt ? prompt.replace(/\[.*?\]/g, '').trim() : "";
-      const geminiModels = [
-        'gemini-1.5-flash',
-        'gemini-2.0-flash',
-        'gemini-2.0-flash-lite-preview-02-05'
-      ];
-      let lastErrorMessage = "";
-      
-      for (const model of geminiModels) {
-        try {
-          if (!navigator.onLine) throw new Error("Sem conexão com a internet.");
-
-          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              systemInstruction: { parts: [{ text: SYSTEM_RULE }] },
-              contents: [{ 
-                parts: [
-                  { text: cleanPrompt },
-                  ...(base64Image ? [{
-                    inlineData: {
-                      mimeType: base64Image.substring(base64Image.indexOf(':') + 1, base64Image.indexOf(';')),
-                      data: base64Image.substring(base64Image.indexOf(',') + 1)
-                    }
-                  }] : [])
-                ] 
-              }],
-              generationConfig: { 
-                temperature: 0.4, 
-                maxOutputTokens: 1000 
-              }
-            }),
-            signal
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => null);
-            throw new Error(errorData?.error?.message || `Status HTTP: ${response.status}`);
-          }
-          
-          const data = await response.json();
-          if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
-            return sanitizeAIResponse(data.candidates[0].content.parts[0].text);
-          }
-        } catch (e: any) {
-          if (e.name === 'AbortError' || e.message?.includes('abort')) throw e;
-          lastErrorMessage = e.message;
-        }
-      }
-      throw new Error(`O modo Complexo (Gemini) está indisponível no momento. Detalhe: ${lastErrorMessage}`);
-
+      return await tryComplexGemini(cleanPrompt, googleKey, SYSTEM_RULE, base64Image, signal);
     } else {
-      if (!openRouterKey) throw new Error("Chave VITE_OPENROUTER_API_KEY não configurada.");
-
-      const cleanPrompt = prompt ? prompt.replace(/\[.*?\]/g, '').trim() : "";
-      
-      // Busca modelos gratuitos dinamicamente
-      let freeModels: string[] = [];
-      const preferredFreeModels = [
-        "meta-llama/llama-3.3-70b-instruct:free",
-        "google/gemma-2-9b-it:free",
-        "qwen/qwen-2.5-72b-instruct:free",
-        "deepseek/deepseek-r1-distill-llama-70b:free",
-        "mistralai/mistral-7b-instruct:free"
-      ];
-
-      try {
-        const modelsRes = await fetch("https://openrouter.ai/api/v1/models");
-        if (modelsRes.ok) {
-          const modelsData = await modelsRes.json();
-          const fetchedFree = modelsData.data
-            .filter((m: any) => {
-              const id = m.id.toLowerCase();
-              return id.endsWith(':free') && 
-                !id.includes('guard') && 
-                !id.includes('safety') && 
-                !id.includes('moderator') && 
-                !id.includes('moderation') && 
-                !id.includes('embed') && 
-                !id.includes('classifier') && 
-                !id.includes('classify');
-            })
-            .map((m: any) => m.id);
-
-          // Coloca os modelos preferidos primeiro
-          const orderedModels = [
-            ...preferredFreeModels.filter(p => fetchedFree.includes(p)),
-            ...fetchedFree.filter((f: string) => !preferredFreeModels.includes(f))
-          ];
-
-          freeModels = orderedModels.length > 0 ? orderedModels : preferredFreeModels;
-        }
-      } catch (e) {
-        console.warn("Falha ao buscar modelos free do OpenRouter, usando fallback local.");
-      }
-
-      // Fallback caso a busca falhe ou retorne vazio
-      if (freeModels.length === 0) {
-        freeModels = preferredFreeModels;
-      }
-
-      let lastErrorMessage = "";
-
-      for (const model of freeModels) {
-        try {
-          if (!navigator.onLine) throw new Error("Sem conexão com a internet.");
-
-          const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${openRouterKey}`,
-              'Content-Type': 'application/json',
-              'HTTP-Referer': window.location.origin,
-              'X-Title': 'IA Bíblica'
-            },
-            body: JSON.stringify({
-              model: model,
-              messages: [
-                { role: "system", "content": SYSTEM_RULE },
-                { role: "user", "content": base64Image ? [
-                  { type: "text", text: cleanPrompt },
-                  { type: "image_url", image_url: { url: base64Image } }
-                ] : cleanPrompt }
-              ],
-              temperature: 0.5,
-              max_tokens: 1000
-            }),
-            signal
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            lastErrorMessage = errorData.error?.message || response.statusText;
-            continue; 
-          }
-          
-          const data = await response.json();
-          if (data?.choices?.[0]?.message?.content) {
-            return sanitizeAIResponse(data.choices[0].message.content);
-          }
-        } catch (e: any) {
-          if (e.name === 'AbortError') throw e;
-          lastErrorMessage = e.message;
-        }
-      }
-
-      throw new Error(`O modo Simples (OpenRouter) está indisponível no momento. Detalhe: ${lastErrorMessage}`);
+      return await trySimpleOpenRouter(cleanPrompt, openRouterKey, SYSTEM_RULE, base64Image, signal);
     }
   } catch (error: any) {
     if (error.name === 'AbortError' || error.message?.includes('abort')) throw error;
     if (error.message === 'Failed to fetch') {
-      throw new Error("Erro de conexão: Não foi possível alcançar o servidor da IA. Verifique sua internet.");
+      throw new Error("Erro de conexão: Não foi possível alcançar o servidor da IA. Verifique sua conexão com a internet.");
     }
     throw new Error(error.message || "Ocorreu um erro inesperado ao consultar a IA.");
   }
