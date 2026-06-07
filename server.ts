@@ -131,6 +131,7 @@ async function startServer() {
     if (
       req.path === '/api/security/report' || 
       req.path === '/api/user/delete' ||
+      req.path === '/api/generate-image' ||
       req.path.startsWith('/@vite') || 
       req.path.startsWith('/src')
     ) {
@@ -212,6 +213,71 @@ async function startServer() {
   // API Health check
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // --- GOOGLE IMAGEN 3 PROXY TO BYPASS FRONTEND CORS ---
+  app.post("/api/generate-image", async (req, res) => {
+    try {
+      const { prompt, aspectRatio } = req.body;
+      if (!prompt) {
+        return res.status(400).json({ error: "O prompt é obrigatório." });
+      }
+
+      // 1. Obter chave da API do Google (do ambiente ou banco do Supabase)
+      let googleKey = process.env.GEMINI_API_KEY || process.env.VITE_GOOGLE_AI_KEY || "";
+      
+      if (!googleKey) {
+        const adminClient = getSupabaseAdmin();
+        if (adminClient) {
+          const { data, error } = await adminClient
+            .from("ai_settings")
+            .select("config_key, config_value")
+            .eq("config_key", "google_ai_key")
+            .single();
+          if (!error && data?.config_value) {
+            googleKey = data.config_value.trim();
+          }
+        }
+      }
+
+      if (!googleKey) {
+        return res.status(400).json({ error: "Chave Google AI não configurada." });
+      }
+
+      const mappedAspectRatio = aspectRatio === 'story' ? '9:16' : aspectRatio === 'landscape' ? '16:9' : '1:1';
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:generateImages?key=${googleKey}`;
+
+      console.log(`[Proxy Imagen 3] Gerando imagem para o prompt: "${prompt.substring(0, 60)}..."`);
+      
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: prompt,
+          numberOfImages: 1,
+          outputMimeType: 'image/jpeg',
+          aspectRatio: mappedAspectRatio
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        const errMessage = errData?.error?.message || `Status: ${response.status}`;
+        console.error(`[Proxy Imagen 3 ERR] ${errMessage}`);
+        return res.status(response.status).json({ error: `Erro na API Imagen 3: ${errMessage}` });
+      }
+
+      const data = await response.json();
+      const base64Bytes = data.generatedImages?.[0]?.image?.imageBytes;
+      if (!base64Bytes) {
+        return res.status(500).json({ error: "A API do Imagen não retornou dados de imagem." });
+      }
+
+      res.json({ imageBytes: base64Bytes });
+    } catch (err: any) {
+      console.error("[Proxy Imagen 3 CRITICAL]", err);
+      res.status(500).json({ error: err.message || "Erro interno do servidor proxy." });
+    }
   });
 
   // --- ACCOUNT DELETION ROUTE ---

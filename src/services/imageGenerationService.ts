@@ -129,28 +129,25 @@ Responda APENAS com o prompt em inglês, sem aspas.`;
 
   const mappedAspectRatio = aspectRatio === 'story' ? '9:16' : aspectRatio === 'landscape' ? '16:9' : '1:1';
 
-  // Chamar o modelo nativo de geração de imagem do Google AI Studio (Imagen 3)
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:generateImages?key=${googleKey}`;
-  const response = await fetch(url, {
+  // Chamar o proxy do backend para geração de imagem nativa do Google (Imagen 3) para evitar erros de CORS no navegador
+  const response = await fetch('/api/generate-image', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       prompt: enhancedPrompt,
-      numberOfImages: 1,
-      outputMimeType: 'image/jpeg',
-      aspectRatio: mappedAspectRatio
+      aspectRatio
     }),
     signal
   });
 
   if (!response.ok) {
     const errData = await response.json().catch(() => null);
-    const errMessage = errData?.error?.message || `Status: ${response.status} ${response.statusText}`;
+    const errMessage = errData?.error || `Status: ${response.status} ${response.statusText}`;
     throw new Error(`Erro ao gerar a imagem nativa com Imagen 3: ${errMessage}`);
   }
 
   const data = await response.json();
-  const base64Bytes = data.generatedImages?.[0]?.image?.imageBytes;
+  const base64Bytes = data.imageBytes;
   if (!base64Bytes) {
     throw new Error("A API Imagen 3 não retornou os dados binários da imagem.");
   }
