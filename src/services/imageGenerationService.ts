@@ -8,7 +8,7 @@ export const generateBiblicalImage = async (
   returnRawUrl: boolean = false
 ): Promise<string> => {
   let googleKey = import.meta.env.VITE_GOOGLE_AI_KEY || "";
-  let modelName = 'gemini-3.5-flash'; // Fallback
+  let modelName = 'gemini-2.0-flash'; // Fallback
 
   try {
     const { data: settings, error: settingsError } = await supabase
@@ -38,10 +38,18 @@ REGRA 1: Verifique se o pedido é sobre a Bíblia/Cristianismo. Se NÃO for, res
 REGRA 2: Se válido, traduza para o INGLÊS adicionando: cinematic lighting, hyperrealistic, 8k resolution, highly detailed.
 Responda APENAS com o prompt em inglês, sem aspas.`;
 
-  const combinedPrompt = `${systemInstruction}\n\nPedido: ${userPrompt}`;
+  // Limpar qualquer prefixo estrutural, tags de arquivos ou colchetes extras do prompt
+  const cleanPrompt = userPrompt
+    .replace(/\[Modo:[^\]]+\]/g, "")
+    .replace(/\[Arquivo:[^\]]+\]/g, "")
+    .replace(/\[.*?\]/g, "")
+    .replace(/[\r\n]+/g, " ") // REMOVER quebras de linha para evitar quebras em URLs e Markdowns
+    .trim();
+
+  const combinedPrompt = `${systemInstruction}\n\nPedido: ${cleanPrompt}`;
 
   // Lista base de modelos conhecidos e estáveis
-  let modelsToTry = [modelName, 'gemini-3.5-flash', 'gemini-3.1-flash-lite'];
+  let modelsToTry = [modelName, 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-lite'];
   
   // Tentar descobrir modelos dinamicamente apenas como bônus e sem travar
   try {
@@ -81,7 +89,25 @@ Responda APENAS com o prompt em inglês, sem aspas.`;
         const data = await response.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (text) {
-          enhancedPrompt = text.trim();
+          let trimmedText = text.trim()
+            .replace(/[\r\n]+/g, " ") // REMOVER todas as quebras de linha no prompt refinado
+            .trim();
+          
+          // Limpeza de aspas que o Gemini coloca por vício
+          if (trimmedText.startsWith('"') && trimmedText.endsWith('"')) {
+            trimmedText = trimmedText.slice(1, -1).trim();
+          }
+          if (trimmedText.startsWith("'") && trimmedText.endsWith("'")) {
+            trimmedText = trimmedText.slice(1, -1).trim();
+          }
+          trimmedText = trimmedText.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
+          trimmedText = trimmedText.replace(/^(here is your prompt|prompt|translation|here is a prompt for your image|gerar imagem de|imagem de|desenhar)\s*:\s*/i, '');
+          
+          if (trimmedText.toUpperCase().includes("BLOQUEADO")) {
+            enhancedPrompt = "BLOQUEADO";
+          } else {
+            enhancedPrompt = trimmedText;
+          }
         }
       } else {
         const errData = await response.json().catch(() => null);
@@ -95,30 +121,45 @@ Responda APENAS com o prompt em inglês, sem aspas.`;
 
   // Plano C: Se tudo falhar, usamos o prompt original (Melhor que dar erro)
   if (!enhancedPrompt) {
-    console.warn("Aviso: Gemini falhou no refinamento. Usando prompt original para Pollinations.");
-    enhancedPrompt = userPrompt;
+    console.warn("Aviso: Gemini falhou no refinamento. Usando prompt original para Imagen 3.");
+    enhancedPrompt = cleanPrompt;
   }
   
   if (enhancedPrompt === "BLOQUEADO") throw new Error("Apenas imagens de temas bíblicos/cristãos são permitidas.");
 
-  // Config do tamanho conforme o aspect ratio
-  let width = 1024;
-  let height = 1024;
-  if (aspectRatio === 'story') {
-    width = 576;
-    height = 1024;
-  } else if (aspectRatio === 'landscape') {
-    width = 1024;
-    height = 576;
+  const mappedAspectRatio = aspectRatio === 'story' ? '9:16' : aspectRatio === 'landscape' ? '16:9' : '1:1';
+
+  // Chamar o modelo nativo de geração de imagem do Google AI Studio (Imagen 3)
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:generateImages?key=${googleKey}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      prompt: enhancedPrompt,
+      numberOfImages: 1,
+      outputMimeType: 'image/jpeg',
+      aspectRatio: mappedAspectRatio
+    }),
+    signal
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => null);
+    const errMessage = errData?.error?.message || `Status: ${response.status} ${response.statusText}`;
+    throw new Error(`Erro ao gerar a imagem nativa com Imagen 3: ${errMessage}`);
   }
 
-  const seed = Math.floor(Math.random() * 100000);
-  const encodedPrompt = encodeURIComponent(enhancedPrompt);
-  const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?nologo=true&seed=${seed}&width=${width}&height=${height}`;
+  const data = await response.json();
+  const base64Bytes = data.generatedImages?.[0]?.image?.imageBytes;
+  if (!base64Bytes) {
+    throw new Error("A API Imagen 3 não retornou os dados binários da imagem.");
+  }
+
+  const imageUrl = `data:image/jpeg;base64,${base64Bytes}`;
 
   if (returnRawUrl) {
     return imageUrl;
   }
 
-  return `Aqui está a imagem gerada para: "${userPrompt}"\n\n![${userPrompt}](${imageUrl})`;
+  return `Aqui está a imagem gerada para: "${cleanPrompt}"\n\n![${cleanPrompt}](${imageUrl})`;
 };

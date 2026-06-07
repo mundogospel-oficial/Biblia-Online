@@ -61,6 +61,84 @@ const DiamondSpinner = () => (
   </motion.div>
 );
 
+interface ResilientImageProps {
+  src: string;
+  alt: string;
+  className?: string;
+}
+
+const ResilientImage: React.FC<ResilientImageProps> = ({ src, alt, className = "absolute inset-0 w-full h-full object-cover" }) => {
+  const [currentSrc, setCurrentSrc] = useState(src);
+  const [retryCount, setRetryCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setCurrentSrc(src);
+    setRetryCount(0);
+    setIsLoading(true);
+    setHasError(false);
+  }, [src]);
+
+  const handleLoad = () => {
+    setIsLoading(false);
+    setHasError(false);
+  };
+
+  const handleError = () => {
+    if (retryCount < 4) {
+      const nextRetry = retryCount + 1;
+      setRetryCount(nextRetry);
+      setIsLoading(true);
+      
+      setTimeout(() => {
+        try {
+          const urlObj = new URL(src);
+          urlObj.searchParams.set("retry", String(nextRetry));
+          setCurrentSrc(urlObj.toString());
+        } catch (err) {
+          setCurrentSrc(`${src}${src.includes('?') ? '&' : '?'}retry=${nextRetry}`);
+        }
+      }, 2000);
+    } else {
+      setIsLoading(false);
+      setHasError(true);
+      setCurrentSrc("/icons/logo2.png");
+    }
+  };
+
+  return (
+    <div className="relative w-full h-full bg-muted flex items-center justify-center overflow-hidden rounded-xl">
+      {isLoading && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-center">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+            className="mb-2"
+          >
+            <Sparkles className="h-5 w-5 text-accent animate-pulse" />
+          </motion.div>
+          <span className="text-[10px] font-semibold text-foreground tracking-wide">
+            {retryCount > 0 ? `Refinando detalhes... (${retryCount}/4)` : "Criando imagem bíblica... ✨"}
+          </span>
+          <span className="text-[8px] text-muted-foreground mt-0.5 block">
+            A primeira criação pode levar alguns instantes
+          </span>
+        </div>
+      )}
+      
+      <img
+        src={currentSrc}
+        alt={alt}
+        className={hasError ? "absolute inset-0 m-auto w-10 h-10 opacity-20 grayscale" : className}
+        referrerPolicy="no-referrer"
+        onLoad={handleLoad}
+        onError={handleError}
+      />
+    </div>
+  );
+};
+
 type ModeKey = "image" | "video" | "learning" | "music";
 type AIEngine = "complexo" | "simples";
 
@@ -462,7 +540,7 @@ const AIPage = () => {
         {msg.image && (
           <Fragment>
             <div className="mb-2 relative w-full aspect-square overflow-hidden rounded-xl bg-muted border border-border shadow-inner">
-              <img src={msg.image} alt="Imagem bíblica gerada" className="absolute inset-0 w-full h-full object-cover" referrerPolicy="no-referrer" />
+              <ResilientImage src={msg.image} alt="Imagem bíblica gerada" />
             </div>
             <div className="mt-1.5 flex gap-2">
               <button onClick={() => downloadImage(msg.image!)}
@@ -483,16 +561,7 @@ const AIPage = () => {
              return (
                <Fragment key={i}>
                  <div className="mb-2 mt-2 relative w-full aspect-square overflow-hidden rounded-xl bg-muted border border-border shadow-inner">
-                   <img 
-                     src={imageUrl} 
-                     alt="Imagem bíblica gerada" 
-                     className="absolute inset-0 w-full h-full object-cover" 
-                     referrerPolicy="no-referrer"
-                     onError={(e) => {
-                       (e.target as HTMLImageElement).src = "/icons/logo2.png";
-                       (e.target as HTMLImageElement).className = "absolute inset-0 m-auto w-10 h-10 opacity-20 grayscale";
-                     }}
-                   />
+                   <ResilientImage src={imageUrl} alt="Imagem bíblica gerada" />
                  </div>
                  <div className="mt-1.5 flex gap-2">
                    <button onClick={() => downloadImage(imageUrl)}

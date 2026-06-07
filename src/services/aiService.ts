@@ -51,8 +51,9 @@ const tryComplexGemini = async (
   if (!googleKey) throw new Error("Chave Gemini não disponível.");
   
   const geminiModels = [
-    'gemini-3.5-flash',
-    'gemini-3.1-flash-lite'
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-2.0-flash-lite'
   ];
   let lastErrorMessage = "";
   
@@ -258,7 +259,7 @@ REGRAS ABSOLUTAS:
 
     const combinedPrompt = `Tarefa: Crie um título curto de 3-5 palavras para o seguinte contexto: ${context}`;
 
-    const modelsToTry = ['gemini-3.5-flash', 'gemini-3.1-flash-lite'];
+    const modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-lite'];
 
     for (const model of modelsToTry) {
       try {
@@ -297,8 +298,9 @@ export const askDictionaryAI = async (verseText: string, reference: string, sign
 Versículo: "${verseText}" — ${reference}`;
 
   const geminiModels = [
-    'gemini-3.5-flash',
-    'gemini-3.1-flash-lite'
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-2.0-flash-lite'
   ];
 
   let lastError = "";
