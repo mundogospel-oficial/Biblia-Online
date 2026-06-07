@@ -204,13 +204,39 @@ export const askBibleAI = async (prompt: string, complexity: 'simple' | 'complex
       
       // Busca modelos gratuitos dinamicamente
       let freeModels: string[] = [];
+      const preferredFreeModels = [
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "google/gemma-2-9b-it:free",
+        "qwen/qwen-2.5-72b-instruct:free",
+        "deepseek/deepseek-r1-distill-llama-70b:free",
+        "mistralai/mistral-7b-instruct:free"
+      ];
+
       try {
         const modelsRes = await fetch("https://openrouter.ai/api/v1/models");
         if (modelsRes.ok) {
           const modelsData = await modelsRes.json();
-          freeModels = modelsData.data
-            .filter((m: any) => m.id.endsWith(':free'))
+          const fetchedFree = modelsData.data
+            .filter((m: any) => {
+              const id = m.id.toLowerCase();
+              return id.endsWith(':free') && 
+                !id.includes('guard') && 
+                !id.includes('safety') && 
+                !id.includes('moderator') && 
+                !id.includes('moderation') && 
+                !id.includes('embed') && 
+                !id.includes('classifier') && 
+                !id.includes('classify');
+            })
             .map((m: any) => m.id);
+
+          // Coloca os modelos preferidos primeiro
+          const orderedModels = [
+            ...preferredFreeModels.filter(p => fetchedFree.includes(p)),
+            ...fetchedFree.filter((f: string) => !preferredFreeModels.includes(f))
+          ];
+
+          freeModels = orderedModels.length > 0 ? orderedModels : preferredFreeModels;
         }
       } catch (e) {
         console.warn("Falha ao buscar modelos free do OpenRouter, usando fallback local.");
@@ -218,12 +244,7 @@ export const askBibleAI = async (prompt: string, complexity: 'simple' | 'complex
 
       // Fallback caso a busca falhe ou retorne vazio
       if (freeModels.length === 0) {
-        freeModels = [
-          "google/gemma-2-9b-it:free",
-          "meta-llama/llama-3.3-70b-instruct:free",
-          "qwen/qwen-2.5-72b-instruct:free",
-          "mistralai/mistral-7b-instruct:free"
-        ];
+        freeModels = preferredFreeModels;
       }
 
       let lastErrorMessage = "";
