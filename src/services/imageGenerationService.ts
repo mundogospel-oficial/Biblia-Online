@@ -135,7 +135,8 @@ Responda APENAS com o prompt em inglês, sem aspas.`;
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       prompt: enhancedPrompt,
-      aspectRatio
+      aspectRatio,
+      googleKey
     }),
     signal
   });

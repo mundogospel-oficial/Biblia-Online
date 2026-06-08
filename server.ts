@@ -216,7 +216,6 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
-  // --- GOOGLE IMAGEN 3 PROXY TO BYPASS FRONTEND CORS WITH MULTIPLE MODEL FALLBACKS ---
   app.post("/api/generate-image", async (req, res) => {
     try {
       const { prompt, aspectRatio } = req.body;
@@ -224,8 +223,8 @@ async function startServer() {
         return res.status(400).json({ error: "O prompt é obrigatório." });
       }
 
-      // 1. Obter chave da API do Google (do ambiente ou banco do Supabase)
-      let googleKey = process.env.GEMINI_API_KEY || process.env.VITE_GOOGLE_AI_KEY || "";
+      // 1. Obter chave da API do Google (correto, seguro e priorizado)
+      let googleKey = req.body.googleKey || process.env.VITE_GOOGLE_AI_KEY || "";
       
       if (!googleKey) {
         const adminClient = getSupabaseAdmin();
@@ -241,13 +240,18 @@ async function startServer() {
         }
       }
 
+      // Fallback final para variável de sistema se nenhuma outra foi informada/achada
       if (!googleKey) {
-        return res.status(400).json({ error: "Chave Google AI não configurada no servidor." });
+        googleKey = process.env.GEMINI_API_KEY || "";
+      }
+
+      if (!googleKey) {
+        return res.status(400).json({ error: "Chave Google AI não configurada no servidor ou enviada pelo frontend." });
       }
 
       const mappedAspectRatio = aspectRatio === 'story' ? '9:16' : aspectRatio === 'landscape' ? '16:9' : '1:1';
       
-      console.log(`[Proxy Imagen 3] Gerando imagem para o prompt: "${prompt.substring(0, 60)}..." com aspect ratio: ${mappedAspectRatio}`);
+      console.log(`[Proxy Imagen] Gerando imagem para o prompt: "${prompt.substring(0, 60)}..." com aspect ratio: ${mappedAspectRatio}`);
 
       // Instanciar o SDK oficial @google/genai dinamicamente
       const { GoogleGenAI } = await import("@google/genai");
@@ -263,20 +267,18 @@ async function startServer() {
       let base64Bytes = "";
       let errorMsgs: string[] = [];
 
-      // Sequência robusta de modelos suportados para tentar encontrar algum disponível na chave do usuário:
-      // 1. imagen-3.0-generate-002 (Nativo de imagem via generateImages)
-      // 2. gemini-2.5-flash-image (Inclusivo para chaves novas e gratuitas, via generateContent)
-      // 3. gemini-3.1-flash-image (Super qualidade via generateContent)
-      // 4. Fallback final: Pollinations AI (totalmente online e garantido)
+      // Sequência para tentar o melhor modelo de imagem do Google AI Studio disponível na chave:
+      // 1. imagen-4.0-generate-001 (Mais recente e de maior qualidade)
+      // 2. imagen-4.0-fast-generate-001 (Mais recente e rápido)
+      // 3. imagen-3.0-generate-002 (Modelo clássico e altíssima fidelidade)
+      // 4. gemini-2.5-flash-image (Geração via multimodal content se ativo na chave)
+      // 5. gemini-3.1-flash-image (Geração via multimodal content se ativo na chave)
 
-      // MODELO 1: imagen-3.0-generate-002 (generateImages)
+      // MODELO 1: imagen-4.0-generate-001
       try {
-        console.log("[Proxy] Tentando gerar com imagen-3.0-generate-002...");
-        const responseHeight = mappedAspectRatio === '9:16' ? 1024 : mappedAspectRatio === '16:9' ? 576 : 1024;
-        const responseWidth = mappedAspectRatio === '9:16' ? 576 : mappedAspectRatio === '16:9' ? 1024 : 1024;
-        
+        console.log("[Proxy] Tentando gerar com imagen-4.0-generate-001...");
         const response = await ai.models.generateImages({
-          model: 'imagen-3.0-generate-002',
+          model: 'imagen-4.0-generate-001',
           prompt: prompt,
           config: {
             numberOfImages: 1,
@@ -287,15 +289,65 @@ async function startServer() {
         
         base64Bytes = response.generatedImages?.[0]?.image?.imageBytes || "";
         if (base64Bytes) {
-          console.log("[Proxy] Sucesso com imagen-3.0-generate-002!");
+          console.log("[Proxy] Sucesso com imagen-4.0-generate-001!");
         }
       } catch (err: any) {
         const msg = err.message || JSON.stringify(err);
-        console.warn("[Proxy] Falha no imagen-3.0-generate-002:", msg);
-        errorMsgs.push(`imagen-3.0: ${msg}`);
+        console.warn("[Proxy] Falha no imagen-4.0-generate-001:", msg);
+        errorMsgs.push(`imagen-4.0: ${msg}`);
       }
 
-      // MODELO 2: gemini-2.5-flash-image (generateContent)
+      // MODELO 2: imagen-4.0-fast-generate-001
+      if (!base64Bytes) {
+        try {
+          console.log("[Proxy] Tentando gerar com imagen-4.0-fast-generate-001...");
+          const response = await ai.models.generateImages({
+            model: 'imagen-4.0-fast-generate-001',
+            prompt: prompt,
+            config: {
+              numberOfImages: 1,
+              outputMimeType: 'image/jpeg',
+              aspectRatio: mappedAspectRatio
+            }
+          });
+          
+          base64Bytes = response.generatedImages?.[0]?.image?.imageBytes || "";
+          if (base64Bytes) {
+            console.log("[Proxy] Sucesso com imagen-4.0-fast-generate-001!");
+          }
+        } catch (err: any) {
+          const msg = err.message || JSON.stringify(err);
+          console.warn("[Proxy] Falha no imagen-4.0-fast-generate-001:", msg);
+          errorMsgs.push(`imagen-4.0-fast: ${msg}`);
+        }
+      }
+
+      // MODELO 3: imagen-3.0-generate-002
+      if (!base64Bytes) {
+        try {
+          console.log("[Proxy] Tentando gerar com imagen-3.0-generate-002...");
+          const response = await ai.models.generateImages({
+            model: 'imagen-3.0-generate-002',
+            prompt: prompt,
+            config: {
+              numberOfImages: 1,
+              outputMimeType: 'image/jpeg',
+              aspectRatio: mappedAspectRatio
+            }
+          });
+          
+          base64Bytes = response.generatedImages?.[0]?.image?.imageBytes || "";
+          if (base64Bytes) {
+            console.log("[Proxy] Sucesso com imagen-3.0-generate-002!");
+          }
+        } catch (err: any) {
+          const msg = err.message || JSON.stringify(err);
+          console.warn("[Proxy] Falha no imagen-3.0-generate-002:", msg);
+          errorMsgs.push(`imagen-3.0: ${msg}`);
+        }
+      }
+
+      // MODELO 4: gemini-2.5-flash-image
       if (!base64Bytes) {
         try {
           console.log("[Proxy] Tentando gerar com gemini-2.5-flash-image...");
@@ -326,7 +378,7 @@ async function startServer() {
         }
       }
 
-      // MODELO 3: gemini-3.1-flash-image (generateContent)
+      // MODELO 5: gemini-3.1-flash-image
       if (!base64Bytes) {
         try {
           console.log("[Proxy] Tentando gerar com gemini-3.1-flash-image...");
@@ -357,47 +409,35 @@ async function startServer() {
         }
       }
 
-      // FALLBACK FINAL: Pollinations AI (Se todas as apis oficiais Google falharem)
       if (!base64Bytes) {
-        console.warn("[Proxy] Todos os modelos oficiais nativos Google falharam na sua chave de API do Google. Usando fallback robusto com Pollinations AI para garantir geração de imagens bíblicas sem erros...");
-        try {
-          const width = aspectRatio === 'story' ? 576 : aspectRatio === 'landscape' ? 1024 : 1024;
-          const height = aspectRatio === 'story' ? 1024 : aspectRatio === 'landscape' ? 576 : 1024;
-          const seed = Math.floor(Math.random() * 100000);
-          
-          const safePrompt = prompt
-            .replace(/[/\\]/g, " ")
-            .replace(/[?#]/g, "")
-            .trim();
-          
-          const encodedPrompt = encodeURIComponent(safePrompt);
-          const pollUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?nologo=true&seed=${seed}&width=${width}&height=${height}`;
-          
-          const pollRes = await fetch(pollUrl);
-          if (pollRes.ok) {
-            const buffer = await pollRes.arrayBuffer();
-            base64Bytes = Buffer.from(buffer).toString('base64');
-            console.log("[Proxy] Geração completada com sucesso através do fallback Pollinations!");
-          } else {
-            throw new Error(`Status HTTP: ${pollRes.status}`);
-          }
-        } catch (err: any) {
-          const msg = err.message || JSON.stringify(err);
-          console.error("[Proxy] Falha catastrófica no fallback Pollinations:", msg);
-          errorMsgs.push(`pollinations: ${msg}`);
+        const fullDetails = errorMsgs.join(" | ");
+        
+        // Traduzir erros técnicos conhecidos para português claro e instrutivo ao usuário
+        if (fullDetails.includes("paid plans") || fullDetails.includes("upgrade your account")) {
+          return res.status(403).json({
+            error: "A geração de imagens com Imagen 3/4 requer faturamento ativo (Plano Pago) no Google AI Studio. Vá em ai.google.dev, associe um cartão de crédito/faturamento ao seu projeto e reinicie."
+          });
         }
-      }
+        if (fullDetails.includes("API key not valid") || fullDetails.includes("API_KEY_INVALID")) {
+          return res.status(401).json({
+            error: "Sua chave de API do Google não é válida ou foi digitada incorretamente. Cadastre uma chave válida nas Configurações do painel administrativa para habilitá-la."
+          });
+        }
+        if (fullDetails.includes("quota exceeded") || fullDetails.includes("RESOURCE_EXHAUSTED")) {
+          return res.status(429).json({
+            error: "Limite de cota excedido para imagens na sua chave Google AI. Aguarde alguns instantes ou ative um plano de faturamento no console do Google."
+          });
+        }
 
-      if (!base64Bytes) {
         return res.status(500).json({ 
-          error: "Incapaz de gerar imagem com nenhum dos modelos de IA.",
-          details: errorMsgs.join(" | ")
+          error: "Incapaz de gerar imagem com nenhum dos modelos do Google AI Studio na sua chave.",
+          details: fullDetails
         });
       }
 
       res.json({ imageBytes: base64Bytes });
     } catch (err: any) {
-      console.error("[Proxy Imagen 3 CRITICAL]", err);
+      console.error("[Proxy Imagen CRITICAL]", err);
       res.status(500).json({ error: err.message || "Erro interno do servidor." });
     }
   });
