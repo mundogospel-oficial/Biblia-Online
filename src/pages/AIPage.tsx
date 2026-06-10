@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, Fragment } from "react";
+import React, { useState, useRef, useEffect, Fragment, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
 import {
@@ -224,7 +224,7 @@ const AIPage = () => {
     } catch {}
   }, []);
 
-  const fetchUsage = async () => {
+  const fetchUsage = useCallback(async () => {
     if (!user) return;
     try {
       const data = await getUserUsage(user.sub);
@@ -236,11 +236,11 @@ const AIPage = () => {
     } catch (e) {
       console.error("Erro ao buscar estatísticas de uso:", e);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchUsage();
-  }, [user]);
+  }, [fetchUsage]);
 
   useEffect(() => {
     if (aiEngine === "simples") {

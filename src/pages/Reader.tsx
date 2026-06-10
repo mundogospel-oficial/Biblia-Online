@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { fetchChapter, getBookByAbbrev, translations, type VerseData } from "@/lib/bibleData";
@@ -36,6 +36,10 @@ const Reader = () => {
   const [favSet, setFavSet] = useState<Set<number>>(new Set());
   const [translation, setTranslation] = useState("almeida");
   const [bilingual, setBilingual] = useState(false);
+  
+  // Controle de paginação suave/on-demand para carregar capítulos por demanda
+  const [visibleLimit, setVisibleLimit] = useState(25);
+  const loaderRef = useRef<HTMLDivElement | null>(null);
 
   const [activeVerse, setActiveVerse] = useState<number | null>(null);
   const [noteText, setNoteText] = useState("");
@@ -74,6 +78,7 @@ const Reader = () => {
     setShowNoteInput(null);
     setDictVerse(null);
     setBilingualVerses([]);
+    setVisibleLimit(25); // Reseta a paginação suave ao mudar de capítulo ou livro
 
     fetchChapter(abbrev, parseInt(chapter), translation)
       .then((primary) => {
@@ -90,6 +95,26 @@ const Reader = () => {
 
     loadHighlightsAndNotes();
   }, [abbrev, chapter, translation, loadHighlightsAndNotes]);
+
+  // Observador de interseção para carregar mais versículos de forma incremental (evita micro-lags em dispositivos móveis)
+  useEffect(() => {
+    const currentLoader = loaderRef.current;
+    if (!currentLoader || visibleLimit >= verses.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleLimit((prev) => Math.min(prev + 25, verses.length));
+        }
+      },
+      { threshold: 0.1, rootMargin: "150px" }
+    );
+
+    observer.observe(currentLoader);
+    return () => {
+      observer.unobserve(currentLoader);
+    };
+  }, [visibleLimit, verses.length]);
 
   useEffect(() => {
     if (!bilingual || !verses.length) {
@@ -426,7 +451,7 @@ const Reader = () => {
             transition={{ duration: 0.4 }}
             className="space-y-1"
           >
-            {verses.map((v) => {
+            {verses.slice(0, visibleLimit).map((v) => {
               const verseId = `${abbrev}:${chapterNum}:${v.verse}`;
               const hl = highlightsMap[v.verse];
               const note = notesMap[v.verse];
@@ -609,6 +634,17 @@ const Reader = () => {
                 </div>
               );
             })}
+
+            {visibleLimit < verses.length && (
+              <div
+                ref={loaderRef}
+                onClick={() => setVisibleLimit((prev) => Math.min(prev + 25, verses.length))}
+                className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg py-5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              >
+                <Loader2 className="h-4 w-4 animate-spin text-accent" />
+                <span>Carregando mais versículos de forma incremental... ou clique para exibir mais</span>
+              </div>
+            )}
           </motion.div>
         )}
       </div>

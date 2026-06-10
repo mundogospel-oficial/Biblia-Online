@@ -7,6 +7,7 @@ import cookieParser from "cookie-parser";
 import { createClient } from "@supabase/supabase-js";
 import rateLimit from "express-rate-limit";
 import webpush from "web-push";
+import helmet from "helmet";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,12 +32,75 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // --- SECURITY HEADERS (HELMET) ---
+  // Injeta cabeçalhos padrão do setor de forma robusta e otimizada
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'", "https:", "http:", "data:", "blob:"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https:", "http:"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https:", "http:"],
+        imgSrc: ["'self'", "data:", "blob:", "https:", "http:"],
+        connectSrc: ["'self'", "https:", "http:", "wss:", "ws:"],
+        frameAncestors: ["'self'", "*"], // Permite rodar perfeitamente nos iframes de desenvolvimento do AI Studio
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: false,
+    crossOriginResourcePolicy: false,
+  }));
+
   // Habilita confiança no proxy para o express-rate-limit identificar o IP real do cliente
   // quando rodando atrás de um balanceador de carga ou proxy (como Cloud Run)
   app.set("trust proxy", 1);
 
-  // --- SISTEMA DE BANIMENTO PERSISTENTE (SIMULADO COM STORE LOCAL + SUPABASE) ---
-  const bannedEntities = new Set<string>(); // Cache rápido para IPs/Fingerprints banidos
+  // --- SISTEMA DE BANIMENTO PERSISTENTE (HÍBRIDO: EM MEMÓRIA PARA VELOCIDADE + SUPABASE PAR PERSISTÊNCIA) ---
+  const bannedEntities = new Set<string>(); // Cache de leitura rápido (0ms latency por request)
+
+  // Carregar as entidades banidas existentes no banco no momento que o servidor sobe
+  const adminClient = getSupabaseAdmin();
+  if (adminClient) {
+    adminClient.from("banned_entities")
+      .select("identity")
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("[Sentinel] Erro ao sincronizar cache inicial de banimentos do Supabase:", error.message);
+        } else if (data) {
+          data.forEach(row => {
+            if (row.identity) bannedEntities.add(row.identity);
+          });
+          console.log(`[Sentinel] ${bannedEntities.size} entidades banidas carregadas com sucesso do Supabase para cache local.`);
+        }
+      })
+      .catch(err => {
+        console.error("[Sentinel] Falha crítica de conexão para carregar banimentos:", err);
+      });
+  }
+
+  // Helper síncrono/assíncrono para banir entidade no cache e no banco persistente
+  const banEntity = async (identity: string, reason: string) => {
+    if (!identity) return;
+    bannedEntities.add(identity);
+    console.warn(`[Sentinel] Entidade ${identity} banida temporariamente na RAM. Persistindo no Supabase...`);
+
+    const admin = getSupabaseAdmin();
+    if (admin) {
+      try {
+        const { error } = await admin
+          .from("banned_entities")
+          .insert({ identity, reason });
+        if (error) {
+          if (!error.message.includes("duplicate key")) {
+            console.error(`[Sentinel] Falha ao gravar banimento de ${identity} no Supabase:`, error.message);
+          }
+        } else {
+          console.log(`[Sentinel] Entidade ${identity} banida com sucesso permanente no Supabase.`);
+        }
+      } catch (err: any) {
+        console.error(`[Sentinel] Erro inesperado ao salvar no Supabase:`, err);
+      }
+    }
+  };
 
   // --- RATE LIMITERS ---
   const apiLimiter = rateLimit({
@@ -116,8 +180,8 @@ async function startServer() {
       if (regex.test(combined)) {
         console.warn(`[Sentinel] Ataque detectado: ${name} - IP: ${req.ip} - URL: ${req.originalUrl}`);
         
-        // Se for um ataque claro do tipo SQLi ou XSS, bane o IP imediatamente
-        if (req.ip) bannedEntities.add(req.ip);
+        // Se for um ataque claro do tipo SQLi ou XSS, bane o IP imediatamente de forma persistente
+        if (req.ip) banEntity(req.ip, `Detecção automática pelo Sentinel no endpoint: ${req.originalUrl} (${name})`);
         
         return res.status(400).json({ error: 'MALICIOUS_REQUEST_DETECTED', type: name });
       }
@@ -204,8 +268,8 @@ async function startServer() {
     // Banimento Automático de Alta Confiança
     if (score >= 90) {
       console.error(`[Sentinel] BANIMENTO AUTOMÁTICO: ${req.ip} / FP: ${fingerprint}`);
-      if (req.ip) bannedEntities.add(req.ip);
-      if (fingerprint) bannedEntities.add(fingerprint);
+      if (req.ip) banEntity(req.ip, `Score de risco Sentinel alto ou violação severa: ${score}/100. Motivo: ${reasons?.join(', ') || 'Nenhum informado'}`);
+      if (fingerprint) banEntity(fingerprint, `Score de risco Sentinel alto ou violação severa: ${score}/100. Motivo: ${reasons?.join(', ') || 'Nenhum informado'}`);
     }
     
     res.json({ status: "received", incidentId: Date.now() });
