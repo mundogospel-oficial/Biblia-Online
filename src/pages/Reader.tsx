@@ -270,7 +270,7 @@ const Reader = () => {
       setDictContent(content);
     } catch (error: any) {
       console.error("Erro no dicionário:", error);
-      setDictContent("Erro ao carregar o dicionário. Tente novamente.");
+      setDictContent(error.message || "Erro ao carregar o dicionário. Tente novamente.");
       toast({ title: "Erro no dicionário", description: error.message, variant: "destructive" });
     } finally {
       setDictLoading(false);

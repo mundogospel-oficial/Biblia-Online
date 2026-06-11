@@ -1,16 +1,12 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
-import { fileURLToPath } from "url";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { createClient } from "@supabase/supabase-js";
 import rateLimit from "express-rate-limit";
 import webpush from "web-push";
 import helmet from "helmet";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Initialize Supabase Admin Client (for sensitive operations)
 const getSupabaseAdmin = () => {
