@@ -142,36 +142,12 @@ const CreatePage = () => {
   const createImageLimitReached = createImageCount >= CREATE_IMAGE_LIMIT;
 
   const handleGenerateAIImage = async () => {
-    if (!verseText) { toast({ title: "Adicione um versículo primeiro", variant: "destructive" }); return; }
-    if (!authUser) { toast({ title: "Faça login para gerar imagens com IA" }); return; }
-    if (createImageLimitReached) { toast({ title: "Limite diário atingido", description: `Máximo ${CREATE_IMAGE_LIMIT} imagens por dia.`, variant: "destructive" }); return; }
-    setAiImageLoading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast({ title: "Faça login para usar este recurso" }); setAiImageLoading(false); return; }
-
-      // Register usage
-      await (supabase as any).from('user_ai_usage').insert({ user_id: session.user.id, tipo_uso: 'create_image' });
-      setCreateImageCount(prev => prev + 1);
-
-      const stylePrompt = customAiPrompt.trim() || aiStyle;
-      const fullPrompt = `${verseText}. Estilo visual: ${stylePrompt}`;
-
-      const imageUrl = await generateBiblicalImage(fullPrompt, undefined, activeFormat, true);
-
-      if (imageUrl) {
-        setAiImageUrl(imageUrl);
-        toast({ title: "Imagem gerada com sucesso! ✨" });
-        return;
-      }
-      
-      throw new Error("O modelo não retornou uma imagem. Tente novamente.");
-    } catch (e: any) {
-      console.error("AI Image Error:", e);
-      toast({ title: "Erro na IA", description: e.message || "Falha ao gerar imagem", variant: "destructive" });
-    } finally {
-      setAiImageLoading(false);
-    }
+    toast({ 
+      title: "Recurso em Manutenção", 
+      description: "A geração de imagens com Inteligência Artificial está temporariamente indisponível devido a manutenção programada do motor de renderização da IA Google.", 
+      variant: "destructive" 
+    });
+    return;
   };
 
   const handleDownload = async () => {
@@ -292,7 +268,18 @@ const CreatePage = () => {
               {/* AI / Theme toggle */}
               <div className="flex gap-2">
                 <button 
-                  onClick={() => { if (isOnline) setUseAIImage(true); else toast({ title: "Modo Offline", description: "Conecte-se à internet para usar a IA." }); }}
+                  onClick={() => { 
+                    if (isOnline) {
+                      setUseAIImage(true);
+                      toast({
+                        title: "Geração de Cenários em Manutenção",
+                        description: "A geração de imagens com Inteligência Artificial está temporariamente indisponível devido a uma manutenção severa planejada no motor do Google AI.",
+                        variant: "destructive"
+                      });
+                    } else {
+                      toast({ title: "Modo Offline", description: "Conecte-se à internet para usar a IA." });
+                    }
+                  }}
                   className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-medium border transition-all ${useAIImage ? "border-accent bg-accent/10 text-foreground" : "border-border text-muted-foreground"} ${!isOnline ? "opacity-50 grayscale" : ""}`}
                 ><Wand2 className="h-3.5 w-3.5" /> IA</button>
                 <button onClick={() => setUseAIImage(false)}
@@ -300,30 +287,21 @@ const CreatePage = () => {
                 ><Palette className="h-3.5 w-3.5" /> Cor</button>
               </div>
 
-              {useAIImage && !isOnline && (
-                <div className="flex items-center gap-2 rounded-xl bg-orange-500/10 p-3 text-xs font-medium text-orange-500 border border-orange-500/20">
-                  <Wand2 className="h-4 w-4" /> A geração de imagens requer internet.
-                </div>
-              )}
-
-              {useAIImage && isOnline && (
-                <div className="glass-card rounded-xl p-4 space-y-2">
-                  <div className="flex flex-wrap gap-1.5">
-                    {imageStyles.map((s) => (
-                      <button key={s} onClick={() => { setAiStyle(s); setCustomAiPrompt(""); }}
-                        className={`rounded-lg px-2.5 py-1 text-[10px] border ${aiStyle === s && !customAiPrompt ? "border-accent bg-accent/10 text-foreground" : "border-border text-muted-foreground"}`}
-                      >{s}</button>
-                    ))}
+              {useAIImage && (
+                <div className="glass-card rounded-xl p-4 border border-destructive/20 text-center space-y-3 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-destructive/5 via-transparent to-transparent pointer-events-none" />
+                  <div className="w-10 h-10 rounded-xl bg-destructive/10 border border-destructive/20 flex items-center justify-center mx-auto text-destructive relative z-10">
+                    <AlertCircle className="h-5 w-5" />
                   </div>
-                  <input value={customAiPrompt} onChange={(e) => setCustomAiPrompt(e.target.value)} placeholder="Descreva seu fundo..."
-                    className="w-full rounded-lg border border-input bg-secondary/50 px-3 py-2 text-xs text-card-foreground placeholder:text-muted-foreground focus:outline-none"
-                  />
-                  <button onClick={handleGenerateAIImage} disabled={aiImageLoading || createImageLimitReached}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent py-2.5 text-xs font-semibold text-accent-foreground disabled:opacity-50 liquid-btn"
-                  >
-                    {aiImageLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    {createImageLimitReached ? `Limite (${CREATE_IMAGE_LIMIT}/${CREATE_IMAGE_LIMIT})` : aiImageLoading ? "Gerando..." : `Gerar com IA (${createImageCount}/${CREATE_IMAGE_LIMIT})`}
-                  </button>
+                  <div className="space-y-1 relative z-10">
+                    <p className="text-xs font-bold text-foreground">Geração IA em Manutenção</p>
+                    <p className="text-[10.5px] text-muted-foreground leading-relaxed px-2">
+                      Nosso motor artístico da IA está no momento passando por uma manutenção severa e aprimoramento técnico. A criação de novos cenários via IA está suspensa temporariamente por algumas semanas.
+                    </p>
+                  </div>
+                  <div className="bg-secondary/60 border border-border/50 p-2 rounded-lg text-center relative z-10">
+                    <p className="text-[9px] text-accent font-semibold uppercase tracking-wider">🔧 Manutenção em andamento</p>
+                  </div>
                 </div>
               )}
 

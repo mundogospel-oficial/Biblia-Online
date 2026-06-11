@@ -179,6 +179,7 @@ const modes: { key: ModeKey; icon: React.ReactNode; label: string; prefix: strin
 
 const AIPage = () => {
   const { user } = useAuth();
+
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -302,6 +303,62 @@ const AIPage = () => {
       </div>
     );
   }
+
+  return (
+    <div className="flex min-h-screen flex-col bg-background">
+      <Header />
+      <div className="flex-1 flex items-center justify-center p-4">
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }} 
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="max-w-md w-full glass-card border border-border/80 rounded-2xl p-6 md:p-8 text-center space-y-6 shadow-xl relative overflow-hidden"
+        >
+          {/* Grid sutil de fundo geométrico */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(212,175,55,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(212,175,55,0.02)_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+          
+          <div className="w-16 h-16 bg-accent/10 border border-accent/20 rounded-2xl flex items-center justify-center mx-auto relative z-10">
+            <motion.div
+              animate={{ rotate: [0, 10, -10, 10, 0] }}
+              transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+            >
+              <Sparkles className="h-8 w-8 text-accent" />
+            </motion.div>
+            <motion.div 
+              animate={{ opacity: [0.4, 1, 0.4] }}
+              transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+              className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-background shadow-[0_0_8px_rgba(239,68,68,0.8)]"
+            />
+          </div>
+
+          <div className="space-y-2 relative z-10">
+            <h2 className="text-xl font-serif font-black text-foreground tracking-tight">IA Bíblica em Manutenção</h2>
+            <p className="text-xs text-muted-foreground leading-relaxed px-2">
+              Nossos serviços de inteligência artificial estão passando por uma manutenção severa, e dentro de algumas semanas será liberado.
+            </p>
+          </div>
+
+          <div className="bg-secondary/40 border border-border/60 p-4 rounded-xl space-y-2 relative z-10">
+            <p className="text-[10px] font-bold tracking-wider text-accent uppercase flex items-center justify-center gap-1.5">
+              <span>🔧</span> Status: Manutenção em andamento
+            </p>
+            <p className="text-[11px] text-muted-foreground max-w-[280px] mx-auto leading-normal">
+              A previsão de liberação dos serviços de IA é dentro de algumas semanas. Agradecemos sua atenção.
+            </p>
+          </div>
+
+          <div className="pt-2 relative z-10">
+            <button 
+              onClick={() => window.location.href = "/"}
+              className="w-full inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-all shadow-md active:scale-98 cursor-pointer"
+            >
+              Voltar para as Escrituras
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
 
   // NOVO: Lógica corrigida para não duplicar conversas no histórico
   const saveConversation = (msgs: Msg[]) => {
