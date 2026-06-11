@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Fragment } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import VerseCard, { themes, type CardFormat } from "@/components/VerseCard";
@@ -437,14 +437,54 @@ const CreatePage = () => {
               <div className="rounded-xl border border-border bg-card/50 p-4 overflow-hidden">
                 {verseText ? (
                   <div ref={cardContainerRef} className="w-full">
-                    {useAIImage && aiImageUrl ? (
+                    {useAIImage && (aiImageUrl || aiImageLoading) ? (
                       <div
                         className={`relative overflow-hidden rounded-xl shadow-verse flex flex-col items-center justify-center p-6 sm:p-10 ${
                           activeFormat === "square" ? "aspect-square" : activeFormat === "story" ? "aspect-[9/16]" : "aspect-video"
                         }`}
-                        style={{ backgroundImage: `url(${aiImageUrl})`, backgroundSize: "cover", backgroundPosition: "center" }}
                       >
-                        <div className="absolute inset-0 bg-black/40" />
+                        {aiImageLoading ? (
+                          <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center p-4 text-center z-10">
+                            {/* Grid dourado */}
+                            <div className="absolute inset-0 bg-[linear-gradient(rgba(212,175,55,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(212,175,55,0.06)_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+                            {/* Laser Escaneador */}
+                            <motion.div 
+                              animate={{ y: ["0%", "450%"] }} 
+                              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                              className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-accent/80 to-transparent shadow-[0_0_10px_rgba(212,175,55,1)] z-20 pointer-events-none"
+                            />
+                            <div className="relative z-10 flex flex-col items-center">
+                              <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="mb-3">
+                                <Sparkles className="h-6 w-6 text-accent animate-pulse" />
+                              </motion.div>
+                              <span className="text-xs font-bold text-accent tracking-wide uppercase">Pintando Quadro Sagrado... ✨</span>
+                              <span className="text-[10px] text-muted-foreground mt-1 max-w-[220px] leading-relaxed block">
+                                Transformando suas palavras em uma obra prima visual em alta definição.
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <Fragment>
+                            <motion.img
+                              key={aiImageUrl}
+                              src={aiImageUrl}
+                              alt="Background com IA"
+                              className="absolute inset-0 w-full h-full object-cover"
+                              initial={{ opacity: 0, scale: 1.05, filter: "blur(18px)" }}
+                              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                              transition={{ duration: 1, ease: "easeOut" }}
+                            />
+                            {/* Varredura Final */}
+                            <motion.div 
+                              initial={{ y: "-100%" }}
+                              animate={{ y: "150%" }}
+                              transition={{ duration: 1.4, ease: "easeOut" }}
+                              className="absolute left-0 right-0 h-[4px] bg-gradient-to-r from-transparent via-accent to-transparent shadow-[0_0_12px_rgba(212,175,55,1)] z-10 pointer-events-none"
+                            />
+                            <div className="absolute inset-0 bg-black/45" />
+                          </Fragment>
+                        )}
+
                         <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-md text-primary-foreground">
                           <div className="mb-4 flex justify-center"><div className="h-px w-12 bg-primary-foreground/50" /></div>
                           <blockquote 

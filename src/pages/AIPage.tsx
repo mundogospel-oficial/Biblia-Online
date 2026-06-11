@@ -110,30 +110,58 @@ const ResilientImage: React.FC<ResilientImageProps> = ({ src, alt, className = "
   return (
     <div className="relative w-full h-full bg-muted flex items-center justify-center overflow-hidden rounded-xl">
       {isLoading && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-center">
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/75 backdrop-blur-md p-4 text-center">
+          {/* Grid de fundo simulando blueprint de IA bíblica */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(212,175,55,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(212,175,55,0.05)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
+          
+          {/* Efeito de scanline laser correndo */}
+          <motion.div 
+            animate={{ y: ["0%", "450%"] }} 
+            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-accent/70 to-transparent shadow-[0_0_8px_rgba(212,175,55,0.8)] z-20 pointer-events-none"
+          />
+
           <motion.div
             animate={{ rotate: 360 }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-            className="mb-2"
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            className="mb-3 relative"
           >
-            <Sparkles className="h-5 w-5 text-accent animate-pulse" />
+            <Sparkles className="h-6 w-6 text-accent animate-pulse" />
           </motion.div>
-          <span className="text-[10px] font-semibold text-foreground tracking-wide">
-            {retryCount > 0 ? `Refinando detalhes... (${retryCount}/4)` : "Criando imagem bíblica... ✨"}
+          <span className="text-xs font-semibold text-accent tracking-wide uppercase">
+            {retryCount > 0 ? `Refinando detalhes... (${retryCount}/4)` : "Renderizando Arte Sagrada... ✨"}
           </span>
-          <span className="text-[8px] text-muted-foreground mt-0.5 block">
-            A primeira criação pode levar alguns instantes
+          <span className="text-[10px] text-muted-foreground mt-1 max-w-[200px] leading-relaxed block">
+            Nossos algoritmos estão pintando uma representação bíblica sob medida.
           </span>
         </div>
       )}
       
-      <img
+      {/* Efeito de varredura final quando a imagem carrega */}
+      {!isLoading && !hasError && (
+        <motion.div 
+          initial={{ y: "-100%" }}
+          animate={{ y: "150%" }}
+          transition={{ duration: 1.2, ease: "easeOut" }}
+          className="absolute left-0 right-0 h-[4px] bg-gradient-to-r from-transparent via-accent to-transparent shadow-[0_0_12px_rgba(212,175,55,1)] z-15 pointer-events-none"
+        />
+      )}
+
+      <motion.img
+        key={currentSrc}
         src={currentSrc}
         alt={alt}
         className={hasError ? "absolute inset-0 m-auto w-10 h-10 opacity-20 grayscale" : className}
         referrerPolicy="no-referrer"
         onLoad={handleLoad}
         onError={handleError}
+        initial={hasError ? { opacity: 0.2 } : { opacity: 0, scale: 1.05, filter: "blur(20px)" }}
+        animate={hasError ? { opacity: 0.2 } : { 
+          opacity: isLoading ? 0 : 1, 
+          scale: isLoading ? 1.05 : 1, 
+          filter: isLoading ? "blur(20px)" : "blur(0px)" 
+        }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
       />
     </div>
   );

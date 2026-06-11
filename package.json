@@ -61,6 +61,7 @@
     "helmet": "^8.2.0",
     "html2canvas-pro": "^2.0.0",
     "input-otp": "^1.4.2",
+    "jimp": "^1.6.1",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
     "react": "^18.3.1",

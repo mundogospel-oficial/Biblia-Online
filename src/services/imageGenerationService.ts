@@ -8,7 +8,7 @@ export const generateBiblicalImage = async (
   returnRawUrl: boolean = false
 ): Promise<string> => {
   let googleKey = import.meta.env.VITE_GOOGLE_AI_KEY || "";
-  let modelName = 'gemini-2.0-flash'; // Fallback
+  let modelName = 'gemini-2.5-flash'; // Fallback
 
   try {
     const { data: settings, error: settingsError } = await supabase
@@ -49,7 +49,7 @@ Responda APENAS com o prompt em inglês, sem aspas.`;
   const combinedPrompt = `${systemInstruction}\n\nPedido: ${cleanPrompt}`;
 
   // Lista base de modelos conhecidos e estáveis
-  let modelsToTry = [modelName, 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-lite'];
+  let modelsToTry = [modelName, 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
   
   // Tentar descobrir modelos dinamicamente apenas como bônus e sem travar
   try {
@@ -130,34 +130,134 @@ Responda APENAS com o prompt em inglês, sem aspas.`;
   const mappedAspectRatio = aspectRatio === 'story' ? '9:16' : aspectRatio === 'landscape' ? '16:9' : '1:1';
 
   // Chamar o proxy do backend para geração de imagem nativa do Google (Imagen 3) para evitar erros de CORS no navegador
-  const response = await fetch('/api/generate-image', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      prompt: enhancedPrompt,
-      aspectRatio,
-      googleKey
-    }),
-    signal
-  });
+  try {
+    const response = await fetch('/api/generate-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: enhancedPrompt,
+        aspectRatio,
+        googleKey
+      }),
+      signal
+    });
 
-  if (!response.ok) {
-    const errData = await response.json().catch(() => null);
-    const errMessage = errData?.error || `Status: ${response.status} ${response.statusText}`;
-    throw new Error(`Erro ao gerar a imagem nativa com Imagen 3: ${errMessage}`);
+    if (!response.ok) {
+      const errData = await response.json().catch(() => null);
+      const errMessage = errData?.error || `Status: ${response.status} ${response.statusText}`;
+      throw new Error(errMessage);
+    }
+
+    const data = await response.json();
+    const base64Bytes = data.imageBytes;
+    if (!base64Bytes) {
+      throw new Error("A API Imagen 3 não retornou os dados binários da imagem.");
+    }
+
+    const imageUrl = `data:image/jpeg;base64,${base64Bytes}`;
+
+    if (returnRawUrl) {
+      return imageUrl;
+    }
+
+    return `Aqui está a imagem gerada para: "${cleanPrompt}"\n\n![${cleanPrompt}](${imageUrl})`;
+  } catch (error: any) {
+    console.warn("Aviso: Falha ao gerar imagem nativa por IA. Acionando fallback profissional do Unsplash:", error);
+    
+    // Fallback inteligente usando Unsplash para manter o app online e responsivo mesmo sem chaves de IA
+    const portugueseTranslations: Record<string, string> = {
+      "davi": "david",
+      "golias": "goliath",
+      "jesus": "jesus",
+      "cristo": "christ",
+      "moises": "moses",
+      "lutando": "fighting",
+      "luta": "fight",
+      "combate": "battle",
+      "guerra": "war",
+      "leao": "lion",
+      "cova": "den",
+      "anjo": "angel",
+      "mar": "sea",
+      "cruz": "cross",
+      "calvario": "calvary",
+      "oracao": "praying",
+      "orar": "pray",
+      "biblia": "bible",
+      "templo": "temple",
+      "israel": "israel",
+      "jerusalem": "jerusalem",
+      "guerreiro": "warrior",
+      "rei": "king",
+      "rainha": "queen",
+      "soldado": "soldier",
+      "apostolo": "apostle",
+      "discipulo": "disciple",
+      "igreja": "church",
+      "crente": "believer",
+      "deus": "god",
+      "espirito": "spirit",
+      "santo": "holy",
+      "farao": "pharaoh",
+      "egito": "egypt",
+      "arca": "ark",
+      "noe": "noah",
+      "diluvio": "flood",
+      "eden": "eden",
+      "adao": "adam",
+      "eva": "eve",
+      "serpente": "serpent",
+      "criacao": "creation",
+      "monte": "mount",
+      "sinai": "sinai",
+      "oliveiras": "olives",
+      "gigante": "giant",
+      "pedra": "stone",
+      "fundas": "slingshot"
+    };
+
+    const stopWords = new Set([
+      "and", "with", "the", "of", "in", "on", "at", "for", "from", "by", "to", "a", "an",
+      "e", "com", "o", "a", "os", "as", "de", "do", "da", "em", "para", "por", "um", "uma"
+    ]);
+
+    let searchKeywords: string[] = ["ancient", "history"];
+
+    // Extrair termos do prompt aprimorado (que já é em inglês) ou traduzir o prompt original
+    if (enhancedPrompt && enhancedPrompt !== "BLOQUEADO") {
+      const cleaned = enhancedPrompt
+        .toLowerCase()
+        .replace(/cinematic|lighting|hyperrealistic|8k|resolution|highly|detailed|realistic|drawing|illustration|photo|photorealistic|render|flat|design|vector/gi, "")
+        .replace(/[^a-z0-9\s]/gi, " ")
+        .trim();
+      
+      const words = cleaned.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+      if (words.length > 0) {
+        searchKeywords = [...searchKeywords, ...words.slice(0, 4)];
+      }
+    } else {
+      const rawWords = cleanPrompt
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/gi, " ")
+        .split(/\s+/)
+        .filter(w => w.length > 2 && !stopWords.has(w));
+
+      const translatedWords = rawWords.map(w => portugueseTranslations[w] || w);
+      if (translatedWords.length > 0) {
+        searchKeywords = [...searchKeywords, ...translatedWords.slice(0, 4)];
+      }
+    }
+
+    // Unificar termos para garantir a estética histórica, antiga e bíblica profissional
+    const queryTerm = [...new Set(["bible", "ancient", ...searchKeywords])].join(",");
+    const selectedUrl = `https://images.unsplash.com/featured/1200x900/?${encodeURIComponent(queryTerm)}`;
+
+    if (returnRawUrl) {
+      return selectedUrl;
+    }
+    
+    const explanation = `_(Nota: Exibindo imagem ilustrativa realística selecionada do Unsplash para o tema: "${cleanPrompt}")_`;
+      
+    return `Aqui está a imagem associada para: "${cleanPrompt}"\n\n![${cleanPrompt}](${selectedUrl})\n\n${explanation}`;
   }
-
-  const data = await response.json();
-  const base64Bytes = data.imageBytes;
-  if (!base64Bytes) {
-    throw new Error("A API Imagen 3 não retornou os dados binários da imagem.");
-  }
-
-  const imageUrl = `data:image/jpeg;base64,${base64Bytes}`;
-
-  if (returnRawUrl) {
-    return imageUrl;
-  }
-
-  return `Aqui está a imagem gerada para: "${cleanPrompt}"\n\n![${cleanPrompt}](${imageUrl})`;
 };

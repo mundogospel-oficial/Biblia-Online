@@ -304,172 +304,163 @@ async function startServer() {
         }
       }
 
-      // Fallback final para variável de sistema se nenhuma outra foi informada/achada
       if (!googleKey) {
         googleKey = process.env.GEMINI_API_KEY || "";
       }
 
-      if (!googleKey) {
-        return res.status(400).json({ error: "Chave Google AI não configurada no servidor ou enviada pelo frontend." });
+      // 2. Obter chave da API do Nano-GPT (para resiliência por minuto)
+      let nanoGptKey = req.body.nanoGptKey || process.env.NANO_GPT_KEY || process.env.VITE_NANO_GPT_KEY || "";
+      
+      if (!nanoGptKey) {
+        const adminClient = getSupabaseAdmin();
+        if (adminClient) {
+          const { data, error } = await adminClient
+            .from("ai_settings")
+            .select("config_value")
+            .eq("config_key", "nanogpt_api_key")
+            .maybeSingle();
+          if (!error && data?.config_value) {
+            nanoGptKey = data.config_value.trim();
+          }
+        }
+      }
+
+      if (!googleKey && !nanoGptKey) {
+        return res.status(400).json({ error: "Chave do Google AI ou do Nano-GPT não configurada no servidor ou enviada pelo frontend." });
       }
 
       const mappedAspectRatio = aspectRatio === 'story' ? '9:16' : aspectRatio === 'landscape' ? '16:9' : '1:1';
-      
-      console.log(`[Proxy Imagen] Gerando imagem para o prompt: "${prompt.substring(0, 60)}..." com aspect ratio: ${mappedAspectRatio}`);
-
-      // Instanciar o SDK oficial @google/genai dinamicamente
-      const { GoogleGenAI } = await import("@google/genai");
-      const ai = new GoogleGenAI({
-        apiKey: googleKey,
-        httpOptions: {
-          headers: {
-            'User-Agent': 'aistudio-build'
-          }
-        }
-      });
-
       let base64Bytes = "";
       let errorMsgs: string[] = [];
 
-      // Sequência para tentar o melhor modelo de imagem do Google AI Studio disponível na chave:
-      // 1. imagen-4.0-generate-001 (Mais recente e de maior qualidade)
-      // 2. imagen-4.0-fast-generate-001 (Mais recente e rápido)
-      // 3. imagen-3.0-generate-002 (Modelo clássico e altíssima fidelidade)
-      // 4. gemini-2.5-flash-image (Geração via multimodal content se ativo na chave)
-      // 5. gemini-3.1-flash-image (Geração via multimodal content se ativo na chave)
-
-      // MODELO 1: imagen-4.0-generate-001
-      try {
-        console.log("[Proxy] Tentando gerar com imagen-4.0-generate-001...");
-        const response = await ai.models.generateImages({
-          model: 'imagen-4.0-generate-001',
-          prompt: prompt,
-          config: {
-            numberOfImages: 1,
-            outputMimeType: 'image/jpeg',
-            aspectRatio: mappedAspectRatio
-          }
-        });
-        
-        base64Bytes = response.generatedImages?.[0]?.image?.imageBytes || "";
-        if (base64Bytes) {
-          console.log("[Proxy] Sucesso com imagen-4.0-generate-001!");
-        }
-      } catch (err: any) {
-        const msg = err.message || JSON.stringify(err);
-        console.warn("[Proxy] Falha no imagen-4.0-generate-001:", msg);
-        errorMsgs.push(`imagen-4.0: ${msg}`);
-      }
-
-      // MODELO 2: imagen-4.0-fast-generate-001
-      if (!base64Bytes) {
+      // 3. Tentar os modelos do Google AI Studio se houver googleKey
+      if (googleKey) {
+        console.log(`[Proxy Imagen] Gerando imagem para o prompt com Google AI Studio: "${prompt.substring(0, 60)}..."`);
         try {
-          console.log("[Proxy] Tentando gerar com imagen-4.0-fast-generate-001...");
-          const response = await ai.models.generateImages({
-            model: 'imagen-4.0-fast-generate-001',
-            prompt: prompt,
-            config: {
-              numberOfImages: 1,
-              outputMimeType: 'image/jpeg',
-              aspectRatio: mappedAspectRatio
-            }
-          });
-          
-          base64Bytes = response.generatedImages?.[0]?.image?.imageBytes || "";
-          if (base64Bytes) {
-            console.log("[Proxy] Sucesso com imagen-4.0-fast-generate-001!");
-          }
-        } catch (err: any) {
-          const msg = err.message || JSON.stringify(err);
-          console.warn("[Proxy] Falha no imagen-4.0-fast-generate-001:", msg);
-          errorMsgs.push(`imagen-4.0-fast: ${msg}`);
-        }
-      }
-
-      // MODELO 3: imagen-3.0-generate-002
-      if (!base64Bytes) {
-        try {
-          console.log("[Proxy] Tentando gerar com imagen-3.0-generate-002...");
-          const response = await ai.models.generateImages({
-            model: 'imagen-3.0-generate-002',
-            prompt: prompt,
-            config: {
-              numberOfImages: 1,
-              outputMimeType: 'image/jpeg',
-              aspectRatio: mappedAspectRatio
-            }
-          });
-          
-          base64Bytes = response.generatedImages?.[0]?.image?.imageBytes || "";
-          if (base64Bytes) {
-            console.log("[Proxy] Sucesso com imagen-3.0-generate-002!");
-          }
-        } catch (err: any) {
-          const msg = err.message || JSON.stringify(err);
-          console.warn("[Proxy] Falha no imagen-3.0-generate-002:", msg);
-          errorMsgs.push(`imagen-3.0: ${msg}`);
-        }
-      }
-
-      // MODELO 4: gemini-2.5-flash-image
-      if (!base64Bytes) {
-        try {
-          console.log("[Proxy] Tentando gerar com gemini-2.5-flash-image...");
-          const resGen = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-image',
-            contents: prompt,
-            config: {
-              imageConfig: {
-                aspectRatio: mappedAspectRatio
+          // Instanciar o SDK oficial @google/genai dinamicamente
+          const { GoogleGenAI } = await import("@google/genai");
+          const ai = new GoogleGenAI({
+            apiKey: googleKey,
+            httpOptions: {
+              headers: {
+                'User-Agent': 'aistudio-build'
               }
             }
           });
-          
-          for (const part of resGen.candidates?.[0]?.content?.parts || []) {
-            if (part.inlineData?.data) {
-              base64Bytes = part.inlineData.data;
-              break;
+
+          // Sequência robusta para tentar múltiplos modelos de imagem do Google AI Studio com fallback automático e inteligente:
+          const modelsToTry = [
+            { name: 'gemini-2.5-flash-image', type: 'generateContent' },
+            { name: 'gemini-2.5-pro-image', type: 'generateContent' },
+            { name: 'gemini-3.1-flash-image', type: 'generateContent' },
+            { name: 'gemini-3.1-pro-image', type: 'generateContent' },
+            { name: 'gemini-2.0-flash-image', type: 'generateContent' },
+            { name: 'gemini-2.0-pro-image', type: 'generateContent' },
+            { name: 'imagen-4.0-generate-001', type: 'generateImages' },
+            { name: 'imagen-4.0-fast-generate-001', type: 'generateImages' },
+            { name: 'imagen-3.0-generate-002', type: 'generateImages' }
+          ];
+
+          for (const model of modelsToTry) {
+            if (base64Bytes) break;
+            
+            try {
+              if (model.type === 'generateContent') {
+                console.log(`[Proxy] Tentando gerar com ${model.name} (generateContent)...`);
+                const resGen = await ai.models.generateContent({
+                  model: model.name,
+                  contents: prompt,
+                  config: {
+                    imageConfig: {
+                      aspectRatio: mappedAspectRatio
+                    }
+                  }
+                });
+                
+                for (const part of resGen.candidates?.[0]?.content?.parts || []) {
+                  if (part.inlineData?.data) {
+                    base64Bytes = part.inlineData.data;
+                    break;
+                  }
+                }
+                if (base64Bytes) {
+                  console.log(`[Proxy] Sucesso com ${model.name}!`);
+                }
+              } else {
+                console.log(`[Proxy] Tentando gerar com ${model.name} (generateImages)...`);
+                const response = await ai.models.generateImages({
+                  model: model.name,
+                  prompt: prompt,
+                  config: {
+                    numberOfImages: 1,
+                    outputMimeType: 'image/jpeg',
+                    aspectRatio: mappedAspectRatio
+                  }
+                });
+                
+                base64Bytes = response.generatedImages?.[0]?.image?.imageBytes || "";
+                if (base64Bytes) {
+                  console.log(`[Proxy] Sucesso com ${model.name}!`);
+                }
+              }
+            } catch (err: any) {
+              const msg = err.message || JSON.stringify(err);
+              console.warn(`[Proxy] Falha no ${model.name}:`, msg);
+              errorMsgs.push(`${model.name}: ${msg}`);
             }
           }
-          
-          if (base64Bytes) {
-            console.log("[Proxy] Sucesso com gemini-2.5-flash-image!");
-          }
-        } catch (err: any) {
-          const msg = err.message || JSON.stringify(err);
-          console.warn("[Proxy] Falha no gemini-2.5-flash-image:", msg);
-          errorMsgs.push(`gemini-2.5-flash-image: ${msg}`);
+        } catch (sdkInitErr: any) {
+          console.error("[Proxy] Erro ao inicializar SDK Google GenAI para geração de imagem:", sdkInitErr.message || sdkInitErr);
+          errorMsgs.push(`SDK Google GenAI Init: ${sdkInitErr.message || sdkInitErr}`);
         }
       }
 
-      // MODELO 5: gemini-3.1-flash-image
-      if (!base64Bytes) {
+      // 4. Se falhar o Google AI Studio, mas tiver uma chave do Nano-GPT configurada, acionaremos o Nano-GPT!
+      if (!base64Bytes && nanoGptKey) {
+        console.log("[Proxy] Acionando fallback resiliente via Nano-GPT para geração de imagem...");
         try {
-          console.log("[Proxy] Tentando gerar com gemini-3.1-flash-image...");
-          const resGen = await ai.models.generateContent({
-            model: 'gemini-3.1-flash-image',
-            contents: prompt,
-            config: {
-              imageConfig: {
-                aspectRatio: mappedAspectRatio
+          // O Nano-GPT é compatível em 100% com a API de geração de imagem da OpenAI
+          const modelToUse = "flux/schnell"; // Modelo super moderno, rápido e econômico do Nano-GPT
+          const responseNano = await fetch("https://nano-gpt.com/api/v1/images/generations", {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${nanoGptKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: modelToUse,
+              prompt: prompt,
+              n: 1,
+              size: "1024x1024",
+              response_format: "b64_json"
+            })
+          });
+
+          if (responseNano.ok) {
+            const dataNano = await responseNano.json();
+            const b64Data = dataNano.data?.[0]?.b64_json || "";
+            if (b64Data) {
+              base64Bytes = b64Data;
+              console.log("[Proxy] Sucesso gerando imagem com a API Nano-GPT!");
+            } else {
+              const urlData = dataNano.data?.[0]?.url || "";
+              if (urlData) {
+                const imgFetch = await fetch(urlData);
+                if (imgFetch.ok) {
+                  const arrBuffer = await imgFetch.arrayBuffer();
+                  base64Bytes = Buffer.from(arrBuffer).toString('base64');
+                  console.log("[Proxy] Imagem baixada da URL do Nano-GPT e convertida para base64 com sucesso!");
+                }
               }
             }
-          });
-          
-          for (const part of resGen.candidates?.[0]?.content?.parts || []) {
-            if (part.inlineData?.data) {
-              base64Bytes = part.inlineData.data;
-              break;
-            }
+          } else {
+            const errText = await responseNano.text();
+            console.warn("[Proxy] Falha do Nano-GPT:", errText);
+            errorMsgs.push(`Nano-GPT (${modelToUse}): ${errText}`);
           }
-          
-          if (base64Bytes) {
-            console.log("[Proxy] Sucesso com gemini-3.1-flash-image!");
-          }
-        } catch (err: any) {
-          const msg = err.message || JSON.stringify(err);
-          console.warn("[Proxy] Falha no gemini-3.1-flash-image:", msg);
-          errorMsgs.push(`gemini-3.1-flash-image: ${msg}`);
+        } catch (nanoErr: any) {
+          console.error("[Proxy] Conexão falhou com Nano-GPT:", nanoErr.message || nanoErr);
+          errorMsgs.push(`Nano-GPT: ${nanoErr.message || nanoErr}`);
         }
       }
 
