@@ -763,6 +763,7 @@ class SentinelCore {
     this.anomaly    = new AnomalyDetector();
 
     this._cleanup = [];
+    this._alreadyReported = false;
   }
 
   /**
@@ -824,9 +825,10 @@ class SentinelCore {
       this._log('Razões:', evaluation.reasons);
     }
 
-    // Reporta ao servidor se configurado
-    if (this.config.reportEndpoint) {
+    // Reporta ao servidor se configurado e for o primeiro reporte ou se houver score suspeito (>= 50)
+    if (this.config.reportEndpoint && (!this._alreadyReported || evaluation.score >= 50)) {
       this._reportToServer(evaluation, fpResult.fingerprint);
+      this._alreadyReported = true;
     }
 
     // Aciona callbacks

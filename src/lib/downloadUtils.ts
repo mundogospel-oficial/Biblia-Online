@@ -20,9 +20,14 @@ export const downloadBibleImage = async (dataUrl: string, fileNamePrefix: string
     
     // For external URLs, fetch the blob to avoid CORS issues and ensure download attribute works
     if (dataUrl.startsWith('http')) {
-      const response = await fetch(dataUrl, { mode: 'cors' });
-      const blob = await response.blob();
-      downloadUrl = URL.createObjectURL(blob);
+      try {
+        const response = await fetch(dataUrl, { mode: 'cors' });
+        const blob = await response.blob();
+        downloadUrl = URL.createObjectURL(blob);
+      } catch (err) {
+        console.warn("Could not proxy download via CORS blob, using direct URL", err);
+        downloadUrl = dataUrl;
+      }
     }
 
     const link = document.createElement("a");
@@ -60,13 +65,39 @@ export const shareBibleImage = async (dataUrl: string, fileNamePrefix: string = 
     let blob: Blob;
     
     if (isDataUrl) {
-      // Direct data URL to blob conversion
-      const response = await fetch(dataUrl);
-      blob = await response.blob();
+      // Direct data URL to blob conversion (synchronous & extremely robust)
+      try {
+        const parts = dataUrl.split(',');
+        const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+        const binary = atob(parts[1]);
+        const array = [];
+        for (let i = 0; i < binary.length; i++) {
+          array.push(binary.charCodeAt(i));
+        }
+        blob = new Blob([new Uint8Array(array)], { type: mime });
+      } catch (decodeErr) {
+        console.error("DataURL sync decode failed, falling back to fetch", decodeErr);
+        const response = await fetch(dataUrl);
+        blob = await response.blob();
+      }
     } else {
       // External URL
-      const response = await fetch(dataUrl, { mode: 'cors' });
-      blob = await response.blob();
+      try {
+        const response = await fetch(dataUrl, { mode: 'cors' });
+        blob = await response.blob();
+      } catch (fetchErr) {
+        console.warn("Fetch failed, trying to share as URL link directly", fetchErr);
+        // Fallback: if we cannot fetch, share as link via Web Share API
+        if (navigator.share) {
+          await navigator.share({
+            title: "Imagem Bíblica",
+            text: "Veja este versículo que criei!",
+            url: dataUrl
+          });
+          return;
+        }
+        throw fetchErr; // proceed to clipboard/download fallback
+      }
     }
       
     const file = new File([blob], fileName, { type: "image/png" });

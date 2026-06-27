@@ -23,6 +23,27 @@ self.addEventListener('push', (event) => {
   }
 });
 
+self.addEventListener('message', (event) => {
+  if (!event.data) return;
+
+  if (event.data.type === 'TEST_NOTIFICATION') {
+    const options = {
+      body: 'Sua notificação de teste da Bíblia Online foi enviada com sucesso! 🔔',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/badge-72x72.png',
+      vibrate: [200, 100, 200],
+      data: {
+        url: '/'
+      }
+    };
+    self.registration.showNotification('Teste de Notificação 🔔', options);
+  } else if (event.data.type === 'APP_OPENED') {
+    console.log('App opened event received by Service Worker');
+  } else if (event.data.type === 'CACHE_OFFLINE') {
+    console.log('Cache offline event received by Service Worker');
+  }
+});
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const urlToOpen = event.notification.data.url || '/';

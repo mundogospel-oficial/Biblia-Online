@@ -9,7 +9,7 @@ const corsHeaders = {
 
 const MAX_MESSAGES = 15;
 const MAX_MESSAGE_LENGTH = 1500;
-const DAILY_LIMIT = 10;
+const DAILY_LIMIT = 7;
 const MODEL = "google/gemini-1.5-flash";
 
 const systemInstruction = `Você é uma assistente bíblica simples e direta. Regras:

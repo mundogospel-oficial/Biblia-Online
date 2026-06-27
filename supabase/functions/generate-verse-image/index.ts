@@ -12,7 +12,7 @@ const MAX_STYLE_LENGTH = 500;
 const MAX_REFERENCE_LENGTH = 200;
 
 // LIMITE DIÁRIO INQUEBRÁVEL
-const DAILY_IMAGE_LIMIT = 5;
+const DAILY_IMAGE_LIMIT = 3;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {

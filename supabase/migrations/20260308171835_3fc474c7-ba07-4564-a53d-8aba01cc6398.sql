@@ -1,1 +1,0 @@
-CREATE POLICY "Auth users can upload to media" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'media'); CREATE POLICY "Auth users can update own media" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'media'); CREATE POLICY "Public can read media" ON storage.objects FOR SELECT TO public USING (bucket_id = 'media');

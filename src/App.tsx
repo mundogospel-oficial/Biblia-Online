@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import { CookieConsent } from "./components/CookieConsent";
 import Index from "./pages/Index";
 import Reader from "./pages/Reader";
@@ -17,6 +18,7 @@ import AccountPage from "./pages/AccountPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import { useSentinel } from "./hooks/useSentinel";
+import { checkInactivity, updateLastVisit, checkScheduledNotifications } from "@/services/notificationService";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +63,16 @@ const App = () => {
       }).catch(err => console.warn("App: SW not ready for signal", err));
     }
 
+    // Check inactivity before updating the last visit timestamp
+    checkInactivity();
+    updateLastVisit();
+
+    // Check scheduled notifications immediately and set up an interval
+    checkScheduledNotifications();
+    const interval = setInterval(() => {
+      checkScheduledNotifications();
+    }, 30000); // check every 30 seconds
+
     // Proactively request notification permissions if supported
     if ("Notification" in window && Notification.permission === "default") {
       // Delay it slightly to not overwhelm the user on first load
@@ -75,6 +87,8 @@ const App = () => {
         }
       }, 8000); // 8 seconds delay
     }
+
+    return () => clearInterval(interval);
   }, []);
 
   if (isSupabaseMisconfigured()) {
@@ -83,27 +97,29 @@ const App = () => {
 
   return (
     <AuthProvider>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/livro/:abbrev/:chapter" element={<Reader />} />
-              <Route path="/criar" element={<CreatePage />} />
-              <Route path="/buscar" element={<SearchPage />} />
-              <Route path="/favoritos" element={<FavoritesPage />} />
-              <Route path="/ia" element={<AIPage />} />
-              <Route path="/devocionais" element={<DevotionalPage />} />
-              <Route path="/conta" element={<AccountPage />} />
-              <Route path="/atualizar-senha" element={<ResetPasswordPage />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </QueryClientProvider>
-      <CookieConsent />
+      <LanguageProvider>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/livro/:abbrev/:chapter" element={<Reader />} />
+                <Route path="/criar" element={<CreatePage />} />
+                <Route path="/buscar" element={<SearchPage />} />
+                <Route path="/favoritos" element={<FavoritesPage />} />
+                <Route path="/ia" element={<AIPage />} />
+                <Route path="/devocionais" element={<DevotionalPage />} />
+                <Route path="/conta" element={<AccountPage />} />
+                <Route path="/atualizar-senha" element={<ResetPasswordPage />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </QueryClientProvider>
+        <CookieConsent />
+      </LanguageProvider>
     </AuthProvider>
   );
 };

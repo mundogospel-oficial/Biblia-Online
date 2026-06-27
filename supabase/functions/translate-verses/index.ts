@@ -11,7 +11,7 @@ const corsHeaders = {
 
 const ALLOWED_LANGS = ["en", "es", "fr", "de", "it", "pt"];
 const MAX_VERSES = 10;
-const DAILY_LIMIT = 5;
+const DAILY_LIMIT = 3;
 
 // ATENÇÃO: Verifique no seu banco de dados se a tabela se chama "user_ai_usage" ou "uso_de_IA_do_usuario".
 // Substitua na variável abaixo para o nome EXATO que está no banco.

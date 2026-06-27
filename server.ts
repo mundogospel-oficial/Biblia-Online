@@ -1,12 +1,16 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
+import { fileURLToPath } from "url";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { createClient } from "@supabase/supabase-js";
 import rateLimit from "express-rate-limit";
 import webpush from "web-push";
 import helmet from "helmet";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Initialize Supabase Admin Client (for sensitive operations)
 const getSupabaseAdmin = () => {
@@ -101,15 +105,23 @@ async function startServer() {
   // --- RATE LIMITERS ---
   const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 100, // Limite de 100 requisições por janela de 15m
+    max: 2000, // Limite aumentado substancialmente para dar vasão a múltiplos clientes/abas ou proxy em ambiente de produção
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: (req) => {
+      return (req.headers["x-forwarded-for"] as string || req.ip || "unknown").split(",")[0].trim();
+    },
+    validate: { default: false },
     message: { error: "TOO_MANY_REQUESTS", message: "Muitas requisições. Tente novamente mais tarde." }
   });
 
   const securityLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hora
     max: 5, // Apenas 5 tentativas por hora para operações sensíveis
+    keyGenerator: (req) => {
+      return (req.headers["x-forwarded-for"] as string || req.ip || "unknown").split(",")[0].trim();
+    },
+    validate: { default: false },
     message: { error: "SECURITY_THRESHOLD", message: "Limite de segurança atingido. Tente novamente em uma hora." }
   });
 
@@ -184,7 +196,6 @@ async function startServer() {
     if (
       valPath === '/api/security/report' || 
       valPath === '/api/user/delete' ||
-      valPath === '/api/generate-image' ||
       req.path.startsWith('/@vite') || 
       req.path.startsWith('/src')
     ) {
@@ -269,9 +280,242 @@ async function startServer() {
   });
 
   app.post("/api/generate-image", async (req, res) => {
-    return res.status(503).json({ 
-      error: "SISTEMA EM MANUTENÇÃO: O motor de processamento e renderização de imagens do Google AI está temporariamente indisponível devido a uma manutenção planejada de infraestrutura de rede." 
-    });
+    try {
+      const { prompt, aspectRatio, source = 'chat', isComplex = false } = req.body;
+      if (!prompt) {
+        return res.status(400).json({ error: "O prompt é obrigatório." });
+      }
+
+      // 1. Validar Token de Autenticação do Usuário (Supabase JWT)
+      let userId: string | null = null;
+      const authHeader = req.headers.authorization;
+      const adminClient = getSupabaseAdmin();
+
+      if (authHeader && adminClient) {
+        const token = authHeader.replace("Bearer ", "");
+        try {
+          const { data: { user }, error: authError } = await adminClient.auth.getUser(token);
+          if (!authError && user) {
+            userId = user.id;
+          }
+        } catch (authErr) {
+          console.error("[Quota Backend] Erro de autenticação JWT:", authErr);
+        }
+      }
+
+      if (!userId) {
+        return res.status(401).json({ error: "Sessão inválida ou expirada. Por favor, faça login para gerar imagens." });
+      }
+
+      // Definir cotas e tipos de uso de acordo com a origem ('create' para Modo Criar, 'chat' para Chat)
+      const isCreateSource = source === 'create';
+      const quotaType = isCreateSource ? 'create_image' : 'image';
+      const quotaLimit = isCreateSource ? 3 : 5;
+
+      // 2. Verificar limite de cotas diárias de imagem no Banco de Dados (independente e separada)
+      if (adminClient && userId) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        try {
+          const { count, error: countError } = await adminClient
+            .from('user_ai_usage')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('tipo_uso', quotaType)
+            .gte('created_at', today.toISOString());
+
+          if (countError) {
+            console.error("[Quota Backend] Erro computando uso diário:", countError);
+          } else if (count !== null && count >= quotaLimit) {
+            const displayLimitMsg = isCreateSource 
+              ? `Você atingiu o seu limite diário de ${quotaLimit} imagens no Modo Criar. Sua cota recarrega em 12 horas.`
+              : `Você atingiu o seu limite diário de ${quotaLimit} imagens no Chat. Sua cota recarrega em 12 horas.`;
+            return res.status(429).json({ error: displayLimitMsg });
+          }
+        } catch (dbErr) {
+          console.error("[Quota Backend] Falha inesperada ao consultar cotas:", dbErr);
+        }
+      }
+
+      // 3. Obter chave do Gemini e prompt mestre do Banco de Dados / Ambiente de forma segura
+      let googleKey = (process.env.VITE_GEMINI_API_KEY || "").trim();
+      let googleKey2 = (process.env.VITE_GEMINI_API_KEY_2 || "").trim();
+      let systemPromptMaster = "Você SÓ PODE responder sobre a Bíblia. Use markdown limpo.";
+
+      if (adminClient) {
+        try {
+          const { data, error } = await adminClient
+            .from('ai_settings')
+            .select('config_key, config_value')
+            .in('config_key', ['google_ai_key', 'google_ai_key_2', 'system_prompt_master']);
+          if (!error && data) {
+            const dbGoogle = data.find(d => d.config_key === 'google_ai_key')?.config_value;
+            const dbGoogle2 = data.find(d => d.config_key === 'google_ai_key_2')?.config_value;
+            const dbMaster = data.find(d => d.config_key === 'system_prompt_master')?.config_value;
+            if (dbGoogle && dbGoogle.trim()) googleKey = dbGoogle.trim();
+            if (dbGoogle2 && dbGoogle2.trim()) googleKey2 = dbGoogle2.trim();
+            if (dbMaster && dbMaster.trim()) systemPromptMaster = dbMaster.trim();
+          }
+        } catch (dbErr) {
+          console.warn("[Quota Backend] Erro de rede ao buscar chaves no banco:", dbErr);
+        }
+      }
+
+      // 4. Refinamento de prompt, tradução para inglês e moderação de conteúdo no Servidor
+      let enhancedPrompt = prompt;
+      let isBlocked = false;
+
+      // Local safety and Biblical context filter (fail-fast first layer)
+      const forbiddenTerms = [
+        // Nudity/NSFW/Vulgar
+        'nude', 'nudity', 'pelad', 'nuas', 'nus', 'nua', 'sexy', 'peito', 'bumbum', 'bunda', 'vagina', 'penis', 
+        'sexo', 'erotic', 'sensual', 'porno', 'naked', 'breast', 'butt', 'ass', 'hentai', 'safada', 'gostosa',
+        // Non-Biblical/Secular obvious modern elements
+        'carro', 'celular', 'computador', 'smartphone', 'videogame', 'video game', 'anime', 'goku', 'naruto', 
+        'futebol', 'soccer', 'disney', 'marvel', 'dc comics', 'batman', 'superman', 'boate', 'cerveja', 'vodka', 
+        'uísque', 'whisky', 'rockstar', 'balada', 'danceteria', 'nave espacial', 'disco de vinil', 'alienígena'
+      ];
+
+      const lowercasePrompt = prompt.toLowerCase();
+      const hasForbiddenTerm = forbiddenTerms.some(term => {
+        const regex = new RegExp(`\\b${term}`, 'i');
+        return regex.test(lowercasePrompt);
+      });
+
+      if (hasForbiddenTerm) {
+        return res.status(400).json({ error: "O pedido contém termos impróprios ou fora do contexto bíblico permitido." });
+      }
+
+      const systemInstruction = `REGRAS MESTRAS: ${systemPromptMaster}
+
+Você é um Diretor de Arte de imagens bíblicas e Moderador de Conteúdo extremamente rigoroso.
+
+REGRA 1 (Nudez e Conteúdo Impróprio): Verifique se o pedido contém qualquer menção direta ou indireta a nudez total ou parcial, sensualidade, erotismo, posições vulgares ou qualquer conteúdo impróprio/adulto. Se violar esta regra, responda EXATAMENTE: "BLOQUEADO".
+
+REGRA 2 (Filtro Bíblico / Cristão Estrito): Verifique se o pedido é estritamente sobre temas, passagens, cenários, profecias ou personagens descritos na Bíblia Sagrada ou relacionados à história cristã. Se for sobre qualquer assunto secular, moderno (tecnologia moderna, ficção científica, carros, robôs, etc.), super-heróis, outras crenças, esportes modernos, etc., responda EXATAMENTE: "BLOQUEADO".
+
+REGRA 3 (Estilo Super Realista): O usuário exige imagens extremamente realistas de acordo com o pedido. Portanto, se o pedido for aprovado, traduza-o para o INGLÊS e adicione tags avançadas de ultra-realismo fotográfico, por exemplo: "ultra-realistic photo, high-end hyperrealistic human features, detailed skin texture, real eyes, historically accurate clothing, cinematic lighting, 8k resolution, masterpiece". EVITE termos de cartoon, anime, desenho ou 3D irrealista.
+
+REGRA 4 (Saída): Responda APENAS com o prompt purificado em inglês enriquecido para ultra-realismo, sem aspas, preâmbulos, notas ou explicações adicionais. Se for inadequado, responda APENAS: "BLOQUEADO".`;
+
+      const keysToTry = [googleKey, googleKey2].filter(Boolean) as string[];
+      let promptGenerated = false;
+
+      for (const key of keysToTry) {
+        if (promptGenerated) break;
+        try {
+          const { GoogleGenAI } = await import("@google/genai");
+          const ai = new GoogleGenAI({ apiKey: key });
+          const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: `${systemInstruction}\n\nPedido: ${prompt}`,
+            config: {
+              temperature: 0.7,
+              maxOutputTokens: 500
+            }
+          });
+
+          const text = response.text || "";
+          if (text) {
+            let trimmedText = text.trim();
+            if (trimmedText.startsWith('"') && trimmedText.endsWith('"')) {
+              trimmedText = trimmedText.slice(1, -1).trim();
+            }
+            if (trimmedText.startsWith("'") && trimmedText.endsWith("'")) {
+              trimmedText = trimmedText.slice(1, -1).trim();
+            }
+            trimmedText = trimmedText.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
+            trimmedText = trimmedText.replace(/^(here is your prompt|prompt|translation|here is a prompt for your image|gerar imagem de|imagem de|desenhar)\s*:\s*/i, '');
+
+            if (trimmedText.toUpperCase().includes("BLOQUEADO")) {
+              isBlocked = true;
+            } else {
+              enhancedPrompt = trimmedText;
+            }
+            promptGenerated = true;
+            break;
+          }
+        } catch (geminiErr: any) {
+          console.warn(`[Quota Backend] Falha no refinamento do prompt com a chave ${key.substring(0, 8)}...:`, geminiErr);
+        }
+      }
+
+      if (isBlocked) {
+        return res.status(400).json({ error: "Apenas imagens de temas bíblicos/cristãos são permitidas e sem conteúdo impróprio." });
+      }
+
+      // 5. Geração de imagens via Pollinations.ai (as características de qualidade e estilo são anexadas como tags)
+      const qualityTags = "ultra-realistic portrait photography, hyperrealism, 8k resolution, highly detailed, real human features, historical accuracy, masterpieces, cinematic composition";
+      const finalPrompt = `${enhancedPrompt}, ${qualityTags}`;
+
+      let width = 1024;
+      let height = 1024;
+      if (aspectRatio === 'story') {
+        width = 576;
+        height = 1024;
+      } else if (aspectRatio === 'landscape') {
+        width = 1024;
+        height = 576;
+      }
+
+      const seed = Math.floor(Math.random() * 2000000000);
+      const pollinationsUrl = `https://image.pollinations.ai/p/${encodeURIComponent(finalPrompt)}?width=${width}&height=${height}&seed=${seed}&nologo=true&enhance=false`;
+
+      console.log(`[Proxy] Gerando imagem via Pollinations.ai para o usuário ${userId}... URL: ${pollinationsUrl}`);
+
+      let base64Image = "";
+      const pollinationsApiKey = (process.env.POLILINATIONS_IA_API_KEY || process.env.POLLINATIONS_IA_API_KEY || "").trim();
+
+      if (isComplex && pollinationsApiKey) {
+        console.log(`[Proxy] Geração em Modo Complexo ativada. Buscando imagem de Pollinations.ai no servidor com API Key...`);
+        try {
+          const imageResponse = await fetch(pollinationsUrl, {
+            headers: {
+              'Authorization': `Bearer ${pollinationsApiKey}`
+            }
+          });
+
+          if (imageResponse.ok) {
+            const arrayBuffer = await imageResponse.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            base64Image = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+            console.log(`[Proxy] Imagem obtida com sucesso e convertida para base64.`);
+          } else {
+            console.warn(`[Proxy] Falha ao obter imagem da API Pollinations (Status: ${imageResponse.status}). Usando fallback no client.`);
+          }
+        } catch (fetchErr) {
+          console.error(`[Proxy] Erro ao obter imagem do Pollinations no servidor:`, fetchErr);
+        }
+      }
+      
+      // 6. Registrar consumo de cota diária no banco se gerado com sucesso
+      if (adminClient && userId) {
+        try {
+          const { error: insertError } = await adminClient
+             .from('user_ai_usage')
+             .insert({
+               user_id: userId,
+               tipo_uso: quotaType,
+               created_at: new Date().toISOString()
+             });
+
+          if (insertError) {
+            console.error("[Quota Backend] Erro ao gravar uso de IA no banco de dados:", insertError);
+          } else {
+            console.log(`[Quota Backend] Cota de IA (1 imagem do tipo ${quotaType}) debitada com sucesso para o usuário ${userId}`);
+          }
+        } catch (dbInsertErr) {
+          console.error("[Quota Backend] Erro excepcional ao registrar consumo de cota:", dbInsertErr);
+        }
+      }
+
+      console.log(`[Proxy] URL do Pollinations.ai gerada e enviada para o cliente do usuário ${userId}: ${pollinationsUrl}`);
+      res.json({ success: true, pollinationsUrl: pollinationsUrl, base64Image: base64Image || undefined });
+    } catch (err: any) {
+      console.error("[Proxy Imagen CRITICAL]", err);
+      res.status(500).json({ error: err.message || "Erro interno do servidor." });
+    }
   });
 
   // --- ACCOUNT DELETION ROUTE ---

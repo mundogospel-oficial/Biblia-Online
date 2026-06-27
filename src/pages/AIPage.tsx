@@ -4,7 +4,8 @@ import Header from "@/components/Header";
 import {
   Send, Trash2, Sparkles, GraduationCap, X,
   Plus, Image, Video, Music, Diamond, Download, LogIn,
-  History, ChevronLeft, Zap, Bot, Paperclip, AlertCircle, MessageSquarePlus, Square, Share2
+  History, ChevronLeft, Zap, Bot, Paperclip, AlertCircle, MessageSquarePlus, Square, Share2,
+  Loader2, ImageOff, FileText, ZoomIn, ZoomOut, WifiOff
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,7 +13,7 @@ import { useAuth, forceSignOut, handleAuthError } from "@/contexts/AuthContext";
 
 import { downloadBibleImage, shareBibleImage } from "@/lib/downloadUtils";
 
-import { askBibleAI } from "@/services/aiService";
+import { askBibleAI, AIAttachment } from "@/services/aiService";
 import { checkAndIncrementUsage, getUserUsage, refundUsage } from "@/services/usageService";
 import { saveAIHistory } from "@/services/userDataService";
 import { generateBiblicalImage } from "@/services/imageGenerationService";
@@ -23,7 +24,24 @@ const formatMessageForDisplay = (text: string): string => {
   return text.replace(/\[.*?\]/g, '').replace(/\[[^\]]*$/, '').trim();
 };
 
-type Msg = { role: "user" | "assistant"; content: string; image?: string; fileName?: string };
+const getFilesForMessage = (m: Msg) => {
+  if (m.files && m.files.length > 0) {
+    return m.files;
+  }
+  if (m.fileName) {
+    return m.fileName.split(', ').map(name => {
+      const isImg = name.toLowerCase().match(/\.(jpe?g|png|gif|webp|svg)$/);
+      return {
+        name,
+        size: undefined,
+        type: isImg ? "image/png" : "application/octet-stream"
+      };
+    });
+  }
+  return [];
+};
+
+type Msg = { role: "user" | "assistant"; content: string; image?: string; fileName?: string; files?: Array<{ name: string; size?: number; type?: string }> };
 
 const suggestions = [
   "O que significa João 3:16?",
@@ -40,9 +58,9 @@ const GEN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-chat
 const CONVERSATIONS_KEY = "ia-biblica-conversations";
 
 // Daily limits - Sincronizado com usageService.ts
-const LIMIT_COMPLEX = 7;
-const LIMIT_SIMPLE = 10;
-const LIMIT_IMAGE = 5;
+const LIMIT_COMPLEX = 5;
+const LIMIT_SIMPLE = 7;
+const LIMIT_IMAGE = 3;
 
 interface Conversation {
   id: string;
@@ -65,104 +83,58 @@ interface ResilientImageProps {
   src: string;
   alt: string;
   className?: string;
+  onClick?: () => void;
 }
 
-const ResilientImage: React.FC<ResilientImageProps> = ({ src, alt, className = "absolute inset-0 w-full h-full object-cover" }) => {
-  const [currentSrc, setCurrentSrc] = useState(src);
-  const [retryCount, setRetryCount] = useState(0);
+const ResilientImage: React.FC<ResilientImageProps> = ({ src, alt, className = "absolute inset-0 w-full h-full object-cover", onClick }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
-    setCurrentSrc(src);
-    setRetryCount(0);
     setIsLoading(true);
     setHasError(false);
+
+    // If image has already completed loading (cached, base64 data URI), disable loader
+    if (imgRef.current && imgRef.current.complete) {
+      setIsLoading(false);
+    }
   }, [src]);
 
-  const handleLoad = () => {
-    setIsLoading(false);
-    setHasError(false);
-  };
-
-  const handleError = () => {
-    if (retryCount < 4) {
-      const nextRetry = retryCount + 1;
-      setRetryCount(nextRetry);
-      setIsLoading(true);
-      
-      setTimeout(() => {
-        try {
-          const urlObj = new URL(src);
-          urlObj.searchParams.set("retry", String(nextRetry));
-          setCurrentSrc(urlObj.toString());
-        } catch (err) {
-          setCurrentSrc(`${src}${src.includes('?') ? '&' : '?'}retry=${nextRetry}`);
-        }
-      }, 2000);
-    } else {
-      setIsLoading(false);
-      setHasError(true);
-      setCurrentSrc("/icons/logo2.png");
-    }
-  };
-
   return (
-    <div className="relative w-full h-full bg-muted flex items-center justify-center overflow-hidden rounded-xl">
+    <div 
+      className={`relative w-full h-full bg-muted flex items-center justify-center overflow-hidden rounded-xl ${onClick ? 'cursor-pointer' : ''}`}
+      onClick={onClick}
+    >
       {isLoading && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/75 backdrop-blur-md p-4 text-center">
-          {/* Grid de fundo simulando blueprint de IA bíblica */}
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(212,175,55,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(212,175,55,0.05)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
-          
-          {/* Efeito de scanline laser correndo */}
-          <motion.div 
-            animate={{ y: ["0%", "450%"] }} 
-            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-accent/70 to-transparent shadow-[0_0_8px_rgba(212,175,55,0.8)] z-20 pointer-events-none"
-          />
-
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            className="mb-3 relative"
-          >
-            <Sparkles className="h-6 w-6 text-accent animate-pulse" />
-          </motion.div>
-          <span className="text-xs font-semibold text-accent tracking-wide uppercase">
-            {retryCount > 0 ? `Refinando detalhes... (${retryCount}/4)` : "Renderizando Arte Sagrada... ✨"}
-          </span>
-          <span className="text-[10px] text-muted-foreground mt-1 max-w-[200px] leading-relaxed block">
-            Nossos algoritmos estão pintando uma representação bíblica sob medida.
-          </span>
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/60 p-4 text-center">
+          <Loader2 className="h-6 w-6 text-accent animate-spin mb-2" />
+          <span className="text-xs text-muted-foreground font-medium">Carregando imagem...</span>
         </div>
       )}
-      
-      {/* Efeito de varredura final quando a imagem carrega */}
-      {!isLoading && !hasError && (
-        <motion.div 
-          initial={{ y: "-100%" }}
-          animate={{ y: "150%" }}
-          transition={{ duration: 1.2, ease: "easeOut" }}
-          className="absolute left-0 right-0 h-[4px] bg-gradient-to-r from-transparent via-accent to-transparent shadow-[0_0_12px_rgba(212,175,55,1)] z-15 pointer-events-none"
+
+      {hasError ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/95 p-4 text-center border border-border rounded-xl">
+          <ImageOff className="h-8 w-8 text-muted-foreground/60 mb-2" />
+          <span className="text-xs text-muted-foreground font-semibold">Falha ao carregar imagem</span>
+          <p className="text-[10px] text-muted-foreground mt-1 max-w-[220px] leading-relaxed">
+            Ocorreu um erro ao carregar a imagem gerada. Por favor, tente novamente de forma consistente.
+          </p>
+        </div>
+      ) : (
+        <img
+          ref={imgRef}
+          src={src}
+          alt={alt}
+          className={`${className} ${onClick ? 'hover:scale-[1.02] transition-transform duration-300' : ''}`}
+          referrerPolicy="no-referrer"
+          onLoad={() => setIsLoading(false)}
+          onError={() => {
+            setIsLoading(false);
+            setHasError(true);
+          }}
         />
       )}
-
-      <motion.img
-        key={currentSrc}
-        src={currentSrc}
-        alt={alt}
-        className={hasError ? "absolute inset-0 m-auto w-10 h-10 opacity-20 grayscale" : className}
-        referrerPolicy="no-referrer"
-        onLoad={handleLoad}
-        onError={handleError}
-        initial={hasError ? { opacity: 0.2 } : { opacity: 0, scale: 1.05, filter: "blur(20px)" }}
-        animate={hasError ? { opacity: 0.2 } : { 
-          opacity: isLoading ? 0 : 1, 
-          scale: isLoading ? 1.05 : 1, 
-          filter: isLoading ? "blur(20px)" : "blur(0px)" 
-        }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-      />
     </div>
   );
 };
@@ -172,14 +144,13 @@ type AIEngine = "complexo" | "simples";
 
 const modes: { key: ModeKey; icon: React.ReactNode; label: string; prefix: string }[] = [
   { key: "image", icon: <Image className="h-4 w-4" />, label: "Gerar Imagens", prefix: "[Modo: Gerar Imagem] " },
-  { key: "video", icon: <Video className="h-4 w-4" />, label: "Gerar Vídeos", prefix: "[Modo: Gerar Vídeo] " },
+  { key: "video", icon: <Video className="h-4 w-4" />, label: "Roteiros de Vídeo", prefix: "[Modo: Gerar Vídeo] " },
   { key: "learning", icon: <GraduationCap className="h-4 w-4" />, label: "Aprendizado", prefix: "[Modo: Aprendizado] " },
   { key: "music", icon: <Music className="h-4 w-4" />, label: "Criar Músicas", prefix: "[Modo: Criar Música] " },
 ];
 
 const AIPage = () => {
   const { user } = useAuth();
-
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -188,8 +159,168 @@ const AIPage = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeMode, setActiveMode] = useState<ModeKey | null>(null);
   const [aiEngine, setAiEngine] = useState<AIEngine>("simples");
-  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<Array<{ name: string; url: string | null; type: string; size: number }>>([]);
+  const [brokenPreviews, setBrokenPreviews] = useState<Record<number, boolean>>({});
   const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [zoomScale, setZoomScale] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const lastTouchDistance = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!lightboxImage) {
+      setZoomScale(1);
+      setPanOffset({ x: 0, y: 0 });
+    }
+  }, [lightboxImage]);
+
+  const lightboxImgRef = useRef<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    const imgEl = lightboxImgRef.current;
+    if (!imgEl) return;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      setZoomScale(prev => {
+        const newScale = prev - e.deltaY * 0.004;
+        const finalScale = Math.min(Math.max(newScale, 1), 4.5);
+        if (finalScale <= 1) {
+          setPanOffset({ x: 0, y: 0 });
+        }
+        return finalScale;
+      });
+    };
+
+    imgEl.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      imgEl.removeEventListener("wheel", onWheel);
+    };
+  }, [lightboxImage]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (zoomScale > 1) {
+      setIsDraggingImage(true);
+      dragStart.current = { x: e.clientX - panOffset.x, y: e.clientY - panOffset.y };
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDraggingImage && zoomScale > 1) {
+      const newX = e.clientX - dragStart.current.x;
+      const newY = e.clientY - dragStart.current.y;
+      const maxPanX = (zoomScale - 1) * 300;
+      const maxPanY = (zoomScale - 1) * 300;
+      setPanOffset({
+        x: Math.min(Math.max(newX, -maxPanX), maxPanX),
+        y: Math.min(Math.max(newY, -maxPanY), maxPanY)
+      });
+    }
+  };
+
+  const handleMouseUpOrLeave = () => {
+    setIsDraggingImage(false);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      if (zoomScale > 1) {
+        setIsDraggingImage(true);
+        const touch = e.touches[0];
+        dragStart.current = { x: touch.clientX - panOffset.x, y: touch.clientY - panOffset.y };
+      }
+    } else if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      lastTouchDistance.current = dist;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1 && isDraggingImage && zoomScale > 1) {
+      const touch = e.touches[0];
+      const newX = touch.clientX - dragStart.current.x;
+      const newY = touch.clientY - dragStart.current.y;
+      const maxPanX = (zoomScale - 1) * 300;
+      const maxPanY = (zoomScale - 1) * 300;
+      setPanOffset({
+        x: Math.min(Math.max(newX, -maxPanX), maxPanX),
+        y: Math.min(Math.max(newY, -maxPanY), maxPanY)
+      });
+    } else if (e.touches.length === 2 && lastTouchDistance.current !== null) {
+      if (e.cancelable) e.preventDefault();
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const delta = dist - lastTouchDistance.current;
+      setZoomScale(prev => {
+        const newScale = prev + delta * 0.015;
+        const finalScale = Math.min(Math.max(newScale, 1), 4.5);
+        if (finalScale <= 1) {
+          setPanOffset({ x: 0, y: 0 });
+        }
+        return finalScale;
+      });
+      lastTouchDistance.current = dist;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDraggingImage(false);
+    lastTouchDistance.current = null;
+  };
+
+  const handleDoubleClick = () => {
+    if (zoomScale > 1) {
+      setZoomScale(1);
+      setPanOffset({ x: 0, y: 0 });
+    } else {
+      setZoomScale(2.5);
+    }
+  };
+
+  useEffect(() => {
+    setBrokenPreviews({});
+    // Generate object URLs for images, other files get null url
+    const newPreviews = attachedFiles.map(file => {
+      if (file.type.startsWith("image/")) {
+        return {
+          name: file.name,
+          url: URL.createObjectURL(file),
+          type: file.type,
+          size: file.size
+        };
+      }
+      return {
+        name: file.name,
+        url: null,
+        type: file.type,
+        size: file.size
+      };
+    });
+
+    setPreviews(newPreviews);
+
+    // Cleanup function to revoke Object URLs
+    return () => {
+      newPreviews.forEach(p => {
+        if (p.url) {
+          try {
+            URL.revokeObjectURL(p.url);
+          } catch (e) {
+            console.error("Erro ao revogar URL do anexo:", e);
+          }
+        }
+      });
+    };
+  }, [attachedFiles]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -304,62 +435,6 @@ const AIPage = () => {
     );
   }
 
-  return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
-      <div className="flex-1 flex items-center justify-center p-4">
-        <motion.div 
-          initial={{ opacity: 0, y: 15 }} 
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="max-w-md w-full glass-card border border-border/80 rounded-2xl p-6 md:p-8 text-center space-y-6 shadow-xl relative overflow-hidden"
-        >
-          {/* Grid sutil de fundo geométrico */}
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(212,175,55,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(212,175,55,0.02)_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
-          
-          <div className="w-16 h-16 bg-accent/10 border border-accent/20 rounded-2xl flex items-center justify-center mx-auto relative z-10">
-            <motion.div
-              animate={{ rotate: [0, 10, -10, 10, 0] }}
-              transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-            >
-              <Sparkles className="h-8 w-8 text-accent" />
-            </motion.div>
-            <motion.div 
-              animate={{ opacity: [0.4, 1, 0.4] }}
-              transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-              className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-background shadow-[0_0_8px_rgba(239,68,68,0.8)]"
-            />
-          </div>
-
-          <div className="space-y-2 relative z-10">
-            <h2 className="text-xl font-serif font-black text-foreground tracking-tight">IA Bíblica em Manutenção</h2>
-            <p className="text-xs text-muted-foreground leading-relaxed px-2">
-              Nossos serviços de inteligência artificial estão passando por uma manutenção severa, e dentro de algumas semanas será liberado.
-            </p>
-          </div>
-
-          <div className="bg-secondary/40 border border-border/60 p-4 rounded-xl space-y-2 relative z-10">
-            <p className="text-[10px] font-bold tracking-wider text-accent uppercase flex items-center justify-center gap-1.5">
-              <span>🔧</span> Status: Manutenção em andamento
-            </p>
-            <p className="text-[11px] text-muted-foreground max-w-[280px] mx-auto leading-normal">
-              A previsão de liberação dos serviços de IA é dentro de algumas semanas. Agradecemos sua atenção.
-            </p>
-          </div>
-
-          <div className="pt-2 relative z-10">
-            <button 
-              onClick={() => window.location.href = "/"}
-              className="w-full inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-all shadow-md active:scale-98 cursor-pointer"
-            >
-              Voltar para as Escrituras
-            </button>
-          </div>
-        </motion.div>
-      </div>
-    </div>
-  );
-
   // NOVO: Lógica corrigida para não duplicar conversas no histórico
   const saveConversation = (msgs: Msg[]) => {
     if (msgs.length < 2) return;
@@ -391,7 +466,7 @@ const AIPage = () => {
     setMessages([]);
     currentChatIdRef.current = null;
     setActiveMode(null);
-    setAttachedFile(null);
+    setAttachedFiles([]);
   };
 
   const loadConversation = (conv: Conversation) => {
@@ -413,14 +488,94 @@ const AIPage = () => {
     await downloadBibleImage(dataUrl);
   };
 
+  const validateAndAddFile = (file: File) => {
+    if (attachedFiles.length >= 2) {
+      toast({ title: "Limite de arquivos atingido", description: "Você só pode anexar no máximo 2 arquivos por mensagem.", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 50 * 1024 * 1024) {
+      toast({ title: "Arquivo muito grande", description: "O limite de tamanho para cada arquivo é de 50MB.", variant: "destructive" });
+      return;
+    }
+
+    const allowedExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.pdf', '.doc', '.docx'];
+    const fileNameLower = file.name.toLowerCase();
+    const hasAllowedExt = allowedExtensions.some(ext => fileNameLower.endsWith(ext));
+
+    const allowedMimeTypes = [
+      'image/png',
+      'image/jpeg',
+      'image/jpg',
+      'image/webp',
+      'image/gif',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    const hasAllowedMime = allowedMimeTypes.includes(file.type) || file.type.startsWith('image/');
+
+    if (!hasAllowedExt || !hasAllowedMime) {
+      toast({ 
+        title: "Formato não suportado", 
+        description: "Formatos permitidos: Imagens (PNG, JPG, JPEG, WEBP, GIF), PDF e Word (DOC, DOCX).", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    setAttachedFiles(prev => [...prev, file]);
+    toast({ title: "Arquivo adicionado! 📎", description: `${file.name} pronto para envio.` });
+  };
+
   const handleFileAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        toast({ title: "Arquivo muito grande", description: "Máximo 10MB", variant: "destructive" });
-        return;
+    const files = e.target.files;
+    if (files) {
+      Array.from(files).forEach(file => {
+        validateAndAddFile(file);
+      });
+    }
+    e.target.value = '';
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    if (limitReached || !isOnline) return;
+    
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf("image") !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          validateAndAddFile(file);
+          e.preventDefault();
+          break;
+        }
       }
-      setAttachedFile(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!limitReached && isOnline) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (limitReached || !isOnline) return;
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      Array.from(files).forEach(file => {
+        validateAndAddFile(file);
+      });
     }
   };
 
@@ -433,11 +588,11 @@ const AIPage = () => {
     });
   };
 
-  const sendSpecialMode = async (text: string, mode: ModeKey) => {
+  const sendSpecialMode = async (text: string, mode: ModeKey, attachments?: AIAttachment[], attachedFileName?: string | null, attachedFilesList?: Array<{ name: string; size?: number; type?: string }>) => {
     if (!user) return;
     
     // Check quota before loading
-    const limitType = mode === 'image' || mode === 'video' || mode === 'music' ? 'image' : 'complex';
+    const limitType = mode === 'video' || mode === 'music' ? 'complex' : 'image';
     try {
       const hasQuota = await checkAndIncrementUsage(limitType as any, user.sub);
       if (!hasQuota) {
@@ -456,34 +611,53 @@ const AIPage = () => {
     const controller = new AbortController();
     setAbortController(controller);
     
-    const userMsg: Msg = { role: "user", content: text };
+    const userMsg: Msg = { role: "user", content: text, fileName: attachedFileName || undefined, files: attachedFilesList };
     const currentMsgs = [...messages, userMsg];
     setMessages(currentMsgs);
     setInput("");
     setIsLoading(true);
     setShowModes(false);
 
-    try {
-      const token = await getFreshToken();
-      if (!token) { setIsLoading(false); return; }
-      
-      const resp = await fetch(GEN_URL, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json", 
-          "Authorization": `Bearer ${token}` 
-        },
-        body: JSON.stringify({ prompt: text.replace(/\[Modo:.*?\]\s*/g, ""), mode }),
-        signal: controller.signal
-      });
+    const videoSystemPrompt = `Atue como um roteirista profissional de vídeos, especializado em teologia e conteúdo cristão focado em engajamento digital (YouTube/Instagram/TikTok). Seu objetivo é criar um roteiro dinâmico, profundo e estritamente fiel às Escrituras Sagradas.
 
-      if (!resp.ok) { 
-        const err = await resp.json().catch(() => ({})); 
-        throw new Error(err.error || "Erro ao gerar conteúdo"); 
-      }
+🛑 Regras de Ouro (Proibido Violar)
+- Fidelidade Bíblica Rigorosa: Todo o conteúdo deve ser fundamentado diretamente na Bíblia. Não invente diálogos que não estão no texto, não use livros apócrifos, lendas urbanas ou interpretações seculares que distorçam o sentido original.
+- Citação de Fontes: Sempre que citar um acontecimento, milagre, parábola ou ensinamento, inclua a referência bíblica exata (Ex: Gênesis 1:1 ou João 3:16).
+- Sem Desvios: Mantenha o foco absoluto no tema proposto. Evite filosofias humanas, debates políticos ou analogias mundanas longas que tirem a centralidade da Palavra de Deus.
+- Tom de Voz: Reverente, inspirador, acolhedor e com autoridade bíblica, sem ser excessivamente acadêmico ou cansativo.
+- Respostas Equilibradas: Escreva de maneira rica mas direta, evitando explicações redundantes ou textos exageradamente longos. O roteiro deve ser completo e de tamanho médio, sem enrolação.
+
+🎬 Estrutura do Roteiro
+O roteiro deve conter as seguintes divisões claras, indicando o que deve ser falado (locução) e o que deve aparecer na tela (instruções visuais/B-roll):
+- O Gancho (Primeiros 15 segundos): Uma pergunta ou afirmação forte baseada no tema para capturar a atenção imediatamente.
+- A Introdução: Apresentação do tema central e leitura do versículo-chave que guiará o vídeo.
+- O Desenvolvimento (Dividido em 2 ou 3 pontos): Explicação do contexto histórico e cultural da época, destrinchando o significado espiritual do tema.
+- A Aplicação Prática: Como o cristão de hoje pode aplicar essa verdade bíblica em sua vida diária (família, fé, trabalho).
+- Conclusão e Chamada para Ação (CTA): Uma oração ou reflexão final rápida, seguida do pedido de inscrição/curtida e uma pergunta para os comentários (Ex: "Qual desses pontos falou mais ao seu coração?").
+
+📝 Informações do Vídeo atual
+- Tema do Vídeo: [O que o usuário disser]
+- Plataforma: [A que o usuário disser]
+- Tempo de Duração Estimado: [O que o usuário disser]
+
+Gere o roteiro completo seguindo essas diretrizes. NUNCA use # para títulos, use **negrito**.`;
+
+    const musicSystemPrompt = `Você é um compositor de músicas cristãs talentoso. Crie uma letra de música completa e inspiradora. Inclua:
+- Título da música
+- Estilo musical sugerido (ex: worship, gospel contemporâneo, etc)
+- Versos (pelo menos 2)
+- Refrão marcante
+- Ponte
+- Tom sugerido
+A letra deve ser profunda, emocionante e bíblica. NUNCA use # para títulos, use **negrito**.`;
+
+    const systemPrompt = mode === 'video' ? videoSystemPrompt : musicSystemPrompt;
+
+    try {
+      const cleanPrompt = text.replace(/\[Modo:.*?\]\s*/g, "");
+      const responseText = await askBibleAI(cleanPrompt, "complex", controller.signal, attachments, systemPrompt, true);
       
-      const data = await resp.json();
-      const assistantMsg: Msg = { role: "assistant", content: data.text || "Conteúdo gerado!", image: data.imageUrl };
+      const assistantMsg: Msg = { role: "assistant", content: responseText || "Conteúdo gerado!" };
       const finalMessages = [...currentMsgs, assistantMsg];
       setMessages(finalMessages);
       saveConversation(finalMessages);
@@ -513,19 +687,37 @@ const AIPage = () => {
       finalText = currentMode.prefix + finalText;
     }
 
-    let base64Image: string | null = null;
-    let fileName: string | null = null;
-    if (attachedFile && aiEngine === "complexo") {
-      try {
-        base64Image = await readFileAsBase64(attachedFile);
-        fileName = attachedFile.name;
-        finalText = `[Arquivo: ${attachedFile.name}]\n${finalText}`;
-      } catch {}
-      setAttachedFile(null);
+    const attachments: AIAttachment[] = [];
+    let fileNamesStr = "";
+    const filesListForMsg: Array<{ name: string; size?: number; type?: string }> = [];
+
+    if (attachedFiles.length > 0) {
+      const namesList: string[] = [];
+      for (const file of attachedFiles) {
+        try {
+          const base64 = await readFileAsBase64(file);
+          attachments.push({
+            base64,
+            mimeType: file.type,
+            name: file.name
+          });
+          namesList.push(file.name);
+          filesListForMsg.push({
+            name: file.name,
+            size: file.size,
+            type: file.type
+          });
+          finalText = `[Arquivo: ${file.name}]\n${finalText}`;
+        } catch (e) {
+          console.error("Erro ao ler arquivo como base64:", e);
+        }
+      }
+      fileNamesStr = namesList.join(", ");
+      setAttachedFiles([]);
     }
 
     if (activeMode && activeMode !== "learning" && ["video", "music"].includes(activeMode)) {
-      return sendSpecialMode(finalText, activeMode);
+      return sendSpecialMode(finalText, activeMode, attachments, fileNamesStr, filesListForMsg.length > 0 ? filesListForMsg : undefined);
     }
 
     // Check quota before loading
@@ -535,7 +727,7 @@ const AIPage = () => {
       if (!hasQuota) {
         toast({ 
           title: "Limite atingido", 
-          description: activeMode === "image" ? "Limite de 5 imagens atingido. Recarga em 12h." : "Sua cota diária de mensagens acabou. Recarga em até 12h.", 
+          description: activeMode === "image" ? "Limite de 3 imagens atingido. Recarga em 12h." : "Sua cota diária de mensagens acabou. Recarga em até 12h.", 
           variant: "destructive" 
         });
         setLimitReached(true);
@@ -552,20 +744,30 @@ const AIPage = () => {
     const controller = new AbortController();
     setAbortController(controller);
 
-    const userMsg: Msg = { role: "user", content: finalText, fileName: fileName || attachedFile?.name };
+    const userMsg: Msg = { role: "user", content: finalText, fileName: fileNamesStr || undefined, files: filesListForMsg.length > 0 ? filesListForMsg : undefined };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
-    setAttachedFile(null);
     setIsLoading(true);
     setShowModes(false);
 
     try {
       let responseText = "";
       if (activeMode === 'image') {
-        responseText = await generateBiblicalImage(finalText, controller.signal);
+        responseText = await generateBiblicalImage(finalText, controller.signal, 'square', false, 'chat', aiEngine === 'complexo');
+      } else if (activeMode === 'learning') {
+        const learningPrompt = `Você é um professor e teólogo cristão dedicado ao ensino bíblico de forma altamente didática, passo a passo e interativa.
+
+Seu objetivo é ensinar o tema bíblico solicitado seguindo rigorosamente estas diretrizes:
+1. Ensine o tema de forma PASSO A PASSO (dividido em etapas claras e estruturadas). Explique o contexto histórico, teológico e espiritual de cada etapa de maneira progressiva, clara e de fácil compreensão, sem colocar todas as informações de uma vez só de forma massiva.
+2. Seja conciso e objetivo: evite explicações redundantes ou exageradamente longas. O texto deve ser de tamanho médio, rico em conteúdo, mas direto ao ponto e sem enrolação.
+3. Ao final da explicação passo a passo, apresente um RESUMO claro e objetivo com as principais lições práticas e espirituais que o cristão pode extrair desse aprendizado para sua vida hoje.
+4. Finalize OBRIGATORIAMENTE com uma PERGUNTA reflexiva ou desafiadora sobre o tema para incentivar a reflexão e resposta do usuário.
+
+Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex: João 3:16, Efésios 2:8). NUNCA use # para títulos, use **negrito**.`;
+        responseText = await askBibleAI(finalText, aiEngine === "complexo" ? "complex" : "simple", controller.signal, attachments, learningPrompt, true);
       } else {
-        responseText = await askBibleAI(finalText, aiEngine === "complexo" ? "complex" : "simple", controller.signal, base64Image);
+        responseText = await askBibleAI(finalText, aiEngine === "complexo" ? "complex" : "simple", controller.signal, attachments, undefined, true);
       }
       
       const finalMessages = [...newMessages, { role: "assistant" as const, content: responseText }];
@@ -619,13 +821,28 @@ const AIPage = () => {
   };
 
   const renderAssistantContent = (msg: Msg) => {
-    const lines = (msg.content || "").split("\n");
+    const formattedContent = (msg.content || "").replace(/\[Arquivo:\s*(.*?)\]/gi, "**$1**");
+    const lines = formattedContent.split("\n");
+
+    const parseInlineBold = (text: string) => {
+      const parts = text.split(/(\*\*[^*]+\*\*)/g);
+      return parts.map((part, j) =>
+        part.startsWith("**") && part.endsWith("**") ? (
+          <strong key={j} className="font-bold text-foreground">
+            {part.slice(2, -2)}
+          </strong>
+        ) : (
+          part
+        )
+      );
+    };
+
     return (
       <div className="space-y-1">
         {msg.image && (
           <Fragment>
             <div className="mb-2 relative w-full aspect-square overflow-hidden rounded-xl bg-muted border border-border shadow-inner">
-              <ResilientImage src={msg.image} alt="Imagem bíblica gerada" />
+              <ResilientImage src={msg.image} alt="Imagem bíblica gerada" onClick={() => setLightboxImage(msg.image!)} />
             </div>
             <div className="mt-1.5 flex gap-2">
               <button onClick={() => downloadImage(msg.image!)}
@@ -646,7 +863,7 @@ const AIPage = () => {
              return (
                <Fragment key={i}>
                  <div className="mb-2 mt-2 relative w-full aspect-square overflow-hidden rounded-xl bg-muted border border-border shadow-inner">
-                   <ResilientImage src={imageUrl} alt="Imagem bíblica gerada" />
+                   <ResilientImage src={imageUrl} alt="Imagem bíblica gerada" onClick={() => setLightboxImage(imageUrl)} />
                  </div>
                  <div className="mt-1.5 flex gap-2">
                    <button onClick={() => downloadImage(imageUrl)}
@@ -661,18 +878,33 @@ const AIPage = () => {
                </Fragment>
              );
           }
-          if (line.startsWith("**") && line.endsWith("**")) return <p key={i} className="text-xs font-bold text-foreground mt-1.5">{line.slice(2, -2)}</p>;
-          if (line.startsWith("- ") || line.startsWith("* ")) return <p key={i} className="text-xs pl-2 border-l-2 border-accent/30 py-0.5">{line.slice(2)}</p>;
-          if (line.match(/^\d+\.\s/)) return <p key={i} className="text-xs pl-2">{line}</p>;
-          if (line.trim() === "") return <div key={i} className="h-0.5" />
-          const parts = line.split(/(\*\*[^*]+\*\*)/g);
+          if (line.startsWith("**") && line.endsWith("**")) {
+            return <p key={i} className="text-xs font-bold text-foreground mt-1.5">{line.slice(2, -2)}</p>;
+          }
+          if (line.startsWith("- ") || line.startsWith("* ") || line.startsWith("• ")) {
+            const text = line.startsWith("• ") ? line.slice(2) : line.slice(2);
+            return (
+              <p key={i} className="text-xs pl-2 border-l-2 border-accent/30 py-0.5 leading-relaxed">
+                {parseInlineBold(text)}
+              </p>
+            );
+          }
+          const numMatch = line.match(/^(\d+\.\s)(.*)/);
+          if (numMatch) {
+            const prefix = numMatch[1];
+            const rest = numMatch[2];
+            return (
+              <p key={i} className="text-xs pl-2 leading-relaxed">
+                <span className="font-medium text-muted-foreground">{prefix}</span>
+                {parseInlineBold(rest)}
+              </p>
+            );
+          }
+          if (line.trim() === "") return <div key={i} className="h-0.5" />;
+          
           return (
             <p key={i} className="text-xs leading-relaxed">
-              {parts.map((part, j) =>
-                part.startsWith("**") && part.endsWith("**")
-                  ? <strong key={j}>{part.slice(2, -2)}</strong>
-                  : part
-              )}
+              {parseInlineBold(line)}
             </p>
           );
         })}
@@ -741,8 +973,39 @@ const AIPage = () => {
     );
   }
 
+  if (!isOnline) {
+    return (
+      <div className="flex h-[100dvh] flex-col bg-background relative">
+        <Header />
+        <div className="flex flex-1 flex-col items-center justify-center p-6 text-center container mx-auto max-w-md">
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-amber-500/10 text-amber-500 shadow-lg shadow-amber-500/5 border border-amber-500/20">
+            <WifiOff className="h-10 w-10 animate-pulse" />
+          </div>
+          
+          <h2 className="font-serif text-2xl font-bold text-foreground mb-3">Sem Conexão</h2>
+          
+          <p className="text-sm text-muted-foreground bg-secondary/40 border border-border/50 rounded-2xl p-5 mb-8 leading-relaxed font-medium">
+            Você precisa de internet para usar IA. Por favor, verifique sua conexão Wi-Fi ou dados móveis e tente novamente.
+          </p>
+
+          <button 
+            onClick={() => setIsOnline(navigator.onLine)} 
+            className="flex items-center justify-center gap-2 rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground px-6 py-3 text-sm font-bold transition-all shadow-md active:scale-95 liquid-btn"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-[100dvh] flex-col bg-background">
+    <div 
+      className="flex h-[100dvh] flex-col bg-background relative"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       <Header />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden container mx-auto max-w-4xl px-3">
         <div className="flex shrink-0 items-center gap-2 py-3">
@@ -824,9 +1087,28 @@ const AIPage = () => {
               <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
                 m.role === "user" ? "bg-primary text-primary-foreground rounded-br-md" : "glass-card rounded-bl-md"
               }`}>
-                {m.fileName && m.role === "user" && (
-                  <div className="flex items-center gap-1 mb-1 text-[10px] opacity-70">
-                    <Paperclip className="h-3 w-3" /> {m.fileName}
+                {m.role === "user" && getFilesForMessage(m).length > 0 && (
+                  <div className="flex flex-col gap-1.5 mb-2 mt-0.5">
+                    {getFilesForMessage(m).map((file, idx) => {
+                      const isImg = file.type ? file.type.startsWith("image/") : file.name.toLowerCase().match(/\.(jpe?g|png|gif|webp|svg)$/);
+                      return (
+                        <div key={idx} className="flex items-center gap-2.5 bg-white/10 border border-white/10 rounded-xl px-3 py-2 w-full max-w-[240px]">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white">
+                            {isImg ? (
+                              <Image className="h-4.5 w-4.5" />
+                            ) : (
+                              <FileText className="h-4.5 w-4.5" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold text-white truncate">{file.name}</p>
+                            <p className="text-[10px] text-white/70">
+                              {file.size ? `${(file.size / 1024).toFixed(1)} KB` : "Anexo"}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
                 {m.role === "assistant" ? renderAssistantContent(m) : <span className="text-sm">{formatMessageForDisplay(m.content)}</span>}
@@ -842,7 +1124,7 @@ const AIPage = () => {
               <div className="glass-card rounded-2xl px-4 py-3 flex items-center gap-2">
                 <DiamondSpinner />
                 <span className="text-xs text-muted-foreground">
-                  {activeMode === "image" ? "Gerando imagem..." : "Pensando..."}
+                  {activeMode === "image" ? "Gerando imagem..." : activeMode === "video" ? "Escrevendo roteiro..." : "Pensando..."}
                 </span>
               </div>
             </motion.div>
@@ -852,7 +1134,7 @@ const AIPage = () => {
 
         <div className="shrink-0 bg-background pb-16 pt-2 md:pb-3">
           <AnimatePresence>
-            {activeModeInfo && (
+            {activeModeInfo && aiEngine === "complexo" && (
               <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
                 className="mb-2 flex items-center gap-2 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2"
               >
@@ -865,18 +1147,8 @@ const AIPage = () => {
             )}
           </AnimatePresence>
 
-          {attachedFile && (
-            <div className="mb-2 flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
-              <Paperclip className="h-3.5 w-3.5 text-accent" />
-              <span className="text-xs text-foreground flex-1 truncate">{attachedFile.name}</span>
-              <button onClick={() => setAttachedFile(null)} className="text-muted-foreground hover:text-foreground">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
-
           <AnimatePresence>
-            {showModes && (
+            {showModes && aiEngine === "complexo" && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="mb-2 flex flex-wrap gap-1.5">
                 {modes.map((m) => (
                   <button key={m.key}
@@ -898,48 +1170,118 @@ const AIPage = () => {
                 <Zap className="h-3 w-3" /> A IA requer conexão com a internet.
               </div>
             )}
-            <div className="flex items-end gap-2">
-              {aiEngine === "complexo" && (
-              <div className="flex gap-1">
-                <button type="button" onClick={() => setShowModes(!showModes)}
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors liquid-btn ${showModes ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-                <button type="button" onClick={() => fileInputRef.current?.click()}
-                  disabled={limitReached}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors liquid-btn disabled:opacity-50"
-                >
-                  <Paperclip className="h-4 w-4" />
-                </button>
-                <input ref={fileInputRef} type="file" className="hidden" accept="image/*,.pdf,.txt,.doc,.docx" onChange={handleFileAttach} />
+            
+            <div className={`flex flex-col rounded-2xl border border-border bg-card p-1.5 focus-within:border-accent/70 transition-all duration-300 shadow-sm relative overflow-hidden ${isDragging ? "min-h-[140px] justify-center" : ""}`}>
+              {/* Localized Drag & Drop Overlay */}
+              <AnimatePresence>
+                {isDragging && (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 z-50 flex flex-col sm:flex-row items-center justify-center gap-3.5 bg-card/95 border-2 border-dashed border-accent rounded-2xl transition-all duration-200 pointer-events-none p-5"
+                  >
+                    <div className="rounded-full bg-accent/10 p-3 animate-bounce">
+                      <Paperclip className="h-6 w-6 text-accent" />
+                    </div>
+                    <div className="text-center sm:text-left">
+                      <h4 className="font-semibold text-sm text-foreground">Solte seu arquivo aqui</h4>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Anexe imagens, PDFs ou Word (Máx 2 de 50MB)
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* File Preview area - Gemini style */}
+              <AnimatePresence>
+                {previews.length > 0 && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="p-2 border-b border-border/50 mb-1.5 flex gap-2 flex-wrap"
+                  >
+                    {previews.map((prev, index) => {
+                      const isImg = prev.type.startsWith("image/");
+                      return (
+                        <div key={index} className="relative">
+                          {/* Uniform File Card */}
+                          <div className="relative flex items-center gap-2.5 bg-secondary/70 hover:bg-secondary/90 border border-border/80 rounded-xl px-3.5 py-2 w-fit max-w-xs transition-colors pr-8">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent">
+                              {isImg ? (
+                                <Image className="h-4.5 w-4.5" />
+                              ) : (
+                                <FileText className="h-4.5 w-4.5" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-semibold text-foreground truncate max-w-[150px]">{prev.name}</p>
+                              <p className="text-[10px] text-muted-foreground">{(prev.size / 1024).toFixed(1)} KB</p>
+                            </div>
+                            <button 
+                              type="button" 
+                              onClick={() => {
+                                setAttachedFiles(files => files.filter((_, idx) => idx !== index));
+                              }}
+                              className="absolute top-2 right-2 h-4.5 w-4.5 flex items-center justify-center rounded-full bg-muted hover:bg-destructive hover:text-destructive-foreground text-muted-foreground transition-all"
+                            >
+                              <X className="h-2.5 w-2.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Input row */}
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1 pl-0.5">
+                  {aiEngine === "complexo" && (
+                    <button type="button" onClick={() => setShowModes(!showModes)}
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors liquid-btn ${showModes ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button type="button" onClick={() => fileInputRef.current?.click()}
+                    disabled={limitReached}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors liquid-btn disabled:opacity-50"
+                  >
+                    <Paperclip className="h-4 w-4" />
+                  </button>
+                  <input ref={fileInputRef} type="file" className="hidden" accept="image/*,.pdf,.doc,.docx" multiple onChange={handleFileAttach} />
+                </div>
+                <input
+                  value={input} onChange={(e) => setInput(e.target.value)}
+                  onPaste={handlePaste}
+                  placeholder={!isOnline ? "Necessário internet para IA" : limitReached ? "Limite diário atingido" : activeModeInfo ? `Descreva (${activeModeInfo.label})...` : aiEngine === "simples" ? "Pergunta simples..." : "Pergunte qualquer coisa..."}
+                  disabled={isLoading || limitReached || !isOnline}
+                  className="flex-1 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                {isLoading ? (
+                  <button
+                    type="button"
+                    onClick={handleStopResponse}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-destructive text-destructive-foreground transition-colors liquid-btn"
+                    title="Parar resposta"
+                  >
+                    <Square size={16} fill="currentColor" />
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={!input.trim() || limitReached || !isOnline}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground transition-colors liquid-btn disabled:opacity-50 disabled:cursor-not-allowed mr-0.5"
+                    title="Enviar"
+                  >
+                    <Send size={16} />
+                  </button>
+                )}
               </div>
-            )}
-            <input
-              value={input} onChange={(e) => setInput(e.target.value)}
-              placeholder={!isOnline ? "Necessário internet para IA" : limitReached ? "Limite diário atingido" : activeModeInfo ? `Descreva (${activeModeInfo.label})...` : aiEngine === "simples" ? "Pergunta simples..." : "Pergunte qualquer coisa..."}
-              disabled={isLoading || limitReached || !isOnline}
-              className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-            {isLoading ? (
-              <button
-                type="button"
-                onClick={handleStopResponse}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive text-destructive-foreground transition-colors liquid-btn"
-                title="Parar resposta"
-              >
-                <Square size={18} fill="currentColor" />
-              </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={!input.trim() || limitReached || !isOnline}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground transition-colors liquid-btn disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Enviar"
-              >
-                <Send size={18} />
-              </button>
-            )}
             </div>
           </form>
           <p className="mt-2 text-center text-[10px] text-muted-foreground/60 font-medium italic">
@@ -947,6 +1289,110 @@ const AIPage = () => {
           </p>
         </div>
       </div>
+
+      {/* Lightbox Modal de Imagem em Tela Cheia */}
+      <AnimatePresence>
+        {lightboxImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/95 p-4 md:p-6 backdrop-blur-md"
+            onClick={() => setLightboxImage(null)}
+          >
+            {/* Botão Fechar */}
+            <button
+              onClick={() => setLightboxImage(null)}
+              className="absolute top-4 right-4 z-50 p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all hover:scale-105 active:scale-95"
+              title="Fechar"
+            >
+              <X className="h-6 w-6" />
+            </button>
+
+            {/* Container da Imagem */}
+            <motion.div
+              initial={{ scale: 0.92, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.92, y: 15 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative max-w-full max-h-[72vh] md:max-h-[78vh] overflow-hidden rounded-2xl shadow-2xl border border-white/10 flex items-center justify-center mx-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                ref={lightboxImgRef}
+                src={lightboxImage}
+                alt="Imagem bíblica expandida"
+                className="max-w-full max-h-[72vh] md:max-h-[78vh] object-contain rounded-2xl block mx-auto select-none touch-none transition-transform duration-100 ease-out"
+                style={{
+                  transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomScale})`,
+                  cursor: zoomScale > 1 ? (isDraggingImage ? 'grabbing' : 'grab') : 'zoom-in',
+                }}
+                referrerPolicy="no-referrer"
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUpOrLeave}
+                onMouseLeave={handleMouseUpOrLeave}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onDoubleClick={handleDoubleClick}
+              />
+            </motion.div>
+
+            {/* Painel de Ações Inferior */}
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              transition={{ delay: 0.1 }}
+              className="mt-6 flex flex-row items-center gap-3 bg-zinc-900/95 border border-white/10 rounded-2xl px-5 py-3 shadow-xl z-10 max-w-md w-full justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => downloadImage(lightboxImage)}
+                className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground hover:bg-primary/90 transition-all hover:scale-105 active:scale-95 shadow-md flex-1 justify-center whitespace-nowrap"
+              >
+                <Download className="h-4 w-4 shrink-0" />
+                <span className="whitespace-nowrap">Baixar Imagem</span>
+              </button>
+              <button
+                onClick={() => shareBibleImage(lightboxImage)}
+                className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground hover:bg-primary/90 transition-all hover:scale-105 active:scale-95 shadow-md flex-1 justify-center whitespace-nowrap"
+              >
+                <Share2 className="h-4 w-4 shrink-0" />
+                <span className="whitespace-nowrap">Compartilhar</span>
+              </button>
+              <button
+                onClick={() => {
+                  setZoomScale(prev => {
+                    const next = prev - 0.5;
+                    if (next <= 1) {
+                      setPanOffset({ x: 0, y: 0 });
+                      return 1;
+                    }
+                    return next;
+                  });
+                }}
+                disabled={zoomScale <= 1}
+                className="flex items-center justify-center p-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:hover:scale-100 transition-all hover:scale-105 active:scale-95 shadow-md"
+                title="Diminuir Zoom"
+              >
+                <ZoomOut className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => {
+                  setZoomScale(prev => Math.min(prev + 0.5, 4.5));
+                }}
+                disabled={zoomScale >= 4.5}
+                className="flex items-center justify-center p-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:hover:scale-100 transition-all hover:scale-105 active:scale-95 shadow-md"
+                title="Aumentar Zoom"
+              >
+                <ZoomIn className="h-4 w-4" />
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

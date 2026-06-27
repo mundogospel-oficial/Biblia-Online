@@ -1,17 +1,19 @@
 import { Link, useLocation } from "react-router-dom";
 import { Sparkles, Home, Search, Heart, Bot, Calendar, User } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const Header = () => {
   const location = useLocation();
+  const { t } = useLanguage();
 
   const links = [
-    { to: "/", label: "Início", icon: <Home className="h-4 w-4" /> },
-    { to: "/buscar", label: "Buscar", icon: <Search className="h-4 w-4" /> },
-    { to: "/ia", label: "IA", icon: <Bot className="h-4 w-4" /> },
-    { to: "/favoritos", label: "Reações", icon: <Heart className="h-4 w-4" /> },
-    { to: "/devocionais", label: "Devocional", icon: <Calendar className="h-4 w-4" /> },
-    { to: "/criar", label: "Criar", icon: <Sparkles className="h-4 w-4" /> },
-    { to: "/conta", label: "Conta", icon: <User className="h-4 w-4" /> },
+    { to: "/", label: t("nav_home"), icon: <Home className="h-4 w-4" /> },
+    { to: "/buscar", label: t("nav_search"), icon: <Search className="h-4 w-4" /> },
+    { to: "/ia", label: t("nav_ai"), icon: <Bot className="h-4 w-4" /> },
+    { to: "/favoritos", label: t("nav_favorites"), icon: <Heart className="h-4 w-4" /> },
+    { to: "/devocionais", label: t("nav_devotional"), icon: <Calendar className="h-4 w-4" /> },
+    { to: "/criar", label: t("nav_create"), icon: <Sparkles className="h-4 w-4" /> },
+    { to: "/conta", label: t("nav_account"), icon: <User className="h-4 w-4" /> },
   ];
 
   const mobileLinks = [

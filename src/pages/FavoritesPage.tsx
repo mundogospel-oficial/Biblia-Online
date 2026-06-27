@@ -95,7 +95,7 @@ const FavoritesPage = () => {
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-[12px] font-bold transition-all ${
-                  isActive ? "bg-[#3b82f6] text-white shadow-md" : "bg-[#1e293b] text-white/90"
+                  isActive ? "bg-primary text-primary-foreground shadow-md" : "bg-[#1e293b] text-white/90"
                 }`}
               >
                 <IconComp className="h-4 w-4" />

@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-export const checkAndIncrementUsage = async (type: 'simple' | 'complex' | 'image' | 'translation', providedUserId?: string): Promise<boolean> => {
+export const checkAndIncrementUsage = async (type: 'simple' | 'complex' | 'image' | 'translation' | 'dictionary', providedUserId?: string): Promise<boolean> => {
   let userId = providedUserId;
   
   try {
@@ -17,9 +17,9 @@ export const checkAndIncrementUsage = async (type: 'simple' | 'complex' | 'image
       userId = user.id;
     }
 
-    const limits = { simple: 10, complex: 7, image: 5, translation: 20 };
+    const limits = { simple: 7, complex: 5, image: 3, translation: 3, dictionary: 3 };
     const limitValue = limits[type];
-    const tipoUso = type === 'translation' ? 'simple' : type;
+    const tipoUso = type;
 
     if (!navigator.onLine) {
       console.warn("Dispositivo offline. Permitindo uso local sem registrar na nuvem.");
@@ -96,13 +96,17 @@ export const getUserUsage = async (providedUserId?: string) => {
     const usage = {
       simple_count: 0,
       complex_count: 0,
-      image_count: 0
+      image_count: 0,
+      translation_count: 0,
+      dictionary_count: 0
     };
 
     data?.forEach(row => {
-      if (row.tipo_uso === 'simple' || row.tipo_uso === 'translation') usage.simple_count++;
+      if (row.tipo_uso === 'simple') usage.simple_count++;
       else if (row.tipo_uso === 'complex') usage.complex_count++;
       else if (row.tipo_uso === 'image') usage.image_count++;
+      else if (row.tipo_uso === 'translation') usage.translation_count++;
+      else if (row.tipo_uso === 'dictionary') usage.dictionary_count++;
     });
 
     return usage;
@@ -112,7 +116,7 @@ export const getUserUsage = async (providedUserId?: string) => {
     } else {
       console.error("Erro ao processar uso:", error);
     }
-    return { simple_count: 0, complex_count: 0, image_count: 0 };
+    return { simple_count: 0, complex_count: 0, image_count: 0, translation_count: 0, dictionary_count: 0 };
   }
 };
 

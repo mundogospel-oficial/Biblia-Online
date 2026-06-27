@@ -1,15 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import zxcvbn from "zxcvbn";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
-import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2 } from "lucide-react";
+import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2, AlertTriangle, Languages } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, forceSignOut, handleAuthError } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { Turnstile } from '@marsidev/react-turnstile';
 import { useSentinel } from "@/hooks/useSentinel";
 import { setupPushNotifications } from "@/services/pushService";
+import { sendLocalNotification } from "@/services/notificationService";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
 const OFFLINE_KEY = "bible-offline-enabled";
@@ -30,6 +32,7 @@ const translateAuthError = (message: string) => {
 
 const AccountPage = () => {
   const authCtx = useAuth();
+  const { language, setLanguage, t } = useLanguage();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(authCtx.loading);
@@ -43,6 +46,7 @@ const AccountPage = () => {
   const [offlineEnabled, setOfflineEnabled] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [editingName, setEditingName] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -61,7 +65,7 @@ const AccountPage = () => {
     fetch('/version.json', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => setAppVersion(data.version))
-      .catch(() => setAppVersion("1.6"));
+      .catch(() => setAppVersion("2.0"));
 
     const loadProfile = async () => {
       if (authCtx.user) {
@@ -313,15 +317,8 @@ const AccountPage = () => {
       return;
     }
     
-    // Confirmação Dupla: Passo 1
-    const confirmDelete = window.confirm("CUIDADO: Esta ação é PERMANENTE e apagará todos os seus dados vinculados. Deseja prosseguir?");
-    if (!confirmDelete) return;
-    
-    // Confirmação Dupla: Passo 2
-    const secondConfirm = window.confirm("Tem certeza absoluta? Você perderá acesso imediato e não poderá recuperar seus dados.");
-    if (!secondConfirm) return;
-    
     setDeleting(true);
+    setShowDeleteModal(false);
     try {
       // 1. Chamada RPC: Função no banco que deleta o usuário da auth.users
       const { error } = await supabase.rpc('delete_user_account');
@@ -505,14 +502,14 @@ const AccountPage = () => {
 
                 {editingName ? (
                   <div className="mt-2 flex items-center gap-2 justify-center">
-                    <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Seu nome"
+                    <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={t("your_name")}
                       className="rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-sm text-foreground text-center placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent w-48"
                       autoFocus onKeyDown={(e) => e.key === "Enter" && saveName()} />
                     <button onClick={saveName} className="rounded-lg bg-accent px-3 py-1.5 text-xs text-accent-foreground liquid-btn">OK</button>
                   </div>
                 ) : (
                   <button onClick={() => setEditingName(true)} className="mt-1 flex items-center gap-1 mx-auto text-base font-semibold text-foreground hover:text-accent transition-colors">
-                    {displayName || "Adicionar nome"} <Pencil className="h-3 w-3 text-muted-foreground" />
+                    {displayName || t("add_name")} <Pencil className="h-3 w-3 text-muted-foreground" />
                   </button>
                 )}
                 <p className="mt-1 text-sm text-muted-foreground">{authCtx.user?.email}</p>
@@ -521,15 +518,55 @@ const AccountPage = () => {
               <div className="mt-6 space-y-3">
                 <div className="glass-card rounded-xl p-4">
                   <h3 className="mb-3 text-sm font-semibold text-foreground flex items-center gap-2">
-                    <Settings className="h-4 w-4 text-accent" /> Configurações
+                    <Settings className="h-4 w-4 text-accent" /> {t("settings_title")}
                   </h3>
-                  <div className="space-y-2">
+                  <div className="space-y-3">
+                    {/* Idioma Selection Row */}
+                    <div className="rounded-xl bg-secondary/30 p-3 flex flex-col gap-2 border border-border/20">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-muted-foreground">
+                            <Languages className="h-4 w-4 text-accent" />
+                          </span>
+                          <div className="text-left">
+                            <p className="text-sm font-medium text-foreground">{t("language_title")}</p>
+                            <p className="text-[10px] text-muted-foreground">{t("language_sub")}</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2 mt-1">
+                        <button
+                          type="button"
+                          onClick={() => setLanguage("pt")}
+                          className={`flex-1 rounded-lg py-1.5 text-xs font-semibold border transition-all duration-200 ${
+                            language === "pt"
+                              ? "border-accent bg-accent/10 text-accent font-bold"
+                              : "border-transparent bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                          }`}
+                        >
+                          Português
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setLanguage("en")}
+                          className={`flex-1 rounded-lg py-1.5 text-xs font-semibold border transition-all duration-200 ${
+                            language === "en"
+                              ? "border-accent bg-accent/10 text-accent font-bold"
+                              : "border-transparent bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                          }`}
+                        >
+                          Inglês (English)
+                        </button>
+                      </div>
+                    </div>
+
                     <button onClick={toggleNotifications} className="flex w-full items-center justify-between rounded-xl bg-secondary/50 p-3 transition-colors hover:bg-secondary liquid-btn">
                       <div className="flex items-center gap-3">
                         <span className="text-muted-foreground">{notificationsEnabled ? <Bell className="h-4 w-4 text-accent" /> : <BellOff className="h-4 w-4" />}</span>
                         <div className="text-left">
-                          <p className="text-sm font-medium text-foreground">Notificações</p>
-                          <p className="text-[10px] text-muted-foreground">{notificationsEnabled ? "Mensagens Diárias (8h e 20h)" : "Desativadas"}</p>
+                          <p className="text-sm font-medium text-foreground">{t("notifications_title")}</p>
+                          <p className="text-[10px] text-muted-foreground">{notificationsEnabled ? t("notifications_desc_active") : t("notifications_desc_inactive")}</p>
                         </div>
                       </div>
                       <div className={`h-5 w-9 rounded-full transition-colors ${notificationsEnabled ? "bg-accent" : "bg-muted"} flex items-center px-0.5`}>
@@ -541,18 +578,44 @@ const AccountPage = () => {
                       <div className="mt-2 flex gap-2">
                         <button 
                           onClick={() => {
-                            if ("serviceWorker" in navigator) {
-                              navigator.serviceWorker.ready.then(reg => reg.active?.postMessage({ type: 'TEST_NOTIFICATION' }));
-                              toast({ title: "Teste enviado! 🔔", description: "Você deve receber uma notificação em instantes." });
+                            if (!("Notification" in window)) {
+                              toast({ title: t("not_supported"), description: t("not_supported_desc"), variant: "destructive" });
+                              return;
+                            }
+
+                            const triggerTestNotification = () => {
+                              sendLocalNotification(
+                                language === "en" ? "Notification Test 🔔" : "Teste de Notificação 🔔", 
+                                language === "en" ? "Your Bible Online test notification was sent successfully!" : "Sua notificação de teste da Bíblia Online foi enviada com sucesso!"
+                              );
+                              // Also send message to SW if active
+                              if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+                                navigator.serviceWorker.ready.then(reg => reg.active?.postMessage({ type: 'TEST_NOTIFICATION' })).catch(() => {});
+                              }
+                              toast({ title: t("test_sent"), description: t("test_sent_desc") });
+                            };
+
+                            if (Notification.permission === "default") {
+                              Notification.requestPermission().then((permission) => {
+                                if (permission === "granted") {
+                                  triggerTestNotification();
+                                } else {
+                                  toast({ title: t("permission_denied"), description: t("permission_denied_desc"), variant: "destructive" });
+                                }
+                              });
+                            } else if (Notification.permission === "granted") {
+                              triggerTestNotification();
+                            } else {
+                              toast({ title: t("notifications_blocked"), description: t("notifications_blocked_desc"), variant: "destructive" });
                             }
                           }}
                           className="flex-1 rounded-lg bg-accent/10 py-2 text-[10px] font-medium text-accent hover:bg-accent/20 transition-colors"
                         >
-                          Testar Agora
+                          {t("test_now")}
                         </button>
                         <div className="flex-[1.5] rounded-lg bg-secondary/30 px-3 py-2 flex items-center justify-between">
-                          <span className="text-[10px] text-muted-foreground">Status do Relógio:</span>
-                          <span className="text-[10px] font-mono text-accent animate-pulse">Ativo</span>
+                          <span className="text-[10px] text-muted-foreground">{t("clock_status")}</span>
+                          <span className="text-[10px] font-mono text-accent animate-pulse">{t("clock_active")}</span>
                         </div>
                       </div>
                     )}
@@ -563,9 +626,9 @@ const AccountPage = () => {
                           {offlineEnabled ? <CheckCircle className="h-4 w-4 text-accent" /> : isDownloading ? <Download className="h-4 w-4 animate-bounce text-accent" /> : <WifiOff className="h-4 w-4" />}
                         </span>
                         <div className="text-left">
-                          <p className="text-sm font-medium text-foreground">Biblia Offline</p>
+                          <p className="text-sm font-medium text-foreground">{t("offline_title")}</p>
                           <p className="text-[10px] text-muted-foreground">
-                            {isDownloading ? `Baixando... ${offlineProgress}%` : offlineEnabled ? "Baixada — funciona sem internet" : "Baixar para usar offline"}
+                            {isDownloading ? `${t("offline_desc_downloading")} ${offlineProgress}%` : offlineEnabled ? t("offline_desc_active") : t("offline_desc_inactive")}
                           </p>
                           {isDownloading && (
                             <div className="mt-1 h-1 w-full rounded-full bg-muted overflow-hidden">
@@ -581,14 +644,14 @@ const AccountPage = () => {
 
                     <button 
                       type="button" 
-                      onClick={() => handleDeleteData()} 
+                      onClick={() => setShowDeleteModal(true)} 
                       disabled={deleting}
                       className="flex w-full items-center gap-3 rounded-xl bg-destructive/10 p-3 text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50 disabled:cursor-not-allowed liquid-btn"
                     >
                       <Trash2 className="h-4 w-4" />
                       <div className="text-left">
-                        <p className="text-sm font-medium">{deleting ? "Carregando..." : "Excluir Minha Conta e Dados"}</p>
-                        <p className="text-[10px] opacity-70">Apagar perfil e atividades permanentemente</p>
+                        <p className="text-sm font-medium">{deleting ? t("deleting_profile") : t("delete_account")}</p>
+                        <p className="text-[10px] opacity-70">{t("delete_account_desc")}</p>
                       </div>
                     </button>
                   </div>
@@ -596,7 +659,7 @@ const AccountPage = () => {
 
                 <button onClick={handleLogout}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive/10 py-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 liquid-btn">
-                  <LogOut className="h-4 w-4" /> Sair da Conta
+                  <LogOut className="h-4 w-4" /> {t("sign_out")}
                 </button>
               </div>
             </>
@@ -753,12 +816,64 @@ const AccountPage = () => {
 
           <div className="mt-8 pb-4 text-center">
             <p className="text-xs text-muted-foreground font-sans font-medium tracking-wide">
-              Biblia Online — Versão {appVersion || "1.6"}
+              Biblia Online — Versão {appVersion || "2.0"}
             </p>
           </div>
 
         </motion.div>
       </section>
+
+      {/* Modal de Confirmação de Exclusão de Conta */}
+      <AnimatePresence>
+        {showDeleteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
+            onClick={() => setShowDeleteModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 10 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 10 }}
+              className="relative max-w-sm w-full glass-card border border-border/50 rounded-2xl p-6 shadow-2xl bg-zinc-950/95"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Ícone de Aviso */}
+              <div className="flex flex-col items-center text-center">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/10 text-red-500">
+                  <AlertTriangle className="h-8 w-8 animate-pulse" />
+                </div>
+                
+                <h3 className="text-lg font-bold text-foreground mb-2">{t("delete_modal_title")}</h3>
+                
+                <p className="text-sm text-red-200 bg-red-950/30 border border-red-500/20 rounded-xl p-4 mb-6 leading-relaxed font-medium">
+                  {t("delete_modal_alert")}
+                </p>
+
+                {/* Botões */}
+                <div className="flex w-full flex-col gap-2">
+                  <button
+                    onClick={() => handleDeleteData()}
+                    disabled={deleting}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 text-white py-3 text-sm font-bold transition-all shadow-md disabled:opacity-50"
+                  >
+                    {deleting ? (language === "en" ? "Deleting..." : "Apagando...") : t("delete_modal_confirm")}
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    disabled={deleting}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary hover:bg-secondary/80 active:scale-95 text-foreground py-3 text-sm font-semibold transition-all"
+                  >
+                    {t("delete_modal_cancel")}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -11,8 +11,8 @@ const MAX_PROMPT_LENGTH = 2000;
 const VALID_MODES = ["image", "video", "music"];
 
 // LIMITES DIÁRIOS INQUEBRÁVEIS
-const DAILY_CHAT_LIMIT = 10;
-const DAILY_IMAGE_LIMIT = 5;
+const DAILY_CHAT_LIMIT = 5;
+const DAILY_IMAGE_LIMIT = 3;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -127,12 +127,29 @@ serve(async (req) => {
     // For video and music modes, use text generation
     let systemPrompt = "";
     if (mode === "video") {
-      systemPrompt = `Você é um roteirista cristão. Crie um roteiro visual detalhado e cinematográfico baseado no pedido. Inclua:
-- Descrição de cada cena com detalhes visuais
-- Movimentos de câmera sugeridos
-- Trilha sonora sugerida
-- Narração quando apropriado
-Formato: cenas numeradas com descrições ricas. NUNCA use # para títulos, use **negrito**.`;
+      systemPrompt = `Atue como um roteirista profissional de vídeos, especializado em teologia e conteúdo cristão focado em engajamento digital (YouTube/Instagram/TikTok). Seu objetivo é criar um roteiro dinâmico, profundo e estritamente fiel às Escrituras Sagradas.
+
+🛑 Regras de Ouro (Proibido Violar)
+- Fidelidade Bíblica Rigorosa: Todo o conteúdo deve ser fundamentado diretamente na Bíblia. Não invente diálogos que não estão no texto, não use livros apócrifos, lendas urbanas ou interpretações seculares que distorçam o sentido original.
+- Citação de Fontes: Sempre que citar um acontecimento, milagre, parábola ou ensinamento, inclua a referência bíblica exata (Ex: Gênesis 1:1 ou João 3:16).
+- Sem Desvios: Mantenha o foco absoluto no tema proposto. Evite filosofias humanas, debates políticos ou analogias mundanas longas que tirem a centralidade da Palavra de Deus.
+- Tom de Voz: Reverente, inspirador, acolhedor e com autoridade bíblica, sem ser excessivamente acadêmico ou cansativo.
+
+🎬 Estrutura do Roteiro
+O roteiro deve conter as seguintes divisões claras, indicando o que deve ser falado (locução) e o que deve aparecer na tela (instruções visuais/B-roll):
+- O Gancho (Primeiros 15 segundos): Uma pergunta ou afirmação forte baseada no tema para capturar a atenção imediatamente.
+- A Introdução: Apresentação do tema central e leitura do versículo-chave que guiará o vídeo.
+- O Desenvolvimento (Dividido em 2 ou 3 pontos): Explicação do contexto histórico e cultural da época, destrinchando o significado espiritual do tema.
+- A Aplicação Prática: Como o cristão de hoje pode aplicar essa verdade bíblica em sua vida diária (família, fé, trabalho).
+- Conclusão e Chamada para Ação (CTA): Uma oração ou reflexão final rápida, seguida do pedido de inscrição/curtida e uma pergunta para os comentários (Ex: "Qual desses pontos falou mais ao seu coração?").
+
+📝 Informações do Vídeo atual
+O usuário fornecerá os seguintes detalhes no pedido:
+- Tema do Vídeo: [O que o usuário disser]
+- Plataforma: [A que o usuário disser]
+- Tempo de Duração Estimado: [O que o usuário disser]
+
+Gere o roteiro completo seguindo essas diretrizes. NUNCA use # para títulos, use **negrito**.`;
     } else if (mode === "music") {
       systemPrompt = `Você é um compositor de músicas cristãs talentoso. Crie uma letra de música completa e inspiradora. Inclua:
 - Título da música

@@ -5,7 +5,7 @@ import VerseCard, { themes, type CardFormat } from "@/components/VerseCard";
 import { motion } from "framer-motion";
 import {
   Download, Palette, RectangleVertical, Square, RectangleHorizontal,
-  Image, Type, Search, Loader2, Sparkles, Wand2, Eye, Share2,
+  Image, Type, Search, Loader2, Sparkles, Wand2, Eye, Share2, ImageOff, WifiOff,
 } from "lucide-react";
 import html2canvas from "html2canvas-pro";
 import { useToast } from "@/hooks/use-toast";
@@ -80,6 +80,7 @@ const CreatePage = () => {
   const [useAIImage, setUseAIImage] = useState(false);
   const [aiImageUrl, setAiImageUrl] = useState("");
   const [aiImageLoading, setAiImageLoading] = useState(false);
+  const [aiImageError, setAiImageError] = useState(false);
   const [aiStyle, setAiStyle] = useState(imageStyles[0]);
   const [customAiPrompt, setCustomAiPrompt] = useState("");
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -142,12 +143,35 @@ const CreatePage = () => {
   const createImageLimitReached = createImageCount >= CREATE_IMAGE_LIMIT;
 
   const handleGenerateAIImage = async () => {
-    toast({ 
-      title: "Recurso em Manutenção", 
-      description: "A geração de imagens com Inteligência Artificial está temporariamente indisponível devido a manutenção programada do motor de renderização da IA Google.", 
-      variant: "destructive" 
-    });
-    return;
+    if (!verseText) { toast({ title: "Adicione um versículo primeiro", variant: "destructive" }); return; }
+    if (!authUser) { toast({ title: "Faça login para gerar imagens com IA" }); return; }
+    if (createImageLimitReached) { toast({ title: "Limite diário atingido", description: `Máximo ${CREATE_IMAGE_LIMIT} imagens por dia.`, variant: "destructive" }); return; }
+    setAiImageLoading(true);
+    setAiImageError(false);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { toast({ title: "Faça login para usar este recurso" }); setAiImageLoading(false); return; }
+
+      const stylePrompt = customAiPrompt.trim() || aiStyle;
+      const fullPrompt = `${verseText}. Estilo visual: ${stylePrompt}`;
+
+      // Gerar imagem usando a cota dedicada 'create'
+      const imageUrl = await generateBiblicalImage(fullPrompt, undefined, activeFormat, true, 'create', true);
+
+      if (imageUrl) {
+        setAiImageUrl(imageUrl);
+        setCreateImageCount(prev => prev + 1);
+        toast({ title: "Imagem gerada com sucesso! ✨" });
+        return;
+      }
+      
+      throw new Error("O modelo não retornou uma imagem. Tente novamente.");
+    } catch (e: any) {
+      console.error("AI Image Error:", e);
+      toast({ title: "Erro na IA", description: e.message || "Falha ao gerar imagem", variant: "destructive" });
+    } finally {
+      setAiImageLoading(false);
+    }
   };
 
   const handleDownload = async () => {
@@ -268,40 +292,44 @@ const CreatePage = () => {
               {/* AI / Theme toggle */}
               <div className="flex gap-2">
                 <button 
-                  onClick={() => { 
-                    if (isOnline) {
-                      setUseAIImage(true);
-                      toast({
-                        title: "Geração de Cenários em Manutenção",
-                        description: "A geração de imagens com Inteligência Artificial está temporariamente indisponível devido a uma manutenção severa planejada no motor do Google AI.",
-                        variant: "destructive"
-                      });
-                    } else {
-                      toast({ title: "Modo Offline", description: "Conecte-se à internet para usar a IA." });
-                    }
-                  }}
-                  className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-medium border transition-all ${useAIImage ? "border-accent bg-accent/10 text-foreground" : "border-border text-muted-foreground"} ${!isOnline ? "opacity-50 grayscale" : ""}`}
+                  onClick={() => setUseAIImage(true)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-medium border transition-all ${useAIImage ? "border-accent bg-accent/10 text-foreground" : "border-border text-muted-foreground"}`}
                 ><Wand2 className="h-3.5 w-3.5" /> IA</button>
                 <button onClick={() => setUseAIImage(false)}
                   className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-medium border ${!useAIImage ? "border-accent bg-accent/10 text-foreground" : "border-border text-muted-foreground"}`}
                 ><Palette className="h-3.5 w-3.5" /> Cor</button>
               </div>
 
-              {useAIImage && (
-                <div className="glass-card rounded-xl p-4 border border-destructive/20 text-center space-y-3 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-destructive/5 via-transparent to-transparent pointer-events-none" />
-                  <div className="w-10 h-10 rounded-xl bg-destructive/10 border border-destructive/20 flex items-center justify-center mx-auto text-destructive relative z-10">
-                    <AlertCircle className="h-5 w-5" />
+              {useAIImage && !isOnline && (
+                <div className="glass-card rounded-xl p-6 text-center border border-amber-500/20 bg-amber-500/5 flex flex-col items-center justify-center">
+                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
+                    <WifiOff className="h-6 w-6 animate-pulse" />
                   </div>
-                  <div className="space-y-1 relative z-10">
-                    <p className="text-xs font-bold text-foreground">Geração IA em Manutenção</p>
-                    <p className="text-[10.5px] text-muted-foreground leading-relaxed px-2">
-                      Nosso motor artístico da IA está no momento passando por uma manutenção severa e aprimoramento técnico. A criação de novos cenários via IA está suspensa temporariamente por algumas semanas.
-                    </p>
+                  <h3 className="text-sm font-bold text-foreground mb-1">Você precisa de internet para usar IA</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed max-w-xs">
+                    O modo Criar com IA requer uma conexão ativa com a internet para gerar novos fundos baseados em versículos.
+                  </p>
+                </div>
+              )}
+
+              {useAIImage && isOnline && (
+                <div className="glass-card rounded-xl p-4 space-y-2">
+                  <div className="flex flex-wrap gap-1.5">
+                    {imageStyles.map((s) => (
+                      <button key={s} onClick={() => { setAiStyle(s); setCustomAiPrompt(""); }}
+                        className={`rounded-lg px-2.5 py-1 text-[10px] border ${aiStyle === s && !customAiPrompt ? "border-accent bg-accent/10 text-foreground" : "border-border text-muted-foreground"}`}
+                      >{s}</button>
+                    ))}
                   </div>
-                  <div className="bg-secondary/60 border border-border/50 p-2 rounded-lg text-center relative z-10">
-                    <p className="text-[9px] text-accent font-semibold uppercase tracking-wider">🔧 Manutenção em andamento</p>
-                  </div>
+                  <input value={customAiPrompt} onChange={(e) => setCustomAiPrompt(e.target.value)} placeholder="Descreva seu fundo..."
+                    className="w-full rounded-lg border border-input bg-secondary/50 px-3 py-2 text-xs text-card-foreground placeholder:text-muted-foreground focus:outline-none"
+                  />
+                  <button onClick={handleGenerateAIImage} disabled={aiImageLoading || createImageLimitReached}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent py-2.5 text-xs font-semibold text-accent-foreground disabled:opacity-50 liquid-btn"
+                  >
+                    {aiImageLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    {createImageLimitReached ? `Limite (${CREATE_IMAGE_LIMIT}/${CREATE_IMAGE_LIMIT})` : aiImageLoading ? "Gerando..." : `Gerar com IA (${createImageCount}/${CREATE_IMAGE_LIMIT})`}
+                  </button>
                 </div>
               )}
 
@@ -414,77 +442,91 @@ const CreatePage = () => {
               </div>
               <div className="rounded-xl border border-border bg-card/50 p-4 overflow-hidden">
                 {verseText ? (
-                  <div ref={cardContainerRef} className="w-full">
-                    {useAIImage && (aiImageUrl || aiImageLoading) ? (
-                      <div
-                        className={`relative overflow-hidden rounded-xl shadow-verse flex flex-col items-center justify-center p-6 sm:p-10 ${
-                          activeFormat === "square" ? "aspect-square" : activeFormat === "story" ? "aspect-[9/16]" : "aspect-video"
-                        }`}
-                      >
-                        {aiImageLoading ? (
-                          <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center p-4 text-center z-10">
-                            {/* Grid dourado */}
-                            <div className="absolute inset-0 bg-[linear-gradient(rgba(212,175,55,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(212,175,55,0.06)_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
-                            {/* Laser Escaneador */}
-                            <motion.div 
-                              animate={{ y: ["0%", "450%"] }} 
-                              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                              className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-accent/80 to-transparent shadow-[0_0_10px_rgba(212,175,55,1)] z-20 pointer-events-none"
-                            />
-                            <div className="relative z-10 flex flex-col items-center">
-                              <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="mb-3">
-                                <Sparkles className="h-6 w-6 text-accent animate-pulse" />
-                              </motion.div>
-                              <span className="text-xs font-bold text-accent tracking-wide uppercase">Pintando Quadro Sagrado... ✨</span>
-                              <span className="text-[10px] text-muted-foreground mt-1 max-w-[220px] leading-relaxed block">
-                                Transformando suas palavras em uma obra prima visual em alta definição.
-                              </span>
+                  <div className="w-full flex flex-col gap-3">
+                    <div ref={cardContainerRef} className="w-full">
+                      {useAIImage && (aiImageUrl || aiImageLoading) ? (
+                        <div
+                          className={`relative overflow-hidden rounded-xl shadow-verse flex flex-col items-center justify-center p-6 sm:p-10 ${
+                            activeFormat === "square" ? "aspect-square" : activeFormat === "story" ? "aspect-[9/16]" : "aspect-video"
+                          }`}
+                          style={{
+                            background: "linear-gradient(135deg, #090d16 0%, #171d2b 100%)"
+                          }}
+                        >
+                          {aiImageUrl && !aiImageLoading && (
+                            <Fragment>
+                              <motion.img
+                                key={aiImageUrl}
+                                src={aiImageUrl}
+                                alt="Background com IA"
+                                className="absolute inset-0 w-full h-full object-cover"
+                                referrerPolicy="no-referrer"
+                                onError={() => setAiImageError(true)}
+                                onLoad={() => setAiImageError(false)}
+                                initial={{ opacity: 0, scale: 1.05, filter: "blur(18px)" }}
+                                animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                                transition={{ duration: 1, ease: "easeOut" }}
+                              />
+                              <div className="absolute inset-0 bg-black/50" />
+                            </Fragment>
+                          )}
+
+                          <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-md text-primary-foreground">
+                            <div className="mb-4 flex justify-center"><div className="h-px w-12 bg-primary-foreground/50" /></div>
+                            <blockquote 
+                              className={`leading-relaxed text-center italic ${selectedFont?.className || "font-serif"}`}
+                              style={{ fontSize: `${fontSize}px` }}
+                            >
+                              "{verseText}"
+                            </blockquote>
+                            <div className="mt-4 flex justify-center"><div className="h-px w-12 bg-primary-foreground/50" /></div>
+                            <p className="mt-3 text-center text-xs font-sans font-medium opacity-80 tracking-wider uppercase">{reference}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={useCustomColor ? { backgroundColor: customColor } : undefined}>
+                          <VerseCard 
+                            text={verseText} 
+                            reference={reference} 
+                            theme={useCustomColor ? { ...currentTheme, bg: "" } : currentTheme} 
+                            format={activeFormat} 
+                            animate={false} 
+                            fontSize={fontSize}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Status de Carregamento / Erro no final do preview */}
+                    {useAIImage && (
+                      <div className="text-xs">
+                        {aiImageLoading && (
+                          <div className="flex items-center gap-2 text-accent bg-accent/5 border border-accent/15 rounded-lg p-2.5">
+                            <Loader2 className="h-4 w-4 animate-spin shrink-0 text-accent" />
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-accent">Gerando Imagem com IA...</span>
+                              <span className="text-[10px] text-muted-foreground">Processando sua ilustração exclusiva no servidor.</span>
                             </div>
                           </div>
-                        ) : (
-                          <Fragment>
-                            <motion.img
-                              key={aiImageUrl}
-                              src={aiImageUrl}
-                              alt="Background com IA"
-                              className="absolute inset-0 w-full h-full object-cover"
-                              initial={{ opacity: 0, scale: 1.05, filter: "blur(18px)" }}
-                              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-                              transition={{ duration: 1, ease: "easeOut" }}
-                            />
-                            {/* Varredura Final */}
-                            <motion.div 
-                              initial={{ y: "-100%" }}
-                              animate={{ y: "150%" }}
-                              transition={{ duration: 1.4, ease: "easeOut" }}
-                              className="absolute left-0 right-0 h-[4px] bg-gradient-to-r from-transparent via-accent to-transparent shadow-[0_0_12px_rgba(212,175,55,1)] z-10 pointer-events-none"
-                            />
-                            <div className="absolute inset-0 bg-black/45" />
-                          </Fragment>
                         )}
-
-                        <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-md text-primary-foreground">
-                          <div className="mb-4 flex justify-center"><div className="h-px w-12 bg-primary-foreground/50" /></div>
-                          <blockquote 
-                            className={`leading-relaxed text-center italic ${selectedFont?.className || "font-serif"}`}
-                            style={{ fontSize: `${fontSize}px` }}
-                          >
-                            "{verseText}"
-                          </blockquote>
-                          <div className="mt-4 flex justify-center"><div className="h-px w-12 bg-primary-foreground/50" /></div>
-                          <p className="mt-3 text-center text-xs font-sans font-medium opacity-80 tracking-wider uppercase">{reference}</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={useCustomColor ? { backgroundColor: customColor } : undefined}>
-                        <VerseCard 
-                          text={verseText} 
-                          reference={reference} 
-                          theme={useCustomColor ? { ...currentTheme, bg: "" } : currentTheme} 
-                          format={activeFormat} 
-                          animate={false} 
-                          fontSize={fontSize}
-                        />
+                        {aiImageError && !aiImageLoading && (
+                          <div className="flex items-center gap-2 text-destructive bg-destructive/5 border border-destructive/15 rounded-lg p-2.5">
+                            <ImageOff className="h-4 w-4 shrink-0 text-destructive" />
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-destructive">Falha ao carregar imagem</span>
+                              <span className="text-[10px] text-muted-foreground">Ocorreu um erro ao carregar a imagem gerada (CORS ou erro de rede). Você pode tentar novamente.</span>
+                            </div>
+                          </div>
+                        )}
+                        {!aiImageLoading && !aiImageError && aiImageUrl && (
+                          <div className="flex items-center gap-2 text-emerald-500 bg-emerald-500/5 border border-emerald-500/15 rounded-lg p-2.5">
+                            <Sparkles className="h-4 w-4 shrink-0 text-emerald-500" />
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-emerald-500">Imagem gerada com sucesso!</span>
+                              <span className="text-[10px] text-muted-foreground">O plano de fundo com IA foi carregado e está pronto para exportação.</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

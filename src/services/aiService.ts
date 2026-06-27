@@ -5,55 +5,90 @@ let lastCacheUpdate = 0;
 const CACHE_DURATION = 1000 * 60 * 5; // 5 minutos
 
 let cachedGoogleKey: string | null = null;
+let cachedGoogleKey2: string | null = null;
 let cachedOpenRouterKey: string | null = null;
+let cachedOpenRouterKey2: string | null = null;
 let lastKeyFetchTime = 0;
 
-const fetchKeys = async (): Promise<{ googleKey: string; openRouterKey: string }> => {
+const fetchKeys = async (): Promise<{ googleKey: string; googleKey2: string; openRouterKey: string; openRouterKey2: string }> => {
   const now = Date.now();
   if (
     cachedGoogleKey !== null && 
+    cachedGoogleKey2 !== null && 
     cachedOpenRouterKey !== null && 
+    cachedOpenRouterKey2 !== null && 
     (now - lastKeyFetchTime < CACHE_DURATION)
   ) {
-    return { googleKey: cachedGoogleKey, openRouterKey: cachedOpenRouterKey };
+    return { googleKey: cachedGoogleKey, googleKey2: cachedGoogleKey2, openRouterKey: cachedOpenRouterKey, openRouterKey2: cachedOpenRouterKey2 };
   }
 
   let envGoogle = (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
+  let envGoogle2 = (import.meta.env.VITE_GEMINI_API_KEY_2 || "").trim();
   let envOpenRouter = (import.meta.env.VITE_OPENROUTER_API_KEY || "").trim();
+  let envOpenRouter2 = (import.meta.env.VITE_OPENROUTER_API_KEY_2 || "").trim();
 
   try {
     const { data, error } = await supabase
       .from('ai_settings')
       .select('config_key, config_value')
-      .in('config_key', ['google_ai_key', 'openrouter_api_key']);
+      .in('config_key', ['google_ai_key', 'google_ai_key_2', 'openrouter_api_key', 'openrouter_api_key_2']);
       
     if (!error && data) {
       const dbGoogle = data.find(d => d.config_key === 'google_ai_key')?.config_value;
+      const dbGoogle2 = data.find(d => d.config_key === 'google_ai_key_2')?.config_value;
       const dbOpenRouter = data.find(d => d.config_key === 'openrouter_api_key')?.config_value;
+      const dbOpenRouter2 = data.find(d => d.config_key === 'openrouter_api_key_2')?.config_value;
       
       if (dbGoogle && dbGoogle.trim()) envGoogle = dbGoogle.trim();
+      if (dbGoogle2 && dbGoogle2.trim()) envGoogle2 = dbGoogle2.trim();
       if (dbOpenRouter && dbOpenRouter.trim()) envOpenRouter = dbOpenRouter.trim();
+      if (dbOpenRouter2 && dbOpenRouter2.trim()) envOpenRouter2 = dbOpenRouter2.trim();
     }
   } catch (err) {
     console.warn("Falha ao buscar chaves no banco de dados, usando do ambiente:", err);
   }
 
   cachedGoogleKey = envGoogle;
+  cachedGoogleKey2 = envGoogle2;
   cachedOpenRouterKey = envOpenRouter;
+  cachedOpenRouterKey2 = envOpenRouter2;
   lastKeyFetchTime = now;
 
-  return { googleKey: envGoogle, openRouterKey: envOpenRouter };
+  return { googleKey: envGoogle, googleKey2: envGoogle2, openRouterKey: envOpenRouter, openRouterKey2: envOpenRouter2 };
+};
+
+export interface AIAttachment {
+  base64: string; // complete data URI (e.g. data:image/png;base64,...)
+  mimeType: string;
+  name: string;
+}
+
+const normalizeAttachments = (attachments?: AIAttachment[] | string | null): AIAttachment[] => {
+  if (!attachments) return [];
+  if (typeof attachments === 'string') {
+    const mimeMatch = attachments.match(/^data:(.*?);base64,/);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    return [{
+      base64: attachments,
+      mimeType: mimeType,
+      name: 'file'
+    }];
+  }
+  return attachments;
 };
 
 const tryComplexGemini = async (
   prompt: string,
   googleKey: string,
   systemRule: string,
-  base64Image?: string | null,
-  signal?: AbortSignal
+  attachments?: AIAttachment[] | string | null,
+  signal?: AbortSignal,
+  skipBracketRemoval: boolean = false,
+  googleKey2?: string
 ): Promise<string> => {
-  if (!googleKey) throw new Error("Chave Gemini não disponível.");
+  if (!googleKey && !googleKey2) throw new Error("Chave Gemini não disponível.");
   
+  const normalized = normalizeAttachments(attachments);
   const geminiModels = [
     'gemini-2.5-flash',
     'gemini-2.0-flash',
@@ -61,47 +96,67 @@ const tryComplexGemini = async (
   ];
   let lastErrorMessage = "";
   
-  for (const model of geminiModels) {
-    try {
-      if (!navigator.onLine) throw new Error("Sem conexão com a internet.");
+  const keysToTry = [googleKey, googleKey2].filter(Boolean) as string[];
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemRule }] },
-          contents: [{ 
-            parts: [
-              { text: prompt },
-              ...(base64Image ? [{
-                inlineData: {
-                  mimeType: base64Image.substring(base64Image.indexOf(':') + 1, base64Image.indexOf(';')),
-                  data: base64Image.substring(base64Image.indexOf(',') + 1)
-                }
-              }] : [])
-            ] 
-          }],
-          generationConfig: { 
-            temperature: 0.4, 
-            maxOutputTokens: 1000 
+  for (const key of keysToTry) {
+    let keyFailed = false;
+    for (const model of geminiModels) {
+      try {
+        if (!navigator.onLine) throw new Error("Sem conexão com a internet.");
+
+        const parts: any[] = [{ text: prompt }];
+        
+        normalized.forEach(att => {
+          const commaIndex = att.base64.indexOf(',');
+          const dataPart = commaIndex !== -1 ? att.base64.substring(commaIndex + 1) : att.base64;
+          parts.push({
+            inlineData: {
+              mimeType: att.mimeType,
+              data: dataPart
+            }
+          });
+        });
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemRule }] },
+            contents: [{ parts }],
+            generationConfig: { 
+              temperature: 0.4, 
+              maxOutputTokens: 4000 
+            }
+          }),
+          signal
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null);
+          const errMsg = errorData?.error?.message || `Status HTTP: ${response.status}`;
+          const isKeyError = response.status === 400 || response.status === 403 || response.status === 429 || 
+                             errMsg.toLowerCase().includes("key") || errMsg.toLowerCase().includes("quota");
+          if (isKeyError) {
+            keyFailed = true;
+            throw new Error(`key_error: ${errMsg}`);
           }
-        }),
-        signal
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error?.message || `Status HTTP: ${response.status}`);
+          throw new Error(errMsg);
+        }
+        
+        const data = await response.json();
+        if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+          return sanitizeAIResponse(data.candidates[0].content.parts[0].text, skipBracketRemoval);
+        }
+      } catch (e: any) {
+        if (e.name === 'AbortError' || e.message?.includes('abort')) throw e;
+        lastErrorMessage = e.message;
+        console.warn(`[Aviso] Falha com a chave ${key.substring(0, 8)}... usando o modelo ${model}: ${e.message}`);
+        if (e.message?.startsWith('key_error:')) {
+          break;
+        }
       }
-      
-      const data = await response.json();
-      if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
-        return sanitizeAIResponse(data.candidates[0].content.parts[0].text);
-      }
-    } catch (e: any) {
-      if (e.name === 'AbortError' || e.message?.includes('abort')) throw e;
-      lastErrorMessage = e.message;
     }
+    if (keyFailed) continue;
   }
   throw new Error(lastErrorMessage || "Falha ao gerar resposta com modelos do Gemini.");
 };
@@ -110,11 +165,14 @@ const trySimpleOpenRouter = async (
   prompt: string,
   openRouterKey: string,
   systemRule: string,
-  base64Image?: string | null,
-  signal?: AbortSignal
+  attachments?: AIAttachment[] | string | null,
+  signal?: AbortSignal,
+  skipBracketRemoval: boolean = false,
+  openRouterKey2?: string
 ): Promise<string> => {
-  if (!openRouterKey) throw new Error("Chave OpenRouter não disponível.");
+  if (!openRouterKey && !openRouterKey2) throw new Error("Chave OpenRouter não disponível.");
 
+  const normalized = normalizeAttachments(attachments);
   let freeModels: string[] = [];
   const preferredFreeModels = [
     "meta-llama/llama-3.3-70b-instruct:free",
@@ -158,48 +216,88 @@ const trySimpleOpenRouter = async (
   }
 
   let lastErrorMessage = "";
+  const keysToTry = [openRouterKey, openRouterKey2].filter(Boolean) as string[];
 
-  for (const model of freeModels) {
-    try {
-      if (!navigator.onLine) throw new Error("Sem conexão com a internet.");
+  for (const key of keysToTry) {
+    let keyFailed = false;
+    for (const model of freeModels) {
+      try {
+        if (!navigator.onLine) throw new Error("Sem conexão com a internet.");
 
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openRouterKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': window.location.origin,
-          'X-Title': 'IA Bíblica'
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: [
-            { role: "system", "content": systemRule },
-            { role: "user", "content": base64Image ? [
-              { type: "text", text: prompt },
-              { type: "image_url", image_url: { url: base64Image } }
-            ] : prompt }
-          ],
-          temperature: 0.5,
-          max_tokens: 1000
-        }),
-        signal
-      });
+        const userContent: any[] = [{ type: "text", text: prompt }];
+        normalized.forEach(att => {
+          if (att.mimeType.startsWith('image/')) {
+            userContent.push({ type: "image_url", image_url: { url: att.base64 } });
+          }
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        lastErrorMessage = errorData.error?.message || response.statusText;
-        continue; 
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${key}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': window.location.origin,
+            'X-Title': 'IA Bíblica'
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              { role: "system", "content": systemRule },
+              { role: "user", "content": userContent.length > 1 ? userContent : prompt }
+            ],
+            temperature: 0.5,
+            max_tokens: 4000
+          }),
+          signal
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          const errMsg = errorData.error?.message || response.statusText;
+          const errMsgLower = errMsg.toLowerCase();
+          
+          // Determine if it is a transient error from the upstream model provider
+          const isProviderError = errMsgLower.includes("provider") || 
+                                  errMsgLower.includes("upstream") || 
+                                  errMsgLower.includes("moderation") || 
+                                  errMsgLower.includes("safety") || 
+                                  errMsgLower.includes("blocked") ||
+                                  errMsgLower.includes("content filter") ||
+                                  errMsgLower.includes("overloaded") ||
+                                  errMsgLower.includes("rate limit") ||
+                                  response.status >= 500;
+
+          // Only consider it a key/quota error if it is genuinely a credential or billing issue
+          const isKeyError = !isProviderError && (
+            response.status === 401 || 
+            response.status === 402 || 
+            errMsgLower.includes("api key") || 
+            errMsgLower.includes("api_key") || 
+            errMsgLower.includes("invalid key") || 
+            errMsgLower.includes("credit") || 
+            errMsgLower.includes("balance") || 
+            errMsgLower.includes("unauthorized")
+          );
+
+          if (isKeyError) {
+            keyFailed = true;
+            lastErrorMessage = `key_error: ${errMsg}`;
+            break;
+          }
+          lastErrorMessage = errMsg;
+          continue; 
+        }
+        
+        const data = await response.json();
+        if (data?.choices?.[0]?.message?.content) {
+          return sanitizeAIResponse(data.choices[0].message.content, skipBracketRemoval);
+        }
+      } catch (e: any) {
+        if (e.name === 'AbortError') throw e;
+        lastErrorMessage = e.message;
       }
-      
-      const data = await response.json();
-      if (data?.choices?.[0]?.message?.content) {
-        return sanitizeAIResponse(data.choices[0].message.content);
-      }
-    } catch (e: any) {
-      if (e.name === 'AbortError') throw e;
-      lastErrorMessage = e.message;
     }
+    if (keyFailed) continue;
   }
 
   throw new Error(lastErrorMessage || "Falha ao gerar resposta com modelos do OpenRouter.");
@@ -207,12 +305,15 @@ const trySimpleOpenRouter = async (
 
 
 
-const sanitizeAIResponse = (text: string): string => {
+const sanitizeAIResponse = (text: string, skipBracketRemoval: boolean = true): string => {
   if (!text) return "";
   // Remove tags técnicas, caracteres de controle (\x00-\x1F exceto \n \r \t)
   // e caracteres que podem quebrar o Supabase/JSON.
-  return text
-    .replace(/\[.*?\]/g, '')
+  let clean = text;
+  if (!skipBracketRemoval) {
+    clean = clean.replace(/\[(?!\s*Arquivo:).*?\]/gi, '');
+  }
+  return clean
     /* eslint-disable no-control-regex */
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
     .replace(/[\uFFFD\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
@@ -251,8 +352,8 @@ export const generateChatTitle = async (userPrompt: string, aiResponse: string):
     : "Geração de Imagem";
 
   try {
-    const { googleKey } = await fetchKeys();
-    if (!googleKey) return safeFallback;
+    const { googleKey, googleKey2 } = await fetchKeys();
+    if (!googleKey && !googleKey2) return safeFallback;
 
     const context = cleanPrompt ? `Usuário: ${cleanPrompt}` : `IA gerou imagem baseada em: ${aiResponse}`;
 
@@ -266,28 +367,42 @@ REGRAS ABSOLUTAS:
     const combinedPrompt = `Tarefa: Crie um título curto de 3-5 palavras para o seguinte contexto: ${context}`;
 
     const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    const keysToTry = [googleKey, googleKey2].filter(Boolean) as string[];
 
-    for (const model of modelsToTry) {
-      try {
-        if (!navigator.onLine) throw new Error("Sem conexão com a internet.");
+    for (const key of keysToTry) {
+      let keyFailed = false;
+      for (const model of modelsToTry) {
+        try {
+          if (!navigator.onLine) throw new Error("Sem conexão com a internet.");
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: systemInstruction }] },
-            contents: [{ role: "user", parts: [{ text: combinedPrompt }] }] 
-          })
-        });
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: systemInstruction }] },
+              contents: [{ role: "user", parts: [{ text: combinedPrompt }] }] 
+            })
+          });
 
-        if (response.ok) {
-          const data = await response.json();
-          const title = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-          if (title) return title.replace(/["*]/g, '');
+          if (response.ok) {
+            const data = await response.json();
+            const title = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+            if (title) return title.replace(/["*]/g, '');
+          } else {
+            const errorData = await response.json().catch(() => null);
+            const errMsg = errorData?.error?.message || "";
+            const isKeyError = response.status === 400 || response.status === 403 || response.status === 429 || 
+                               errMsg.toLowerCase().includes("key") || errMsg.toLowerCase().includes("quota");
+            if (isKeyError) {
+              keyFailed = true;
+              break;
+            }
+          }
+        } catch (e) {
+          console.warn(`[Aviso] Modelo ${model} falhou ao gerar título.`);
         }
-      } catch (e) {
-        console.warn(`[Aviso] Modelo ${model} falhou ao gerar título.`);
       }
+      if (keyFailed) continue;
     }
     return safeFallback;
   } catch (error) {
@@ -296,14 +411,109 @@ REGRAS ABSOLUTAS:
 };
 
 export const askDictionaryAI = async (verseText: string, reference: string, signal?: AbortSignal): Promise<string> => {
-  throw new Error("SISTEMA EM MANUTENÇÃO: O Dicionário Bíblico Teológico com IA está temporariamente em manutenção preventiva. Retornaremos em breve!");
+  const { googleKey, googleKey2 } = await fetchKeys();
+  if (!googleKey && !googleKey2) throw new Error("Chave do Google AI/Gemini não configurada no ambiente ou no banco de dados.");
+
+  const combinedRule = await getSystemRule('gemini_prompt_dicionario');
+  const dictPrompt = `Aja como um Dicionário Bíblico Erudito. Analise o versículo abaixo.
+Versículo: "${verseText}" — ${reference}`;
+
+  const geminiModels = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash'
+  ];
+
+  const keysToTry = [googleKey, googleKey2].filter(Boolean) as string[];
+  let lastError = "";
+
+  for (const key of keysToTry) {
+    let keyFailed = false;
+    for (const model of geminiModels) {
+      try {
+        if (!navigator.onLine) throw new Error("Sem conexão com a internet.");
+        
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: combinedRule }] },
+            contents: [{ parts: [{ text: dictPrompt }] }]
+          }),
+          signal
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (content) return sanitizeAIResponse(content);
+        } else {
+          const errorData = await response.json().catch(() => null);
+          const errMsg = errorData?.error?.message || `Status HTTP: ${response.status}`;
+          const isKeyError = response.status === 400 || response.status === 403 || response.status === 429 || 
+                             errMsg.toLowerCase().includes("key") || errMsg.toLowerCase().includes("quota");
+          if (isKeyError) {
+            keyFailed = true;
+            lastError = errMsg;
+            break;
+          }
+          lastError = errMsg;
+        }
+      } catch (e: any) {
+        if (e.name === 'AbortError') throw e;
+        lastError = e.message;
+      }
+    }
+    if (keyFailed) continue;
+  }
+  throw new Error(`Dicionário indisponível: ${lastError}`);
 };
 
 export const askBibleAI = async (
   prompt: string, 
   complexity: 'simple' | 'complex' = 'simple', 
   signal?: AbortSignal, 
-  base64Image?: string | null
+  attachments?: AIAttachment[] | string | null,
+  customSystemRule?: string,
+  skipBracketRemoval: boolean = true
 ): Promise<string> => {
-  throw new Error("SISTEMA EM MANUTENÇÃO: Nossos modelos de Inteligência Artificial estão temporariamente em manutenção preventiva para otimização do servidor. Retornaremos em breve!");
+  const { googleKey, googleKey2, openRouterKey, openRouterKey2 } = await fetchKeys();
+
+  if (!googleKey && !googleKey2 && !openRouterKey && !openRouterKey2) {
+    throw new Error("Chave de API não configurada. Configure a sua chave do Gemini ou do OpenRouter nas configurações de chaves da Conta.");
+  }
+
+  const ruleKey = complexity === 'simple' ? 'gemini_prompt_simples' : 'gemini_prompt_complexo';
+  const SYSTEM_RULE = customSystemRule || await getSystemRule(ruleKey);
+
+  const cleanPrompt = prompt 
+    ? (skipBracketRemoval ? prompt.trim() : prompt.replace(/\[(?!\s*Arquivo:).*?\]/gi, '').trim()) 
+    : "";
+
+  try {
+    if (complexity === 'complex') {
+      if (googleKey || googleKey2) {
+        return await tryComplexGemini(cleanPrompt, googleKey, SYSTEM_RULE, attachments, signal, skipBracketRemoval, googleKey2);
+      } else {
+        throw new Error("Chave do Google AI (Gemini) indisponível para o Chat Complexo.");
+      }
+    } else {
+      // Chat Simples
+      if (openRouterKey || openRouterKey2) {
+        return await trySimpleOpenRouter(cleanPrompt, openRouterKey, SYSTEM_RULE, attachments, signal, skipBracketRemoval, openRouterKey2);
+      } else {
+        // Fallback to Gemini if OpenRouter key is not found but Google is
+        if (googleKey || googleKey2) {
+          return await tryComplexGemini(cleanPrompt, googleKey, SYSTEM_RULE, attachments, signal, skipBracketRemoval, googleKey2);
+        }
+        throw new Error("Chave do OpenRouter indisponível para o Chat Simples.");
+      }
+    }
+  } catch (error: any) {
+    if (error.name === 'AbortError' || error.message?.includes('abort')) throw error;
+    if (error.message === 'Failed to fetch') {
+      throw new Error("Erro de conexão: Não foi possível alcançar o servidor da IA. Verifique sua conexão com a internet.");
+    }
+    throw new Error(error.message || "Ocorreu um erro inesperado ao consultar a IA.");
+  }
 };

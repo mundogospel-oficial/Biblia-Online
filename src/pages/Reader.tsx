@@ -20,6 +20,7 @@ const DICT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bible-chat`;
 
 import { translateVersesAI, checkAndIncrementQuota } from "@/services/translationService";
 import { askDictionaryAI } from "@/services/aiService";
+import { checkAndIncrementUsage } from "@/services/usageService";
 
 const Reader = () => {
   const { abbrev, chapter } = useParams<{ abbrev: string; chapter: string }>();
@@ -50,6 +51,18 @@ const Reader = () => {
   const [dictContent, setDictContent] = useState("");
   const [dictLoading, setDictLoading] = useState(false);
   const [dictMode, setDictMode] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   const book = getBookByAbbrev(abbrev || "");
   const chapterNum = parseInt(chapter || "1");
@@ -122,6 +135,12 @@ const Reader = () => {
       return;
     }
 
+    if (!isOnline) {
+      setBilingualVerses([]);
+      setBilingualLoading(false);
+      return;
+    }
+
     const cacheKey = `bilingual_v2:${abbrev}:${chapter}:${translation}`;
     const cached = sessionStorage.getItem(cacheKey);
     if (cached) {
@@ -147,7 +166,7 @@ const Reader = () => {
         if (!quotaResult.success) {
           toast({ 
             title: "Limite de Tradução Atingido", 
-            description: "Você atingiu o limite de 5 capítulos traduzidos por dia no modo gratuito.", 
+            description: "Você atingiu o limite de 3 capítulos traduzidos por dia no modo gratuito.", 
             variant: "destructive" 
           });
           setBilingual(false);
@@ -198,7 +217,7 @@ const Reader = () => {
     };
 
     translateVerses();
-  }, [bilingual, verses, abbrev, chapter, translation, toast]);
+  }, [bilingual, verses, abbrev, chapter, translation, toast, isOnline]);
 
   const toggleVerse = (verseNum: number) => {
     setSelectedVerses((prev) => {
@@ -261,16 +280,35 @@ const Reader = () => {
     if (!v || !book) return;
 
     setDictVerse(verseNum);
+
+    if (!isOnline) {
+      setDictLoading(false);
+      setDictContent("Você precisa de internet para usar o Dicionário com IA.");
+      return;
+    }
+
     setDictLoading(true);
     setDictContent("");
 
     try {
+      const hasQuota = await checkAndIncrementUsage('dictionary', authUser?.id);
+      if (!hasQuota) {
+        setDictLoading(false);
+        setDictContent("Você atingiu o limite de 3 consultas ao Dicionário por dia no modo gratuito.");
+        toast({
+          title: "Limite do Dicionário Atingido",
+          description: "Você atingiu o limite de 3 consultas ao Dicionário por dia.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       const reference = `${book.name} ${chapterNum}:${verseNum}`;
       const content = await askDictionaryAI(v.text.trim(), reference);
       setDictContent(content);
     } catch (error: any) {
       console.error("Erro no dicionário:", error);
-      setDictContent(error.message || "Erro ao carregar o dicionário. Tente novamente.");
+      setDictContent("Erro ao carregar o dicionário. Tente novamente.");
       toast({ title: "Erro no dicionário", description: error.message, variant: "destructive" });
     } finally {
       setDictLoading(false);
@@ -287,23 +325,51 @@ const Reader = () => {
     return map[color];
   };
 
+  const parseInlineBold = (text: string) => {
+    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((part, j) =>
+      part.startsWith("**") && part.endsWith("**") ? (
+        <strong key={j} className="font-bold text-foreground">
+          {part.slice(2, -2)}
+        </strong>
+      ) : (
+        part
+      )
+    );
+  };
+
   const renderDictContent = (content: string) => {
     const lines = content.split("\n");
     return lines.map((line, i) => {
-      if (line.startsWith("**") && line.endsWith("**")) return <p key={i} className="text-xs font-bold text-foreground mt-1">{line.slice(2, -2)}</p>;
+      if (line.startsWith("**") && line.endsWith("**")) {
+        return <p key={i} className="text-xs font-bold text-foreground mt-1.5">{line.slice(2, -2)}</p>;
+      }
       if (line.startsWith("- ") || line.startsWith("* ") || line.startsWith("• ")) {
         const text = line.startsWith("• ") ? line.slice(2) : line.slice(2);
-        return <p key={i} className="text-xs pl-2 border-l-2 border-accent/30 py-0.5">{text}</p>;
+        return (
+          <p key={i} className="text-xs pl-2 border-l-2 border-accent/30 py-0.5 leading-relaxed">
+            {parseInlineBold(text)}
+          </p>
+        );
       }
+      
+      const numMatch = line.match(/^(\d+\.\s)(.*)/);
+      if (numMatch) {
+        const prefix = numMatch[1];
+        const rest = numMatch[2];
+        return (
+          <p key={i} className="text-xs pl-2 leading-relaxed">
+            <span className="font-medium text-muted-foreground">{prefix}</span>
+            {parseInlineBold(rest)}
+          </p>
+        );
+      }
+
       if (line.trim() === "") return <div key={i} className="h-1" />;
-      const parts = line.split(/(\*\*[^*]+\*\*)/g);
+      
       return (
         <p key={i} className="text-xs leading-relaxed">
-          {parts.map((part, j) =>
-            part.startsWith("**") && part.endsWith("**")
-              ? <strong key={j}>{part.slice(2, -2)}</strong>
-              : part
-          )}
+          {parseInlineBold(line)}
         </p>
       );
     });
@@ -451,6 +517,15 @@ const Reader = () => {
             transition={{ duration: 0.4 }}
             className="space-y-1"
           >
+            {bilingual && !isOnline && (
+              <div className="mb-4 rounded-xl border border-red-500/20 bg-red-950/10 p-4 text-center flex flex-col items-center justify-center">
+                <WifiOff className="h-6 w-6 text-red-500 animate-pulse mb-2" />
+                <h4 className="text-sm font-bold text-foreground mb-1">Você precisa de internet para usar Tradução com IA</h4>
+                <p className="text-xs text-muted-foreground max-w-sm">
+                  O modo Bilíngue requer internet para traduzir dinamicamente os versículos via Inteligência Artificial.
+                </p>
+              </div>
+            )}
             {verses.slice(0, visibleLimit).map((v) => {
               const verseId = `${abbrev}:${chapterNum}:${v.verse}`;
               const hl = highlightsMap[v.verse];
@@ -613,7 +688,13 @@ const Reader = () => {
                               O modo Dicionário é uma IA ela comete erros.
                             </span>
                           </div>
-                          {dictLoading ? (
+                          {!isOnline ? (
+                            <div className="flex flex-col items-center gap-1.5 text-center py-3">
+                              <WifiOff className="h-6 w-6 text-red-500 animate-pulse" />
+                              <span className="text-xs font-bold text-foreground">Você precisa de internet para usar o Dicionário com IA</span>
+                              <span className="text-[10px] text-muted-foreground">Por favor, reconecte-se e tente novamente.</span>
+                            </div>
+                          ) : dictLoading ? (
                             <div className="flex items-center gap-2 py-2">
                               <Loader2 className="h-4 w-4 animate-spin text-accent" />
                               <span className="text-xs text-muted-foreground">Analisando versículo...</span>
