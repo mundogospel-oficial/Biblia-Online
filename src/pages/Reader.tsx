@@ -11,7 +11,7 @@ import Header from "@/components/Header";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft, ChevronRight, Sparkles, Loader2, Heart,
-  Highlighter, StickyNote, X, Languages, BookOpen, WifiOff, Download
+  Highlighter, StickyNote, X, Languages, BookOpen, WifiOff, Download, Share2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -269,6 +269,44 @@ const Reader = () => {
     const selectedTexts = sorted.map((v) => verses.find((vd) => vd.verse === v)?.text.trim() || "");
     const ref = `${book.name} ${chapterNum}:${sorted.join(",")}`;
     navigate(`/criar?ref=${encodeURIComponent(ref)}&text=${encodeURIComponent(selectedTexts.join(" "))}`);
+  };
+
+  const handleShare = async () => {
+    if (!book || selectedVerses.size === 0) return;
+    const sorted = Array.from(selectedVerses).sort((a, b) => a - b);
+    const selectedTexts = sorted.map((v) => verses.find((vd) => vd.verse === v)?.text.trim() || "");
+    const ref = `${book.name} ${chapterNum}:${sorted.join(",")}`;
+    
+    // Formato solicitado pelo usuário:
+    // Texto do versículo
+    // - Referência do versículo
+    const shareText = `${selectedTexts.join("\n")}\n- ${ref}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Versículo Bíblico",
+          text: shareText,
+        });
+        toast({ title: "Compartilhado com sucesso! 🕊️" });
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          try {
+            await navigator.clipboard.writeText(shareText);
+            toast({ title: "Copiado para a área de transferência! 📋" });
+          } catch (clipErr) {
+            console.error("Erro ao copiar texto:", clipErr);
+          }
+        }
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareText);
+        toast({ title: "Copiado para a área de transferência! 📋" });
+      } catch (clipErr) {
+        console.error("Erro ao copiar texto:", clipErr);
+      }
+    }
   };
 
   const handleDictionary = async (verseNum: number) => {
@@ -731,19 +769,29 @@ const Reader = () => {
       </div>
 
       {selectedVerses.size > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-20 md:bottom-6 left-1/2 z-50 -translate-x-1/2"
-        >
-          <button
-            onClick={handleCreatePage}
-            className="flex items-center gap-2 rounded-full bg-accent px-6 py-3 font-sans text-sm font-semibold text-accent-foreground shadow-lg transition-transform hover:scale-105"
+        <div className="fixed bottom-6 left-0 right-0 z-50 flex justify-center pointer-events-none px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="pointer-events-auto flex items-center justify-center gap-2 max-w-full p-2 bg-background/95 backdrop-blur-md border border-border/80 rounded-full shadow-2xl"
           >
-            <Sparkles className="h-4 w-4" />
-            Criar página ({selectedVerses.size} {selectedVerses.size === 1 ? 'versículo' : 'versículos'})
-          </button>
-        </motion.div>
+            <button
+              onClick={handleCreatePage}
+              className="flex items-center gap-2 rounded-full bg-accent px-5 py-3 font-sans text-xs sm:text-sm font-semibold text-accent-foreground shadow-md transition-transform hover:scale-105 active:scale-95 whitespace-nowrap"
+            >
+              <Sparkles className="h-4 w-4 shrink-0" />
+              Criar imagem ({selectedVerses.size})
+            </button>
+
+            <button
+              onClick={handleShare}
+              className="flex items-center gap-2 rounded-full bg-secondary border border-border px-5 py-3 font-sans text-xs sm:text-sm font-semibold text-secondary-foreground shadow-md transition-transform hover:scale-105 active:scale-95 whitespace-nowrap"
+            >
+              <Share2 className="h-4 w-4 text-accent shrink-0" />
+              Compartilhar texto
+            </button>
+          </motion.div>
+        </div>
       )}
 
       {verses.length > 0 && (
