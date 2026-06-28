@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import cors from "cors";
@@ -77,7 +76,7 @@ const app = express();
 export { app };
 export default app;
 
-async function startServer() {
+function startServer() {
   const PORT = 3000;
 
   // --- SECURITY HEADERS (HELMET) ---
@@ -755,11 +754,15 @@ REGRA 4 (Saída): Responda APENAS com o prompt purificado em inglês enriquecido
 
   // Vite middleware setup
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
+    import("vite").then(async ({ createServer: createViteServer }) => {
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    }).catch(err => {
+      console.error("Failed to load Vite server:", err);
     });
-    app.use(vite.middlewares);
   } else if (!process.env.VERCEL) {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
