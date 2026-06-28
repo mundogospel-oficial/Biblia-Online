@@ -449,11 +449,22 @@ const AccountPage = () => {
     try {
       const cache = await caches.open('biblia-offline-data');
       
-      const filesToCache = [
+      const activeScripts = Array.from(document.querySelectorAll('script')).map(s => s.getAttribute('src')).filter(Boolean) as string[];
+      const activeStyles = Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map(l => l.getAttribute('href')).filter(Boolean) as string[];
+      const activeImages = Array.from(document.querySelectorAll('img')).map(i => i.getAttribute('src')).filter(Boolean) as string[];
+
+      const filesToCache = Array.from(new Set([
         '/',
         '/index.html',
         '/manifest.json',
         '/favicon.ico',
+        '/apple-touch-icon.png',
+        '/apple-touch-icon-precomposed.png',
+        '/icon-192.png',
+        '/icon-512.png',
+        '/icons/logo2.png',
+        '/icons/icon-any-192.png',
+        '/icons/icon-any-512.png',
         '/placeholder.svg',
         '/criar',
         '/ai',
@@ -462,7 +473,10 @@ const AccountPage = () => {
         '/devocional',
         '/conta',
         'https://raw.githubusercontent.com/eversondeveloper/bibialivrejson/main/biblialivrecorrecao1.json',
-      ];
+        ...activeScripts,
+        ...activeStyles,
+        ...activeImages
+      ]));
 
       let completed = 0;
       for (const url of filesToCache) {
@@ -624,47 +638,7 @@ const AccountPage = () => {
 
                     {notificationsEnabled && (
                       <div className="mt-2 flex flex-wrap gap-2">
-                        <button 
-                          onClick={() => {
-                            if (!("Notification" in window)) {
-                              toast({ title: t("not_supported"), description: t("not_supported_desc"), variant: "destructive" });
-                              return;
-                            }
-
-                            const triggerTestNotification = () => {
-                              sendLocalNotification(
-                                language === "en" ? "Notification Test 🔔" : "Teste de Notificação 🔔", 
-                                language === "en" ? "Your Bible Online test notification was sent successfully!" : "Sua notificação de teste da Bíblia Online foi enviada com sucesso!"
-                              );
-                              // Also send message to SW if active
-                              if ("serviceWorker" in navigator) {
-                                navigator.serviceWorker.ready.then(reg => {
-                                  reg.active?.postMessage({ type: 'TEST_NOTIFICATION' });
-                                }).catch(() => {});
-                              }
-                              toast({ title: t("test_sent"), description: t("test_sent_desc") });
-                            };
-
-                            if (Notification.permission === "default") {
-                              Notification.requestPermission().then((permission) => {
-                                if (permission === "granted") {
-                                  triggerTestNotification();
-                                } else {
-                                  toast({ title: t("permission_denied"), description: t("permission_denied_desc"), variant: "destructive" });
-                                }
-                              });
-                            } else if (Notification.permission === "granted") {
-                              triggerTestNotification();
-                            } else {
-                              toast({ title: t("notifications_blocked"), description: t("notifications_blocked_desc"), variant: "destructive" });
-                            }
-                          }}
-                          className="flex-1 min-w-[80px] rounded-lg bg-accent/10 py-2 text-[10px] font-medium text-accent hover:bg-accent/20 transition-colors"
-                        >
-                          {t("test_now")} (Local)
-                        </button>
-
-                        {authCtx.user && (
+                        {authCtx.user ? (
                           <button 
                             onClick={async () => {
                               try {
@@ -715,10 +689,14 @@ const AccountPage = () => {
                                 });
                               }
                             }}
-                            className="flex-1 min-w-[80px] rounded-lg bg-emerald-500/10 py-2 text-[10px] font-medium text-emerald-500 hover:bg-emerald-500/20 transition-colors"
+                            className="flex-1 min-w-[80px] rounded-lg bg-blue-500/10 py-2 text-[10px] font-medium text-blue-500 hover:bg-blue-500/20 transition-colors"
                           >
-                            {language === "en" ? "Real Push" : "Push Real"}
+                            {language === "en" ? "Test" : "Testar"}
                           </button>
+                        ) : (
+                          <div className="flex-1 py-2 text-[10px] text-muted-foreground italic text-center">
+                            {language === "en" ? "Sign in to test push notifications" : "Faça login para testar as notificações push"}
+                          </div>
                         )}
 
                         <div className="flex-[1.5] min-w-[120px] rounded-lg bg-secondary/30 px-3 py-2 flex items-center justify-between">

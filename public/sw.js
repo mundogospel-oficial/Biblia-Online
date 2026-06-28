@@ -1,4 +1,142 @@
 // public/sw.js
+
+const CACHE_NAME = 'biblia-online-v5';
+const STATIC_ASSETS = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/favicon.ico',
+  '/apple-touch-icon.png',
+  '/apple-touch-icon-precomposed.png',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icons/logo2.png',
+  '/icons/icon-any-192.png',
+  '/icons/icon-any-512.png',
+  '/placeholder.svg'
+];
+
+const BIBLE_DATA_URL = 'https://raw.githubusercontent.com/eversondeveloper/bibialivrejson/main/biblialivrecorrecao1.json';
+
+// Install Event - Pre-cache essential static assets and the offline Bible database
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(async (cache) => {
+      console.log('[SW] Pre-caching static assets and offline Bible database...');
+      
+      // Cache assets individually to prevent one fail from blocking the entire cache
+      for (const asset of STATIC_ASSETS) {
+        try {
+          await cache.add(asset);
+        } catch (err) {
+          console.warn(`[SW] Static asset failed to cache: ${asset}`, err);
+        }
+      }
+
+      // Pre-cache Bible database
+      try {
+        await cache.add(new Request(BIBLE_DATA_URL, { mode: 'cors' }));
+        console.log('[SW] Bible database pre-cached successfully!');
+      } catch (err) {
+        console.warn('[SW] Bible database pre-cache failed, will cache on next fetch:', err);
+      }
+
+      return self.skipWaiting();
+    })
+  );
+});
+
+// Activate Event - Clean up stale caches
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('[SW] Cleaning up old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
+  );
+});
+
+// Fetch Event - Intercept requests for offline loading
+self.addEventListener('fetch', (event) => {
+  // Only handle GET requests
+  if (event.request.method !== 'GET') return;
+
+  const url = new URL(event.request.url);
+
+  // Skip AI endpoints, external APIs, supabase database, and development websockets
+  if (
+    url.host.includes('googleapis.com') ||
+    url.host.includes('openrouter.ai') ||
+    url.pathname.startsWith('/api/ai') ||
+    url.pathname.startsWith('/api/generate-image') ||
+    url.pathname.startsWith('/socket.io') ||
+    url.pathname.includes('hot-update') ||
+    (url.host.includes('localhost') && url.port === '3000' && url.pathname.startsWith('/@')) ||
+    url.host.includes('supabase.co')
+  ) {
+    return;
+  }
+
+  // If navigation request (e.g., page routes like /reader, /account), serve the cached index.html SPA shell
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.match('/index.html') || caches.match('/');
+      })
+    );
+    return;
+  }
+
+  // Cache-First with Network fallback for static files, fonts, images and Bible data
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) {
+        // Return from cache immediately, but trigger background fetch for files that can change to revalidate cache
+        if (
+          url.pathname.endsWith('.css') || 
+          url.pathname.endsWith('.js') || 
+          event.request.url === BIBLE_DATA_URL
+        ) {
+          fetch(event.request).then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(event.request, networkResponse);
+              });
+            }
+          }).catch(() => {}); // silent catch on network fail during revalidation
+        }
+        return cachedResponse;
+      }
+
+      // Fetch from network and dynamically cache
+      return fetch(event.request).then((response) => {
+        if (!response || response.status !== 200 || (response.type !== 'basic' && response.type !== 'cors')) {
+          return response;
+        }
+
+        const responseToCache = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
+
+        return response;
+      }).catch(() => {
+        // Fallback for offline images
+        if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('image')) {
+          return caches.match('/icons/logo2.png') || caches.match('/placeholder.svg');
+        }
+      });
+    })
+  );
+});
+
+// --- PUSH NOTIFICATIONS ---
 self.addEventListener('push', (event) => {
   if (!event.data) return;
 

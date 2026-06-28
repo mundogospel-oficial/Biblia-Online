@@ -191,8 +191,15 @@ async function startServer() {
 
   app.use(cors({
     origin: (origin, callback) => {
-      // Permite requisições sem origin (como mobile apps ou curl se não bloqueado) e as listadas
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Permite requisições sem origin (como mobile apps ou curl se não bloqueado), as listadas e domínios Vercel/produção correlacionados
+      if (
+        !origin || 
+        allowedOrigins.includes(origin) || 
+        origin.endsWith('.vercel.app') || 
+        origin.endsWith('.run.app') || 
+        origin.includes('online-biblia') ||
+        origin.includes('bibliaonline')
+      ) {
         callback(null, true);
       } else {
         console.warn(`[CORS] Bloqueado acesso de origem não autorizada: ${origin}`);
@@ -241,6 +248,7 @@ async function startServer() {
       valPath === '/api/security/report' || 
       valPath === '/api/user/delete' ||
       valPath === '/api/vapid-public-key' ||
+      valPath === '/api/push/test' ||
       req.path.startsWith('/@vite') || 
       req.path.startsWith('/src')
     ) {
