@@ -9,8 +9,37 @@ import webpush from "web-push";
 import helmet from "helmet";
 import fs from "fs";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// --- ESM & CJS COMPATIBLE RUNTIME RESOLUTION ---
+const getFilename = () => {
+  try {
+    if (typeof import.meta !== "undefined" && import.meta.url) {
+      return fileURLToPath(import.meta.url);
+    }
+  } catch (e) {}
+  return typeof __filename !== "undefined" ? __filename : "";
+};
+
+const getDirname = () => {
+  try {
+    if (typeof import.meta !== "undefined" && import.meta.url) {
+      return path.dirname(fileURLToPath(import.meta.url));
+    }
+  } catch (e) {}
+  return typeof __dirname !== "undefined" ? __dirname : process.cwd();
+};
+
+const __filenameSafe = getFilename();
+const __dirnameSafe = getDirname();
+
+// Robust helper to get the web-push module instance with default/named export resilience
+const getWebPush = () => {
+  if (webpush && typeof webpush === "object") {
+    if ("default" in (webpush as any) && (webpush as any).default && typeof (webpush as any).default.sendNotification === "function") {
+      return (webpush as any).default;
+    }
+  }
+  return webpush;
+};
 
 // --- DETECÇÃO E GERAÇÃO AUTOMÁTICA DE CHAVES VAPID (PLUG AND PLAY) ---
 let vapidKeys = {
@@ -44,7 +73,7 @@ if (!isValidVapidKey(vapidKeys.publicKey) || !isValidVapidKey(vapidKeys.privateK
 
   if (!isValidVapidKey(vapidKeys.publicKey) || !isValidVapidKey(vapidKeys.privateKey)) {
     try {
-      const generated = webpush.generateVAPIDKeys();
+      const generated = getWebPush().generateVAPIDKeys();
       vapidKeys.publicKey = generated.publicKey;
       vapidKeys.privateKey = generated.privateKey;
       fs.writeFileSync(keysFile, JSON.stringify(generated, null, 2), "utf8");
@@ -663,9 +692,10 @@ REGRA 4 (Saída): Responda APENAS com o prompt purificado em inglês enriquecido
         return res.status(500).json({ error: "Chaves VAPID indisponíveis ou inválidas no servidor." });
       }
 
-      webpush.setVapidDetails(vapidKeys.subject, vapidKeys.publicKey, vapidKeys.privateKey);
+      const wp = getWebPush();
+      wp.setVapidDetails(vapidKeys.subject, vapidKeys.publicKey, vapidKeys.privateKey);
 
-      await webpush.sendNotification(
+      await wp.sendNotification(
         profile.push_subscription,
         JSON.stringify({
           title: "Bíblia Online 📖",
@@ -699,7 +729,8 @@ REGRA 4 (Saída): Responda APENAS com o prompt purificado em inglês enriquecido
       return res.status(500).json({ error: "Configuração ou chaves de push VAPID ausentes ou inválidas" });
     }
 
-    webpush.setVapidDetails(subject, publicKey, privateKey);
+    const wp = getWebPush();
+    wp.setVapidDetails(subject, publicKey, privateKey);
 
     const verses = [
       "O Senhor é o meu pastor; nada me faltará.",
@@ -734,7 +765,7 @@ REGRA 4 (Saída): Responda APENAS com o prompt purificado em inglês enriquecido
         }
 
         try {
-          await webpush.sendNotification(
+          await wp.sendNotification(
             user.push_subscription,
             JSON.stringify({ title, body, url: "/reader" })
           );
