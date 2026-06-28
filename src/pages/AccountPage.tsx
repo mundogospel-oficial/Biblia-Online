@@ -623,7 +623,7 @@ const AccountPage = () => {
                     </button>
 
                     {notificationsEnabled && (
-                      <div className="mt-2 flex gap-2">
+                      <div className="mt-2 flex flex-wrap gap-2">
                         <button 
                           onClick={() => {
                             if (!("Notification" in window)) {
@@ -659,11 +659,69 @@ const AccountPage = () => {
                               toast({ title: t("notifications_blocked"), description: t("notifications_blocked_desc"), variant: "destructive" });
                             }
                           }}
-                          className="flex-1 rounded-lg bg-accent/10 py-2 text-[10px] font-medium text-accent hover:bg-accent/20 transition-colors"
+                          className="flex-1 min-w-[80px] rounded-lg bg-accent/10 py-2 text-[10px] font-medium text-accent hover:bg-accent/20 transition-colors"
                         >
-                          {t("test_now")}
+                          {t("test_now")} (Local)
                         </button>
-                        <div className="flex-[1.5] rounded-lg bg-secondary/30 px-3 py-2 flex items-center justify-between">
+
+                        {authCtx.user && (
+                          <button 
+                            onClick={async () => {
+                              try {
+                                const session = await supabase.auth.getSession();
+                                const token = session.data.session?.access_token;
+                                if (!token) {
+                                  toast({ title: "Erro de sessão", description: "Não foi possível obter o token de sessão.", variant: "destructive" });
+                                  return;
+                                }
+                                
+                                const response = await fetch('/api/push/test', {
+                                  method: 'POST',
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${token}`
+                                  }
+                                });
+                                
+                                const data = await response.json();
+                                if (response.ok) {
+                                  toast({ 
+                                    title: language === "en" ? "Real Push Sent! 📡" : "Push Real Enviado! 📡", 
+                                    description: language === "en" ? "A real push notification was triggered by the server." : "Uma notificação push real foi disparada pelo servidor." 
+                                  });
+                                } else {
+                                  if (data.error === "NO_SUBSCRIPTION") {
+                                    toast({
+                                      title: language === "en" ? "No Subscription" : "Sem Inscrição",
+                                      description: language === "en" 
+                                        ? "Active push subscription not found. Try toggling notifications off and on again to register."
+                                        : "Inscrição de push ativa não encontrada. Experimente desativar e reativar as notificações para registrar seu navegador.",
+                                      variant: "destructive"
+                                    });
+                                  } else {
+                                    toast({ 
+                                      title: language === "en" ? "Server Error" : "Falha no servidor", 
+                                      description: data.message || (language === "en" ? "Unknown error sending push." : "Erro desconhecido ao enviar push."), 
+                                      variant: "destructive" 
+                                    });
+                                  }
+                                }
+                              } catch (err) {
+                                console.error("Erro ao disparar teste de push:", err);
+                                toast({ 
+                                  title: language === "en" ? "Connection Error" : "Erro de conexão", 
+                                  description: language === "en" ? "Failed to communicate with the server." : "Falha ao se comunicar com o servidor.", 
+                                  variant: "destructive" 
+                                });
+                              }
+                            }}
+                            className="flex-1 min-w-[80px] rounded-lg bg-emerald-500/10 py-2 text-[10px] font-medium text-emerald-500 hover:bg-emerald-500/20 transition-colors"
+                          >
+                            {language === "en" ? "Real Push" : "Push Real"}
+                          </button>
+                        )}
+
+                        <div className="flex-[1.5] min-w-[120px] rounded-lg bg-secondary/30 px-3 py-2 flex items-center justify-between">
                           <span className="text-[10px] text-muted-foreground">{t("clock_status")}</span>
                           <span className="text-[10px] font-mono text-accent animate-pulse">{t("clock_active")}</span>
                         </div>

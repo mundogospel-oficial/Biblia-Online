@@ -131,8 +131,8 @@ export const sendLocalNotification = (title: string, body: string) => {
         if (registration && typeof registration.showNotification === "function") {
           registration.showNotification(title, {
             body,
-            icon: "/icons/icon-192x192.png",
-            badge: "/icons/badge-72x72.png",
+            icon: "/icons/icon-any-192.png",
+            badge: "/icons/apple-touch-icon.png",
             vibrate: [200, 100, 200],
             tag: "biblia-notification",
             renotify: true,
@@ -146,7 +146,7 @@ export const sendLocalNotification = (title: string, body: string) => {
         try {
           new Notification(title, {
             body,
-            icon: "/icons/icon-192x192.png",
+            icon: "/icons/icon-any-192.png",
             tag: "biblia-notification",
           });
         } catch (fallbackErr) {
@@ -158,7 +158,7 @@ export const sendLocalNotification = (title: string, body: string) => {
     try {
       new Notification(title, {
         body,
-        icon: "/icons/icon-192x192.png",
+        icon: "/icons/icon-any-192.png",
         tag: "biblia-notification",
       });
     } catch (err) {

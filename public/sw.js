@@ -7,8 +7,8 @@ self.addEventListener('push', (event) => {
     const title = data.title || 'Bíblia Online';
     const options = {
       body: data.body,
-      icon: '/icons/icon-192x192.png',
-      badge: '/icons/badge-72x72.png',
+      icon: '/icons/icon-any-192.png',
+      badge: '/icons/apple-touch-icon.png',
       vibrate: [100, 50, 100],
       data: {
         url: data.url || '/'
@@ -29,8 +29,8 @@ self.addEventListener('message', (event) => {
   if (event.data.type === 'TEST_NOTIFICATION') {
     const options = {
       body: 'Sua notificação de teste da Bíblia Online foi enviada com sucesso! 🔔',
-      icon: '/icons/icon-192x192.png',
-      badge: '/icons/badge-72x72.png',
+      icon: '/icons/icon-any-192.png',
+      badge: '/icons/apple-touch-icon.png',
       vibrate: [200, 100, 200],
       data: {
         url: '/'

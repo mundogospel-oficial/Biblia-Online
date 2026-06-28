@@ -8,9 +8,53 @@ import { createClient } from "@supabase/supabase-js";
 import rateLimit from "express-rate-limit";
 import webpush from "web-push";
 import helmet from "helmet";
+import fs from "fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// --- DETECÇÃO E GERAÇÃO AUTOMÁTICA DE CHAVES VAPID (PLUG AND PLAY) ---
+let vapidKeys = {
+  publicKey: process.env.VITE_VAPID_PUBLIC_KEY || "",
+  privateKey: process.env.VAPID_PRIVATE_KEY || "",
+  subject: process.env.VAPID_SUBJECT || "mailto:support@bibliaonline.com"
+};
+
+const keysFile = path.join(process.cwd(), "vapid_keys.json");
+
+function isValidVapidKey(key: string | undefined): boolean {
+  if (!key) return false;
+  const k = key.trim();
+  if (k.startsWith("YOUR_") || k.includes("placeholder") || k.includes("MY_") || k === "") return false;
+  return k.length > 30; // Chaves VAPID reais em base64url têm cerca de 87 caracteres
+}
+
+if (!isValidVapidKey(vapidKeys.publicKey) || !isValidVapidKey(vapidKeys.privateKey)) {
+  if (fs.existsSync(keysFile)) {
+    try {
+      const saved = JSON.parse(fs.readFileSync(keysFile, "utf8"));
+      if (isValidVapidKey(saved.publicKey) && isValidVapidKey(saved.privateKey)) {
+        vapidKeys.publicKey = saved.publicKey;
+        vapidKeys.privateKey = saved.privateKey;
+        console.log("[VAPID] Chaves VAPID carregadas com sucesso de vapid_keys.json");
+      }
+    } catch (e) {
+      console.error("[VAPID] Erro ao ler vapid_keys.json:", e);
+    }
+  }
+
+  if (!isValidVapidKey(vapidKeys.publicKey) || !isValidVapidKey(vapidKeys.privateKey)) {
+    try {
+      const generated = webpush.generateVAPIDKeys();
+      vapidKeys.publicKey = generated.publicKey;
+      vapidKeys.privateKey = generated.privateKey;
+      fs.writeFileSync(keysFile, JSON.stringify(generated, null, 2), "utf8");
+      console.log("[VAPID] Geradas novas chaves VAPID robustas e salvas em vapid_keys.json");
+    } catch (e) {
+      console.error("[VAPID] Falha crítica ao gerar chaves VAPID:", e);
+    }
+  }
+}
 
 // Initialize Supabase Admin Client (for sensitive operations)
 const getSupabaseAdmin = () => {
@@ -196,6 +240,7 @@ async function startServer() {
     if (
       valPath === '/api/security/report' || 
       valPath === '/api/user/delete' ||
+      valPath === '/api/vapid-public-key' ||
       req.path.startsWith('/@vite') || 
       req.path.startsWith('/src')
     ) {
@@ -562,6 +607,70 @@ REGRA 4 (Saída): Responda APENAS com o prompt purificado em inglês enriquecido
     }
   });
 
+  // --- GET PUBLIC VAPID KEY ---
+  app.get("/api/vapid-public-key", (req, res) => {
+    res.json({ publicKey: vapidKeys.publicKey });
+  });
+
+  // --- TEST REAL PUSH NOTIFICATION (SERVER TO CLIENT) ---
+  app.post("/api/push/test", async (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: "Missing authorization header" });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const adminClient = getSupabaseAdmin();
+
+    if (!adminClient) {
+      return res.status(500).json({ error: "Configuração do Supabase admin ausente no servidor" });
+    }
+
+    try {
+      // 1. Obter usuário através do token JWT do Supabase
+      const { data: { user }, error: authError } = await adminClient.auth.getUser(token);
+      if (authError || !user) {
+        return res.status(401).json({ error: "Sessão inválida" });
+      }
+
+      // 2. Obter o perfil com a assinatura de push
+      const { data: profile, error: profileError } = await adminClient
+        .from("profiles")
+        .select("push_subscription")
+        .eq("id", user.id)
+        .single();
+
+      if (profileError || !profile || !profile.push_subscription) {
+        return res.status(400).json({ 
+          error: "NO_SUBSCRIPTION", 
+          message: "Nenhuma inscrição de push ativa para esta conta neste navegador. Por favor desative e reative as notificações." 
+        });
+      }
+
+      // 3. Configurar web-push com nossas chaves válidas e disparar
+      if (!isValidVapidKey(vapidKeys.publicKey) || !isValidVapidKey(vapidKeys.privateKey)) {
+        return res.status(500).json({ error: "Chaves VAPID indisponíveis ou inválidas no servidor." });
+      }
+
+      webpush.setVapidDetails(vapidKeys.subject, vapidKeys.publicKey, vapidKeys.privateKey);
+
+      await webpush.sendNotification(
+        profile.push_subscription,
+        JSON.stringify({
+          title: "Bíblia Online 📖",
+          body: "Sua notificação push real do servidor foi enviada com sucesso! 🕊️",
+          url: "/reader"
+        })
+      );
+
+      console.log(`[Push Test] Notificação real enviada via web-push com sucesso para ${user.id}`);
+      res.json({ success: true, message: "Push enviado com sucesso de verdade do servidor!" });
+    } catch (err: any) {
+      console.error("[Push Test Error]:", err);
+      res.status(500).json({ error: "PUSH_FAILED", message: err.message || "Falha ao disparar push" });
+    }
+  });
+
   // --- WEB PUSH CRON ROUTE ---
   app.get("/api/cron/send-push", async (req, res) => {
     // Basic auth check for cron (can be improved with a dedicated secret)
@@ -571,12 +680,12 @@ REGRA 4 (Saída): Responda APENAS com o prompt purificado em inglês enriquecido
     }
 
     const adminClient = getSupabaseAdmin();
-    const publicKey = process.env.VITE_VAPID_PUBLIC_KEY;
-    const privateKey = process.env.VAPID_PRIVATE_KEY;
-    const subject = process.env.VAPID_SUBJECT || "mailto:support@bibliaonline.com";
+    const publicKey = vapidKeys.publicKey;
+    const privateKey = vapidKeys.privateKey;
+    const subject = vapidKeys.subject;
 
-    if (!adminClient || !publicKey || !privateKey) {
-      return res.status(500).json({ error: "Push configuration missing" });
+    if (!adminClient || !isValidVapidKey(publicKey) || !isValidVapidKey(privateKey)) {
+      return res.status(500).json({ error: "Configuração ou chaves de push VAPID ausentes ou inválidas" });
     }
 
     webpush.setVapidDetails(subject, publicKey, privateKey);

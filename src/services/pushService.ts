@@ -41,9 +41,24 @@ export async function setupPushNotifications(userId: string) {
     }
 
     // 3. Inscrição no Push Manager
-    const publicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+    let publicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+    if (!publicKey || publicKey.startsWith("YOUR_") || publicKey.includes("placeholder") || publicKey === "") {
+      try {
+        console.log('[Push] Buscando chave pública VAPID ativa do servidor...');
+        const response = await fetch('/api/vapid-public-key');
+        if (response.ok) {
+          const data = await response.json();
+          publicKey = data.publicKey;
+        } else {
+          console.error('[Push] Falha ao obter chave do servidor. Status:', response.status);
+        }
+      } catch (err) {
+        console.error('[Push] Erro ao obter chave pública VAPID do servidor:', err);
+      }
+    }
+
     if (!publicKey) {
-      console.error('VITE_VAPID_PUBLIC_KEY não configurada.');
+      console.error('VITE_VAPID_PUBLIC_KEY não configurada e não pôde ser obtida do servidor.');
       return;
     }
 
