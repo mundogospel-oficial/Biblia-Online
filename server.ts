@@ -41,15 +41,6 @@ const getWebPush = () => {
   return webpush;
 };
 
-// --- DETECÇÃO E GERAÇÃO AUTOMÁTICA DE CHAVES VAPID (PLUG AND PLAY) ---
-let vapidKeys = {
-  publicKey: process.env.VITE_VAPID_PUBLIC_KEY || "",
-  privateKey: process.env.VAPID_PRIVATE_KEY || "",
-  subject: process.env.VAPID_SUBJECT || "mailto:support@bibliaonline.com"
-};
-
-const keysFile = path.join(process.cwd(), "vapid_keys.json");
-
 function isValidVapidKey(key: string | undefined): boolean {
   if (!key) return false;
   const k = key.trim();
@@ -57,30 +48,119 @@ function isValidVapidKey(key: string | undefined): boolean {
   return k.length > 30; // Chaves VAPID reais em base64url têm cerca de 87 caracteres
 }
 
-if (!isValidVapidKey(vapidKeys.publicKey) || !isValidVapidKey(vapidKeys.privateKey)) {
+// --- SISTEMA DE CHAVES VAPID ASSÍNCRONO COM REDUNDÂNCIA E PERSISTÊNCIA ---
+let vapidKeysCache: { publicKey: string; privateKey: string; subject: string } | null = null;
+
+async function ensureVapidKeys(): Promise<{ publicKey: string; privateKey: string; subject: string }> {
+  if (vapidKeysCache && isValidVapidKey(vapidKeysCache.publicKey) && isValidVapidKey(vapidKeysCache.privateKey)) {
+    return vapidKeysCache;
+  }
+
+  // 1. Tentar ler das variáveis de ambiente
+  const pub = process.env.VITE_VAPID_PUBLIC_KEY || "";
+  const priv = process.env.VAPID_PRIVATE_KEY || "";
+  const subj = process.env.VAPID_SUBJECT || "mailto:support@bibliaonline.com";
+
+  if (isValidVapidKey(pub) && isValidVapidKey(priv)) {
+    vapidKeysCache = { publicKey: pub, privateKey: priv, subject: subj };
+    console.log("[VAPID] Chaves VAPID carregadas com sucesso das variáveis de ambiente.");
+    return vapidKeysCache;
+  }
+
+  // 2. Tentar ler do Supabase (tabela system_settings)
+  const adminClient = getSupabaseAdmin();
+  if (adminClient) {
+    try {
+      const { data, error } = await adminClient
+        .from("system_settings")
+        .select("value")
+        .eq("key", "vapid_keys")
+        .maybeSingle();
+
+      if (!error && data && data.value) {
+        const parsed = typeof data.value === "string" ? JSON.parse(data.value) : data.value;
+        if (isValidVapidKey(parsed.publicKey) && isValidVapidKey(parsed.privateKey)) {
+          vapidKeysCache = {
+            publicKey: parsed.publicKey,
+            privateKey: parsed.privateKey,
+            subject: parsed.subject || subj
+          };
+          console.log("[VAPID] Chaves VAPID carregadas com sucesso do Supabase (system_settings).");
+          return vapidKeysCache;
+        }
+      }
+    } catch (dbErr) {
+      console.warn("[VAPID] Tabela system_settings não pôde ser lida no Supabase (pode não existir ainda):", dbErr);
+    }
+  }
+
+  // 3. Tentar ler de vapid_keys.json local (pasta /tmp em produção Vercel, ou cwd em desenvolvimento)
+  let keysFile = path.join(process.cwd(), "vapid_keys.json");
+  if (process.env.VERCEL) {
+    keysFile = path.join("/tmp", "vapid_keys.json");
+  }
+
   if (fs.existsSync(keysFile)) {
     try {
       const saved = JSON.parse(fs.readFileSync(keysFile, "utf8"));
       if (isValidVapidKey(saved.publicKey) && isValidVapidKey(saved.privateKey)) {
-        vapidKeys.publicKey = saved.publicKey;
-        vapidKeys.privateKey = saved.privateKey;
-        console.log("[VAPID] Chaves VAPID carregadas com sucesso de vapid_keys.json");
+        vapidKeysCache = {
+          publicKey: saved.publicKey,
+          privateKey: saved.privateKey,
+          subject: saved.subject || subj
+        };
+        console.log("[VAPID] Chaves VAPID carregadas com sucesso de:", keysFile);
+        return vapidKeysCache;
       }
     } catch (e) {
-      console.error("[VAPID] Erro ao ler vapid_keys.json:", e);
+      console.error("[VAPID] Erro ao ler chaves do arquivo local:", e);
     }
   }
 
-  if (!isValidVapidKey(vapidKeys.publicKey) || !isValidVapidKey(vapidKeys.privateKey)) {
-    try {
-      const generated = getWebPush().generateVAPIDKeys();
-      vapidKeys.publicKey = generated.publicKey;
-      vapidKeys.privateKey = generated.privateKey;
-      fs.writeFileSync(keysFile, JSON.stringify(generated, null, 2), "utf8");
-      console.log("[VAPID] Geradas novas chaves VAPID robustas e salvas em vapid_keys.json");
-    } catch (e) {
-      console.error("[VAPID] Falha crítica ao gerar chaves VAPID:", e);
+  // 4. Se nada disso funcionar, gerar novas chaves VAPID dinamicamente
+  try {
+    console.log("[VAPID] Nenhuma chave VAPID válida encontrada. Gerando novas chaves robustas...");
+    const generated = getWebPush().generateVAPIDKeys();
+    const newKeys = {
+      publicKey: generated.publicKey,
+      privateKey: generated.privateKey,
+      subject: subj
+    };
+    vapidKeysCache = newKeys;
+
+    // Tentar salvar no Supabase de forma assíncrona (não bloqueante)
+    if (adminClient) {
+      adminClient
+        .from("system_settings")
+        .upsert({ key: "vapid_keys", value: newKeys })
+        .then(({ error }) => {
+          if (error) {
+            console.warn("[VAPID] Tabela system_settings não disponível para salvar chaves (tudo bem, rodando em RAM).");
+          } else {
+            console.log("[VAPID] Novas chaves VAPID salvas no Supabase com sucesso.");
+          }
+        })
+        .catch(err => {
+          console.error("[VAPID] Erro ao persistir chaves no Supabase:", err);
+        });
     }
+
+    // Tentar salvar no arquivo local de forma assíncrona (best-effort, tolerando read-only system)
+    try {
+      fs.writeFileSync(keysFile, JSON.stringify(generated, null, 2), "utf8");
+      console.log("[VAPID] Novas chaves salvas localmente em:", keysFile);
+    } catch (fsErr) {
+      console.warn("[VAPID] Não foi possível persistir chaves localmente (sistema somente leitura), rodando em memória.");
+    }
+
+    return vapidKeysCache;
+  } catch (genErr) {
+    console.error("[VAPID] Erro crítico ao gerar novas chaves VAPID:", genErr);
+    return {
+      publicKey: "",
+      privateKey: "",
+      subject: subj
+    };
   }
 }
 
@@ -648,8 +728,9 @@ REGRA 4 (Saída): Responda APENAS com o prompt purificado em inglês enriquecido
   });
 
   // --- GET PUBLIC VAPID KEY ---
-  app.get("/api/vapid-public-key", (req, res) => {
-    res.json({ publicKey: vapidKeys.publicKey });
+  app.get("/api/vapid-public-key", async (req, res) => {
+    const keys = await ensureVapidKeys();
+    res.json({ publicKey: keys.publicKey });
   });
 
   // --- TEST REAL PUSH NOTIFICATION (SERVER TO CLIENT) ---
@@ -688,12 +769,13 @@ REGRA 4 (Saída): Responda APENAS com o prompt purificado em inglês enriquecido
       }
 
       // 3. Configurar web-push com nossas chaves válidas e disparar
-      if (!isValidVapidKey(vapidKeys.publicKey) || !isValidVapidKey(vapidKeys.privateKey)) {
+      const keys = await ensureVapidKeys();
+      if (!isValidVapidKey(keys.publicKey) || !isValidVapidKey(keys.privateKey)) {
         return res.status(500).json({ error: "Chaves VAPID indisponíveis ou inválidas no servidor." });
       }
 
       const wp = getWebPush();
-      wp.setVapidDetails(vapidKeys.subject, vapidKeys.publicKey, vapidKeys.privateKey);
+      wp.setVapidDetails(keys.subject, keys.publicKey, keys.privateKey);
 
       await wp.sendNotification(
         profile.push_subscription,
@@ -721,9 +803,10 @@ REGRA 4 (Saída): Responda APENAS com o prompt purificado em inglês enriquecido
     }
 
     const adminClient = getSupabaseAdmin();
-    const publicKey = vapidKeys.publicKey;
-    const privateKey = vapidKeys.privateKey;
-    const subject = vapidKeys.subject;
+    const keys = await ensureVapidKeys();
+    const publicKey = keys.publicKey;
+    const privateKey = keys.privateKey;
+    const subject = keys.subject;
 
     if (!adminClient || !isValidVapidKey(publicKey) || !isValidVapidKey(privateKey)) {
       return res.status(500).json({ error: "Configuração ou chaves de push VAPID ausentes ou inválidas" });
