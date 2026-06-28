@@ -657,7 +657,15 @@ const AccountPage = () => {
                                   }
                                 });
                                 
-                                const data = await response.json();
+                                const responseText = await response.text();
+                                let data: any = {};
+                                try {
+                                  data = responseText ? JSON.parse(responseText) : {};
+                                } catch (e) {
+                                  console.error("Failed to parse response JSON:", responseText, e);
+                                  throw new Error(language === "en" ? "Server returned an invalid response." : "O servidor retornou uma resposta inválida.");
+                                }
+                                
                                 if (response.ok) {
                                   toast({ 
                                     title: language === "en" ? "Real Push Sent! 📡" : "Push Real Enviado! 📡", 

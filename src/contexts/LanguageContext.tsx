@@ -51,7 +51,7 @@ const translations: Record<Language, Record<string, string>> = {
     "enter_account": "Entrar na Conta",
     "deleting_profile": "Carregando...",
     "delete_modal_title": "Excluir Conta",
-    "delete_modal_alert": "Alerta: ao excluir sua conta você apagara todos seus dados e não podera recuperar.",
+    "delete_modal_alert": "Alerta: ao excluir sua conta você apagará todos seus dados e não poderá recuperá-los. Além disso, você terá que aguardar um período de 30 dias para poder criar uma nova conta com este mesmo e-mail.",
     "delete_modal_confirm": "Apagar meus dados",
     "delete_modal_cancel": "Cancelar",
     // Offline AI
@@ -107,7 +107,7 @@ const translations: Record<Language, Record<string, string>> = {
     "enter_account": "Sign In",
     "deleting_profile": "Loading...",
     "delete_modal_title": "Delete Account",
-    "delete_modal_alert": "Warning: deleting your account will erase all your data and cannot be recovered.",
+    "delete_modal_alert": "Warning: deleting your account will erase all your data and cannot be recovered. Additionally, you will have to wait for a period of 30 days before being able to create a new account with this same email.",
     "delete_modal_confirm": "Delete my data",
     "delete_modal_cancel": "Cancel",
     // Offline AI
