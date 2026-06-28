@@ -304,63 +304,78 @@ function startServer() {
 
   // 1. Detecção de padrões de ataque (SQLi, XSS, Path Traversal)
   const detectAttacks = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const url = decodeURIComponent(req.originalUrl);
-    const body = JSON.stringify(req.body || {});
-    const combined = (url + ' ' + body).toLowerCase();
-
-    const patterns = {
-      SQL_INJECTION:  /(\bselect\b|\bunion\b|\binsert\b|\bdrop\b).{0,50}(\bfrom\b|\bwhere\b|\binto\b)/i,
-      XSS_ATTEMPT:    /(<script|javascript:|onerror\s*=|alert\s*\()/i,
-      PATH_TRAVERSAL: /\.\.[/\\]/,
-      COMMAND_INJECT: /[;&|`$()].*(?:cmd|bash|sh|powershell|wget|curl)/i,
-      NOSQL_INJECT:   /\$(?:where|gt|lt|ne|in|nin|exists|regex)\b/,
-    };
-
-    for (const [name, regex] of Object.entries(patterns)) {
-      if (regex.test(combined)) {
-        console.warn(`[Sentinel] Ataque detectado: ${name} - IP: ${req.ip} - URL: ${req.originalUrl}`);
-        
-        // Se for um ataque claro do tipo SQLi ou XSS, bane o IP imediatamente de forma persistente
-        if (req.ip) banEntity(req.ip, `Detecção automática pelo Sentinel no endpoint: ${req.originalUrl} (${name})`);
-        
-        return res.status(400).json({ error: 'MALICIOUS_REQUEST_DETECTED', type: name });
+    try {
+      let url = req.originalUrl || "";
+      try {
+        url = decodeURIComponent(url);
+      } catch (e) {
+        // Ignora erro de URI malformada e usa o original
       }
+      const body = JSON.stringify(req.body || {});
+      const combined = (url + ' ' + body).toLowerCase();
+
+      const patterns = {
+        SQL_INJECTION:  /(\bselect\b|\bunion\b|\binsert\b|\bdrop\b).{0,50}(\bfrom\b|\bwhere\b|\binto\b)/i,
+        XSS_ATTEMPT:    /(<script|javascript:|onerror\s*=|alert\s*\()/i,
+        PATH_TRAVERSAL: /\.\.[/\\]/,
+        COMMAND_INJECT: /[;&|`$()].*(?:cmd|bash|sh|powershell|wget|curl)/i,
+        NOSQL_INJECT:   /\$(?:where|gt|lt|ne|in|nin|exists|regex)\b/,
+      };
+
+      for (const [name, regex] of Object.entries(patterns)) {
+        if (regex.test(combined)) {
+          console.warn(`[Sentinel] Ataque detectado: ${name} - IP: ${req.ip} - URL: ${req.originalUrl}`);
+          
+          // Se for um ataque claro do tipo SQLi ou XSS, bane o IP imediatamente de forma persistente
+          if (req.ip) banEntity(req.ip, `Detecção automática pelo Sentinel no endpoint: ${req.originalUrl} (${name})`);
+          
+          return res.status(400).json({ error: 'MALICIOUS_REQUEST_DETECTED', type: name });
+        }
+      }
+    } catch (err) {
+      console.error("[Sentinel] Erro crítico no middleware detectAttacks:", err);
     }
     next();
   };
 
   // 2. Validação de Token de Sessão Sentinel
   const validateSentinelToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const valPath = req.path.startsWith('/api') ? req.path : `/api${req.path}`;
-    // Ignora rotas públicas, recursos estáticos e rota de exclusão (já protegida por Supabase JWT)
-    if (
-      valPath === '/api/security/report' || 
-      valPath === '/api/user/delete' ||
-      valPath === '/api/vapid-public-key' ||
-      valPath === '/api/push/test' ||
-      req.path.startsWith('/@vite') || 
-      req.path.startsWith('/src')
-    ) {
-      return next();
-    }
-
-    const token = req.headers['x-sentinel-token'] as string;
-    const timestamp = parseInt((req.headers['x-request-timestamp'] as string) || '0');
-
-    // Em produção, você validaria se este token foi gerado pelo frontend
-    // Aqui faremos uma validação básica de formato (Sentinel gera tokens de 32 chars hexa)
-    if (!token || token.length !== 32) {
-      // Se for apenas carregamento de página (GET principal), permite para o frontend carregar o script
-      if (req.method === 'GET' && !req.path.startsWith('/api')) {
+    try {
+      const valPath = req.path.startsWith('/api') ? req.path : `/api${req.path}`;
+      const cleanPath = valPath.replace(/\/$/, ""); // Remove trailing slash
+      
+      // Ignora rotas públicas, recursos estáticos e rotas de utilidade
+      if (
+        cleanPath === '/api/security/report' || 
+        cleanPath === '/api/user/delete' ||
+        cleanPath === '/api/vapid-public-key' ||
+        cleanPath === '/api/push/test' ||
+        req.path.startsWith('/@vite') || 
+        req.path.startsWith('/src')
+      ) {
         return next();
       }
-      return res.status(403).json({ error: 'INVALID_SECURITY_TOKEN' });
-    }
 
-    // Previne replay attacks (max 2 minutos de diferença)
-    const age = Date.now() - timestamp;
-    if (age > 120000) {
-      return res.status(403).json({ error: 'SECURITY_TOKEN_EXPIRED' });
+      const token = req.headers['x-sentinel-token'] as string;
+      const timestamp = parseInt((req.headers['x-request-timestamp'] as string) || '0');
+
+      // Em produção, você validaria se este token foi gerado pelo frontend
+      // Aqui faremos uma validação básica de formato (Sentinel gera tokens de 32 chars hexa)
+      if (!token || token.length !== 32) {
+        // Se for apenas carregamento de página (GET principal), permite para o frontend carregar o script
+        if (req.method === 'GET' && !req.path.startsWith('/api')) {
+          return next();
+        }
+        return res.status(403).json({ error: 'INVALID_SECURITY_TOKEN' });
+      }
+
+      // Previne replay attacks (max 2 minutos de diferença)
+      const age = Date.now() - timestamp;
+      if (age > 120000) {
+        return res.status(403).json({ error: 'SECURITY_TOKEN_EXPIRED' });
+      }
+    } catch (err) {
+      console.error("[Sentinel] Erro no validateSentinelToken:", err);
     }
 
     next();
@@ -399,21 +414,32 @@ function startServer() {
 
   // Endpoint de relatório
   app.post("/api/security/report", (req, res) => {
-    const { sessionToken, fingerprint, score, level, reasons, url, timestamp } = req.body;
-    
-    console.log(`[Sentinel Report] Risk Level: ${level} (${score}/100)`);
-    if (reasons?.length) {
-      console.log(`Reasons: ${reasons.join(', ')}`);
-    }
+    try {
+      const { sessionToken, fingerprint, score, level, reasons, url, timestamp } = req.body || {};
+      
+      const safeScore = typeof score === 'number' ? score : parseInt(score) || 0;
+      const safeLevel = level || 'unknown';
+      const reasonsList = Array.isArray(reasons) ? reasons : (reasons ? [String(reasons)] : []);
+      
+      console.log(`[Sentinel Report] Risk Level: ${safeLevel} (${safeScore}/100)`);
+      if (reasonsList.length > 0) {
+        console.log(`Reasons: ${reasonsList.join(', ')}`);
+      }
 
-    // Banimento Automático de Alta Confiança
-    if (score >= 90) {
-      console.error(`[Sentinel] BANIMENTO AUTOMÁTICO: ${req.ip} / FP: ${fingerprint}`);
-      if (req.ip) banEntity(req.ip, `Score de risco Sentinel alto ou violação severa: ${score}/100. Motivo: ${reasons?.join(', ') || 'Nenhum informado'}`);
-      if (fingerprint) banEntity(fingerprint, `Score de risco Sentinel alto ou violação severa: ${score}/100. Motivo: ${reasons?.join(', ') || 'Nenhum informado'}`);
+      // Banimento Automático de Alta Confiança
+      if (safeScore >= 90) {
+        console.error(`[Sentinel] BANIMENTO AUTOMÁTICO: ${req.ip} / FP: ${fingerprint}`);
+        const reasonText = `Score de risco Sentinel alto ou violação severa: ${safeScore}/100. Motivo: ${reasonsList.join(', ') || 'Nenhum informado'}`;
+        if (req.ip) banEntity(req.ip, reasonText);
+        if (fingerprint) banEntity(fingerprint, reasonText);
+      }
+      
+      return res.json({ status: "received", incidentId: Date.now() });
+    } catch (err: any) {
+      console.error("[Sentinel Report Route Error]:", err);
+      // Retornar 202 para que o cliente não falhe e exiba um 500 no log do console
+      return res.status(202).json({ status: "partial", message: "Error handled gracefully" });
     }
-    
-    res.json({ status: "received", incidentId: Date.now() });
   });
 
   // API Health check
@@ -862,6 +888,11 @@ REGRA 4 (Saída): Responda APENAS com o prompt purificado em inglês enriquecido
       console.error("Cron Error:", err);
       res.status(500).json({ error: "Cron execution failed", details: err.message });
     }
+  });
+
+  // --- TRATAMENTO DE ROTAS DA API INEXISTENTES (Preveem erros 500 no Vercel) ---
+  app.use("/api/*", (req, res) => {
+    res.status(404).json({ error: "ROUTE_NOT_FOUND", message: "Rota da API não encontrada no servidor." });
   });
 
   // Vite middleware setup
