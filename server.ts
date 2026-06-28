@@ -890,11 +890,6 @@ REGRA 4 (Saída): Responda APENAS com o prompt purificado em inglês enriquecido
     }
   });
 
-  // --- TRATAMENTO DE ROTAS DA API INEXISTENTES (Preveem erros 500 no Vercel) ---
-  app.use("/api/*", (req, res) => {
-    res.status(404).json({ error: "ROUTE_NOT_FOUND", message: "Rota da API não encontrada no servidor." });
-  });
-
   // Vite middleware setup
   if (process.env.NODE_ENV !== "production") {
     import("vite").then(async ({ createServer: createViteServer }) => {
