@@ -72,8 +72,12 @@ const getSupabaseAdmin = () => {
   });
 };
 
+const app = express();
+
+export { app };
+export default app;
+
 async function startServer() {
-  const app = express();
   const PORT = 3000;
 
   // --- SECURITY HEADERS (HELMET) ---
@@ -756,7 +760,7 @@ REGRA 4 (Saída): Responda APENAS com o prompt purificado em inglês enriquecido
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
+  } else if (!process.env.VERCEL) {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*all", (req, res) => {
@@ -764,9 +768,11 @@ REGRA 4 (Saída): Responda APENAS com o prompt purificado em inglês enriquecido
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  if (!process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
 }
 
 startServer();

@@ -13,6 +13,8 @@ const STATIC_ASSETS = [
   '/icons/logo2.png',
   '/icons/icon-any-192.png',
   '/icons/icon-any-512.png',
+  '/icons/icon-maskable-192.png',
+  '/icons/icon-maskable-512.png',
   '/placeholder.svg'
 ];
 
