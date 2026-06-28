@@ -114,44 +114,55 @@ export const checkScheduledNotifications = () => {
 };
 
 export const sendLocalNotification = (title: string, body: string) => {
-  if (!("Notification" in window)) return;
+  if (!("Notification" in window)) {
+    console.warn("[Notification] Browser does not support Notifications.");
+    return;
+  }
 
-  if (Notification.permission === "granted") {
-    // Try via service worker ONLY if there is an active controller (indicating a running SW)
-    if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.ready.then((registration) => {
-        registration.showNotification(title, {
-          body,
-          icon: "/icons/icon-192x192.png",
-          badge: "/icons/badge-72x72.png",
-          vibrate: [200, 100, 200],
-          tag: "biblia-notification",
-        });
-      }).catch(() => {
+  if (Notification.permission !== "granted") {
+    console.warn("[Notification] Permission not granted. Cannot send notification.");
+    return;
+  }
+
+  // 1. Prioritize service worker ready registration (safest for mobile browsers, PWAs, and offline)
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.ready
+      .then((registration) => {
+        if (registration && typeof registration.showNotification === "function") {
+          registration.showNotification(title, {
+            body,
+            icon: "/icons/icon-192x192.png",
+            badge: "/icons/badge-72x72.png",
+            vibrate: [200, 100, 200],
+            tag: "biblia-notification",
+            renotify: true,
+          });
+        } else {
+          throw new Error("showNotification method is not available on registration");
+        }
+      })
+      .catch((err) => {
+        console.warn("[Notification] SW showNotification failed, using fallback:", err);
         try {
-          new Notification(title, { body, icon: "/icons/icon-192x192.png" });
-        } catch (e) {
-          console.warn("Direct notification failed", e);
+          new Notification(title, {
+            body,
+            icon: "/icons/icon-192x192.png",
+            tag: "biblia-notification",
+          });
+        } catch (fallbackErr) {
+          console.error("[Notification] All notification attempts failed:", fallbackErr);
         }
       });
-    } else {
-      // Direct notification fallback
-      try {
-        new Notification(title, { body, icon: "/icons/icon-192x192.png" });
-      } catch (err) {
-        // Fallback for some browsers that require a registration context
-        if ("serviceWorker" in navigator) {
-          navigator.serviceWorker.getRegistration().then((reg) => {
-            if (reg) {
-              reg.showNotification(title, {
-                body,
-                icon: "/icons/icon-192x192.png",
-                badge: "/icons/badge-72x72.png",
-              });
-            }
-          }).catch(() => {});
-        }
-      }
+  } else {
+    // 2. Direct fallback for browsers without service worker support (e.g., standard Safari outside of PWA)
+    try {
+      new Notification(title, {
+        body,
+        icon: "/icons/icon-192x192.png",
+        tag: "biblia-notification",
+      });
+    } catch (err) {
+      console.error("[Notification] Direct fallback notification failed:", err);
     }
   }
 };

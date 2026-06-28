@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Turnstile } from '@marsidev/react-turnstile';
 import { useSentinel } from "@/hooks/useSentinel";
 import { setupPushNotifications } from "@/services/pushService";
-import { sendLocalNotification } from "@/services/notificationService";
+import { sendLocalNotification, getNotificationSettings, saveNotificationSettings } from "@/services/notificationService";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
 const OFFLINE_KEY = "bible-offline-enabled";
@@ -356,26 +356,74 @@ const AccountPage = () => {
   };
 
   const toggleNotifications = async () => {
-    if (!notificationsEnabled) {
-      if (!authCtx.user) {
-        toast({ title: "Erro", description: "Faça login para ativar notificações.", variant: "destructive" });
-        return;
-      }
+    try {
+      if (!notificationsEnabled) {
+        if (!("Notification" in window)) {
+          toast({ 
+            title: "Não suportado", 
+            description: "Este navegador não suporta notificações.", 
+            variant: "destructive" 
+          });
+          return;
+        }
 
-      await setupPushNotifications(authCtx.user.sub);
-      setNotificationsEnabled(true);
-      localStorage.setItem(NOTIFICATIONS_KEY, "true");
-      toast({ title: "Notificações ativadas! 🔔" });
-    } else {
-      setNotificationsEnabled(false);
-      localStorage.setItem(NOTIFICATIONS_KEY, "false");
-      
-      // Opcional: Remover inscrição do Supabase ao desativar
-      if (authCtx.user) {
-        await supabase.from('profiles').update({ push_subscription: null }).eq('id', authCtx.user.sub);
+        const permission = await Notification.requestPermission();
+        if (permission !== "granted") {
+          toast({ 
+            title: "Permissão Negada", 
+            description: "Você precisa permitir as notificações nas configurações do seu navegador.", 
+            variant: "destructive" 
+          });
+          return;
+        }
+
+        // Ativa nas configurações de notificações locais
+        const localSettings = getNotificationSettings();
+        localSettings.enabled = true;
+        saveNotificationSettings(localSettings);
+
+        setNotificationsEnabled(true);
+        localStorage.setItem(NOTIFICATIONS_KEY, "true");
+
+        if (authCtx.user) {
+          try {
+            await setupPushNotifications(authCtx.user.sub);
+          } catch (err) {
+            console.warn("Erro ao registrar push notifications, usando notificações locais:", err);
+          }
+          toast({ title: "Notificações ativadas! 🔔" });
+        } else {
+          toast({ 
+            title: "Notificações locais ativadas! 🔔", 
+            description: "Você receberá o versículo diário às 8h e 20h. Faça login para salvar na nuvem." 
+          });
+        }
+      } else {
+        // Desativa nas configurações locais
+        const localSettings = getNotificationSettings();
+        localSettings.enabled = false;
+        saveNotificationSettings(localSettings);
+
+        setNotificationsEnabled(false);
+        localStorage.setItem(NOTIFICATIONS_KEY, "false");
+        
+        if (authCtx.user) {
+          try {
+            await supabase.from('profiles').update({ push_subscription: null }).eq('id', authCtx.user.sub);
+          } catch (err) {
+            console.warn("Erro ao remover inscrição do Supabase:", err);
+          }
+        }
+        
+        toast({ title: "Notificações desativadas" });
       }
-      
-      toast({ title: "Notificações desativadas" });
+    } catch (error) {
+      console.error("Erro ao alternar notificações:", error);
+      toast({ 
+        title: "Erro ao configurar", 
+        description: "Ocorreu um problema ao salvar suas configurações.", 
+        variant: "destructive" 
+      });
     }
   };
 
@@ -589,8 +637,10 @@ const AccountPage = () => {
                                 language === "en" ? "Your Bible Online test notification was sent successfully!" : "Sua notificação de teste da Bíblia Online foi enviada com sucesso!"
                               );
                               // Also send message to SW if active
-                              if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
-                                navigator.serviceWorker.ready.then(reg => reg.active?.postMessage({ type: 'TEST_NOTIFICATION' })).catch(() => {});
+                              if ("serviceWorker" in navigator) {
+                                navigator.serviceWorker.ready.then(reg => {
+                                  reg.active?.postMessage({ type: 'TEST_NOTIFICATION' });
+                                }).catch(() => {});
                               }
                               toast({ title: t("test_sent"), description: t("test_sent_desc") });
                             };
