@@ -597,30 +597,6 @@ REGRA 4 (Saída): Responda APENAS com o prompt purificado em inglês enriquecido
     }
   });
 
-  // --- GET PUBLIC VAPID KEY ---
-  app.get("/api/vapid-public-key", (req, res) => {
-    res.status(410).json({ 
-      error: "DEPRECATED", 
-      message: "Este endpoint de chave pública VAPID foi desativado. O sistema foi migrado para o SDK oficial do OneSignal." 
-    });
-  });
-
-  // --- TEST REAL PUSH NOTIFICATION (SERVER TO CLIENT) ---
-  app.post("/api/push/test", async (req, res) => {
-    res.status(410).json({ 
-      error: "DEPRECATED", 
-      message: "Este endpoint de teste push foi desativado. O sistema foi migrado para o SDK oficial do OneSignal." 
-    });
-  });
-
-  // --- WEB PUSH CRON ROUTE ---
-  app.get("/api/cron/send-push", async (req, res) => {
-    res.status(410).json({ 
-      error: "DEPRECATED", 
-      message: "Este cron job de envio de push foi desativado. O sistema de notificações agora é totalmente gerenciado através do OneSignal." 
-    });
-  });
-
   // Vite middleware setup
   if (process.env.NODE_ENV !== "production") {
     import("vite").then(async ({ createServer: createViteServer }) => {
