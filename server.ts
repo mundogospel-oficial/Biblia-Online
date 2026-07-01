@@ -5,141 +5,10 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { createClient } from "@supabase/supabase-js";
 import rateLimit from "express-rate-limit";
-import webpush from "web-push";
 import helmet from "helmet";
 import fs from "fs";
 
 // --- ESM & CJS COMPATIBLE RUNTIME RESOLUTION ---
-const getFilename = () => {
-  try {
-    if (typeof import.meta !== "undefined" && import.meta.url) {
-      return fileURLToPath(import.meta.url);
-    }
-  } catch (e) {}
-  return typeof __filename !== "undefined" ? __filename : "";
-};
-
-const getDirname = () => {
-  try {
-    if (typeof import.meta !== "undefined" && import.meta.url) {
-      return path.dirname(fileURLToPath(import.meta.url));
-    }
-  } catch (e) {}
-  return typeof __dirname !== "undefined" ? __dirname : process.cwd();
-};
-
-const __filenameSafe = getFilename();
-const __dirnameSafe = getDirname();
-
-// Robust helper to get the web-push module instance with default/named export resilience
-const getWebPush = () => {
-  if (webpush && typeof webpush === "object") {
-    if ("default" in (webpush as any) && (webpush as any).default && typeof (webpush as any).default.sendNotification === "function") {
-      return (webpush as any).default;
-    }
-  }
-  return webpush;
-};
-
-function isValidVapidKey(key: string | undefined): boolean {
-  if (!key) return false;
-  const k = key.trim();
-  if (k.startsWith("YOUR_") || k.includes("placeholder") || k.includes("MY_") || k === "") return false;
-  return k.length > 30; // Chaves VAPID reais em base64url têm cerca de 87 caracteres
-}
-
-function parseAndValidateSubscription(sub: any): any {
-  if (!sub) return null;
-  let parsed = sub;
-  if (typeof sub === "string") {
-    try {
-      parsed = JSON.parse(sub);
-    } catch (e) {
-      console.error("[Push] Falha ao analisar string de inscrição para JSON:", e);
-      return null;
-    }
-  }
-  if (parsed && typeof parsed === "object" && parsed.endpoint) {
-    return parsed;
-  }
-  return null;
-}
-
-// --- SISTEMA DE CHAVES VAPID TOTALMENTE SÍNCRONO, ROBUSTO E SEM DEPENDÊNCIA DE BANCO DE DADOS SQL ---
-let vapidKeysCache: { publicKey: string; privateKey: string; subject: string } | null = null;
-
-function ensureVapidKeys(): { publicKey: string; privateKey: string; subject: string } {
-  if (vapidKeysCache && isValidVapidKey(vapidKeysCache.publicKey) && isValidVapidKey(vapidKeysCache.privateKey)) {
-    return vapidKeysCache;
-  }
-
-  const subj = process.env.VAPID_SUBJECT || "mailto:support@bibliaonline.com";
-
-  // 1. Tentar ler das variáveis de ambiente
-  const pub = process.env.VITE_VAPID_PUBLIC_KEY || "";
-  const priv = process.env.VAPID_PRIVATE_KEY || "";
-
-  if (isValidVapidKey(pub) && isValidVapidKey(priv)) {
-    vapidKeysCache = { publicKey: pub, privateKey: priv, subject: subj };
-    console.log("[VAPID] Chaves VAPID carregadas com sucesso das variáveis de ambiente.");
-    return vapidKeysCache;
-  }
-
-  // 2. Tentar ler de vapid_keys.json local
-  let keysFile = path.join(process.cwd(), "vapid_keys.json");
-  if (process.env.VERCEL) {
-    keysFile = path.join("/tmp", "vapid_keys.json");
-  }
-
-  if (fs.existsSync(keysFile)) {
-    try {
-      const saved = JSON.parse(fs.readFileSync(keysFile, "utf8"));
-      if (isValidVapidKey(saved.publicKey) && isValidVapidKey(saved.privateKey)) {
-        vapidKeysCache = {
-          publicKey: saved.publicKey,
-          privateKey: saved.privateKey,
-          subject: saved.subject || subj
-        };
-        console.log("[VAPID] Chaves VAPID carregadas com sucesso do arquivo local:", keysFile);
-        return vapidKeysCache;
-      }
-    } catch (e) {
-      console.error("[VAPID] Erro ao ler chaves do arquivo local:", e);
-    }
-  }
-
-  // 3. Se não houver chaves válidas, gerar dinamicamente na hora (best-effort e rápido)
-  try {
-    console.log("[VAPID] Nenhuma chave VAPID válida encontrada nas configs. Gerando novo par dinâmico...");
-    const generated = getWebPush().generateVAPIDKeys();
-    const newKeys = {
-      publicKey: generated.publicKey,
-      privateKey: generated.privateKey,
-      subject: subj
-    };
-    vapidKeysCache = newKeys;
-
-    // Salvar no arquivo local de forma segura e síncrona
-    try {
-      fs.writeFileSync(keysFile, JSON.stringify(generated, null, 2), "utf8");
-      console.log("[VAPID] Novas chaves salvas localmente em:", keysFile);
-    } catch (fsErr) {
-      console.warn("[VAPID] Não foi possível persistir chaves em disco (sistema somente leitura). Rodando em memória.");
-    }
-
-    return vapidKeysCache;
-  } catch (genErr) {
-    console.error("[VAPID] Erro crítico ao gerar novas chaves VAPID. Usando chaves estáveis de contingência:", genErr);
-    // Contingência estável e válida para evitar qualquer tipo de falha
-    const contingencyKeys = {
-      publicKey: "BElb65JH8y1VM68f3a3a_Zp_HnQ5O0R69e1Zt2_F_9bL7Gz4_09X-hQ8Z98j_4W0-pL-YyY8oWzYp98",
-      privateKey: "dummy_private_key_fallback_to_prevent_fatal_server_crash_during_startup",
-      subject: subj
-    };
-    vapidKeysCache = contingencyKeys;
-    return contingencyKeys;
-  }
-}
 
 // Initialize Supabase Admin Client (for sensitive operations)
 const getSupabaseAdmin = () => {
@@ -348,8 +217,6 @@ function startServer() {
       if (
         cleanPath === '/api/security/report' || 
         cleanPath === '/api/user/delete' ||
-        cleanPath === '/api/vapid-public-key' ||
-        cleanPath === '/api/push/test' ||
         req.path.startsWith('/@vite') || 
         req.path.startsWith('/src')
       ) {
@@ -732,162 +599,26 @@ REGRA 4 (Saída): Responda APENAS com o prompt purificado em inglês enriquecido
 
   // --- GET PUBLIC VAPID KEY ---
   app.get("/api/vapid-public-key", (req, res) => {
-    try {
-      const keys = ensureVapidKeys();
-      res.json({ publicKey: keys.publicKey });
-    } catch (err: any) {
-      console.error("[VAPID Route Error]:", err);
-      res.status(500).json({ error: "VAPID_ERROR", message: "Erro ao obter chave pública VAPID." });
-    }
+    res.status(410).json({ 
+      error: "DEPRECATED", 
+      message: "Este endpoint de chave pública VAPID foi desativado. O sistema foi migrado para o SDK oficial do OneSignal." 
+    });
   });
 
   // --- TEST REAL PUSH NOTIFICATION (SERVER TO CLIENT) ---
   app.post("/api/push/test", async (req, res) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(401).json({ error: "Missing authorization header" });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const adminClient = getSupabaseAdmin();
-
-    if (!adminClient) {
-      return res.status(500).json({ error: "Configuração do Supabase admin ausente no servidor" });
-    }
-
-    try {
-      // 1. Obter usuário através do token JWT do Supabase
-      const { data: { user }, error: authError } = await adminClient.auth.getUser(token);
-      if (authError || !user) {
-        return res.status(401).json({ error: "Sessão inválida" });
-      }
-
-      // 2. Obter o perfil com a assinatura de push
-      const { data: profile, error: profileError } = await adminClient
-        .from("profiles")
-        .select("push_subscription")
-        .eq("id", user.id)
-        .single();
-
-      if (profileError || !profile || !profile.push_subscription) {
-        return res.status(400).json({ 
-          error: "NO_SUBSCRIPTION", 
-          message: "Nenhuma inscrição de push ativa para esta conta neste navegador. Por favor desative e reative as notificações." 
-        });
-      }
-
-      // Validar e estruturar a assinatura de push com segurança máxima
-      const subscriptionObj = parseAndValidateSubscription(profile.push_subscription);
-      if (!subscriptionObj) {
-        return res.status(400).json({
-          error: "INVALID_SUBSCRIPTION_FORMAT",
-          message: "Formato de inscrição de push corrompido no banco de dados. Desative e reative as notificações."
-        });
-      }
-
-      // 3. Configurar web-push com nossas chaves válidas e disparar
-      const keys = ensureVapidKeys();
-      if (!isValidVapidKey(keys.publicKey) || !isValidVapidKey(keys.privateKey)) {
-        return res.status(500).json({ error: "Chaves VAPID indisponíveis ou inválidas no servidor." });
-      }
-
-      const wp = getWebPush();
-      wp.setVapidDetails(keys.subject, keys.publicKey, keys.privateKey);
-
-      await wp.sendNotification(
-        subscriptionObj,
-        JSON.stringify({
-          title: "Bíblia Online 📖",
-          body: "Sua notificação push real do servidor foi enviada com sucesso! 🕊️",
-          url: "/reader"
-        })
-      );
-
-      console.log(`[Push Test] Notificação real enviada via web-push com sucesso para ${user.id}`);
-      res.json({ success: true, message: "Push enviado com sucesso de verdade do servidor!" });
-    } catch (err: any) {
-      console.error("[Push Test Error]:", err);
-      res.status(500).json({ error: "PUSH_FAILED", message: err.message || "Falha ao disparar push" });
-    }
+    res.status(410).json({ 
+      error: "DEPRECATED", 
+      message: "Este endpoint de teste push foi desativado. O sistema foi migrado para o SDK oficial do OneSignal." 
+    });
   });
 
   // --- WEB PUSH CRON ROUTE ---
   app.get("/api/cron/send-push", async (req, res) => {
-    // Basic auth check for cron (can be improved with a dedicated secret)
-    const cronSecret = req.headers["x-cron-secret"];
-    if (process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    const adminClient = getSupabaseAdmin();
-    const keys = ensureVapidKeys();
-    const publicKey = keys.publicKey;
-    const privateKey = keys.privateKey;
-    const subject = keys.subject;
-
-    if (!adminClient || !isValidVapidKey(publicKey) || !isValidVapidKey(privateKey)) {
-      return res.status(500).json({ error: "Configuração ou chaves de push VAPID ausentes ou inválidas" });
-    }
-
-    const wp = getWebPush();
-    wp.setVapidDetails(subject, publicKey, privateKey);
-
-    const verses = [
-      "O Senhor é o meu pastor; nada me faltará.",
-      "Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito.",
-      "Tudo posso naquele que me fortalece.",
-      "O Senhor te guardará de todo o mal; ele guardará a tua alma.",
-      "Lâmpada para os meus pés é tua palavra, e luz para o meu caminho."
-    ];
-
-    try {
-      const { data: users, error } = await adminClient
-        .from("profiles")
-        .select("id, push_subscription, last_active_at")
-        .not("push_subscription", "is", null);
-
-      if (error) throw error;
-
-      const now = new Date();
-      const results = { sent: 0, failed: 0 };
-
-      for (const user of users) {
-        const lastActive = new Date(user.last_active_at);
-        const diffDays = (now.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24);
-        
-        let title = "Bíblia Online";
-        let body = "";
-
-        if (diffDays > 2) {
-          body = "Você esqueceu de ler a Bíblia?";
-        } else {
-          body = verses[Math.floor(Math.random() * verses.length)];
-        }
-
-        const subObj = parseAndValidateSubscription(user.push_subscription);
-        if (!subObj) {
-          console.warn(`[Cron] Pulando envio para usuário ${user.id} por formato de inscrição inválido.`);
-          results.failed++;
-          continue;
-        }
-
-        try {
-          await wp.sendNotification(
-            subObj,
-            JSON.stringify({ title, body, url: "/reader" })
-          );
-          results.sent++;
-        } catch (pushErr) {
-          console.error(`Failed to send push to user ${user.id}:`, pushErr);
-          results.failed++;
-        }
-      }
-
-      res.json({ status: "completed", results });
-    } catch (err: any) {
-      console.error("Cron Error:", err);
-      res.status(500).json({ error: "Cron execution failed", details: err.message });
-    }
+    res.status(410).json({ 
+      error: "DEPRECATED", 
+      message: "Este cron job de envio de push foi desativado. O sistema de notificações agora é totalmente gerenciado através do OneSignal." 
+    });
   });
 
   // Vite middleware setup

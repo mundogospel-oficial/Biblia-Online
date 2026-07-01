@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,6 +7,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { CookieConsent } from "./components/CookieConsent";
+import { OneSignalPromptModal } from "./components/OneSignalPromptModal";
+import { oneSignalService } from "@/services/oneSignalService";
 import Index from "./pages/Index";
 import Reader from "./pages/Reader";
 import CreatePage from "./pages/CreatePage";
@@ -54,6 +56,46 @@ const ConfigErrorScreen = () => (
 
 const App = () => {
   useSentinel(); // Global security monitoring
+  const [showOneSignalDialog, setShowOneSignalDialog] = useState(false);
+
+  useEffect(() => {
+    let removeListener: (() => void) | undefined;
+
+    const initOneSignal = async () => {
+      const appId = "8c9d2bff-9bfc-4aee-a897-eb9d688a9a02";
+      await oneSignalService.initialize(appId);
+
+      const hasShown = localStorage.getItem("onesignal_integration_dialog_shown") === "true";
+      if (hasShown) {
+        return;
+      }
+
+      const checkSubscription = (subId: string | undefined) => {
+        const isRegistered = subId && subId.length > 0 && !subId.startsWith("local-");
+        if (isRegistered) {
+          localStorage.setItem("onesignal_integration_dialog_shown", "true");
+          setShowOneSignalDialog(true);
+        }
+      };
+
+      // Check current subscription immediately
+      const currentId = oneSignalService.getSubscriptionId();
+      checkSubscription(currentId);
+
+      // Listen for subscription changes
+      removeListener = oneSignalService.addSubscriptionListener((subId) => {
+        checkSubscription(subId);
+      });
+    };
+
+    initOneSignal();
+
+    return () => {
+      if (removeListener) {
+        removeListener();
+      }
+    };
+  }, []);
   
   useEffect(() => {
     // Notify Service Worker that app is opened (for inactivity tracking)
@@ -119,6 +161,7 @@ const App = () => {
           </TooltipProvider>
         </QueryClientProvider>
         <CookieConsent />
+        <OneSignalPromptModal isOpen={showOneSignalDialog} onClose={() => setShowOneSignalDialog(false)} />
       </LanguageProvider>
     </AuthProvider>
   );

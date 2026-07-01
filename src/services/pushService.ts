@@ -1,98 +1,35 @@
-
+import { oneSignalService } from "./oneSignalService";
 import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Utilitário para converter a chave pública VAPID de Base64 para Uint8Array
- */
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding)
-    .replace(/-/g, '+')
-    .replace(/_/g, '/');
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
-
-/**
- * Registra o Service Worker e solicita permissão para Push Notifications
+ * Registers OneSignal with the logged-in user and requests push notification permission
  */
 export async function setupPushNotifications(userId: string) {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    console.warn('Push Notifications não suportados neste navegador.');
-    return;
-  }
-
   try {
-    // 1. Registro do SW
-    const registration = await navigator.serviceWorker.register('/sw.js');
-    console.log('Service Worker registrado:', registration.scope);
-
-    // 2. Pedir permissão
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
-      console.warn('Permissão de notificação negada.');
-      return;
-    }
-
-    // 3. Inscrição no Push Manager
-    let publicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-    if (!publicKey || publicKey.startsWith("YOUR_") || publicKey.includes("placeholder") || publicKey === "") {
-      try {
-        console.log('[Push] Buscando chave pública VAPID ativa do servidor...');
-        const response = await fetch('/api/vapid-public-key');
-        if (response.ok) {
-          const data = await response.json();
-          publicKey = data.publicKey;
-        } else {
-          console.error('[Push] Falha ao obter chave do servidor. Status:', response.status);
-        }
-      } catch (err) {
-        console.error('[Push] Erro ao obter chave pública VAPID do servidor:', err);
-      }
-    }
-
-    if (!publicKey) {
-      console.error('VITE_VAPID_PUBLIC_KEY não configurada e não pôde ser obtida do servidor.');
-      return;
-    }
-
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey)
-    });
-
-    // 4. Salvar no Supabase
-    const { error } = await supabase
-      .from('profiles')
-      .update({ 
-        push_subscription: subscription as any,
-        last_active_at: new Date().toISOString()
-      })
-      .eq('id', userId);
-
-    if (error) throw error;
-    console.log('Inscrição Push salva com sucesso.');
+    console.log('[OneSignal] Setting up notifications for user:', userId);
+    
+    // 1. Log in the user to OneSignal using their UUID
+    await oneSignalService.login(userId);
+    
+    // 2. Request push permission
+    await oneSignalService.requestPermission();
+    
+    console.log('[OneSignal] Push notifications setup completed.');
   } catch (err) {
-    console.error('Erro ao configurar Push Notifications:', err);
+    console.error('[OneSignal] Error during push notification setup:', err);
   }
 }
 
 /**
- * Atualiza o timestamp de última atividade do usuário
+ * Updates the last active timestamp of the user
  */
 export async function updateLastActive(userId: string) {
   try {
     await supabase
       .from('profiles')
-      .update({ last_active_at: new Date().toISOString() })
+      .update({ last_active_at: new Date().toISOString() as any })
       .eq('id', userId);
   } catch (err) {
-    console.warn('Erro ao atualizar atividade:', err);
+    console.warn('[OneSignal] Error updating user activity timestamp:', err);
   }
 }

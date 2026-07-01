@@ -24,10 +24,34 @@
     <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.supabase.in https://*.supabase.net https://*.google.com https://*.vercel.app https://*.vercel.live https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; frame-src 'self' https://*.vercel.live https://challenges.cloudflare.com; connect-src 'self' https://*.supabase.co https://*.supabase.in https://*.supabase.net https://*.googleapis.com wss://*.supabase.co wss://*.supabase.in https://raw.githubusercontent.com https://bible-api.com https://bolls.life https://openrouter.ai https://*.cloudflare.com https://*.vercel.live;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.supabase.in https://*.supabase.net https://*.google.com https://*.vercel.app https://*.vercel.live https://challenges.cloudflare.com https://*.onesignal.com https://onesignal.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; frame-src 'self' https://*.vercel.live https://challenges.cloudflare.com; connect-src 'self' https://*.supabase.co https://*.supabase.in https://*.supabase.net https://*.googleapis.com wss://*.supabase.co wss://*.supabase.in https://raw.githubusercontent.com https://bible-api.com https://bolls.life https://openrouter.ai https://*.cloudflare.com https://*.vercel.live https://*.onesignal.com https://onesignal.com;">
     <title>Biblia Online</title>
     <meta name="description" content="A biblia com IA integrada!">
     <meta name="author" content="Mundo Gospel" />
+
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      const isAllowedHost = 
+        window.location.hostname === "online-biblia.vercel.app" || 
+        window.location.hostname === "localhost" || 
+        window.location.hostname === "127.0.0.1";
+
+      if (isAllowedHost) {
+        OneSignalDeferred.push(async function(OneSignal) {
+          try {
+            await OneSignal.init({
+              appId: "8c9d2bff-9bfc-4aee-a897-eb9d688a9a02",
+              allowLocalhostAsSecureOrigin: true,
+            });
+          } catch (e) {
+            console.warn('[OneSignal] Initialization skipped or failed:', e);
+          }
+        });
+      } else {
+        console.warn('[OneSignal] Bypassed initialization on non-production origin:', window.location.hostname);
+      }
+    </script>
 
     <meta property="og:type" content="website" />
     

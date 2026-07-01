@@ -358,25 +358,6 @@ const AccountPage = () => {
   const toggleNotifications = async () => {
     try {
       if (!notificationsEnabled) {
-        if (!("Notification" in window)) {
-          toast({ 
-            title: "Não suportado", 
-            description: "Este navegador não suporta notificações.", 
-            variant: "destructive" 
-          });
-          return;
-        }
-
-        const permission = await Notification.requestPermission();
-        if (permission !== "granted") {
-          toast({ 
-            title: "Permissão Negada", 
-            description: "Você precisa permitir as notificações nas configurações do seu navegador.", 
-            variant: "destructive" 
-          });
-          return;
-        }
-
         // Ativa nas configurações de notificações locais
         const localSettings = getNotificationSettings();
         localSettings.enabled = true;
@@ -389,13 +370,20 @@ const AccountPage = () => {
           try {
             await setupPushNotifications(authCtx.user.sub);
           } catch (err) {
-            console.warn("Erro ao registrar push notifications, usando notificações locais:", err);
+            console.warn("Erro ao registrar push notifications do OneSignal:", err);
           }
-          toast({ title: "Notificações ativadas! 🔔" });
+          toast({ title: "Notificações do OneSignal ativadas! 🔔" });
         } else {
+          // If not logged in, request permission directly
+          try {
+            const { oneSignalService } = await import("@/services/oneSignalService");
+            await oneSignalService.requestPermission();
+          } catch (err) {
+            console.warn("Erro ao solicitar permissão de push no OneSignal:", err);
+          }
           toast({ 
-            title: "Notificações locais ativadas! 🔔", 
-            description: "Você receberá o versículo diário às 8h e 20h. Faça login para salvar na nuvem." 
+            title: "Notificações locais e OneSignal ativadas! 🔔", 
+            description: "Você receberá o versículo diário e mensagens importantes." 
           });
         }
       } else {
@@ -409,9 +397,10 @@ const AccountPage = () => {
         
         if (authCtx.user) {
           try {
-            await supabase.from('profiles').update({ push_subscription: null }).eq('id', authCtx.user.sub);
+            const { oneSignalService } = await import("@/services/oneSignalService");
+            await oneSignalService.logout();
           } catch (err) {
-            console.warn("Erro ao remover inscrição do Supabase:", err);
+            console.warn("Erro ao desvincular OneSignal:", err);
           }
         }
         
