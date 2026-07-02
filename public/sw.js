@@ -72,8 +72,9 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // Skip AI endpoints, external APIs, supabase database, and development websockets
+  // Skip OneSignal, AI endpoints, external APIs, supabase database, and development websockets
   if (
+    url.host.includes('onesignal') ||
     url.host.includes('googleapis.com') ||
     url.host.includes('openrouter.ai') ||
     url.pathname.startsWith('/api/ai') ||
@@ -140,33 +141,12 @@ self.addEventListener('fetch', (event) => {
 });
 
 // --- PUSH NOTIFICATIONS ---
-self.addEventListener('push', (event) => {
-  if (!event.data) return;
-
-  try {
-    const data = event.data.json();
-    const title = data.title || 'Bíblia Online';
-    const options = {
-      body: data.body,
-      icon: '/icons/icon-any-192.png',
-      badge: '/icons/apple-touch-icon.png',
-      vibrate: [100, 50, 100],
-      data: {
-        url: data.url || '/'
-      }
-    };
-
-    event.waitUntil(
-      self.registration.showNotification(title, options)
-    );
-  } catch (err) {
-    console.error('Erro ao processar notificação push:', err);
-  }
-});
+// Note: We do not intercept 'push' events anymore. OneSignal's SDK handles all push notifications.
 
 self.addEventListener('message', (event) => {
   if (!event.data) return;
 
+  // ONLY handle our specific custom messages; skip OneSignal's internal messages
   if (event.data.type === 'TEST_NOTIFICATION') {
     const options = {
       body: 'Sua notificação de teste da Bíblia Online foi enviada com sucesso! 🔔',
@@ -174,20 +154,29 @@ self.addEventListener('message', (event) => {
       badge: '/icons/apple-touch-icon.png',
       vibrate: [200, 100, 200],
       data: {
+        isLocalTest: true,
         url: '/'
       }
     };
     self.registration.showNotification('Teste de Notificação 🔔', options);
   } else if (event.data.type === 'APP_OPENED') {
-    console.log('App opened event received by Service Worker');
+    console.log('[SW] App opened event received');
   } else if (event.data.type === 'CACHE_OFFLINE') {
-    console.log('Cache offline event received by Service Worker');
+    console.log('[SW] Cache offline event received');
   }
 });
 
 self.addEventListener('notificationclick', (event) => {
+  const data = event.notification.data;
+
+  // Guard clause: Only handle our own local test notifications
+  if (!data || !data.isLocalTest) {
+    // Let OneSignal's SDK handle its own notifications (clicks, close, etc.)
+    return;
+  }
+
   event.notification.close();
-  const urlToOpen = event.notification.data.url || '/';
+  const urlToOpen = data.url || '/';
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
