@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User as SupaUser } from "@supabase/supabase-js";
-import { setupPushNotifications, updateLastActive } from "@/services/pushService";
+import { setupPushNotifications } from "@/services/pushService";
 
 export interface GoogleUser {
   name: string;
@@ -127,7 +127,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (isSubscribed && session?.user) {
           setUser(mapSupabaseUser(session.user));
-          updateLastActive(session.user.id);
           setupPushNotifications(session.user.id);
         }
       } catch (err) {

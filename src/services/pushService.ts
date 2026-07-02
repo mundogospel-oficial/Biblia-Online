@@ -1,5 +1,4 @@
 import { oneSignalService } from "./oneSignalService";
-import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Registers OneSignal with the logged-in user and requests push notification permission
@@ -20,16 +19,3 @@ export async function setupPushNotifications(userId: string) {
   }
 }
 
-/**
- * Updates the last active timestamp of the user
- */
-export async function updateLastActive(userId: string) {
-  try {
-    await supabase
-      .from('profiles')
-      .update({ last_active_at: new Date().toISOString() as any })
-      .eq('id', userId);
-  } catch (err) {
-    console.warn('[OneSignal] Error updating user activity timestamp:', err);
-  }
-}
