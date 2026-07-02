@@ -65,8 +65,9 @@ export class OneSignalService {
           disable: true
         },
         serviceWorkerParam: { scope: '/' },
-        serviceWorkerPath: 'sw.js'
-      });
+        serviceWorkerPath: 'sw.js',
+        disableRegisterAs: true
+      } as any);
       if ((OneSignal as any).InAppMessages) {
         (OneSignal as any).InAppMessages.paused = true;
         console.log('[OneSignal] In-App Messages paused in service');
