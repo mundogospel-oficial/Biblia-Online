@@ -62,9 +62,12 @@ function startServer() {
   // Carregar as entidades banidas existentes no banco no momento que o servidor sobe
   const adminClient = getSupabaseAdmin();
   if (adminClient) {
-    adminClient.from("banned_entities")
-      .select("identity")
-      .then(({ data, error }) => {
+    (async () => {
+      try {
+        const { data, error } = await adminClient
+          .from("banned_entities")
+          .select("identity");
+        
         if (error) {
           console.error("[Sentinel] Erro ao sincronizar cache inicial de banimentos do Supabase:", error.message);
         } else if (data) {
@@ -73,10 +76,10 @@ function startServer() {
           });
           console.log(`[Sentinel] ${bannedEntities.size} entidades banidas carregadas com sucesso do Supabase para cache local.`);
         }
-      })
-      .catch(err => {
+      } catch (err) {
         console.error("[Sentinel] Falha crítica de conexão para carregar banimentos:", err);
-      });
+      }
+    })();
   }
 
   // Helper síncrono/assíncrono para banir entidade no cache e no banco persistente
