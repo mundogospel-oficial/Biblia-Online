@@ -62,7 +62,11 @@ const App = () => {
     let removeListener: (() => void) | undefined;
 
     const initOneSignal = async () => {
-      const appId = "8c9d2bff-9bfc-4aee-a897-eb9d688a9a02";
+      const appId = import.meta.env.VITE_ONESIGNAL_APP_ID;
+      if (!appId || appId.startsWith("YOUR_")) {
+        console.warn("[OneSignal] App ID is not configured or is a placeholder in the environment.");
+        return;
+      }
       await oneSignalService.initialize(appId);
 
       const hasShown = localStorage.getItem("onesignal_integration_dialog_shown") === "true";

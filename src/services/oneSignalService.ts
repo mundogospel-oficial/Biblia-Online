@@ -30,6 +30,9 @@ export class OneSignalService {
       return;
     }
 
+    // Clean up any old, non-OneSignal Service Workers before initializing
+    await this.cleanupOldServiceWorkers();
+
     try {
       console.log('[OneSignal] Initializing SDK with App ID:', appId);
       await OneSignal.init({
@@ -41,6 +44,28 @@ export class OneSignalService {
       console.log('[OneSignal] SDK initialized successfully');
     } catch (error) {
       console.error('[OneSignal] Initialization error:', error);
+    }
+  }
+
+  /**
+   * Cleans up old, non-OneSignal Service Workers to prevent obsolete requests
+   * to the deprecated push notification endpoints.
+   */
+  private async cleanupOldServiceWorkers(): Promise<void> {
+    if ('serviceWorker' in navigator) {
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const registration of registrations) {
+          const activeWorker = registration.active || registration.installing || registration.waiting;
+          const scriptUrl = activeWorker?.scriptURL || '';
+          if (scriptUrl && !scriptUrl.toLowerCase().includes('onesignal')) {
+            console.log('[OneSignal Cleanup] Unregistering old, non-OneSignal Service Worker:', scriptUrl);
+            await registration.unregister();
+          }
+        }
+      } catch (err) {
+        console.warn('[OneSignal Cleanup] Error clearing old Service Workers:', err);
+      }
     }
   }
 

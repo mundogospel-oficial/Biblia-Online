@@ -38,16 +38,39 @@
         window.location.hostname === "127.0.0.1";
 
       if (isAllowedHost) {
-        OneSignalDeferred.push(async function(OneSignal) {
-          try {
-            await OneSignal.init({
-              appId: "8c9d2bff-9bfc-4aee-a897-eb9d688a9a02",
-              allowLocalhostAsSecureOrigin: true,
+        // Early cleanup of any non-OneSignal old service workers
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            registrations.forEach(function(registration) {
+              const activeWorker = registration.active || registration.installing || registration.waiting;
+              const scriptUrl = activeWorker ? activeWorker.scriptURL : '';
+              if (scriptUrl && !scriptUrl.toLowerCase().includes('onesignal')) {
+                console.log('[OneSignal Early Cleanup] Unregistering old Service Worker:', scriptUrl);
+                registration.unregister().catch(function(err) {
+                  console.warn('[OneSignal Early Cleanup] Error unregistering:', err);
+                });
+              }
             });
-          } catch (e) {
-            console.warn('[OneSignal] Initialization skipped or failed:', e);
-          }
-        });
+          }).catch(function(err) {
+            console.warn('[OneSignal Early Cleanup] Error getting registrations:', err);
+          });
+        }
+
+        const appId = "%VITE_ONESIGNAL_APP_ID%";
+        if (appId && !appId.startsWith("%") && !appId.startsWith("YOUR_")) {
+          OneSignalDeferred.push(async function(OneSignal) {
+            try {
+              await OneSignal.init({
+                appId: appId,
+                allowLocalhostAsSecureOrigin: true,
+              });
+            } catch (e) {
+              console.warn('[OneSignal] Initialization skipped or failed:', e);
+            }
+          });
+        } else {
+          console.warn('[OneSignal] OneSignal App ID not configured or is a placeholder.');
+        }
       } else {
         console.warn('[OneSignal] Bypassed initialization on non-production origin:', window.location.hostname);
       }
