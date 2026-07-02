@@ -17,7 +17,8 @@ export class OneSignalService {
    * Initializes the OneSignal SDK.
    */
   public async initialize(appId: string): Promise<void> {
-    if (this.hasInitialized) {
+    if (this.hasInitialized || (window as any).OneSignal?.initialized) {
+      this.hasInitialized = true;
       return;
     }
     const isAllowedHost = 
@@ -39,6 +40,8 @@ export class OneSignalService {
         appId: appId,
         allowLocalhostAsSecureOrigin: true,
         autoRegister: false, // Do not auto-register on load
+        serviceWorkerParam: { scope: '/' },
+        serviceWorkerPath: 'sw.js'
       });
       this.hasInitialized = true;
       console.log('[OneSignal] SDK initialized successfully');
@@ -58,7 +61,7 @@ export class OneSignalService {
         for (const registration of registrations) {
           const activeWorker = registration.active || registration.installing || registration.waiting;
           const scriptUrl = activeWorker?.scriptURL || '';
-          if (scriptUrl && !scriptUrl.toLowerCase().includes('onesignal')) {
+          if (scriptUrl && !scriptUrl.toLowerCase().includes('onesignal') && !scriptUrl.toLowerCase().endsWith('sw.js')) {
             console.log('[OneSignal Cleanup] Unregistering old, non-OneSignal Service Worker:', scriptUrl);
             await registration.unregister();
           }

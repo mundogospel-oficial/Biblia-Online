@@ -44,7 +44,8 @@
             registrations.forEach(function(registration) {
               const activeWorker = registration.active || registration.installing || registration.waiting;
               const scriptUrl = activeWorker ? activeWorker.scriptURL : '';
-              if (scriptUrl && !scriptUrl.toLowerCase().includes('onesignal')) {
+              // Exclude our unified sw.js and OneSignal scripts from cleanup
+              if (scriptUrl && !scriptUrl.toLowerCase().includes('onesignal') && !scriptUrl.toLowerCase().endsWith('sw.js')) {
                 console.log('[OneSignal Early Cleanup] Unregistering old Service Worker:', scriptUrl);
                 registration.unregister().catch(function(err) {
                   console.warn('[OneSignal Early Cleanup] Error unregistering:', err);
@@ -58,11 +59,18 @@
 
         const appId = "%VITE_ONESIGNAL_APP_ID%";
         if (appId && !appId.startsWith("%") && !appId.startsWith("YOUR_")) {
+          window.OneSignalDeferred = window.OneSignalDeferred || [];
           OneSignalDeferred.push(async function(OneSignal) {
+            if (OneSignal.initialized) {
+              console.log('[OneSignal] Already initialized early in index.html');
+              return;
+            }
             try {
               await OneSignal.init({
                 appId: appId,
                 allowLocalhostAsSecureOrigin: true,
+                serviceWorkerParam: { scope: '/' },
+                serviceWorkerPath: 'sw.js'
               });
             } catch (e) {
               console.warn('[OneSignal] Initialization skipped or failed:', e);
