@@ -17,10 +17,10 @@ export class OneSignalService {
    * Initializes the OneSignal SDK.
    */
   public async initialize(appId: string): Promise<void> {
-    if (this.hasInitialized || (window as any).OneSignal?.initialized) {
-      this.hasInitialized = true;
+    if (this.hasInitialized) {
       return;
     }
+
     const isAllowedHost = 
       window.location.hostname === "online-biblia.vercel.app" || 
       window.location.hostname === "localhost" || 
@@ -31,11 +31,32 @@ export class OneSignalService {
       return;
     }
 
+    // Check if already initialized by another script
+    if ((window as any).OneSignalInitialized || (window as any).OneSignal?.initialized) {
+      this.hasInitialized = true;
+      console.log('[OneSignal] Detected already initialized instance on window.');
+      return;
+    }
+
     // Clean up any old, non-OneSignal Service Workers before initializing
     await this.cleanupOldServiceWorkers();
 
+    // Prevent race conditions between index.html initialization and react-onesignal
+    if ((window as any).OneSignalInitializing) {
+      console.log('[OneSignal] Initialization is already in progress, waiting...');
+      for (let i = 0; i < 50; i++) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        if ((window as any).OneSignalInitialized || (window as any).OneSignal?.initialized) {
+          this.hasInitialized = true;
+          return;
+        }
+      }
+    }
+
+    (window as any).OneSignalInitializing = true;
+
     try {
-      console.log('[OneSignal] Initializing SDK with App ID:', appId);
+      console.log('[OneSignal] Initializing SDK via react-onesignal with App ID:', appId);
       await OneSignal.init({
         appId: appId,
         allowLocalhostAsSecureOrigin: true,
@@ -44,9 +65,18 @@ export class OneSignalService {
         serviceWorkerPath: 'sw.js'
       });
       this.hasInitialized = true;
+      (window as any).OneSignalInitialized = true;
       console.log('[OneSignal] SDK initialized successfully');
-    } catch (error) {
-      console.error('[OneSignal] Initialization error:', error);
+    } catch (error: any) {
+      if (error && (error.message?.includes('already initialized') || error.includes?.('already initialized'))) {
+        console.log('[OneSignal] SDK was already initialized (caught error safely)');
+        this.hasInitialized = true;
+        (window as any).OneSignalInitialized = true;
+      } else {
+        console.error('[OneSignal] Initialization error:', error);
+      }
+    } finally {
+      (window as any).OneSignalInitializing = false;
     }
   }
 

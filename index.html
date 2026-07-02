@@ -24,7 +24,7 @@
     <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.supabase.in https://*.supabase.net https://*.google.com https://*.vercel.app https://*.vercel.live https://challenges.cloudflare.com https://*.onesignal.com https://onesignal.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; frame-src 'self' https://*.vercel.live https://challenges.cloudflare.com; connect-src 'self' https://*.supabase.co https://*.supabase.in https://*.supabase.net https://*.googleapis.com wss://*.supabase.co wss://*.supabase.in https://raw.githubusercontent.com https://bible-api.com https://bolls.life https://openrouter.ai https://*.cloudflare.com https://*.vercel.live https://*.onesignal.com https://onesignal.com;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.supabase.in https://*.supabase.net https://*.google.com https://*.vercel.app https://*.vercel.live https://challenges.cloudflare.com https://*.onesignal.com https://onesignal.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.onesignal.com https://onesignal.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; frame-src 'self' https://*.vercel.live https://challenges.cloudflare.com; worker-src 'self' blob: https://*.onesignal.com https://onesignal.com; connect-src 'self' https://*.supabase.co https://*.supabase.in https://*.supabase.net https://*.googleapis.com wss://*.supabase.co wss://*.supabase.in https://raw.githubusercontent.com https://bible-api.com https://bolls.life https://openrouter.ai https://*.cloudflare.com https://*.vercel.live https://*.onesignal.com https://onesignal.com;">
     <title>Biblia Online</title>
     <meta name="description" content="A biblia com IA integrada!">
     <meta name="author" content="Mundo Gospel" />
@@ -61,19 +61,28 @@
         if (appId && !appId.startsWith("%") && !appId.startsWith("YOUR_")) {
           window.OneSignalDeferred = window.OneSignalDeferred || [];
           OneSignalDeferred.push(async function(OneSignal) {
-            if (OneSignal.initialized) {
+            if (window.OneSignalInitialized || OneSignal.initialized) {
               console.log('[OneSignal] Already initialized early in index.html');
+              window.OneSignalInitialized = true;
               return;
             }
             try {
+              console.log('[OneSignal] Initializing SDK early in index.html');
               await OneSignal.init({
                 appId: appId,
                 allowLocalhostAsSecureOrigin: true,
                 serviceWorkerParam: { scope: '/' },
                 serviceWorkerPath: 'sw.js'
               });
+              window.OneSignalInitialized = true;
+              console.log('[OneSignal] SDK initialized early successfully');
             } catch (e) {
-              console.warn('[OneSignal] Initialization skipped or failed:', e);
+              if (e && (e.message?.includes('already initialized') || e.includes?.('already initialized'))) {
+                console.log('[OneSignal] Already initialized caught in early init');
+                window.OneSignalInitialized = true;
+              } else {
+                console.warn('[OneSignal] Initialization skipped or failed:', e);
+              }
             }
           });
         } else {
