@@ -71,9 +71,17 @@
               await OneSignal.init({
                 appId: appId,
                 allowLocalhostAsSecureOrigin: true,
+                autoRegister: false,
+                welcomeNotification: {
+                  disable: true
+                },
                 serviceWorkerParam: { scope: '/' },
                 serviceWorkerPath: 'sw.js'
               });
+              if (OneSignal.InAppMessages) {
+                OneSignal.InAppMessages.paused = true;
+                console.log('[OneSignal] In-App Messages paused early in index.html');
+              }
               window.OneSignalInitialized = true;
               console.log('[OneSignal] SDK initialized early successfully');
             } catch (e) {

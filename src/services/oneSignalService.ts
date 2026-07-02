@@ -61,9 +61,16 @@ export class OneSignalService {
         appId: appId,
         allowLocalhostAsSecureOrigin: true,
         autoRegister: false, // Do not auto-register on load
+        welcomeNotification: {
+          disable: true
+        },
         serviceWorkerParam: { scope: '/' },
         serviceWorkerPath: 'sw.js'
       });
+      if ((OneSignal as any).InAppMessages) {
+        (OneSignal as any).InAppMessages.paused = true;
+        console.log('[OneSignal] In-App Messages paused in service');
+      }
       this.hasInitialized = true;
       (window as any).OneSignalInitialized = true;
       console.log('[OneSignal] SDK initialized successfully');
