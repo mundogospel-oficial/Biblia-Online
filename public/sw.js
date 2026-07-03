@@ -1,5 +1,5 @@
 importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
-const CACHE_NAME = 'biblia-online-v5';
+const CACHE_NAME = 'biblia-online-v6';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
