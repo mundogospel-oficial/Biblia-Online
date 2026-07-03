@@ -113,56 +113,63 @@ export const checkScheduledNotifications = () => {
   }
 };
 
-export const sendLocalNotification = (title: string, body: string) => {
+export const sendLocalNotification = async (title: string, body: string): Promise<void> => {
   if (!("Notification" in window)) {
-    console.warn("[Notification] Browser does not support Notifications.");
-    return;
+    throw new Error("Suporte a notificações não encontrado no navegador (Notification API indisponível).");
   }
 
   if (Notification.permission !== "granted") {
-    console.warn("[Notification] Permission not granted. Cannot send notification.");
-    return;
+    throw new Error(`Permissão de notificação não concedida (Status atual: '${Notification.permission}'). Por favor, habilite as notificações nas configurações do seu navegador.`);
   }
 
-  // 1. Prioritize service worker ready registration (safest for mobile browsers, PWAs, and offline)
+  if (!window.isSecureContext) {
+    throw new Error("Notificações em navegadores requerem um ambiente seguro (HTTPS ou localhost).");
+  }
+
+  const isInIframe = window.self !== window.top;
+  if (isInIframe) {
+    console.warn("[Notification] Executando dentro de um iframe. Algumas permissões ou registros de Service Worker podem ser bloqueados pelo navegador.");
+  }
+
+  // 1. Prioritize service worker ready registration (safest for PWAs, background notifications, and offline)
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.ready
-      .then((registration) => {
-        if (registration && typeof registration.showNotification === "function") {
-          registration.showNotification(title, {
-            body,
-            icon: "/icon-192.png",
-            badge: "/apple-touch-icon.png",
-            vibrate: [200, 100, 200],
-            tag: "biblia-notification",
-            renotify: true,
-          });
-        } else {
-          throw new Error("showNotification method is not available on registration");
-        }
-      })
-      .catch((err) => {
-        console.warn("[Notification] SW showNotification failed, using fallback:", err);
-        try {
-          new Notification(title, {
-            body,
-            icon: "/icon-192.png",
-            tag: "biblia-notification",
-          });
-        } catch (fallbackErr) {
-          console.error("[Notification] All notification attempts failed:", fallbackErr);
-        }
-      });
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      if (registration && typeof registration.showNotification === "function") {
+        await registration.showNotification(title, {
+          body,
+          icon: "/icons/logo2.png",
+          badge: "/apple-touch-icon.png",
+          vibrate: [200, 100, 200],
+          tag: "biblia-notification",
+          renotify: true,
+        });
+        return;
+      } else {
+        throw new Error("O Service Worker ativo não suporta a API de notificações (showNotification).");
+      }
+    } catch (err: any) {
+      console.warn("[Notification] SW showNotification falhou, tentando fallback direto:", err);
+      try {
+        new Notification(title, {
+          body,
+          icon: "/icons/logo2.png",
+          tag: "biblia-notification",
+        });
+      } catch (fallbackErr: any) {
+        throw new Error(`Falha no Service Worker e no Fallback. Erro SW: ${err?.message || err}. Erro Fallback: ${fallbackErr?.message || fallbackErr}`);
+      }
+    }
   } else {
     // 2. Direct fallback for browsers without service worker support (e.g., standard Safari outside of PWA)
     try {
       new Notification(title, {
         body,
-        icon: "/icon-192.png",
+        icon: "/icons/logo2.png",
         tag: "biblia-notification",
       });
-    } catch (err) {
-      console.error("[Notification] Direct fallback notification failed:", err);
+    } catch (err: any) {
+      throw new Error(`Falha ao disparar notificação direta: ${err?.message || err}`);
     }
   }
 };

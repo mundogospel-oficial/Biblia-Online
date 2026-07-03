@@ -56,6 +56,7 @@ const AccountPage = () => {
 
   const [turnstileToken, setTurnstileToken] = useState("");
   const [appVersion, setAppVersion] = useState("");
+  const [notificationTestError, setNotificationTestError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(authCtx.loading);
@@ -659,6 +660,7 @@ const AccountPage = () => {
                       <div className="mt-2 flex flex-col gap-2 w-full">
                         <button 
                           onClick={async () => {
+                            setNotificationTestError(null);
                             try {
                               // Verifica se o suporte a notificações locais está disponível no navegador
                               if (!("Notification" in window)) {
@@ -676,18 +678,20 @@ const AccountPage = () => {
                                 await oneSignalService.requestPermission();
                               }
 
-                              // Dispara imediatamente de forma local e 100% nativa (sem chamar o servidor)
-                              sendLocalNotification("Teste", "Teste de notificação sucedido");
+                              // Dispara imediatamente de forma local e 100% nativa e aguarda
+                              await sendLocalNotification("Teste de Notificação 🔔", "Sua notificação de teste da Bíblia Online foi enviada com sucesso! 🎉");
                               
                               toast({ 
                                 title: "Teste Enviado! 🔔", 
                                 description: "A notificação de teste foi disparada diretamente para o seu dispositivo." 
                               });
-                            } catch (err) {
+                            } catch (err: any) {
                               console.error("Erro ao disparar teste de notificação:", err);
+                              const errMsg = err?.message || String(err);
+                              setNotificationTestError(errMsg);
                               toast({ 
                                 title: "Erro de Teste", 
-                                description: "Não foi possível disparar a notificação local.", 
+                                description: "Não foi possível enviar a notificação. Veja o motivo na tela.", 
                                 variant: "destructive" 
                               });
                             }
@@ -697,6 +701,20 @@ const AccountPage = () => {
                           <Bell className="h-3.5 w-3.5" />
                           Testar Notificação
                         </button>
+
+                        {notificationTestError && (
+                          <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-left text-xs text-red-400 flex flex-col gap-1.5 animate-fadeIn">
+                            <span className="font-semibold flex items-center gap-1 text-red-500">
+                              ⚠️ Detalhes do erro no dispositivo:
+                            </span>
+                            <p className="font-mono text-[10px] bg-black/35 rounded p-1.5 overflow-x-auto text-red-300 border border-red-500/10">
+                              {notificationTestError}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground leading-normal">
+                              <strong>Dica importante:</strong> Se você estiver usando o visualizador interno do AI Studio (iframe), o navegador pode bloquear notificações nativas por motivos de segurança. Abra a aplicação em uma <strong>nova aba</strong> do seu navegador para testar as notificações nativas perfeitamente.
+                            </p>
+                          </div>
+                        )}
 
                         <div className="rounded-lg bg-secondary/30 px-3 py-2 flex items-center justify-between">
                           <span className="text-[10px] text-muted-foreground">{t("clock_status")}</span>

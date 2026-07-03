@@ -63,11 +63,8 @@ export class OneSignalService {
         autoRegister: false, // Do not auto-register on load
         welcomeNotification: {
           disable: true
-        },
-        serviceWorkerParam: { scope: '/' },
-        serviceWorkerPath: 'sw.js',
-        disableRegisterAs: true
-      } as any);
+        }
+      });
       if ((OneSignal as any).InAppMessages) {
         (OneSignal as any).InAppMessages.paused = true;
         console.log('[OneSignal] In-App Messages paused in service');
