@@ -107,7 +107,8 @@ const AccountPage = () => {
 
     if (!authCtx.loading) {
       loadProfile();
-      setNotificationsEnabled(localStorage.getItem(NOTIFICATIONS_KEY) === "true");
+      const isGranted = "Notification" in window && Notification.permission === "granted";
+      setNotificationsEnabled(isGranted && localStorage.getItem(NOTIFICATIONS_KEY) === "true");
       setOfflineEnabled(localStorage.getItem(OFFLINE_KEY) === "true");
     }
   }, [authCtx.loading, authCtx.user]);
@@ -358,6 +359,38 @@ const AccountPage = () => {
   const toggleNotifications = async () => {
     try {
       if (!notificationsEnabled) {
+        if (!("Notification" in window)) {
+          toast({
+            title: "Não suportado",
+            description: "Este navegador não suporta notificações locais.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        if (Notification.permission === "denied") {
+          toast({
+            title: "Permissão Bloqueada 🚫",
+            description: "As notificações estão bloqueadas no seu navegador ou dispositivo. Por favor, ative-as nas configurações do site para receber atualizações.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        let permission = Notification.permission;
+        if (permission === "default") {
+          permission = await Notification.requestPermission();
+        }
+
+        if (permission !== "granted") {
+          toast({
+            title: "Permissão Negada 🔔",
+            description: "Você precisa conceder permissão no navegador ou dispositivo para ativar as notificações.",
+            variant: "destructive"
+          });
+          return;
+        }
+
         // Ativa nas configurações de notificações locais
         const localSettings = getNotificationSettings();
         localSettings.enabled = true;
