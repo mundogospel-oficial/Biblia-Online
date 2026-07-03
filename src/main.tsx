@@ -13,8 +13,7 @@ const isPreviewHost =
 if (!isInIframe && !isPreviewHost && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/OneSignalSDKWorker.js", { scope: "/" }).then((reg) => {
-      // Notify SW that app opened
-      reg.active?.postMessage({ type: "APP_OPENED" });
+      console.log("Service Worker registered successfully:", reg);
     }).catch((err) => {
       console.warn("Service Worker registration failed:", err);
     });

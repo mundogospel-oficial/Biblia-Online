@@ -102,13 +102,6 @@ const App = () => {
   }, []);
   
   useEffect(() => {
-    // Notify Service Worker that app is opened (for inactivity tracking)
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.ready.then((reg) => {
-        reg.active?.postMessage({ type: 'APP_OPENED' });
-      }).catch(err => console.warn("App: SW not ready for signal", err));
-    }
-
     // Check inactivity before updating the last visit timestamp
     checkInactivity();
     updateLastVisit();

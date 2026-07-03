@@ -510,18 +510,6 @@ const AccountPage = () => {
         setOfflineProgress(Math.round((completed / filesToCache.length) * 100));
       }
 
-      if ('serviceWorker' in navigator) {
-        try {
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("Timeout waiting for Service Worker")), 3000)
-          );
-          const reg = await Promise.race([navigator.serviceWorker.ready, timeoutPromise]) as ServiceWorkerRegistration;
-          reg?.active?.postMessage({ type: 'CACHE_OFFLINE' });
-        } catch (swErr) {
-          console.warn("Service Worker not ready for offline cache:", swErr);
-        }
-      }
-      
       setOfflineProgress(100);
       setOfflineEnabled(true);
       localStorage.setItem(OFFLINE_KEY, "true");

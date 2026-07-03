@@ -143,6 +143,11 @@ export const sendLocalNotification = async (title: string, body: string): Promis
           vibrate: [200, 100, 200],
           tag: "biblia-notification",
           renotify: true,
+          data: {
+            isLocalTest: true,
+            notificationId: "local-test-notification",
+            url: "/"
+          }
         });
         return;
       } else {

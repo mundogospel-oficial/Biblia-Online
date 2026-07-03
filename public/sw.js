@@ -132,7 +132,13 @@ self.addEventListener('fetch', (event) => {
       }).catch(() => {
         // Fallback for offline images
         if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('image')) {
-          return caches.match('/icons/logo2.png') || caches.match('/placeholder.svg');
+          return caches.match('/icons/logo2.png').then((imgRes) => {
+            if (imgRes) return imgRes;
+            return caches.match('/placeholder.svg').then((plRes) => {
+              if (plRes) return plRes;
+              return new Response('', { status: 404 });
+            });
+          });
         }
         return new Response('Offline / Erro de Rede', { status: 503, statusText: 'Service Unavailable' });
       });
