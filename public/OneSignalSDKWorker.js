@@ -74,6 +74,7 @@ self.addEventListener('fetch', (event) => {
   if (
     url.host.includes('onesignal') ||
     url.host.includes('googleapis.com') ||
+    url.host.includes('gstatic.com') ||
     url.host.includes('openrouter.ai') ||
     url.pathname.startsWith('/api/ai') ||
     url.pathname.startsWith('/api/generate-image') ||
@@ -133,6 +134,7 @@ self.addEventListener('fetch', (event) => {
         if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('image')) {
           return caches.match('/icons/logo2.png') || caches.match('/placeholder.svg');
         }
+        return new Response('Offline / Erro de Rede', { status: 503, statusText: 'Service Unavailable' });
       });
     })
   );
