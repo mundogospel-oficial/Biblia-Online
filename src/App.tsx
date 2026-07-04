@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { CookieConsent } from "./components/CookieConsent";
@@ -148,8 +148,11 @@ const App = () => {
                 <Route path="/criar" element={<CreatePage />} />
                 <Route path="/buscar" element={<SearchPage />} />
                 <Route path="/favoritos" element={<FavoritesPage />} />
+                <Route path="/reacoes" element={<Navigate to="/favoritos" replace />} />
+                <Route path="/reacao" element={<Navigate to="/favoritos" replace />} />
                 <Route path="/ia" element={<AIPage />} />
                 <Route path="/devocionais" element={<DevotionalPage />} />
+                <Route path="/devocional" element={<Navigate to="/devocionais" replace />} />
                 <Route path="/conta" element={<AccountPage />} />
                 <Route path="/atualizar-senha" element={<ResetPasswordPage />} />
                 <Route path="*" element={<NotFound />} />

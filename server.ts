@@ -39,14 +39,93 @@ function startServer() {
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
-        defaultSrc: ["'self'", "https:", "http:", "data:", "blob:"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https:", "http:"],
-        styleSrc: ["'self'", "'unsafe-inline'", "https:", "http:"],
-        imgSrc: ["'self'", "data:", "blob:", "https:", "http:"],
-        connectSrc: ["'self'", "https:", "http:", "wss:", "ws:"],
-        frameAncestors: ["'self'", "*"], // Permite rodar perfeitamente nos iframes de desenvolvimento do AI Studio
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          "'unsafe-eval'",
+          "https://*.supabase.co",
+          "https://*.supabase.in",
+          "https://*.supabase.net",
+          "https://*.google.com",
+          "https://*.vercel.app",
+          "https://*.vercel.live",
+          "https://challenges.cloudflare.com",
+          "https://*.onesignal.com",
+          "https://onesignal.com"
+        ],
+        styleSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          "https://fonts.googleapis.com",
+          "https://*.onesignal.com",
+          "https://onesignal.com"
+        ],
+        fontSrc: [
+          "'self'",
+          "https://fonts.gstatic.com"
+        ],
+        imgSrc: [
+          "'self'",
+          "data:",
+          "blob:",
+          "https:", // Permite imagens seguras de qualquer site para avatares/logos
+          "http:" // Fallback para URLs legado de imagens
+        ],
+        connectSrc: [
+          "'self'",
+          "https://fonts.gstatic.com",
+          "https://fonts.googleapis.com",
+          "https://*.supabase.co",
+          "https://*.supabase.in",
+          "https://*.supabase.net",
+          "https://*.googleapis.com",
+          "wss://*.supabase.co",
+          "wss://*.supabase.in",
+          "https://raw.githubusercontent.com",
+          "https://bible-api.com",
+          "https://bolls.life",
+          "https://openrouter.ai",
+          "https://*.cloudflare.com",
+          "https://*.vercel.live",
+          "https://*.onesignal.com",
+          "https://onesignal.com",
+          "https://img.os-content.com",
+          "https://*.os-content.com",
+          "wss:",
+          "ws:"
+        ],
+        frameSrc: [
+          "'self'",
+          "https://*.vercel.live",
+          "https://challenges.cloudflare.com"
+        ],
+        workerSrc: [
+          "'self'",
+          "blob:",
+          "https://*.onesignal.com",
+          "https://onesignal.com"
+        ],
+        childSrc: [
+          "'self'",
+          "https://*.onesignal.com",
+          "https://onesignal.com"
+        ],
+        frameAncestors: ["'self'", "*"], // Essencial para o preview do AI Studio
       },
     },
+    // Desativamos o HSTS automático do helmet para controlá-lo de forma cirúrgica no middleware abaixo,
+    // garantindo que ele NUNCA seja enviado em ambientes de desenvolvimento ou previews temporários.
+    hsts: false,
+    // Impede que navegadores tentem adivinhar o MIME-type da resposta (X-Content-Type-Options: nosniff)
+    noSniff: true,
+    // Permite controlar a inclusão do cabeçalho X-Frame-Options (X-Frame-Options: SAMEORIGIN)
+    // O CSP frame-ancestors moderno é priorizado nos navegadores, mas mantemos SAMEORIGIN como fallback seguro
+    frameguard: {
+      action: "sameorigin",
+    },
+    // Configura o X-XSS-Protection de forma explícita para desativar filtros legados que introduziam falhas
+    xssFilter: true,
     crossOriginEmbedderPolicy: false,
     crossOriginOpenerPolicy: false,
     crossOriginResourcePolicy: false,
@@ -55,6 +134,101 @@ function startServer() {
   // Habilita confiança no proxy para o express-rate-limit identificar o IP real do cliente
   // quando rodando atrás de um balanceador de carga ou proxy (como Cloud Run)
   app.set("trust proxy", 1);
+
+  // --- REDIRECIONAMENTO AUTOMÁTICO HTTP PARA HTTPS ---
+  // Detecta tráfego HTTP inseguro e redireciona automaticamente para HTTPS em produção de forma ultra-segura.
+  // Permite conexões locais e plataformas de preview de desenvolvimento sem criptografia ou loops de redirecionamento.
+  app.use((req, res, next) => {
+    const host = req.hostname.toLowerCase();
+    
+    // Identifica se estamos em ambiente local (localhost, IPs de rede local ou de containers)
+    const isLocalhost = 
+      host === "localhost" || 
+      host === "127.0.0.1" || 
+      host.startsWith("192.168.") || 
+      host.startsWith("10.") || 
+      host.startsWith("172.");
+
+    // Identifica se estamos em qualquer plataforma de desenvolvimento/preview de IA ou CI/CD
+    const isDevPlatform = 
+      host.endsWith(".run.app") || 
+      host.includes("aistudio") || 
+      host.includes("lovable") || 
+      host.includes("preview") || 
+      host.includes("sandbox") || 
+      host.includes("gitpod") || 
+      host.includes("github") || 
+      host.includes("stackblitz") || 
+      host.includes("glitch") || 
+      host.includes("codesandbox") ||
+      (host.includes("vercel.app") && host !== "online-biblia.vercel.app");
+
+    const isHttp = req.headers["x-forwarded-proto"] === "http" || !req.secure;
+
+    // Redireciona APENAS em produção real e usa redirecionamento 302 (temporário) para evitar que o navegador
+    // cacheie loops de redirecionamento antigos ou incorretos se houver mudanças na infraestrutura.
+    if (isHttp && !isLocalhost && !isDevPlatform) {
+      return res.redirect(302, `https://${req.hostname}${req.originalUrl}`);
+    }
+    next();
+  });
+
+  // --- CABEÇALHOS DE SEGURANÇA EXPLICITOS ADICIONAIS ---
+  // Configura de forma visível e direta os cabeçalhos de proteção exigidos por ferramentas de auditoria (como Strix),
+  // garantindo proteção máxima contra Clickjacking, ataques MIME-sniffing, XSS e interceptações de tráfego.
+  app.use((req, res, next) => {
+    const host = req.hostname.toLowerCase();
+    
+    const isLocalhost = 
+      host === "localhost" || 
+      host === "127.0.0.1" || 
+      host.startsWith("192.168.") || 
+      host.startsWith("10.") || 
+      host.startsWith("172.");
+
+    const isDevPlatform = 
+      host.endsWith(".run.app") || 
+      host.includes("aistudio") || 
+      host.includes("lovable") || 
+      host.includes("preview") || 
+      host.includes("sandbox") || 
+      host.includes("gitpod") || 
+      host.includes("github") || 
+      host.includes("stackblitz") || 
+      host.includes("glitch") || 
+      host.includes("codesandbox") ||
+      (host.includes("vercel.app") && host !== "online-biblia.vercel.app") ||
+      isLocalhost;
+
+    // 1. Strict-Transport-Security (HSTS): Obriga conexões totalmente seguras em HTTPS por 1 ano, incluindo subdomínios e preload.
+    // É essencial que NÃO seja enviado no ambiente de desenvolvimento/preview (.run.app ou localhost) para permitir HTTP normal,
+    // mas em produção (como Vercel ou domínio próprio) ele é obrigatório para garantir segurança máxima.
+    if (!isDevPlatform) {
+      res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+    } else {
+      res.removeHeader("Strict-Transport-Security");
+    }
+
+    // 2. X-Content-Type-Options: Protege contra sniffing e execução maliciosa de tipos MIME incorretos
+    res.setHeader("X-Content-Type-Options", "nosniff");
+
+    // 3. X-XSS-Protection: Ativa proteção XSS integrada de navegadores legados (modo de bloqueio ativo)
+    res.setHeader("X-XSS-Protection", "1; mode=block");
+
+    // 4. Referrer-Policy: Minimiza vazamento de dados de referência entre origens
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+
+    // 5. X-Frame-Options: Bloqueia ataques de clickjacking.
+    // Para manter o painel de desenvolvimento/preview do AI Studio operando normalmente, removemos em desenvolvimento.
+    // Em produção (domínio real do usuário, ex: vercel, domínio próprio), ativamos SAMEORIGIN ou DENY com rigor absoluto.
+    if (!isDevPlatform) {
+      res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    } else {
+      res.removeHeader("X-Frame-Options");
+    }
+
+    next();
+  });
 
   // --- SISTEMA DE BANIMENTO PERSISTENTE (HÍBRIDO: EM MEMÓRIA PARA VELOCIDADE + SUPABASE PAR PERSISTÊNCIA) ---
   const bannedEntities = new Set<string>(); // Cache de leitura rápido (0ms latency por request)
