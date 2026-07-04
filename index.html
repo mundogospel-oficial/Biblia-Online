@@ -53,8 +53,8 @@
             registrations.forEach(function(registration) {
               const activeWorker = registration.active || registration.installing || registration.waiting;
               const scriptUrl = activeWorker ? activeWorker.scriptURL : '';
-              // Exclude our unified sw.js and OneSignal scripts from cleanup
-              if (scriptUrl && !scriptUrl.toLowerCase().includes('onesignal') && !scriptUrl.toLowerCase().endsWith('sw.js')) {
+              // Exclude our unified OneSignal script from cleanup
+              if (scriptUrl && !scriptUrl.toLowerCase().includes('onesignal')) {
                 console.log('[OneSignal Early Cleanup] Unregistering old Service Worker:', scriptUrl);
                 registration.unregister().catch(function(err) {
                   console.warn('[OneSignal Early Cleanup] Error unregistering:', err);

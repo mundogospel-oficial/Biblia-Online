@@ -96,7 +96,7 @@ export class OneSignalService {
         for (const registration of registrations) {
           const activeWorker = registration.active || registration.installing || registration.waiting;
           const scriptUrl = activeWorker?.scriptURL || '';
-          if (scriptUrl && !scriptUrl.toLowerCase().includes('onesignal') && !scriptUrl.toLowerCase().endsWith('sw.js')) {
+          if (scriptUrl && !scriptUrl.toLowerCase().includes('onesignal')) {
             console.log('[OneSignal Cleanup] Unregistering old, non-OneSignal Service Worker:', scriptUrl);
             await registration.unregister();
           }
