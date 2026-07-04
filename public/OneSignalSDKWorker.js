@@ -1,19 +1,27 @@
 importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
-const CACHE_NAME = 'biblia-online-v6';
+const CACHE_NAME = 'biblia-online-v7';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/manifest.json?v=2',
   '/favicon.ico',
   '/apple-touch-icon.png',
   '/apple-touch-icon-precomposed.png',
   '/icon-192.png',
   '/icon-512.png',
   '/icons/logo2.png',
+  '/icons/logo2.png?v=2',
+  '/icons/logo3.png',
+  '/icons/logo3.png?v=2',
   '/icons/icon-any-192.png',
+  '/icons/icon-any-192.png?v=2',
   '/icons/icon-any-512.png',
+  '/icons/icon-any-512.png?v=2',
   '/icons/icon-maskable-192.png',
+  '/icons/icon-maskable-192.png?v=2',
   '/icons/icon-maskable-512.png',
+  '/icons/icon-maskable-512.png?v=2',
   '/placeholder.svg'
 ];
 
