@@ -2,11 +2,14 @@
   "name": "Biblia Online",
   "short_name": "Biblia Online",
   "description": "A Melhor Bíblia Grátis com Inteligência Artificial!",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0b121f",
   "theme_color": "#0b121f",
   "orientation": "portrait-primary",
+  "categories": ["books", "reference", "lifestyle"],
   "icons": [
     {
       "src": "/icons/icon-any-192.png",

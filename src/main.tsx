@@ -10,7 +10,7 @@ const isPreviewHost =
   window.location.hostname.includes("id-preview--") ||
   window.location.hostname.includes("lovableproject.com");
 
-if (!isInIframe && !isPreviewHost && "serviceWorker" in navigator) {
+if (!isInIframe && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/OneSignalSDKWorker.js", { scope: "/" }).then((reg) => {
       console.log("Service Worker registered successfully:", reg);
@@ -18,7 +18,7 @@ if (!isInIframe && !isPreviewHost && "serviceWorker" in navigator) {
       console.warn("Service Worker registration failed:", err);
     });
   });
-} else if ((isPreviewHost || isInIframe) && "serviceWorker" in navigator) {
+} else if (isInIframe && "serviceWorker" in navigator) {
   // Unregister stale SWs in preview safely
   try {
     navigator.serviceWorker.getRegistrations()
