@@ -78,7 +78,7 @@ ${verses.map(v => `${v.verse}: ${v.text}`).join('\n')}`;
           'Authorization': `Bearer ${openRouterKey}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': window.location.origin,
-          'X-Title': 'Bíblia Online Translation'
+          'X-Title': 'Biblia Online Translation'
         },
         body: JSON.stringify({
           model: model,

@@ -1,5 +1,5 @@
 /**
- * Script de Agendamento em Lote para OneSignal (Bíblia Online)
+ * Script de Agendamento em Lote para OneSignal (Biblia Online)
  * 
  * Este script agenda os 100 versículos diários na API do OneSignal.
  * Regra: 2 notificações por dia (uma às 08:00 e outra às 20:00),
@@ -137,8 +137,8 @@ function sendNotification(verse, scheduleDateStr) {
         pt: `${verse.text}\n— ${verse.ref}`
       },
       headings: {
-        en: `Bíblia Online 📖`,
-        pt: `Bíblia Online 📖`
+        en: `Biblia Online 📖`,
+        pt: `Biblia Online 📖`
       },
       included_segments: ["Subscribed Users"],
       send_after: scheduleDateStr // Formato: "YYYY-MM-DD HH:MM:ss GMT-0300"

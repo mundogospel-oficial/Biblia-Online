@@ -155,7 +155,7 @@ self.addEventListener('message', (event) => {
   // ONLY handle our specific custom messages; skip OneSignal's internal messages
   if (event.data.type === 'TEST_NOTIFICATION') {
     const options = {
-      body: 'Sua notificação de teste da Bíblia Online foi enviada com sucesso! 🔔',
+      body: 'Sua notificação de teste da Biblia Online foi enviada com sucesso! 🔔',
       icon: '/icons/icon-any-192.png',
       badge: '/icons/apple-touch-icon.png',
       vibrate: [200, 100, 200],

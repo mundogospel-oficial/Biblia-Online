@@ -680,7 +680,7 @@ const AccountPage = () => {
                               }
 
                               // Dispara imediatamente de forma local e 100% nativa e aguarda
-                              await sendLocalNotification("Teste de Notificação 🔔", "Sua notificação de teste da Bíblia Online foi enviada com sucesso! 🎉");
+                              await sendLocalNotification("Teste de Notificação 🔔", "Sua notificação de teste da Biblia Online foi enviada com sucesso! 🎉");
                               
                               toast({ 
                                 title: "Teste Enviado! 🔔", 

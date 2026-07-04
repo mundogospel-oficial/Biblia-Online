@@ -32,7 +32,7 @@ const TermsModal = ({ isOpen, onClose }: TermsModalProps) => {
               </div>
 
               <div className="relative flex items-center justify-between p-8 border-b border-white/5 bg-white/5">
-                <h2 className="text-xl font-bold text-foreground font-serif tracking-tight">Termos de Uso e Política de Privacidade – Bíblia Online</h2>
+                <h2 className="text-xl font-bold text-foreground font-serif tracking-tight">Termos de Uso e Política de Privacidade – Biblia Online</h2>
                 <button 
                   onClick={onClose} 
                   className="rounded-full p-2 bg-white/5 hover:bg-white/10 hover:scale-110 transition-all duration-300"
@@ -45,12 +45,12 @@ const TermsModal = ({ isOpen, onClose }: TermsModalProps) => {
                 <div className="space-y-6 text-[13px] leading-relaxed text-foreground/80 pb-6">
                   <section>
                     <h3 className="font-bold text-foreground mb-1">1. Aceitação dos Termos</h3>
-                    <p>Ao acessar ou utilizar o site e o aplicativo Bíblia Online, o usuário manifesta sua concordância integral com estes Termos de Uso. Caso não concorde com quaisquer das diretrizes aqui estabelecidas, recomendamos que se abstenha de utilizar nossos serviços.</p>
+                    <p>Ao acessar ou utilizar o site e o aplicativo Biblia Online, o usuário manifesta sua concordância integral com estes Termos de Uso. Caso não concorde com quaisquer das diretrizes aqui estabelecidas, recomendamos que se abstenha de utilizar nossos serviços.</p>
                   </section>
 
                   <section>
                     <h3 className="font-bold text-foreground mb-1">2. Uso da Inteligência Artificial (IA) e Isenção de Responsabilidade</h3>
-                    <p>Nossa Inteligência Artificial atua exclusivamente como uma ferramenta de apoio para pesquisas e estudos bíblicos, não substituindo, sob nenhuma hipótese, o aconselhamento humano ou pastoral. O Bíblia Online trabalha para minimizar eventuais inconsistências ou "alucinações" (erros gerados por sistemas de IA), mas reforça que as respostas geradas possuem caráter estritamente informativo. Elas não devem ser utilizadas como única base para decisões pessoais, jurídicas, médicas, financeiras ou espirituais relevantes. O aviso sobre essa limitação está disponível no próprio chat do aplicativo. As respostas do Fórum e de qualquer outra funcionalidade baseada em IA, incluindo o modo Bilíngue e o Dicionário, também estão sujeitas a essas imprecisões.</p>
+                    <p>Nossa Inteligência Artificial atua exclusivamente como uma ferramenta de apoio para pesquisas e estudos bíblicos, não substituindo, sob nenhuma hipótese, o aconselhamento humano ou pastoral. O Biblia Online trabalha para minimizar eventuais inconsistências ou "alucinações" (erros gerados por sistemas de IA), mas reforça que as respostas geradas possuem caráter estritamente informativo. Elas não devem ser utilizadas como única base para decisões pessoais, jurídicas, médicas, financeiras ou espirituais relevantes. O aviso sobre essa limitação está disponível no próprio chat do aplicativo. As respostas do Fórum e de qualquer outra funcionalidade baseada em IA, incluindo o modo Bilíngue e o Dicionário, também estão sujeitas a essas imprecisões.</p>
                     <p className="mt-2 text-accent font-semibold italic text-xs">Aviso de Segurança: É expressamente desaconselhado o compartilhamento de dados pessoais, senhas ou informações financeiras no ambiente de chat da IA.</p>
                   </section>
 
@@ -71,12 +71,12 @@ const TermsModal = ({ isOpen, onClose }: TermsModalProps) => {
 
                   <section>
                     <h3 className="font-bold text-foreground mb-1">6. Modificações dos Termos</h3>
-                    <p>O Bíblia Online reserva-se o direito de revisar e atualizar estes Termos de Uso. Em caso de mudanças significativas que afetem os direitos dos usuários, envidaremos esforços para notificá-los previamente. A continuidade no uso da plataforma após a publicação das alterações será interpretada como concordância com os novos termos.</p>
+                    <p>O Biblia Online reserva-se o direito de revisar e atualizar estes Termos de Uso. Em caso de mudanças significativas que afetem os direitos dos usuários, envidaremos esforços para notificá-los previamente. A continuidade no uso da plataforma após a publicação das alterações será interpretada como concordância com os novos termos.</p>
                   </section>
 
                   <section>
                     <h3 className="font-bold text-foreground mb-1">7. Suporte e Atendimento ao Usuário</h3>
-                    <p>Dúvidas, solicitações de suporte ou reclamações devem ser encaminhadas prioritariamente pelo Fórum Bíblia Online, ferramenta devidamente integrada ao sistema da plataforma.</p>
+                    <p>Dúvidas, solicitações de suporte ou reclamações devem ser encaminhadas prioritariamente pelo Fórum Biblia Online, ferramenta devidamente integrada ao sistema da plataforma.</p>
                   </section>
 
                   <section>
@@ -86,12 +86,12 @@ const TermsModal = ({ isOpen, onClose }: TermsModalProps) => {
 
                   <section>
                     <h3 className="font-bold text-foreground mb-1">9. Direitos sobre os Dados</h3>
-                    <p>O usuário pode exercer seus direitos de dados acessando o Portal de Direitos de Dados, disponível em nosso site. Por meio desse portal, é possível solicitar: acesso aos seus dados; exclusão permanente de dados e da conta; correção de informações incorretas; e portabilidade de dados, com envio de um relatório completo para o e-mail cadastrado, de forma segura. Atualmente, a plataforma não utiliza IA para banir ou restringir usuários de forma autônoma. O Bíblia Online não se responsabiliza pelo envio de dados a serviços de terceiros realizado pelo próprio usuário, nem por restrições de acesso decorrentes de tentativas de ataque à infraestrutura do aplicativo.</p>
+                    <p>O usuário pode exercer seus direitos de dados acessando o Portal de Direitos de Dados, disponível em nosso site. Por meio desse portal, é possível solicitar: acesso aos seus dados; exclusão permanente de dados e da conta; correção de informações incorretas; e portabilidade de dados, com envio de um relatório completo para o e-mail cadastrado, de forma segura. Atualmente, a plataforma não utiliza IA para banir ou restringir usuários de forma autônoma. O Biblia Online não se responsabiliza pelo envio de dados a serviços de terceiros realizado pelo próprio usuário, nem por restrições de acesso decorrentes de tentativas de ataque à infraestrutura do aplicativo.</p>
                   </section>
 
                   <section>
                     <h3 className="font-bold text-foreground mb-1">10. Atendimento e Ajuda Humana</h3>
-                    <p>O usuário tem direito a suporte contínuo para os serviços do Bíblia Online. O atendimento inicial, o Suporte Rápido e as respostas por e-mail podem ser intermediados por sistemas de Inteligência Artificial para maior agilidade, estando sujeitos a eventuais imprecisões. Caso a IA não consiga resolver a sua solicitação de forma satisfatória, o usuário poderá acionar imediatamente a opção Ajuda Humana no site, garantindo o direcionamento do seu caso para a nossa equipe de suporte dedicada.</p>
+                    <p>O usuário tem direito a suporte contínuo para os serviços do Biblia Online. O atendimento inicial, o Suporte Rápido e as respostas por e-mail podem ser intermediados por sistemas de Inteligência Artificial para maior agilidade, estando sujeitos a eventuais imprecisões. Caso a IA não consiga resolver a sua solicitação de forma satisfatória, o usuário poderá acionar imediatamente a opção Ajuda Humana no site, garantindo o direcionamento do seu caso para a nossa equipe de suporte dedicada.</p>
                   </section>
 
                   <section>
@@ -124,7 +124,7 @@ const TermsModal = ({ isOpen, onClose }: TermsModalProps) => {
 
                     <section className="mb-6">
                       <h3 className="font-bold text-foreground mb-2 text-sm">16. Usuários Menores de Idade</h3>
-                      <p>O Bíblia Online incentiva o estudo das Escrituras por jovens. Usuários com menos de 18 anos declaram estar sob supervisão de seus pais ou responsáveis ao utilizar a plataforma. No caso de crianças com menos de 12 anos, o cadastro e o fornecimento de dados devem ser realizados exclusivamente pelo responsável legal, em estrita conformidade com o Art. 14 da LGPD.</p>
+                      <p>O Biblia Online incentiva o estudo das Escrituras por jovens. Usuários com menos de 18 anos declaram estar sob supervisão de seus pais ou responsáveis ao utilizar a plataforma. No caso de crianças com menos de 12 anos, o cadastro e o fornecimento de dados devem ser realizados exclusivamente pelo responsável legal, em estrita conformidade com o Art. 14 da LGPD.</p>
                     </section>
 
                     <section>
