@@ -479,7 +479,7 @@ const AccountPage = () => {
       const filesToCache = Array.from(new Set([
         '/',
         '/index.html',
-        '/manifest.json',
+        '/manifest.v2.json',
         '/favicon.ico',
         '/apple-touch-icon.png',
         '/apple-touch-icon-precomposed.png',
