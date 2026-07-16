@@ -202,6 +202,15 @@ body::-webkit-scrollbar,
     opacity: 1;
   }
 
+  .scrollbar-none {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+    width: 0;
+    height: 0;
+  }
 }
 
 /* Prevent iOS auto-zoom on input focus */

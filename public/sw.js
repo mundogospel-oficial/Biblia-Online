@@ -1,4 +1,3 @@
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 const CACHE_NAME = 'biblia-online-v10';
 const STATIC_ASSETS = [
   '/',
@@ -70,6 +69,12 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+
+  // Rule 2: Strictly bypass Service Worker for PWA icons (fetch directly from network)
+  if (url.pathname.includes('/icons/') || url.pathname.includes('/icon-')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
 
   // Skip OneSignal, AI endpoints, external APIs, supabase database, and development websockets
   if (
@@ -199,3 +204,7 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
+
+// Load OneSignal SDK last, after all local PWA event listeners are synchronously registered
+importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
+
