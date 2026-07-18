@@ -319,7 +319,7 @@ const DevotionalPage = () => {
                       <Filter className="h-3 w-3" />
                       Filtrar por Tema
                     </label>
-                    <div className="flex gap-1.5 overflow-x-auto pb-2 scrollbar-none">
+                    <div className="flex gap-1.5 overflow-x-auto pb-2.5 themed-scrollbar">
                       {categories.map((cat) => (
                         <button
                           key={cat}
