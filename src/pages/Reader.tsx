@@ -52,6 +52,14 @@ const Reader = () => {
   const [dictLoading, setDictLoading] = useState(false);
   const [dictMode, setDictMode] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const chapterStripRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollStrip = (direction: 'left' | 'right') => {
+    if (chapterStripRef.current) {
+      const scrollAmount = direction === 'left' ? -220 : 220;
+      chapterStripRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -66,6 +74,15 @@ const Reader = () => {
 
   const book = getBookByAbbrev(abbrev || "");
   const chapterNum = parseInt(chapter || "1");
+
+  useEffect(() => {
+    if (chapterStripRef.current) {
+      const activeEl = chapterStripRef.current.querySelector('[data-active="true"]');
+      if (activeEl) {
+        activeEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+  }, [chapterNum, abbrev]);
 
   const loadHighlightsAndNotes = useCallback(() => {
     if (!abbrev) return;
@@ -428,91 +445,115 @@ const Reader = () => {
     <div className="min-h-screen bg-background pb-20 md:pb-0">
       <Header />
 
-      <div className="sticky top-[52px] md:top-[45px] z-40 glass-card !rounded-none bg-[hsl(var(--card)/0.95)]" style={{ borderBottom: '1px solid hsl(var(--border))', backdropFilter: 'blur(24px) saturate(1.8)' }}>
-        <div className="container mx-auto flex items-center justify-between px-4 py-3">
-          <Link to="/" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ChevronLeft className="h-4 w-4" />
-            Livros
-          </Link>
-          <h2 className="font-serif text-lg font-semibold text-foreground">
-            {book.name} {chapterNum}
-          </h2>
-          <div className="w-16" />
-        </div>
+      <div className="sticky top-[52px] md:top-[45px] z-40 glass-card !rounded-none bg-[hsl(var(--card)/0.95)] border-b border-border/80 backdrop-blur-xl">
+        <div className="container mx-auto px-4 py-2.5 space-y-2">
+          {/* Row 1: Header title */}
+          <div className="flex items-center justify-between">
+            <Link to="/" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <ChevronLeft className="h-4 w-4" />
+              Livros
+            </Link>
+            <h2 className="font-serif text-lg font-semibold text-foreground">
+              {book.name} {chapterNum}
+            </h2>
+            <div className="w-16" />
+          </div>
 
-        <div className="container mx-auto flex flex-wrap items-center gap-2 px-4 pb-3">
-          <select
-            value={translation}
-            onChange={(e) => setTranslation(e.target.value)}
-            className="rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            {translations.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name} ({t.language.toUpperCase()})
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={() => {
-              if (!authUser) { toast({ title: "Faça login para usar o modo bilíngue" }); return; }
-              setBilingual(!bilingual);
-            }}
-            className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              bilingual
-                ? "bg-accent text-accent-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-muted"
-            }`}
-          >
-            <Languages className="h-3.5 w-3.5" />
-            Bilíngue
-          </button>
-          {bilingual && (
-            <div className="flex flex-col gap-0.5">
-              <div className="flex items-center gap-1.5">
-                {bilingualLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />}
-                <span className="text-[10px] text-muted-foreground">
-                  {bilingualLoading ? "Traduzindo com IA..." : "Tradução IA ativa"}
-                </span>
-              </div>
-              {!bilingualLoading && (
-                <span className="text-[9px] text-muted-foreground/60 italic">
-                  O modo Bilíngue é uma IA ela comete erros.
-                </span>
-              )}
-            </div>
-          )}
-          <button
-            onClick={() => {
-              if (!authUser) { toast({ title: "Faça login para usar o dicionário" }); return; }
-              setDictMode(!dictMode);
-            }}
-            className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              dictMode
-                ? "bg-accent text-accent-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-muted"
-            }`}
-          >
-            <BookOpen className="h-3.5 w-3.5" />
-            Dicionário
-          </button>
-        </div>
-      </div>
-
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex flex-wrap justify-center gap-1.5">
-          {Array.from({ length: book.chapters }, (_, i) => i + 1).map((c) => (
-            <Link
-              key={c}
-              to={`/livro/${abbrev}/${c}`}
-              className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition-colors ${
-                c === chapterNum
-                  ? "bg-primary text-primary-foreground"
+          {/* Row 2: Controls (Translation, Bilingual, Dictionary) */}
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={translation}
+              onChange={(e) => setTranslation(e.target.value)}
+              className="rounded-lg border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              {translations.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} ({t.language.toUpperCase()})
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => {
+                if (!authUser) { toast({ title: "Faça login para usar o modo bilíngue" }); return; }
+                setBilingual(!bilingual);
+              }}
+              className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                bilingual
+                  ? "bg-accent text-accent-foreground font-semibold"
                   : "bg-secondary text-secondary-foreground hover:bg-muted"
               }`}
             >
-              {c}
-            </Link>
-          ))}
+              <Languages className="h-3.5 w-3.5" />
+              Bilíngue
+            </button>
+            {bilingual && (
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-1.5">
+                  {bilingualLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />}
+                  <span className="text-[10px] text-muted-foreground">
+                    {bilingualLoading ? "Traduzindo com IA..." : "Tradução IA ativa"}
+                  </span>
+                </div>
+              </div>
+            )}
+            <button
+              onClick={() => {
+                if (!authUser) { toast({ title: "Faça login para usar o dicionário" }); return; }
+                setDictMode(!dictMode);
+              }}
+              className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                dictMode
+                  ? "bg-accent text-accent-foreground font-semibold"
+                  : "bg-secondary text-secondary-foreground hover:bg-muted"
+              }`}
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              Dicionário
+            </button>
+          </div>
+
+          {/* Row 3: Chapters Strip (Fixed inside Sticky Top Bar) */}
+          <div className="relative flex items-center gap-1.5 pt-0.5">
+            <button
+              onClick={() => scrollStrip('left')}
+              className="flex h-8 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary/80 text-muted-foreground hover:bg-secondary hover:text-foreground transition-all active:scale-95"
+              title="Rolar para a esquerda"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </button>
+
+            <div
+              ref={chapterStripRef}
+              className="flex flex-1 items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth py-0.5 px-0.5"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {Array.from({ length: book.chapters }, (_, i) => i + 1).map((c) => {
+                const isActive = c === chapterNum;
+                return (
+                  <Link
+                    key={c}
+                    to={`/livro/${abbrev}/${c}`}
+                    data-active={isActive ? "true" : "false"}
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-semibold transition-all duration-150 ${
+                      isActive
+                        ? "bg-primary text-primary-foreground font-bold ring-1 ring-accent/60 shadow-sm scale-105"
+                        : "bg-secondary/80 text-secondary-foreground hover:bg-muted hover:text-foreground border border-border/40"
+                    }`}
+                  >
+                    {c}
+                  </Link>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => scrollStrip('right')}
+              className="flex h-8 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary/80 text-muted-foreground hover:bg-secondary hover:text-foreground transition-all active:scale-95"
+              title="Rolar para a direita"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 

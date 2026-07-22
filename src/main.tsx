@@ -2,6 +2,18 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
+// Global error handler to catch network/fetch glitches gracefully without breaking app UI
+window.addEventListener("unhandledrejection", (event) => {
+  if (
+    event.reason &&
+    (event.reason.message === "Failed to fetch" ||
+      (typeof event.reason.message === "string" && event.reason.message.includes("Failed to fetch")))
+  ) {
+    console.warn("[Rede] Conexão temporariamente indisponível (Failed to fetch). As ações serão reexecutadas automaticamente.");
+    event.preventDefault(); // Prevents runtime error overlay for network blips
+  }
+});
+
 // PWA: Only register SW in production standalone, never in iframes or preview
 const isInIframe = (() => {
   try { return window.self !== window.top; } catch { return true; }

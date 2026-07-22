@@ -1,5 +1,6 @@
 import { forwardRef } from "react";
 import { motion } from "framer-motion";
+import { Sparkles } from "lucide-react";
 
 export type CardFormat = "square" | "story" | "landscape";
 
@@ -10,6 +11,10 @@ interface VerseCardProps {
   format?: CardFormat;
   animate?: boolean;
   fontSize?: number;
+  fontFamily?: string;
+  fontClass?: string;
+  textColor?: string;
+  customBgColor?: string;
 }
 
 export interface CardTheme {
@@ -42,17 +47,20 @@ const formatClasses: Record<CardFormat, string> = {
 };
 
 const VerseCard = forwardRef<HTMLDivElement, VerseCardProps>(
-  ({ text, reference, theme, format = "square", animate = true, fontSize = 24 }, ref) => {
+  ({ text, reference, theme, format = "square", animate = true, fontSize = 24, fontFamily, fontClass, textColor, customBgColor }, ref) => {
     const Wrapper = animate ? motion.div : "div";
     const wrapperProps = animate
       ? { initial: { opacity: 0, scale: 0.95 }, animate: { opacity: 1, scale: 1 }, transition: { duration: 0.4 } }
       : {};
 
+    const bgStyle = customBgColor ? { backgroundColor: customBgColor } : undefined;
+
     return (
       <Wrapper
         ref={ref}
         {...(wrapperProps as any)}
-        className={`relative overflow-hidden rounded-2xl ${theme.bg} ${theme.text} shadow-verse ${formatClasses[format]} flex flex-col items-center justify-center p-8 sm:p-12`}
+        style={bgStyle}
+        className={`relative overflow-hidden rounded-2xl ${theme.bg} ${theme.text} shadow-verse ${formatClasses[format]} flex flex-col items-center justify-center p-8 sm:p-12 w-full`}
       >
         {/* Decorative circles */}
         <div className="absolute inset-0 pointer-events-none opacity-10">
@@ -61,21 +69,36 @@ const VerseCard = forwardRef<HTMLDivElement, VerseCardProps>(
         </div>
 
         <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-md">
-          <div className="mb-6 flex justify-center">
-            <div className="h-px w-16 bg-current opacity-30" />
-          </div>
-          <blockquote 
-            className="font-serif leading-relaxed text-center italic"
-            style={{ fontSize: `${fontSize}px` }}
-          >
-            "{text}"
-          </blockquote>
-          <div className="mt-6 flex justify-center">
-            <div className="h-px w-16 bg-current opacity-30" />
-          </div>
-          <p className="mt-4 text-center text-sm font-sans font-medium opacity-80 tracking-wider uppercase">
-            {reference}
-          </p>
+          {!text ? (
+            <div className="flex flex-col items-center justify-center py-6 text-center">
+              <Sparkles className="h-8 w-8 opacity-40 mb-3 animate-pulse" />
+              <p className="text-sm font-sans font-medium opacity-60 tracking-normal">
+                Busque um versículo para começar
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="mb-6 flex justify-center">
+                <div className="h-px w-16 bg-current opacity-30" />
+              </div>
+              <blockquote 
+                className={`leading-relaxed text-center ${fontClass || "font-serif italic"}`}
+                style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily || undefined, color: textColor || undefined }}
+              >
+                "{text}"
+              </blockquote>
+              {reference ? (
+                <>
+                  <div className="mt-6 flex justify-center">
+                    <div className="h-px w-16 bg-current opacity-30" />
+                  </div>
+                  <p className="mt-4 text-center text-sm font-sans font-medium opacity-80 tracking-wider uppercase">
+                    {reference}
+                  </p>
+                </>
+              ) : null}
+            </>
+          )}
         </div>
       </Wrapper>
     );

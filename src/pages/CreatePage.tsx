@@ -2,10 +2,12 @@ import { useState, useRef, useEffect, Fragment } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import VerseCard, { themes, type CardFormat } from "@/components/VerseCard";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Download, Palette, RectangleVertical, Square, RectangleHorizontal,
   Image, Type, Search, Loader2, Sparkles, Wand2, Eye, Share2, ImageOff, WifiOff,
+  Sliders, RefreshCw, Check, BookOpen, Quote, Layers, SlidersHorizontal, SlidersVertical,
+  Maximize2, AlignmentLeft, AlignmentCenter, AlignmentRight
 } from "lucide-react";
 import html2canvas from "html2canvas-pro";
 import { useToast } from "@/hooks/use-toast";
@@ -14,10 +16,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { downloadBibleImage, shareBibleImage } from "@/lib/downloadUtils";
 import { generateBiblicalImage } from "@/services/imageGenerationService";
 
-const formats: { key: CardFormat; label: string; icon: React.ReactNode }[] = [
-  { key: "square", label: "Quadrado", icon: <Square className="h-3.5 w-3.5" /> },
-  { key: "story", label: "Story", icon: <RectangleVertical className="h-3.5 w-3.5" /> },
-  { key: "landscape", label: "Paisagem", icon: <RectangleHorizontal className="h-3.5 w-3.5" /> },
+const formats: { key: CardFormat; label: string; dim: string; icon: React.ReactNode }[] = [
+  { key: "square", label: "Quadrado", dim: "1080 × 1080 (1:1)", icon: <Square className="h-4 w-4" /> },
+  { key: "story", label: "Story", dim: "1080 × 1920 (9:16)", icon: <RectangleVertical className="h-4 w-4" /> },
+  { key: "landscape", label: "Paisagem", dim: "1920 × 1080 (16:9)", icon: <RectangleHorizontal className="h-4 w-4" /> },
 ];
 
 const exportFormats = [
@@ -26,34 +28,60 @@ const exportFormats = [
   { key: "webp", label: "WEBP", mime: "image/webp" },
 ] as const;
 
+export type QualityKey = "sd" | "hd" | "4k";
+
+const qualityOptions = [
+  { key: "sd" as const, label: "720p (SD)", desc: "Envio Rápido • 150 DPI", scale: 1.5, badge: "720p SD" },
+  { key: "hd" as const, label: "1080p (Full HD)", desc: "Recomendado • 300 DPI", scale: 3, badge: "1080p Full HD" },
+  { key: "4k" as const, label: "4K (Ultra HD)", desc: "Máxima Nitidez • 600 DPI", scale: 5, badge: "4K Ultra HD" },
+] as const;
+
 const fontOptions = [
-  { key: "serif", label: "Serifada", className: "font-serif" },
-  { key: "sans", label: "Moderna", className: "font-sans" },
-  { key: "mono", label: "Mono", className: "font-mono" },
-  { key: "cursive", label: "Cursiva", className: "font-serif italic" },
-  { key: "display", label: "Display", className: "font-serif font-bold" },
-  { key: "condensed", label: "Condensada", className: "font-sans font-light tracking-tight" },
-  { key: "wide", label: "Espaçada", className: "font-sans tracking-widest uppercase text-sm" },
-  { key: "elegant", label: "Elegante", className: "font-serif font-light italic" },
-  { key: "bold", label: "Negrito", className: "font-sans font-black" },
-  { key: "thin", label: "Fina", className: "font-sans font-thin tracking-wide" },
+  { key: "serif", label: "Playfair (Serif)", family: "'Playfair Display', serif", className: "font-serif italic" },
+  { key: "cursive", label: "Cursiva", family: "'Dancing Script', cursive", className: "font-cursive" },
+  { key: "cinzel", label: "Cinzel (Romana)", family: "'Cinzel', serif", className: "font-cinzel" },
+  { key: "cormorant", label: "Elegante Garamond", family: "'Cormorant Garamond', serif", className: "font-cormorant italic" },
+  { key: "caveat", label: "Manuscrita", family: "'Caveat', cursive", className: "font-caveat" },
+  { key: "lora", label: "Lora (Clássica)", family: "'Lora', serif", className: "font-lora" },
+  { key: "sans", label: "Inter (Moderna)", family: "'Inter', sans-serif", className: "font-sans" },
+  { key: "montserrat", label: "Montserrat", family: "'Montserrat', sans-serif", className: "font-montserrat" },
+  { key: "mono", label: "Monespaçada", family: "'Space Mono', monospace", className: "font-mono" },
 ];
 
 const imageStyles = [
-  "paisagem serena com luz suave",
-  "céu estrelado com nuvens",
-  "montanhas ao amanhecer",
-  "jardim florido e pacífico",
-  "oceano calmo ao pôr do sol",
+  { label: "Pôr do sol sereno", prompt: "Pôr do sol calmo no horizonte com raios dourados e luz suave" },
+  { label: "Céu estrelado", prompt: "Céu noturno estrelado e limpo com nuvens sutis e luz celestial" },
+  { label: "Montanhas ao amanhecer", prompt: "Montanhas majestosas cobertas de névoa ao amanhecer" },
+  { label: "Jardim florido", prompt: "Jardim pacífico com flores silvestres e luz da manhã" },
+  { label: "Oceano azul", prompt: "Oceano calmo em dia ensolarado com ondas suaves" },
+  { label: "Floresta ensolarada", prompt: "Floresta exuberante com raios de sol atravessando as árvores" },
 ];
 
-const verseSuggestions = ["João 3:16", "Salmos 23:1", "Filipenses 4:13", "Romanos 8:28", "Provérbios 3:5", "Isaías 41:10"];
+const verseCategorySuggestions = [
+  { topic: "Amor & Fé", ref: "1 Coríntios 13:13" },
+  { topic: "Paz", ref: "Filipe 4:7" },
+  { topic: "Força", ref: "Isaías 40:31" },
+  { topic: "Proteção", ref: "Salmos 91:1" },
+  { topic: "Esperança", ref: "Jeremias 29:11" },
+  { topic: "Salvação", ref: "João 3:16" },
+];
 
 const presetColors = [
-  "#1a2744", "#0f172a", "#1e3a5f", "#2d1b69", "#1a1a2e",
+  "#0f172a", "#1e293b", "#1e3a5f", "#2d1b69", "#1a1a2e",
   "#0d2137", "#1b4332", "#3c1642", "#0c1821", "#2c003e",
   "#800020", "#1a1a1a", "#003366", "#004d40", "#4a0e4e",
 ];
+
+const gradientPresets = [
+  { name: "Aurora", style: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #2d1b69 100%)" },
+  { name: "Pôr do Sol", style: "linear-gradient(135deg, #2d120d 0%, #4a1c12 50%, #1a0f2e 100%)" },
+  { name: "Esmeralda", style: "linear-gradient(135deg, #051c14 0%, #0d382c 50%, #081a24 100%)" },
+  { name: "Real", style: "linear-gradient(135deg, #120b2e 0%, #29104d 50%, #120a1f 100%)" },
+  { name: "Oceano Profundo", style: "linear-gradient(135deg, #031329 0%, #082d4f 50%, #020b18 100%)" },
+  { name: "Dourado Noturno", style: "linear-gradient(135deg, #1c1508 0%, #382a0d 50%, #0f0d07 100%)" },
+];
+
+type ActiveTab = "verse" | "background" | "typography" | "export";
 
 const CreatePage = () => {
   const [searchParams] = useSearchParams();
@@ -63,25 +91,32 @@ const CreatePage = () => {
   const { toast } = useToast();
   const { user: authUser } = useAuth();
 
-  const [verseText, setVerseText] = useState(initialText);
-  const [reference, setReference] = useState(initialRef);
+  const [activeTab, setActiveTab] = useState<ActiveTab>("verse");
+  const [verseText, setVerseText] = useState(initialText || "");
+  const [reference, setReference] = useState(initialRef || "");
+
   const [activeTheme, setActiveTheme] = useState(0);
   const [activeFormat, setActiveFormat] = useState<CardFormat>("square");
   const [exportFormat, setExportFormat] = useState<(typeof exportFormats)[number]>(exportFormats[0]);
+  const [exportQuality, setExportQuality] = useState<QualityKey>("hd");
   const [activeFont, setActiveFont] = useState("serif");
   const [fontSize, setFontSize] = useState(24);
-  const [customColor, setCustomColor] = useState("#1a2744");
-  const [useCustomColor, setUseCustomColor] = useState(false);
+  const [textColor, setTextColor] = useState("#ffffff");
+  const [overlayOpacity, setOverlayOpacity] = useState(50); // % opacity for image dark overlay
+
+  const [bgType, setBgType] = useState<"theme" | "custom_color" | "gradient" | "ai">("custom_color");
+  const [customColor, setCustomColor] = useState("#111827");
+  const [selectedGradient, setSelectedGradient] = useState(gradientPresets[0].style);
+
   const cardContainerRef = useRef<HTMLDivElement>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
 
-  const [useAIImage, setUseAIImage] = useState(false);
   const [aiImageUrl, setAiImageUrl] = useState("");
   const [aiImageLoading, setAiImageLoading] = useState(false);
   const [aiImageError, setAiImageError] = useState(false);
-  const [aiStyle, setAiStyle] = useState(imageStyles[0]);
+  const [selectedStyleIndex, setSelectedStyleIndex] = useState(0);
   const [customAiPrompt, setCustomAiPrompt] = useState("");
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
@@ -101,24 +136,68 @@ const CreatePage = () => {
     if (!query.trim()) return;
     setSearchLoading(true);
     try {
-      const res = await fetch(`https://bible-api.com/${encodeURIComponent(query)}?translation=almeida`);
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      if (data.text) {
-        setVerseText(data.text.trim());
-        setReference(data.reference || query);
-        toast({ title: "Versículo encontrado! ✨" });
+      let foundText = "";
+      let foundRef = "";
+
+      // Try bible-api.com first
+      try {
+        const res = await fetch(`https://bible-api.com/${encodeURIComponent(query)}?translation=almeida`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.text) {
+            foundText = data.text.trim();
+            foundRef = data.reference || query;
+          }
+        }
+      } catch (e) {
+        console.warn("bible-api fetch failed, attempting local bible data fallback...", e);
+      }
+
+      // If online API fails or returns empty, attempt fallback using local Bible data
+      if (!foundText) {
+        const match = query.match(/^([1-3]?\s?[A-Za-zÀ-ÿ]+)\s+(\d+)(?::(\d+))?/);
+        if (match) {
+          const bookInput = match[1].trim().toLowerCase();
+          const chapterNum = parseInt(match[2], 10);
+          const verseNum = match[3] ? parseInt(match[3], 10) : null;
+
+          const book = bibleBooks.find(b => 
+            b.name.toLowerCase() === bookInput || 
+            b.abbrev.toLowerCase() === bookInput ||
+            b.name.toLowerCase().startsWith(bookInput)
+          );
+
+          if (book) {
+            const chapData = await fetchChapter(book.abbrev, chapterNum, 'blivre');
+            if (verseNum) {
+              const v = chapData.verses.find(item => item.verse === verseNum);
+              if (v) {
+                foundText = v.text;
+                foundRef = `${book.name} ${chapterNum}:${verseNum}`;
+              }
+            } else if (chapData.text) {
+              foundText = chapData.text;
+              foundRef = `${book.name} ${chapterNum}`;
+            }
+          }
+        }
+      }
+
+      if (foundText) {
+        setVerseText(foundText);
+        setReference(foundRef || query);
+        toast({ title: "Versículo carregado! ✨" });
       } else {
-        toast({ title: "Versículo não encontrado", variant: "destructive" });
+        toast({ title: "Versículo não encontrado", description: "Verifique o nome do livro e capítulo (ex: João 3:16)", variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erro ao buscar versículo", variant: "destructive" });
+      toast({ title: "Erro ao buscar versículo", description: "Verifique sua conexão ou tente buscar por referência como 'João 3:16'", variant: "destructive" });
     } finally {
       setSearchLoading(false);
     }
   };
 
-  // Daily AI image generation limit for create page
+  // Daily AI image usage limit
   const [createImageCount, setCreateImageCount] = useState(0);
   const CREATE_IMAGE_LIMIT = 3;
 
@@ -146,22 +225,24 @@ const CreatePage = () => {
     if (!verseText) { toast({ title: "Adicione um versículo primeiro", variant: "destructive" }); return; }
     if (!authUser) { toast({ title: "Faça login para gerar imagens com IA" }); return; }
     if (createImageLimitReached) { toast({ title: "Limite diário atingido", description: `Máximo ${CREATE_IMAGE_LIMIT} imagens por dia.`, variant: "destructive" }); return; }
+    
     setAiImageLoading(true);
     setAiImageError(false);
+    setBgType("ai");
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { toast({ title: "Faça login para usar este recurso" }); setAiImageLoading(false); return; }
 
-      const stylePrompt = customAiPrompt.trim() || aiStyle;
+      const stylePrompt = customAiPrompt.trim() || imageStyles[selectedStyleIndex].prompt;
       const fullPrompt = `${verseText}. Estilo visual: ${stylePrompt}`;
 
-      // Gerar imagem usando a cota dedicada 'create'
       const imageUrl = await generateBiblicalImage(fullPrompt, undefined, activeFormat, true, 'create', true);
 
       if (imageUrl) {
         setAiImageUrl(imageUrl);
         setCreateImageCount(prev => prev + 1);
-        toast({ title: "Imagem gerada com sucesso! ✨" });
+        toast({ title: "Imagem criada pela IA! ✨" });
         return;
       }
       
@@ -176,6 +257,10 @@ const CreatePage = () => {
 
   const handleDownload = async () => {
     if (!cardContainerRef.current) return;
+    const activeQualityObj = qualityOptions.find(q => q.key === exportQuality) || qualityOptions[1];
+
+    toast({ title: `Gerando imagem em ${activeQualityObj.badge}... 🎨` });
+
     try {
       const el = cardContainerRef.current;
       const clone = el.cloneNode(true) as HTMLElement;
@@ -188,7 +273,7 @@ const CreatePage = () => {
       document.body.appendChild(clone);
 
       const canvas = await html2canvas(clone, {
-        scale: 3,
+        scale: activeQualityObj.scale,
         useCORS: true,
         allowTaint: true,
         backgroundColor: null,
@@ -205,6 +290,7 @@ const CreatePage = () => {
 
       const dataUrl = canvas.toDataURL(exportFormat.mime, 0.95);
       await downloadBibleImage(dataUrl);
+      toast({ title: "Download concluído! 📥", description: `Salvo em ${exportFormat.label} (${activeQualityObj.badge})` });
     } catch (err) {
       console.error("Erro ao gerar imagem:", err);
       toast({ title: "Erro ao baixar imagem", variant: "destructive" });
@@ -213,6 +299,10 @@ const CreatePage = () => {
 
   const handleShareImage = async () => {
     if (!cardContainerRef.current) return;
+    const activeQualityObj = qualityOptions.find(q => q.key === exportQuality) || qualityOptions[1];
+
+    toast({ title: `Preparando imagem em ${activeQualityObj.badge}... 📤` });
+
     try {
       const el = cardContainerRef.current;
       const clone = el.cloneNode(true) as HTMLElement;
@@ -225,7 +315,7 @@ const CreatePage = () => {
       document.body.appendChild(clone);
 
       const canvas = await html2canvas(clone, {
-        scale: 3, 
+        scale: activeQualityObj.scale, 
         useCORS: true, 
         allowTaint: true, 
         backgroundColor: null, 
@@ -243,305 +333,760 @@ const CreatePage = () => {
     }
   };
 
-  const currentTheme = useCustomColor
-    ? { name: "Personalizado", bg: "", text: "text-white", accent: "bg-white/20", style: `background-color: ${customColor}` }
-    : themes[activeTheme];
-
+  const currentTheme = themes[activeTheme];
   const selectedFont = fontOptions.find(f => f.key === activeFont);
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
+    <div className="min-h-screen bg-background pb-20 md:pb-8">
       <Header />
-      <div className="container mx-auto px-4 py-5 sm:py-8">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="mb-1 font-serif text-xl font-bold text-foreground sm:text-2xl">Criar Página</h1>
-          <p className="mb-5 text-xs text-muted-foreground sm:text-sm">Personalize e baixe uma imagem com seu versículo</p>
 
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-            {/* Left: Controls */}
-            <div className="lg:col-span-2 space-y-3">
-              {/* Search */}
-              <div className="glass-card rounded-xl p-4">
-                <label className="mb-2 block text-sm font-medium text-foreground">🔍 Buscar Versículo</label>
-                <div className="flex gap-2">
-                  <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={!isOnline ? "Indisponível offline" : "Ex: João 3:16"}
-                    onKeyDown={(e) => e.key === "Enter" && isOnline && handleSearchVerse()}
-                    disabled={!isOnline}
-                    className="flex-1 rounded-lg border border-input bg-secondary/50 px-3 py-2 text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
-                  />
-                  <button onClick={() => { if (isOnline) handleSearchVerse(); }} disabled={searchLoading || !isOnline} className="rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50">
-                    {searchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                  </button>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {verseSuggestions.map((s) => (
-                    <button key={s} onClick={() => { setSearchQuery(s); handleSearchVerse(s); }}
-                      className="rounded-lg bg-secondary px-2 py-1 text-[10px] text-secondary-foreground hover:bg-muted"
-                    >{s}</button>
-                  ))}
-                </div>
-              </div>
+      {/* Main Container */}
+      <div className="container mx-auto px-4 py-5 max-w-6xl space-y-6">
+        
+        {/* Header Banner */}
+        <div className="glass-card rounded-2xl p-5 border border-border/60 bg-gradient-to-r from-card/90 via-card/80 to-accent/5 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/15 border border-accent/30 text-accent text-xs font-semibold mb-2">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Estúdio de Criação Bíblica</span>
+            </div>
+            <h1 className="font-serif text-2xl font-bold text-foreground">Crie Artes e Cartões Bíblicos</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+              Personalize o texto, fontes, fundos com IA e baixe em alta resolução para compartilhar.
+            </p>
+          </div>
 
-              {verseText && (
-                <div className="glass-card rounded-xl p-4">
-                  <p className="font-serif text-sm italic leading-relaxed text-card-foreground">"{verseText}"</p>
-                  <p className="mt-1 text-xs font-medium text-accent">— {reference}</p>
-                </div>
-              )}
+          <div className="flex items-center gap-2 self-start md:self-auto">
+            <button
+              onClick={handleDownload}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent text-accent-foreground text-xs font-bold hover:opacity-90 active:scale-95 transition-all shadow-md"
+            >
+              <Download className="h-4 w-4" />
+              <span>Baixar Arte</span>
+            </button>
+            <button
+              onClick={handleShareImage}
+              className="flex items-center justify-center p-2.5 rounded-xl bg-secondary text-secondary-foreground hover:bg-muted active:scale-95 transition-all border border-border/50"
+              title="Compartilhar"
+            >
+              <Share2 className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
 
-              {/* AI / Theme toggle */}
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => setUseAIImage(true)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-medium border transition-all ${useAIImage ? "border-accent bg-accent/10 text-foreground" : "border-border text-muted-foreground"}`}
-                ><Wand2 className="h-3.5 w-3.5" /> IA</button>
-                <button onClick={() => setUseAIImage(false)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-medium border ${!useAIImage ? "border-accent bg-accent/10 text-foreground" : "border-border text-muted-foreground"}`}
-                ><Palette className="h-3.5 w-3.5" /> Cor</button>
-              </div>
+        {/* Main Grid Workspace */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-              {useAIImage && !isOnline && (
-                <div className="glass-card rounded-xl p-6 text-center border border-amber-500/20 bg-amber-500/5 flex flex-col items-center justify-center">
-                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
-                    <WifiOff className="h-6 w-6 animate-pulse" />
-                  </div>
-                  <h3 className="text-sm font-bold text-foreground mb-1">Você precisa de internet para usar IA</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed max-w-xs">
-                    O modo Criar com IA requer uma conexão ativa com a internet para gerar novos fundos baseados em versículos.
-                  </p>
-                </div>
-              )}
-
-              {useAIImage && isOnline && (
-                <div className="glass-card rounded-xl p-4 space-y-2">
-                  <div className="flex flex-wrap gap-1.5">
-                    {imageStyles.map((s) => (
-                      <button key={s} onClick={() => { setAiStyle(s); setCustomAiPrompt(""); }}
-                        className={`rounded-lg px-2.5 py-1 text-[10px] border ${aiStyle === s && !customAiPrompt ? "border-accent bg-accent/10 text-foreground" : "border-border text-muted-foreground"}`}
-                      >{s}</button>
-                    ))}
-                  </div>
-                  <input value={customAiPrompt} onChange={(e) => setCustomAiPrompt(e.target.value)} placeholder="Descreva seu fundo..."
-                    className="w-full rounded-lg border border-input bg-secondary/50 px-3 py-2 text-xs text-card-foreground placeholder:text-muted-foreground focus:outline-none"
-                  />
-                  <button onClick={handleGenerateAIImage} disabled={aiImageLoading || createImageLimitReached}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent py-2.5 text-xs font-semibold text-accent-foreground disabled:opacity-50 liquid-btn"
+          {/* Left Column: Control Panel */}
+          <div className="lg:col-span-5 space-y-4">
+            
+            {/* Tab Navigation Pill Track */}
+            <div className="grid grid-cols-4 gap-1 p-1 rounded-2xl bg-secondary/60 border border-border/50 backdrop-blur-md relative overflow-x-auto scroll-smooth no-scrollbar">
+              {[
+                { id: "verse", label: "Versículo", icon: Quote },
+                { id: "background", label: "Fundo", icon: Palette },
+                { id: "typography", label: "Texto", icon: Type },
+                { id: "export", label: "Formato", icon: Image },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id as ActiveTab)}
+                    className={`relative flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-[11px] font-semibold transition-colors select-none ${
+                      isActive
+                        ? "text-primary-foreground font-bold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+                    }`}
                   >
-                    {aiImageLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    {createImageLimitReached ? `Limite (${CREATE_IMAGE_LIMIT}/${CREATE_IMAGE_LIMIT})` : aiImageLoading ? "Gerando..." : `Gerar com IA (${createImageCount}/${CREATE_IMAGE_LIMIT})`}
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeCreateTabPill"
+                        className="absolute inset-0 rounded-xl bg-primary shadow-md"
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-10 flex flex-col items-center justify-center">
+                      <Icon className="h-4 w-4 mb-0.5" />
+                      <span>{tab.label}</span>
+                    </span>
                   </button>
-                </div>
-              )}
+                );
+              })}
+            </div>
 
-              {!useAIImage && (
-                <div className="glass-card rounded-xl p-4 space-y-3">
+            {/* Tab 1: Verse Content & Search */}
+            {activeTab === "verse" && (
+              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                <div className="glass-card rounded-2xl p-4 border border-border/60 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Search className="h-3.5 w-3.5 text-accent" />
+                      Buscar Passagem
+                    </label>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder={!isOnline ? "Indisponível offline" : "Ex: Filipenses 4:13"}
+                      onKeyDown={(e) => e.key === "Enter" && isOnline && handleSearchVerse()}
+                      disabled={!isOnline}
+                      className="flex-1 rounded-xl border border-input bg-secondary/50 px-3.5 py-2 text-xs text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+                    />
+                    <button
+                      onClick={() => { if (isOnline) handleSearchVerse(); }}
+                      disabled={searchLoading || !isOnline}
+                      className="rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center"
+                    >
+                      {searchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
+                    </button>
+                  </div>
+
                   <div>
-                    <p className="mb-2 text-sm font-medium text-foreground flex items-center gap-1.5"><Palette className="h-4 w-4" /> Tema</p>
-                    <div className="grid grid-cols-7 gap-1.5">
-                      {themes.map((theme, i) => (
-                        <button key={theme.name} onClick={() => { setActiveTheme(i); setUseCustomColor(false); }}
-                          className={`flex flex-col items-center gap-0.5 rounded-lg p-1 border ${!useCustomColor && i === activeTheme ? "border-accent" : "border-transparent hover:border-border"}`}
+                    <span className="text-[10px] font-medium text-muted-foreground block mb-1.5">Sugestões Rápidas:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {verseCategorySuggestions.map((item) => (
+                        <button
+                          key={item.ref}
+                          onClick={() => { setSearchQuery(item.ref); handleSearchVerse(item.ref); }}
+                          className="rounded-lg bg-secondary/80 hover:bg-accent/20 hover:text-accent border border-border/40 px-2.5 py-1 text-[11px] font-medium text-secondary-foreground transition-all"
                         >
-                          <div className={`h-6 w-6 rounded-full ${theme.bg} ring-1 ring-white/10`} />
-                          <span className="text-[7px] text-muted-foreground">{theme.name}</span>
+                          {item.topic} ({item.ref})
                         </button>
                       ))}
                     </div>
                   </div>
+                </div>
+
+                {/* Direct Text Customization Area */}
+                <div className="glass-card rounded-2xl p-4 border border-border/60 space-y-3">
+                  <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Quote className="h-3.5 w-3.5 text-accent" />
+                    Editar Texto Manualmente
+                  </span>
+
                   <div>
-                    <p className="mb-2 text-sm font-medium text-foreground">🎨 Personalizada</p>
-                    <div className="flex flex-wrap gap-1 mb-2">
+                    <label className="text-[10px] text-muted-foreground block mb-1">Texto do Versículo:</label>
+                    <textarea
+                      rows={4}
+                      value={verseText}
+                      onChange={(e) => setVerseText(e.target.value)}
+                      placeholder="Digite o texto aqui..."
+                      className="w-full rounded-xl border border-input bg-secondary/40 p-3 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-muted-foreground block mb-1">Referência Bíblica:</label>
+                    <input
+                      type="text"
+                      value={reference}
+                      onChange={(e) => setReference(e.target.value)}
+                      placeholder="Ex: Salmos 23:1"
+                      className="w-full rounded-xl border border-input bg-secondary/40 px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Tab 2: Backgrounds & Themes */}
+            {activeTab === "background" && (
+              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                
+                {/* Background Mode Selector */}
+                <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-secondary/50 border border-border/40">
+                  <button
+                    onClick={() => setBgType("theme")}
+                    className={`py-1.5 rounded-lg text-[10px] font-semibold transition-all ${
+                      bgType === "theme" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Temas
+                  </button>
+                  <button
+                    onClick={() => setBgType("gradient")}
+                    className={`py-1.5 rounded-lg text-[10px] font-semibold transition-all ${
+                      bgType === "gradient" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Gradiente
+                  </button>
+                  <button
+                    onClick={() => setBgType("custom_color")}
+                    className={`py-1.5 rounded-lg text-[10px] font-semibold transition-all ${
+                      bgType === "custom_color" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Sólida
+                  </button>
+                  <button
+                    onClick={() => setBgType("ai")}
+                    className={`py-1.5 rounded-lg text-[10px] font-semibold transition-all flex items-center justify-center gap-1 ${
+                      bgType === "ai" ? "bg-accent text-accent-foreground shadow-sm font-bold" : "text-accent hover:bg-accent/10"
+                    }`}
+                  >
+                    <Wand2 className="h-3 w-3" />
+                    IA
+                  </button>
+                </div>
+
+                {/* Sub-panel 1: Preset Themes */}
+                {bgType === "theme" && (
+                  <div className="glass-card rounded-2xl p-4 border border-border/60">
+                    <span className="text-xs font-semibold text-foreground block mb-3">Temas Pré-definidos</span>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {themes.map((t, idx) => (
+                        <button
+                          key={t.name}
+                          onClick={() => { setActiveTheme(idx); }}
+                          className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all ${
+                            idx === activeTheme
+                              ? "border-accent bg-accent/10 text-foreground shadow-sm"
+                              : "border-border/40 bg-secondary/30 text-muted-foreground hover:border-border hover:bg-secondary/60"
+                          }`}
+                        >
+                          <div className={`h-7 w-7 rounded-full ${t.bg} ring-2 ring-white/10 flex items-center justify-center shadow-sm`}>
+                            <div className={`h-2.5 w-2.5 rounded-full ${t.accent}`} />
+                          </div>
+                          <span className="text-[10px] font-medium truncate w-full text-center">{t.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Sub-panel 2: Gradient Presets */}
+                {bgType === "gradient" && (
+                  <div className="glass-card rounded-2xl p-4 border border-border/60 space-y-3">
+                    <span className="text-xs font-semibold text-foreground block mb-1">Gradientes Elegantes</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      {gradientPresets.map((g) => (
+                        <button
+                          key={g.name}
+                          onClick={() => setSelectedGradient(g.style)}
+                          className={`h-16 rounded-xl p-3 border transition-all flex items-end justify-between text-white ${
+                            selectedGradient === g.style ? "border-accent ring-2 ring-accent/50 scale-[1.02]" : "border-border/40 hover:border-border"
+                          }`}
+                          style={{ background: g.style }}
+                        >
+                          <span className="text-[10px] font-semibold drop-shadow-md">{g.name}</span>
+                          {selectedGradient === g.style && <Check className="h-3.5 w-3.5 text-accent" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Sub-panel 3: Custom Color */}
+                {bgType === "custom_color" && (
+                  <div className="glass-card rounded-2xl p-4 border border-border/60 space-y-3">
+                    <span className="text-xs font-semibold text-foreground block">Cor de Fundo Sólida</span>
+                    <div className="grid grid-cols-5 gap-2">
                       {presetColors.map((c) => (
-                        <button key={c} onClick={() => { setCustomColor(c); setUseCustomColor(true); }}
-                          className={`h-6 w-6 rounded-full border-2 transition-all ${useCustomColor && customColor === c ? "border-accent scale-110" : "border-transparent hover:border-border"}`}
+                        <button
+                          key={c}
+                          onClick={() => setCustomColor(c)}
+                          className={`h-9 rounded-xl border-2 transition-all ${
+                            customColor === c ? "border-accent scale-105 shadow-md" : "border-transparent hover:scale-95"
+                          }`}
                           style={{ backgroundColor: c }}
                         />
                       ))}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <input type="color" value={customColor} onChange={(e) => { setCustomColor(e.target.value); setUseCustomColor(true); }} className="h-8 w-8 cursor-pointer rounded border border-border" />
-                      <input type="text" value={customColor} onChange={(e) => { setCustomColor(e.target.value); setUseCustomColor(true); }} className="w-20 rounded-lg border border-border bg-secondary/50 px-2 py-1 text-xs text-foreground" />
+                    <div className="flex items-center gap-2 pt-2 border-t border-border/40">
+                      <span className="text-xs text-muted-foreground">Personalizado:</span>
+                      <input
+                        type="color"
+                        value={customColor}
+                        onChange={(e) => setCustomColor(e.target.value)}
+                        className="h-8 w-10 cursor-pointer rounded-lg border border-border bg-transparent p-0.5"
+                      />
+                      <input
+                        type="text"
+                        value={customColor}
+                        onChange={(e) => setCustomColor(e.target.value)}
+                        className="w-24 rounded-lg border border-border bg-secondary/50 px-2.5 py-1 text-xs text-foreground font-mono"
+                      />
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Font */}
-              <div className="glass-card rounded-xl p-4 space-y-3">
-                <div>
-                  <p className="mb-2 text-sm font-medium text-foreground flex items-center gap-1.5"><Type className="h-4 w-4" /> Fonte</p>
-                  <div className="flex flex-wrap gap-1">
-                    {fontOptions.map((f) => (
-                      <button key={f.key} onClick={() => setActiveFont(f.key)}
-                        className={`rounded-lg px-2.5 py-1 text-xs font-medium border ${f.className} ${activeFont === f.key ? "border-accent bg-accent/10 text-foreground" : "border-border text-muted-foreground"}`}
-                      >{f.label}</button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-foreground">Tamanho do Texto</p>
-                    <span className="text-xs text-muted-foreground font-mono">{fontSize}px</span>
-                  </div>
-                  <input 
-                    type="range" 
-                    min="14" 
-                    max="64" 
-                    step="1" 
-                    value={fontSize} 
-                    onChange={(e) => setFontSize(parseInt(e.target.value))}
-                    className="w-full accent-accent bg-secondary h-1.5 rounded-lg appearance-none cursor-pointer"
-                  />
-                </div>
-              </div>
+                {/* Sub-panel 4: AI Image Background */}
+                {bgType === "ai" && (
+                  <div className="glass-card rounded-2xl p-4 border border-border/60 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        <Wand2 className="h-3.5 w-3.5 text-accent" />
+                        Fundo Inteligente com IA
+                      </span>
+                      <span className="text-[10px] font-semibold text-accent bg-accent/10 border border-accent/20 px-2 py-0.5 rounded-full">
+                        {createImageCount}/{CREATE_IMAGE_LIMIT} hoje
+                      </span>
+                    </div>
 
-              {/* Format + Export */}
-              <div className="glass-card rounded-xl p-4 space-y-3">
-                <div>
-                  <p className="mb-2 text-sm font-medium text-foreground flex items-center gap-1.5"><Image className="h-4 w-4" /> Formato</p>
-                  <div className="flex gap-1.5">
-                    {formats.map((f) => (
-                      <button key={f.key} onClick={() => setActiveFormat(f.key)}
-                        className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium border ${activeFormat === f.key ? "border-accent bg-accent/10 text-foreground" : "border-border text-muted-foreground"}`}
-                      >{f.icon} {f.label}</button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="mb-2 text-sm font-medium text-foreground flex items-center gap-1.5"><Download className="h-4 w-4" /> Arquivo</p>
-                  <div className="flex gap-1.5">
-                    {exportFormats.map((f) => (
-                      <button key={f.key} onClick={() => setExportFormat(f)}
-                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold border ${exportFormat.key === f.key ? "border-accent bg-accent/10 text-foreground" : "border-border text-muted-foreground"}`}
-                      >{f.label}</button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {verseText && (
-                <div className="flex gap-2">
-                  <button onClick={handleDownload}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-semibold text-accent-foreground transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    <Download className="h-4 w-4" /> Baixar {exportFormat.label}
-                  </button>
-                  <button onClick={handleShareImage}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-primary py-3 px-4 text-sm font-semibold text-primary-foreground transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    <Share2 className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Right: Preview */}
-            <div className="lg:col-span-3 lg:sticky lg:top-20 lg:self-start">
-              <div className="mb-2 flex items-center gap-1.5 text-sm font-medium text-foreground">
-                <Eye className="h-4 w-4 text-accent" /> Pré-visualização
-              </div>
-              <div className="rounded-xl border border-border bg-card/50 p-4 overflow-hidden">
-                {verseText ? (
-                  <div className="w-full flex flex-col gap-3">
-                    <div ref={cardContainerRef} className="w-full">
-                      {useAIImage && (aiImageUrl || aiImageLoading) ? (
-                        <div
-                          className={`relative overflow-hidden rounded-xl shadow-verse flex flex-col items-center justify-center p-6 sm:p-10 ${
-                            activeFormat === "square" ? "aspect-square" : activeFormat === "story" ? "aspect-[9/16]" : "aspect-video"
-                          }`}
-                          style={{
-                            background: "linear-gradient(135deg, #090d16 0%, #171d2b 100%)"
-                          }}
-                        >
-                          {aiImageUrl && !aiImageLoading && (
-                            <Fragment>
-                              <motion.img
-                                key={aiImageUrl}
-                                src={aiImageUrl}
-                                alt="Background com IA"
-                                className="absolute inset-0 w-full h-full object-cover"
-                                referrerPolicy="no-referrer"
-                                onError={() => setAiImageError(true)}
-                                onLoad={() => setAiImageError(false)}
-                                initial={{ opacity: 0, scale: 1.05, filter: "blur(18px)" }}
-                                animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-                                transition={{ duration: 1, ease: "easeOut" }}
-                              />
-                              <div className="absolute inset-0 bg-black/50" />
-                            </Fragment>
-                          )}
-
-                          <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-md text-primary-foreground">
-                            <div className="mb-4 flex justify-center"><div className="h-px w-12 bg-primary-foreground/50" /></div>
-                            <blockquote 
-                              className={`leading-relaxed text-center italic ${selectedFont?.className || "font-serif"}`}
-                              style={{ fontSize: `${fontSize}px` }}
+                    {!isOnline ? (
+                      <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-center space-y-2">
+                        <WifiOff className="h-5 w-5 text-amber-500 mx-auto" />
+                        <p className="text-xs font-medium text-foreground">Conexão necessária</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          A geração de imagens por IA requer internet ativa.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <p className="text-[11px] text-muted-foreground">Escolha o estilo estético do fundo:</p>
+                        
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {imageStyles.map((item, idx) => (
+                            <button
+                              key={item.label}
+                              onClick={() => { setSelectedStyleIndex(idx); setCustomAiPrompt(""); }}
+                              className={`p-2 rounded-xl text-left border text-[11px] font-medium transition-all ${
+                                selectedStyleIndex === idx && !customAiPrompt
+                                  ? "border-accent bg-accent/10 text-foreground font-semibold"
+                                  : "border-border/40 bg-secondary/30 text-muted-foreground hover:bg-secondary/60"
+                              }`}
                             >
-                              "{verseText}"
-                            </blockquote>
-                            <div className="mt-4 flex justify-center"><div className="h-px w-12 bg-primary-foreground/50" /></div>
-                            <p className="mt-3 text-center text-xs font-sans font-medium opacity-80 tracking-wider uppercase">{reference}</p>
-                          </div>
+                              {item.label}
+                            </button>
+                          ))}
                         </div>
-                      ) : (
-                        <div style={useCustomColor ? { backgroundColor: customColor } : undefined}>
-                          <VerseCard 
-                            text={verseText} 
-                            reference={reference} 
-                            theme={useCustomColor ? { ...currentTheme, bg: "" } : currentTheme} 
-                            format={activeFormat} 
-                            animate={false} 
-                            fontSize={fontSize}
+
+                        <div>
+                          <label className="text-[10px] text-muted-foreground block mb-1">Ou descreva em poucas palavras:</label>
+                          <input
+                            value={customAiPrompt}
+                            onChange={(e) => setCustomAiPrompt(e.target.value)}
+                            placeholder="Ex: Cruz ao anoitecer com luz celestial"
+                            className="w-full rounded-xl border border-input bg-secondary/40 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                           />
                         </div>
-                      )}
-                    </div>
 
-                    {/* Status de Carregamento / Erro no final do preview */}
-                    {useAIImage && (
-                      <div className="text-xs">
-                        {aiImageLoading && (
-                          <div className="flex items-center gap-2 text-accent bg-accent/5 border border-accent/15 rounded-lg p-2.5">
-                            <Loader2 className="h-4 w-4 animate-spin shrink-0 text-accent" />
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-accent">Gerando Imagem com IA...</span>
-                              <span className="text-[10px] text-muted-foreground">Processando sua ilustração exclusiva no servidor.</span>
-                            </div>
+                        {/* Overlay opacity for AI Images */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[11px] text-muted-foreground">Escurecimento de Fundo:</span>
+                            <span className="text-[10px] font-mono text-muted-foreground">{overlayOpacity}%</span>
                           </div>
-                        )}
-                        {aiImageError && !aiImageLoading && (
-                          <div className="flex items-center gap-2 text-destructive bg-destructive/5 border border-destructive/15 rounded-lg p-2.5">
-                            <ImageOff className="h-4 w-4 shrink-0 text-destructive" />
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-destructive">Falha ao carregar imagem</span>
-                              <span className="text-[10px] text-muted-foreground">Ocorreu um erro ao carregar a imagem gerada (CORS ou erro de rede). Você pode tentar novamente.</span>
-                            </div>
-                          </div>
-                        )}
-                        {!aiImageLoading && !aiImageError && aiImageUrl && (
-                          <div className="flex items-center gap-2 text-emerald-500 bg-emerald-500/5 border border-emerald-500/15 rounded-lg p-2.5">
-                            <Sparkles className="h-4 w-4 shrink-0 text-emerald-500" />
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-emerald-500">Imagem gerada com sucesso!</span>
-                              <span className="text-[10px] text-muted-foreground">O plano de fundo com IA foi carregado e está pronto para exportação.</span>
-                            </div>
-                          </div>
-                        )}
+                          <input
+                            type="range"
+                            min="10"
+                            max="90"
+                            value={overlayOpacity}
+                            onChange={(e) => setOverlayOpacity(parseInt(e.target.value))}
+                            className="w-full accent-accent bg-secondary h-1.5 rounded-lg appearance-none cursor-pointer"
+                          />
+                        </div>
+
+                        <button
+                          onClick={handleGenerateAIImage}
+                          disabled={aiImageLoading || createImageLimitReached}
+                          className="w-full flex items-center justify-center gap-2 rounded-xl bg-accent py-2.5 text-xs font-bold text-accent-foreground hover:opacity-90 active:scale-95 disabled:opacity-50 transition-all shadow-md"
+                        >
+                          {aiImageLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                          <span>
+                            {createImageLimitReached
+                              ? `Limite diário atingido (${CREATE_IMAGE_LIMIT}/${CREATE_IMAGE_LIMIT})`
+                              : aiImageLoading
+                              ? "Criando imagem no servidor..."
+                              : "Gerar Imagem com IA"}
+                          </span>
+                        </button>
                       </div>
                     )}
                   </div>
-                ) : (
-                  <div className={`flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-secondary/30 p-8 ${
-                    activeFormat === "square" ? "aspect-square" : activeFormat === "story" ? "aspect-[9/16]" : "aspect-video"
-                  }`}>
-                    <Sparkles className="mb-2 h-8 w-8 text-muted-foreground/30" />
-                    <p className="text-sm text-muted-foreground">Busque um versículo para começar</p>
-                  </div>
                 )}
+              </motion.div>
+            )}
+
+            {/* Tab 3: Typography Settings */}
+            {activeTab === "typography" && (
+              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                
+                {/* Font selection */}
+                <div className="glass-card rounded-2xl p-4 border border-border/60 space-y-3">
+                  <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Type className="h-3.5 w-3.5 text-accent" />
+                    Família Tipográfica
+                  </span>
+
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {fontOptions.map((f) => (
+                      <button
+                        key={f.key}
+                        onClick={() => setActiveFont(f.key)}
+                        className={`p-2.5 rounded-xl border text-center text-xs transition-all ${f.className} ${
+                          activeFont === f.key
+                            ? "border-accent bg-accent/15 text-foreground font-semibold shadow-sm ring-1 ring-accent"
+                            : "border-border/40 bg-secondary/30 text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+                        }`}
+                        style={{ fontFamily: f.family }}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Font Size & Color slider */}
+                <div className="glass-card rounded-2xl p-4 border border-border/60 space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold text-foreground">Tamanho da Fonte</span>
+                      <span className="text-xs font-mono font-bold text-accent">{fontSize}px</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setFontSize(Math.max(14, fontSize - 2))}
+                        className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center text-xs font-bold text-foreground hover:bg-muted"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="range"
+                        min="14"
+                        max="60"
+                        step="1"
+                        value={fontSize}
+                        onChange={(e) => setFontSize(parseInt(e.target.value))}
+                        className="flex-1 accent-accent bg-secondary h-1.5 rounded-lg appearance-none cursor-pointer"
+                      />
+                      <button
+                        onClick={() => setFontSize(Math.min(60, fontSize + 2))}
+                        className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center text-xs font-bold text-foreground hover:bg-muted"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  {bgType === "ai" && (
+                    <div className="pt-2 border-t border-border/40">
+                      <span className="text-xs font-semibold text-foreground block mb-2">Cor do Texto (Sobre a Foto)</span>
+                      <div className="flex items-center gap-2">
+                        {["#ffffff", "#f8fafc", "#fef08a", "#bae6fd", "#fbcfe8", "#000000"].map((color) => (
+                          <button
+                            key={color}
+                            onClick={() => setTextColor(color)}
+                            className={`h-7 w-7 rounded-full border-2 transition-transform ${
+                              textColor === color ? "border-accent scale-110 shadow-sm" : "border-transparent hover:scale-105"
+                            }`}
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Tab 4: Aspect Ratio & Export Formats & Quality */}
+            {activeTab === "export" && (
+              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                
+                {/* Canvas Aspect Ratio */}
+                <div className="glass-card rounded-2xl p-4 border border-border/60 space-y-3">
+                  <span className="text-xs font-semibold text-foreground block">Proporção da Imagem</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {formats.map((f) => (
+                      <button
+                        key={f.key}
+                        onClick={() => setActiveFormat(f.key)}
+                        className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all gap-1.5 ${
+                          activeFormat === f.key
+                            ? "border-accent bg-accent/15 text-foreground font-semibold shadow-sm"
+                            : "border-border/40 bg-secondary/30 text-muted-foreground hover:bg-secondary/60"
+                        }`}
+                      >
+                        {f.icon}
+                        <span className="text-xs font-bold">{f.label}</span>
+                        <span className="text-[9px] text-muted-foreground font-mono">{f.dim}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Qualidade e Resolução */}
+                <div className="glass-card rounded-2xl p-4 border border-border/60 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5 text-accent" />
+                      Qualidade & Resolução
+                    </span>
+                    <span className="text-[10px] font-mono font-medium text-accent bg-accent/15 px-2 py-0.5 rounded-full border border-accent/30">
+                      {qualityOptions.find(q => q.key === exportQuality)?.badge}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    {qualityOptions.map((q) => (
+                      <button
+                        key={q.key}
+                        onClick={() => setExportQuality(q.key)}
+                        className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all gap-1 ${
+                          exportQuality === q.key
+                            ? "border-accent bg-accent/15 text-foreground font-bold shadow-sm ring-1 ring-accent"
+                            : "border-border/40 bg-secondary/30 text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+                        }`}
+                      >
+                        <span className="text-xs font-bold">{q.label}</span>
+                        <span className="text-[9px] opacity-75 leading-tight">{q.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Download File Format */}
+                <div className="glass-card rounded-2xl p-4 border border-border/60 space-y-3">
+                  <span className="text-xs font-semibold text-foreground block">Formato de Arquivo</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {exportFormats.map((f) => (
+                      <button
+                        key={f.key}
+                        onClick={() => setExportFormat(f)}
+                        className={`py-2 px-3 rounded-xl border text-center text-xs font-bold transition-all ${
+                          exportFormat.key === f.key
+                            ? "border-accent bg-accent/15 text-foreground shadow-sm"
+                            : "border-border/40 bg-secondary/30 text-muted-foreground hover:bg-secondary/60"
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-2 flex flex-col gap-2">
+                  <button
+                    onClick={handleDownload}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-bold text-accent-foreground hover:opacity-90 active:scale-95 transition-all shadow-lg"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span>Baixar Arte ({exportFormat.label} • {qualityOptions.find(q => q.key === exportQuality)?.badge})</span>
+                  </button>
+
+                  <button
+                    onClick={handleShareImage}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-secondary py-2.5 text-xs font-semibold text-secondary-foreground hover:bg-muted active:scale-95 transition-all border border-border/50"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    <span>Compartilhar Direto</span>
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+          </div>
+
+          {/* Right Column: Live Interactive Canvas Preview */}
+          <div className="lg:col-span-7 lg:sticky lg:top-20 lg:self-start space-y-3">
+            
+            {/* Top Toolbar */}
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                <Eye className="h-4 w-4 text-accent" />
+                <span>Pré-visualização da Arte</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={exportQuality}
+                  onChange={(e) => setExportQuality(e.target.value as QualityKey)}
+                  className="text-[11px] font-semibold bg-secondary/90 hover:bg-secondary text-foreground border border-border/50 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+                  title="Qualidade de Exportação"
+                >
+                  {qualityOptions.map((q) => (
+                    <option key={q.key} value={q.key}>
+                      {q.badge} ({q.label})
+                    </option>
+                  ))}
+                </select>
+
+                <span className="text-[11px] font-mono font-medium text-muted-foreground bg-secondary/80 px-2.5 py-1 rounded-full border border-border/40">
+                  {formats.find(f => f.key === activeFormat)?.dim}
+                </span>
               </div>
             </div>
+
+            {/* Canvas Outer Frame - Full background edge-to-edge */}
+            <div className="rounded-2xl border border-border/60 bg-black/40 shadow-2xl flex flex-col items-center justify-center overflow-hidden p-0 w-full transition-all relative">
+              
+              <div ref={cardContainerRef} className="w-full transition-all duration-300 rounded-2xl overflow-hidden">
+                
+                {/* Condition A: AI Image Background */}
+                {bgType === "ai" && (aiImageUrl || aiImageLoading) ? (
+                  <div
+                    className={`relative overflow-hidden rounded-2xl shadow-2xl flex flex-col items-center justify-center p-6 sm:p-12 w-full ${
+                      activeFormat === "square" ? "aspect-square" : activeFormat === "story" ? "aspect-[9/16]" : "aspect-video"
+                    }`}
+                    style={{
+                      background: "linear-gradient(135deg, #090d16 0%, #171d2b 100%)"
+                    }}
+                  >
+                    {aiImageUrl && !aiImageLoading && (
+                      <Fragment>
+                        <motion.img
+                          key={aiImageUrl}
+                          src={aiImageUrl}
+                          alt="Background com IA"
+                          className="absolute inset-0 w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                          onError={() => setAiImageError(true)}
+                          onLoad={() => setAiImageError(false)}
+                          initial={{ opacity: 0, scale: 1.04 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ duration: 0.6 }}
+                        />
+                        {/* Adjustable Dark Overlay */}
+                        <div
+                          className="absolute inset-0 bg-black transition-opacity"
+                          style={{ opacity: overlayOpacity / 100 }}
+                        />
+                      </Fragment>
+                    )}
+
+                    <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-md text-center">
+                      {!verseText ? (
+                        <div className="flex flex-col items-center justify-center py-6 text-center">
+                          <Sparkles className="h-8 w-8 opacity-40 mb-3 animate-pulse" style={{ color: textColor }} />
+                          <p className="text-sm font-sans font-medium opacity-60 tracking-normal" style={{ color: textColor }}>
+                            Busque um versículo para começar
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="mb-4 flex justify-center">
+                            <div className="h-px w-12 bg-white/40" />
+                          </div>
+                          <blockquote 
+                            className={`leading-relaxed ${selectedFont?.className || "font-serif"}`}
+                            style={{ fontSize: `${fontSize}px`, color: textColor, fontFamily: selectedFont?.family }}
+                          >
+                            "{verseText}"
+                          </blockquote>
+                          {reference && (
+                            <>
+                              <div className="mt-4 flex justify-center">
+                                <div className="h-px w-12 bg-white/40" />
+                              </div>
+                              <p
+                                className="mt-3 text-xs font-sans font-semibold tracking-widest uppercase opacity-90"
+                                style={{ color: textColor }}
+                              >
+                                {reference}
+                              </p>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ) : bgType === "gradient" ? (
+                  /* Condition B: Custom Gradient Background */
+                  <div
+                    className={`relative overflow-hidden rounded-2xl shadow-2xl flex flex-col items-center justify-center p-6 sm:p-12 text-white w-full ${
+                      activeFormat === "square" ? "aspect-square" : activeFormat === "story" ? "aspect-[9/16]" : "aspect-video"
+                    }`}
+                    style={{ background: selectedGradient }}
+                  >
+                    <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-md text-center">
+                      {!verseText ? (
+                        <div className="flex flex-col items-center justify-center py-6 text-center">
+                          <Sparkles className="h-8 w-8 opacity-40 mb-3 animate-pulse text-white" />
+                          <p className="text-sm font-sans font-medium opacity-60 tracking-normal text-white">
+                            Busque um versículo para começar
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="mb-4 flex justify-center"><div className="h-px w-12 bg-white/30" /></div>
+                          <blockquote 
+                            className={`leading-relaxed ${selectedFont?.className || "font-serif"}`}
+                            style={{ fontSize: `${fontSize}px`, fontFamily: selectedFont?.family }}
+                          >
+                            "{verseText}"
+                          </blockquote>
+                          {reference && (
+                            <>
+                              <div className="mt-4 flex justify-center"><div className="h-px w-12 bg-white/30" /></div>
+                              <p className="mt-3 text-xs font-sans font-semibold tracking-widest uppercase opacity-90">
+                                {reference}
+                              </p>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  /* Condition C: Preset Theme or Custom Solid Color */
+                  <div className="w-full rounded-2xl overflow-hidden" style={bgType === "custom_color" ? { backgroundColor: customColor } : undefined}>
+                    <VerseCard 
+                      text={verseText} 
+                      reference={reference} 
+                      theme={bgType === "custom_color" ? { name: "Personalizado", bg: "", text: "text-white", accent: "bg-white/20" } : currentTheme} 
+                      format={activeFormat} 
+                      animate={false} 
+                      fontSize={fontSize}
+                      fontFamily={selectedFont?.family}
+                      fontClass={selectedFont?.className}
+                      customBgColor={bgType === "custom_color" ? customColor : undefined}
+                    />
+                  </div>
+                )}
+
+              </div>
+
+              {/* Status Message below canvas */}
+              {bgType === "ai" && (
+                <div className="w-full p-3 text-xs">
+                  {aiImageLoading && (
+                    <div className="flex items-center gap-2.5 text-accent bg-accent/10 border border-accent/20 rounded-xl p-3">
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0 text-accent" />
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-accent">Gerando Imagem com IA...</span>
+                        <span className="text-[10px] text-muted-foreground">Processando sua ilustração exclusiva em alta resolução.</span>
+                      </div>
+                    </div>
+                  )}
+                  {aiImageError && !aiImageLoading && (
+                    <div className="flex items-center gap-2 text-destructive bg-destructive/10 border border-destructive/20 rounded-xl p-3">
+                      <ImageOff className="h-4 w-4 shrink-0 text-destructive" />
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-destructive">Falha no carregamento</span>
+                        <span className="text-[10px] text-muted-foreground">Erro ao carregar imagem. Tente alterar o estilo ou gerar novamente.</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </div>
+
+            {/* Quick Action Button below Canvas */}
+            <div className="pt-1 flex items-center justify-between gap-3 px-1">
+              <span className="text-[11px] text-muted-foreground">
+                Qualidade: <strong className="text-foreground">{qualityOptions.find(q => q.key === exportQuality)?.badge}</strong>
+              </span>
+
+              <button
+                onClick={handleDownload}
+                className="flex items-center gap-1.5 text-xs font-bold text-accent hover:underline"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span>Salvar ({exportFormat.label} • {qualityOptions.find(q => q.key === exportQuality)?.badge})</span>
+              </button>
+            </div>
+
           </div>
-        </motion.div>
+
+        </div>
+
       </div>
     </div>
   );

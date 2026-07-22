@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, Fragment, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
 import {
@@ -150,9 +151,17 @@ const modes: { key: ModeKey; icon: React.ReactNode; label: string; prefix: strin
 ];
 
 const AIPage = () => {
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
+
+  useEffect(() => {
+    const qParam = searchParams.get("q") || searchParams.get("query");
+    if (qParam) {
+      setInput(qParam);
+    }
+  }, [searchParams]);
   const [isLoading, setIsLoading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showModes, setShowModes] = useState(false);
@@ -525,7 +534,6 @@ const AIPage = () => {
     }
 
     setAttachedFiles(prev => [...prev, file]);
-    toast({ title: "Arquivo adicionado! 📎", description: `${file.name} pronto para envio.` });
   };
 
   const handleFileAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -812,11 +820,9 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
     if (activeMode === mode.key) {
       setActiveMode(null);
       setShowModes(false);
-      toast({ title: `${mode.label} desativado` });
     } else {
       setActiveMode(mode.key);
       setShowModes(false);
-      toast({ title: `${mode.label} ativado! 🎯` });
     }
   };
 
@@ -1008,39 +1014,60 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
     >
       <Header />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden container mx-auto max-w-4xl px-3">
-        <div className="flex shrink-0 items-center gap-2 py-3">
-          <button onClick={() => setShowHistory(true)} className="flex items-center justify-center rounded-lg bg-secondary p-2 text-muted-foreground hover:text-foreground transition-colors liquid-btn">
-            <History className="h-5 w-5" />
-          </button>
-          
-          {/* NOVO BOTÃO PARA INICIAR NOVA CONVERSA */}
-          <button onClick={startNewChat} className="flex items-center justify-center rounded-lg bg-secondary p-2 text-muted-foreground hover:text-foreground transition-colors liquid-btn" title="Nova Conversa">
-            <MessageSquarePlus className="h-5 w-5" />
-          </button>
+        <div className="flex shrink-0 items-center justify-between gap-1.5 sm:gap-2 py-2.5 sm:py-3">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <button onClick={() => setShowHistory(true)} className="flex items-center justify-center rounded-lg bg-secondary p-1.5 sm:p-2 text-muted-foreground hover:text-foreground transition-colors liquid-btn" title="Histórico">
+              <History className="h-4 w-4 sm:h-5 sm:w-5" />
+            </button>
+            
+            {/* NOVO BOTÃO PARA INICIAR NOVA CONVERSA */}
+            <button onClick={startNewChat} className="flex items-center justify-center rounded-lg bg-secondary p-1.5 sm:p-2 text-muted-foreground hover:text-foreground transition-colors liquid-btn" title="Nova Conversa">
+              <MessageSquarePlus className="h-4 w-4 sm:h-5 sm:w-5" />
+            </button>
 
-          <div className="flex items-center gap-2 flex-1 ml-1">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-primary">
-              <Bot className="h-4 w-4 text-primary-foreground" />
+            {/* Título posicionado no lado esquerdo junto com os botões */}
+            <div className="flex items-center gap-1.5 sm:gap-2 ml-0.5 sm:ml-1">
+              <div className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-primary shrink-0">
+                <Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary-foreground" />
+              </div>
+              <h1 className="font-serif text-xs sm:text-base font-bold text-foreground whitespace-nowrap">IA Bíblia</h1>
             </div>
-            <h1 className="font-serif text-base font-bold text-foreground">IA Biblia</h1>
           </div>
 
-          <div className="flex items-center rounded-xl border border-border bg-secondary/50 p-0.5">
+          <div className="relative flex shrink-0 items-center rounded-xl border border-border bg-secondary/50 p-0.5 sm:p-1">
             <button
+              type="button"
               onClick={() => { setAiEngine("simples"); startNewChat(); }}
-              className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[10px] font-semibold transition-colors ${
-                aiEngine === "simples" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"
+              className={`relative z-10 flex items-center gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-[10px] font-semibold transition-colors duration-200 ${
+                aiEngine === "simples" ? "text-white font-bold" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Zap className="h-3 w-3" /> Simples
+              {aiEngine === "simples" && (
+                <motion.div
+                  layoutId="activeEnginePill"
+                  className="absolute inset-0 z-0 rounded-lg bg-accent shadow-sm"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+              )}
+              <Zap className="h-3 w-3 relative z-10 text-white" />
+              <span className="relative z-10 text-white">Simples</span>
             </button>
             <button
+              type="button"
               onClick={() => { setAiEngine("complexo"); startNewChat(); }}
-              className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[10px] font-semibold transition-colors ${
-                aiEngine === "complexo" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"
+              className={`relative z-10 flex items-center gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-[10px] font-semibold transition-colors duration-200 ${
+                aiEngine === "complexo" ? "text-white font-bold" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Bot className="h-3 w-3" /> Complexo
+              {aiEngine === "complexo" && (
+                <motion.div
+                  layoutId="activeEnginePill"
+                  className="absolute inset-0 z-0 rounded-lg bg-accent shadow-sm"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+              )}
+              <Bot className="h-3 w-3 relative z-10 text-white" />
+              <span className="relative z-10 text-white">Complexo</span>
             </button>
           </div>
         </div>
@@ -1054,14 +1081,28 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
 
         <div className="flex-1 space-y-2.5 overflow-y-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {messages.length === 0 && (
-            <div className="py-8">
-              <p className="text-center text-sm text-muted-foreground mb-1">
-                {aiEngine === "simples" ? "IA Simples — perguntas diretas sobre a Biblia" : "IA Complexa — respostas detalhadas, imagens e mais"}
+            <div className="py-6 flex flex-col items-center text-center">
+              <h2 className="text-base font-bold text-foreground mb-1">
+                {aiEngine === "simples" ? "IA Simples" : "IA Complexa"}
+              </h2>
+              <p className="text-xs text-muted-foreground mb-3 max-w-sm leading-relaxed">
+                {aiEngine === "simples"
+                  ? "Perguntas diretas sobre a Bíblia, com resposta rápida e resumida."
+                  : "Respostas detalhadas, geração de imagens, estudos e áudios."}
               </p>
-              <p className="text-center text-[10px] text-muted-foreground/60 mb-4">
-                {aiEngine === "simples" ? `${Math.max(0, geminiRemaining)} msgs restantes` : `${Math.max(0, chatRemaining)} msgs restantes`}
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+
+              <div className="mb-5">
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-accent text-white px-4 py-1.5 text-xs font-bold shadow-md border border-accent/40">
+                  <Zap className="h-3.5 w-3.5 fill-current text-white shrink-0" />
+                  <span className="text-white font-bold">
+                    {aiEngine === "simples"
+                      ? `${Math.max(0, geminiRemaining)} msgs restantes`
+                      : `${Math.max(0, chatRemaining)} msgs restantes`}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full">
                 {suggestions.map((s) => (
                   <motion.button key={s} whileTap={{ scale: 0.97 }} onClick={() => !limitReached && send(s)}
                     disabled={limitReached}
@@ -1140,7 +1181,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
               >
                 {activeModeInfo.icon}
                 <span className="text-xs font-medium text-accent flex-1">{activeModeInfo.label} ativo</span>
-                <button onClick={() => setActiveMode(null)} className="text-muted-foreground hover:text-foreground">
+                <button type="button" onClick={() => setActiveMode(null)} className="text-muted-foreground hover:text-foreground">
                   <X className="h-3.5 w-3.5" />
                 </button>
               </motion.div>
@@ -1266,7 +1307,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                   <button
                     type="button"
                     onClick={handleStopResponse}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-destructive text-destructive-foreground transition-colors liquid-btn"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-white transition-colors liquid-btn mr-0.5"
                     title="Parar resposta"
                   >
                     <Square size={16} fill="currentColor" />
@@ -1297,32 +1338,51 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/95 p-4 md:p-6 backdrop-blur-md"
+            className="fixed inset-0 z-[9999] flex flex-col items-center justify-between bg-black/95 p-3 sm:p-5 backdrop-blur-md select-none"
             onClick={() => setLightboxImage(null)}
           >
-            {/* Botão Fechar */}
-            <button
-              onClick={() => setLightboxImage(null)}
-              className="absolute top-4 right-4 z-50 p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all hover:scale-105 active:scale-95"
-              title="Fechar"
-            >
-              <X className="h-6 w-6" />
-            </button>
-
-            {/* Container da Imagem */}
+            {/* Top Bar Header */}
             <motion.div
-              initial={{ scale: 0.92, y: 15 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.92, y: 15 }}
+              initial={{ y: -20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -20, opacity: 0 }}
+              className="w-full max-w-lg flex items-center justify-between bg-zinc-900/90 border border-white/10 rounded-full px-4 py-2 shadow-xl shrink-0 z-50"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 text-white font-medium text-xs sm:text-sm">
+                <Sparkles className="h-4 w-4 text-accent" />
+                <span>Visualizador de Arte</span>
+                {zoomScale > 1 && (
+                  <span className="text-[10px] font-mono bg-accent/20 text-accent px-2 py-0.5 rounded-full border border-accent/30">
+                    {Math.round(zoomScale * 100)}%
+                  </span>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setLightboxImage(null)}
+                className="flex items-center justify-center h-8 w-8 rounded-full bg-white/10 hover:bg-red-500/80 text-white transition-all hover:scale-105 active:scale-95"
+                title="Fechar (Esc)"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </motion.div>
+
+            {/* Container Central da Imagem (flex-1 para ajustar dinamicamente o espaço) */}
+            <motion.div
+              initial={{ scale: 0.94, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.94, opacity: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="relative max-w-full max-h-[72vh] md:max-h-[78vh] overflow-hidden rounded-2xl shadow-2xl border border-white/10 flex items-center justify-center mx-auto"
+              className="flex-1 min-h-0 w-full flex items-center justify-center my-3 relative overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               <img
                 ref={lightboxImgRef}
                 src={lightboxImage}
-                alt="Imagem bíblica expandida"
-                className="max-w-full max-h-[72vh] md:max-h-[78vh] object-contain rounded-2xl block mx-auto select-none touch-none transition-transform duration-100 ease-out"
+                alt="Arte bíblica em alta definição"
+                className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl border border-white/10 block mx-auto touch-none transition-transform duration-100 ease-out"
                 style={{
                   transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomScale})`,
                   cursor: zoomScale > 1 ? (isDraggingImage ? 'grabbing' : 'grab') : 'zoom-in',
@@ -1344,51 +1404,60 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
-              transition={{ delay: 0.1 }}
-              className="mt-6 flex flex-row items-center gap-3 bg-zinc-900/95 border border-white/10 rounded-2xl px-5 py-3 shadow-xl z-10 max-w-md w-full justify-center"
+              transition={{ delay: 0.05 }}
+              className="w-full max-w-lg flex items-center justify-between gap-2 sm:gap-3 bg-zinc-900/95 border border-white/15 rounded-2xl p-2.5 sm:px-4 sm:py-3 shadow-2xl shrink-0 z-50"
               onClick={(e) => e.stopPropagation()}
             >
               <button
+                type="button"
                 onClick={() => downloadImage(lightboxImage)}
-                className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground hover:bg-primary/90 transition-all hover:scale-105 active:scale-95 shadow-md flex-1 justify-center whitespace-nowrap"
+                className="flex flex-1 items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-accent hover:bg-accent/90 py-2.5 px-3 text-xs sm:text-sm font-bold text-white transition-all hover:scale-[1.02] active:scale-95 shadow-md whitespace-nowrap"
               >
                 <Download className="h-4 w-4 shrink-0" />
-                <span className="whitespace-nowrap">Baixar Imagem</span>
+                <span>Baixar Imagem</span>
               </button>
+
               <button
+                type="button"
                 onClick={() => shareBibleImage(lightboxImage)}
-                className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground hover:bg-primary/90 transition-all hover:scale-105 active:scale-95 shadow-md flex-1 justify-center whitespace-nowrap"
+                className="flex flex-1 items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-accent/80 hover:bg-accent py-2.5 px-3 text-xs sm:text-sm font-bold text-white transition-all hover:scale-[1.02] active:scale-95 shadow-md whitespace-nowrap"
               >
                 <Share2 className="h-4 w-4 shrink-0" />
-                <span className="whitespace-nowrap">Compartilhar</span>
+                <span>Compartilhar</span>
               </button>
-              <button
-                onClick={() => {
-                  setZoomScale(prev => {
-                    const next = prev - 0.5;
-                    if (next <= 1) {
-                      setPanOffset({ x: 0, y: 0 });
-                      return 1;
-                    }
-                    return next;
-                  });
-                }}
-                disabled={zoomScale <= 1}
-                className="flex items-center justify-center p-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:hover:scale-100 transition-all hover:scale-105 active:scale-95 shadow-md"
-                title="Diminuir Zoom"
-              >
-                <ZoomOut className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => {
-                  setZoomScale(prev => Math.min(prev + 0.5, 4.5));
-                }}
-                disabled={zoomScale >= 4.5}
-                className="flex items-center justify-center p-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:hover:scale-100 transition-all hover:scale-105 active:scale-95 shadow-md"
-                title="Aumentar Zoom"
-              >
-                <ZoomIn className="h-4 w-4" />
-              </button>
+
+              <div className="flex items-center gap-1 border-l border-white/10 pl-1.5 sm:pl-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setZoomScale(prev => {
+                      const next = prev - 0.5;
+                      if (next <= 1) {
+                        setPanOffset({ x: 0, y: 0 });
+                        return 1;
+                      }
+                      return next;
+                    });
+                  }}
+                  disabled={zoomScale <= 1}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white disabled:opacity-30 transition-all active:scale-95 border border-white/10"
+                  title="Diminuir Zoom"
+                >
+                  <ZoomOut className="h-4 w-4" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setZoomScale(prev => Math.min(prev + 0.5, 4.5));
+                  }}
+                  disabled={zoomScale >= 4.5}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white disabled:opacity-30 transition-all active:scale-95 border border-white/10"
+                  title="Aumentar Zoom"
+                >
+                  <ZoomIn className="h-4 w-4" />
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

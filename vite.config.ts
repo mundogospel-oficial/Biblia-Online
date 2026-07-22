@@ -4,29 +4,6 @@ import path from "path";
 import fs from "node:fs";
 import { componentTagger } from "lovable-tagger";
 
-// Simple version bumper plugin
-const versionBumper = () => {
-  return {
-    name: 'version-bumper',
-    buildStart() {
-      try {
-        const versionFile = path.resolve(__dirname, 'public/version.json');
-        if (fs.existsSync(versionFile)) {
-          const data = JSON.parse(fs.readFileSync(versionFile, 'utf8'));
-          const parts = data.version.split('.');
-          const minor = parseInt(parts[parts.length - 1] || '0') + 1;
-          parts[parts.length - 1] = minor.toString();
-          data.version = parts.join('.');
-          fs.writeFileSync(versionFile, JSON.stringify(data, null, 2) + '\n');
-          console.log(`[version-bumper] Version bumped to ${data.version}`);
-        }
-      } catch (err) {
-        console.warn('[version-bumper] Failed to bump version:', err);
-      }
-    }
-  };
-};
-
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -38,7 +15,6 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(), 
-      versionBumper(),
       mode === "development" && componentTagger()
     ].filter(Boolean),
     resolve: {

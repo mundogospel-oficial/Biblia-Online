@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import zxcvbn from "zxcvbn";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
-import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2, AlertTriangle, Languages } from "lucide-react";
+import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2, AlertTriangle, Languages, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, forceSignOut, handleAuthError } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -19,10 +19,12 @@ const OFFLINE_KEY = "bible-offline-enabled";
 // Helper to translate common Supabase auth errors
 const translateAuthError = (message: string) => {
   const lowered = message.toLowerCase();
+  if (lowered.includes("database error saving new user") || lowered.includes("database error") || lowered.includes("user already registered") || lowered.includes("user_already_exists") || lowered.includes("already registered")) {
+    return "Este e-mail já está em uso ou foi excluído recentemente (aguarde o período de 30 dias para criar uma nova conta com este e-mail).";
+  }
   if (lowered.includes("timeout-or-duplicate")) return "A verificação de segurança expirou. Por favor, tente novamente.";
   if (lowered.includes("failed to fetch")) return "Erro de conexão. Verifique sua internet ou se o serviço está disponível.";
   if (lowered.includes("invalid login credentials")) return "Credenciais inválidas. Verifique seu e-mail e senha.";
-  if (lowered.includes("user already registered")) return "Este e-mail já está em uso.";
   if (lowered.includes("password should contain at least one character of each")) return "A senha deve conter letras (maiúsculas e minúsculas), números e símbolos (!@#$).";
   if (lowered.includes("password should be at least")) return "A senha deve ter pelo menos 6 caracteres.";
   if (lowered.includes("email not confirmed")) return "Por favor, verifique seu e-mail antes de entrar.";
@@ -55,7 +57,7 @@ const AccountPage = () => {
   const { checkRisk } = useSentinel();
 
   const [turnstileToken, setTurnstileToken] = useState("");
-  const [appVersion, setAppVersion] = useState("");
+  const [appVersion, setAppVersion] = useState("2.1");
   const [notificationTestError, setNotificationTestError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -66,7 +68,7 @@ const AccountPage = () => {
     fetch('/version.json', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => setAppVersion(data.version))
-      .catch(() => setAppVersion("2.0"));
+      .catch(() => setAppVersion("2.1"));
 
     const loadProfile = async () => {
       if (authCtx.user) {
@@ -153,6 +155,16 @@ const AccountPage = () => {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) return;
+
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail.endsWith("@gmail.com") && !cleanEmail.endsWith("@outlook.com")) {
+      toast({
+        title: "E-mail não permitido",
+        description: "Apenas e-mails do Gmail (@gmail.com) e Outlook (@outlook.com) são permitidos.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     // Sentinel check as first layer
     const risk = await checkRisk();
@@ -238,6 +250,16 @@ const AccountPage = () => {
 
     if (!resetEmail.trim()) {
       toast({ title: "Erro", description: "Por favor, digite seu e-mail.", variant: "destructive" });
+      return;
+    }
+
+    const cleanResetEmail = resetEmail.trim().toLowerCase();
+    if (!cleanResetEmail.endsWith("@gmail.com") && !cleanResetEmail.endsWith("@outlook.com")) {
+      toast({
+        title: "E-mail não permitido",
+        description: "Apenas e-mails do Gmail (@gmail.com) e Outlook (@outlook.com) são permitidos.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -829,7 +851,7 @@ const AccountPage = () => {
                   <input type={showPassword ? 'text' : 'password'} name="password" autoComplete={isSignUp ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Senha" required minLength={6}
                     className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    {showPassword ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
                   </button>
                 </div>
                 
@@ -920,7 +942,7 @@ const AccountPage = () => {
 
           <div className="mt-8 pb-4 text-center">
             <p className="text-xs text-muted-foreground font-sans font-medium tracking-wide">
-              Biblia Online — Versão {appVersion || "2.0"}
+              Biblia Online — Versão {appVersion || "2.1"}
             </p>
           </div>
 
@@ -934,41 +956,76 @@ const AccountPage = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md select-none"
             onClick={() => setShowDeleteModal(false)}
           >
             <motion.div
-              initial={{ scale: 0.95, y: 10 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 10 }}
-              className="relative max-w-sm w-full glass-card border border-border/50 rounded-2xl p-6 shadow-2xl bg-zinc-950/95"
+              initial={{ scale: 0.92, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 15 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative max-w-sm w-full overflow-hidden rounded-[2rem] border border-white/10 bg-background/95 p-6 sm:p-7 shadow-2xl backdrop-blur-xl"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Ícone de Aviso */}
-              <div className="flex flex-col items-center text-center">
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/10 text-red-500">
-                  <AlertTriangle className="h-8 w-8 animate-pulse" />
+              {/* Efeito de brilho ambiente sutil */}
+              <div className="absolute -top-16 -left-16 h-36 w-36 rounded-full bg-red-500/15 blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-16 -right-16 h-36 w-36 rounded-full bg-red-500/10 blur-3xl pointer-events-none" />
+
+              {/* Botão Fechar */}
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                className="absolute top-4 right-4 z-10 rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
+                title="Fechar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+
+              <div className="relative flex flex-col items-center text-center">
+                {/* Ícone de Aviso */}
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/10 text-red-500 ring-1 ring-red-500/20 shadow-sm">
+                  <AlertTriangle className="h-7 w-7 text-red-500" />
                 </div>
                 
-                <h3 className="text-lg font-bold text-foreground mb-2">{t("delete_modal_title")}</h3>
+                <h3 className="font-serif text-xl font-bold text-foreground mb-3">{t("delete_modal_title")}</h3>
                 
-                <p className="text-sm text-red-200 bg-red-950/30 border border-red-500/20 rounded-xl p-4 mb-6 leading-relaxed font-medium">
-                  {t("delete_modal_alert")}
-                </p>
+                <div className="mb-6 w-full text-left space-y-2.5 rounded-2xl border border-red-500/20 bg-red-500/5 dark:bg-red-950/20 p-4 text-xs sm:text-sm text-foreground/90 shadow-sm">
+                  <div className="flex items-start gap-2.5">
+                    <div className="h-1.5 w-1.5 rounded-full bg-red-500 mt-2 shrink-0" />
+                    <p className="leading-relaxed">
+                      <strong className="text-red-500 font-semibold">{language === "en" ? "Permanent deletion:" : "Exclusão permanente:"}</strong>{" "}
+                      {language === "en"
+                        ? "All your account data, history, and preferences will be erased immediately."
+                        : "Todos os seus dados, histórico e preferências serão apagados permanentemente."}
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <div className="h-1.5 w-1.5 rounded-full bg-amber-500 mt-2 shrink-0" />
+                    <p className="leading-relaxed">
+                      <strong className="text-amber-500 font-semibold">{language === "en" ? "30-day waiting period:" : "Aguarde 30 dias:"}</strong>{" "}
+                      {language === "en"
+                        ? "You must wait 30 days before creating a new account using this same email address."
+                        : "Você precisará aguardar 30 dias para poder criar uma nova conta com este mesmo e-mail."}
+                    </p>
+                  </div>
+                </div>
 
-                {/* Botões */}
-                <div className="flex w-full flex-col gap-2">
+                {/* Botões de Ação */}
+                <div className="flex w-full flex-col gap-2.5">
                   <button
+                    type="button"
                     onClick={() => handleDeleteData()}
                     disabled={deleting}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 text-white py-3 text-sm font-bold transition-all shadow-md disabled:opacity-50"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white py-3.5 text-sm font-bold transition-all shadow-lg shadow-red-600/25 active:scale-[0.98] disabled:opacity-50"
                   >
-                    {deleting ? (language === "en" ? "Deleting..." : "Apagando...") : t("delete_modal_confirm")}
+                    <Trash2 className="h-4 w-4 shrink-0" />
+                    <span>{deleting ? (language === "en" ? "Deleting..." : "Apagando...") : t("delete_modal_confirm")}</span>
                   </button>
                   <button
+                    type="button"
                     onClick={() => setShowDeleteModal(false)}
                     disabled={deleting}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary hover:bg-secondary/80 active:scale-95 text-foreground py-3 text-sm font-semibold transition-all"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary hover:bg-secondary/80 active:scale-[0.98] text-foreground py-3.5 text-sm font-semibold transition-all border border-border/50"
                   >
                     {t("delete_modal_cancel")}
                   </button>

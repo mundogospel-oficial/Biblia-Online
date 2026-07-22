@@ -148,40 +148,38 @@ const DevotionalPage = () => {
           </div>
 
           {/* Tab Navigation */}
-          <div className="mb-6 flex flex-wrap gap-2 border-b border-border pb-4">
-            <button
-              onClick={() => setActiveTab("hoje")}
-              className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition-all ${
-                activeTab === "hoje"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-secondary/40 text-secondary-foreground hover:bg-secondary"
-              }`}
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              Devocional de Hoje
-            </button>
-            <button
-              onClick={() => setActiveTab("explorar")}
-              className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition-all ${
-                activeTab === "explorar"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-secondary/40 text-secondary-foreground hover:bg-secondary"
-              }`}
-            >
-              <Compass className="h-3.5 w-3.5" />
-              Explorar Todos ({devotionals.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("favoritos")}
-              className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition-all ${
-                activeTab === "favoritos"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-secondary/40 text-secondary-foreground hover:bg-secondary"
-              }`}
-            >
-              <Heart className="h-3.5 w-3.5" />
-              Meus Favoritos ({favoritedIds.length})
-            </button>
+          <div className="mb-6 flex flex-wrap gap-2 border-b border-border pb-4 relative overflow-x-auto scroll-smooth no-scrollbar">
+            {[
+              { id: "hoje", label: "Devocional de Hoje", icon: Sparkles },
+              { id: "explorar", label: `Explorar Todos (${devotionals.length})`, icon: Compass },
+              { id: "favoritos", label: `Meus Favoritos (${favoritedIds.length})`, icon: Heart },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`relative flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition-colors select-none ${
+                    isActive
+                      ? "text-primary-foreground font-bold"
+                      : "bg-secondary/40 text-secondary-foreground hover:bg-secondary"
+                  }`}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeDevotionalTabPill"
+                      className="absolute inset-0 rounded-full bg-primary shadow-sm"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-1.5">
+                    <Icon className="h-3.5 w-3.5" />
+                    {tab.label}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           <AnimatePresence mode="wait">
