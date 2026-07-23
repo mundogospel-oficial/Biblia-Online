@@ -1,4 +1,4 @@
-const CACHE_NAME = 'biblia-online-v14';
+const CACHE_NAME = 'biblia-online-v15';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
