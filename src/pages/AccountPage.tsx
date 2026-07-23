@@ -501,8 +501,11 @@ const AccountPage = () => {
       const filesToCache = Array.from(new Set([
         '/',
         '/index.html',
+        '/manifest.json',
         '/manifest.v2.json',
         '/favicon.ico',
+        '/favicon-32x32.png',
+        '/favicon-16x16.png',
         '/apple-touch-icon.png',
         '/apple-touch-icon-precomposed.png',
         '/icon-192.png',
