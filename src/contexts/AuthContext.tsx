@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, isAuthRefreshError } from "@/integrations/supabase/client";
 import type { User as SupaUser } from "@supabase/supabase-js";
 import { setupPushNotifications } from "@/services/pushService";
 
@@ -68,18 +68,8 @@ export const forceSignOut = async () => {
 export const handleAuthError = async (error: any): Promise<boolean> => {
   if (!error) return false;
   
-  const errMsg = error.message || String(error);
-  const isInvalidToken = 
-    errMsg.includes("Refresh Token Not Found") || 
-    errMsg.includes("invalid_grant") ||
-    errMsg.includes("refresh_token_not_found") ||
-    errMsg.includes("Invalid Refresh Token") ||
-    errMsg.includes("session_not_found") ||
-    error.status === 400 || 
-    error.status === 401;
-
-  if (isInvalidToken) {
-    console.warn("Auth error detected:", errMsg, "Cleaning up session...");
+  if (isAuthRefreshError(error)) {
+    console.warn("Auth error detected, cleaning up session...");
     await forceSignOut();
     return true;
   }

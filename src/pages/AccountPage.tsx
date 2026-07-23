@@ -131,7 +131,7 @@ const AccountPage = () => {
         const avatarWithBuster = `${publicUrl}?t=${Date.now()}`;
         setAvatarUrl(avatarWithBuster);
         await supabase.from('profiles').upsert({ id: session.user.id, avatar_url: avatarWithBuster });
-        toast({ title: "Foto de perfil atualizada! 📸" });
+        toast({ title: "Foto de perfil atualizada" });
         return;
       }
     } catch (err) {
@@ -149,7 +149,7 @@ const AccountPage = () => {
         await supabase.from('profiles').upsert({ id: session.user.id, display_name: displayName });
       }
     } catch {}
-    toast({ title: "Nome salvo! ✨" });
+    toast({ title: "Nome salvo com sucesso" });
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -203,7 +203,7 @@ const AccountPage = () => {
         }
 
         if (data.user) {
-          toast({ title: "Conta criada com sucesso! 🎉", description: "Redirecionando..." });
+          toast({ title: "Conta criada com sucesso", description: "Redirecionando..." });
           navigate("/");
         }
       } else {
@@ -224,7 +224,7 @@ const AccountPage = () => {
         }
 
         if (data.user) {
-          toast({ title: "Login realizado! 🎉" });
+          toast({ title: "Login realizado com sucesso" });
           if ((window as any).PasswordCredential) {
             try {
               const cred = new (window as any).PasswordCredential({ id: email, password, name: email });
@@ -428,7 +428,7 @@ const AccountPage = () => {
           } catch (err) {
             console.warn("Erro ao registrar push notifications do OneSignal:", err);
           }
-          toast({ title: "Notificações do OneSignal ativadas! 🔔" });
+          toast({ title: "Notificações ativadas" });
         } else {
           // If not logged in, request permission directly
           try {
@@ -438,7 +438,7 @@ const AccountPage = () => {
             console.warn("Erro ao solicitar permissão de push no OneSignal:", err);
           }
           toast({ 
-            title: "Notificações locais e OneSignal ativadas! 🔔", 
+            title: "Notificações ativadas", 
             description: "Você receberá o versículo diário e mensagens importantes." 
           });
         }
@@ -548,7 +548,7 @@ const AccountPage = () => {
       setOfflineProgress(100);
       setOfflineEnabled(true);
       localStorage.setItem(OFFLINE_KEY, "true");
-      toast({ title: "Biblia baixada com sucesso! 📖", description: "Agora funciona sem internet." });
+      toast({ title: "Bíblia baixada com sucesso", description: "Disponível para uso offline." });
     } catch {
       toast({ title: "Erro ao baixar", description: "Verifique sua conexão.", variant: "destructive" });
     } finally {
@@ -640,28 +640,42 @@ const AccountPage = () => {
                         </div>
                       </div>
                       
-                      <div className="flex gap-2 mt-1">
+                      <div className="flex gap-1.5 mt-1 p-1 rounded-xl bg-secondary/40 border border-border/30 relative select-none">
                         <button
                           type="button"
                           onClick={() => setLanguage("pt")}
-                          className={`flex-1 rounded-lg py-1.5 text-xs font-semibold border transition-all duration-200 ${
+                          className={`relative flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors duration-200 ${
                             language === "pt"
-                              ? "border-accent bg-accent/10 text-accent font-bold"
-                              : "border-transparent bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                              ? "text-accent font-bold"
+                              : "text-muted-foreground hover:text-foreground"
                           }`}
                         >
-                          Português
+                          {language === "pt" && (
+                            <motion.div
+                              layoutId="activeLanguagePill"
+                              className="absolute inset-0 rounded-lg bg-accent/10 border border-accent/40 shadow-sm"
+                              transition={{ type: "spring", stiffness: 380, damping: 28 }}
+                            />
+                          )}
+                          <span className="relative z-10">Português</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => setLanguage("en")}
-                          className={`flex-1 rounded-lg py-1.5 text-xs font-semibold border transition-all duration-200 ${
+                          className={`relative flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors duration-200 ${
                             language === "en"
-                              ? "border-accent bg-accent/10 text-accent font-bold"
-                              : "border-transparent bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                              ? "text-accent font-bold"
+                              : "text-muted-foreground hover:text-foreground"
                           }`}
                         >
-                          Inglês (English)
+                          {language === "en" && (
+                            <motion.div
+                              layoutId="activeLanguagePill"
+                              className="absolute inset-0 rounded-lg bg-accent/10 border border-accent/40 shadow-sm"
+                              transition={{ type: "spring", stiffness: 380, damping: 28 }}
+                            />
+                          )}
+                          <span className="relative z-10">Inglês (English)</span>
                         </button>
                       </div>
                     </div>

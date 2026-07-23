@@ -8,11 +8,10 @@ export const generateBiblicalImage = async (
   source: 'chat' | 'create' = 'chat',
   isComplex: boolean = false
 ): Promise<string> => {
-  // Limpar qualquer prefixo estrutural, tags de arquivos ou colchetes extras do prompt
+  // Limpar apenas tags internas de sistema/arquivos, PRESERVANDO a tag de [Estilo: ...]
   const cleanPrompt = userPrompt
     .replace(/\[Modo:[^\]]+\]/g, "")
     .replace(/\[Arquivo:[^\]]+\]/g, "")
-    .replace(/\[.*?\]/g, "")
     .replace(/[\r\n]+/g, " ") // REMOVER quebras de linha para evitar quebras em URLs e Markdowns
     .trim();
 
@@ -49,11 +48,21 @@ export const generateBiblicalImage = async (
       } else if (!response.ok) {
         const errData = await response.json().catch(() => null);
         const errMessage = errData?.error || `Status: ${response.status} ${response.statusText}`;
-        throw new Error(errMessage);
+        const serverError = new Error(errMessage);
+        (serverError as any).isServerError = true;
+        throw serverError;
       }
     } catch (fetchErr: any) {
-      // Se for erro de quota (que já foi lançado acima com throw new Error), propaga ele
-      if (fetchErr.message && (fetchErr.message.includes("atingiu") || fetchErr.message.includes("limite") || fetchErr.message.includes("Sessão inválida"))) {
+      // Se for erro específico do servidor (quota, bloqueio, autenticação, moderação), propaga direto sem ativar fallback
+      if (fetchErr.isServerError || (fetchErr.message && (
+        fetchErr.message.includes("atingiu") || 
+        fetchErr.message.includes("limite") || 
+        fetchErr.message.includes("cota") || 
+        fetchErr.message.includes("Sessão") || 
+        fetchErr.message.includes("permitida") || 
+        fetchErr.message.includes("impróprio") ||
+        fetchErr.message.includes("bloqueado")
+      ))) {
         throw fetchErr;
       }
       console.warn("[Proxy] Falha de comunicação de rede com o servidor, ativando fallback do cliente:", fetchErr);
@@ -69,11 +78,11 @@ export const generateBiblicalImage = async (
       const { data: { user } } = await supabase.auth.getUser();
       const isCreateSource = source === 'create';
       const quotaType = isCreateSource ? 'create_image' : 'image';
-      const quotaLimit = isCreateSource ? 3 : 5;
+      const quotaLimit = 3;
 
       if (user) {
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        today.setUTCHours(0, 0, 0, 0);
         try {
           const { count, error: countError } = await supabase
             .from('user_ai_usage')
@@ -103,8 +112,8 @@ export const generateBiblicalImage = async (
       const forbiddenTerms = [
         'nude', 'nudity', 'pelad', 'nuas', 'nus', 'nua', 'sexy', 'peito', 'bumbum', 'bunda', 'vagina', 'penis', 
         'sexo', 'erotic', 'sensual', 'porno', 'naked', 'breast', 'butt', 'ass', 'hentai', 'safada', 'gostosa',
-        'carro', 'celular', 'computador', 'smartphone', 'videogame', 'video game', 'anime', 'goku', 'naruto', 
-        'futebol', 'soccer', 'disney', 'marvel', 'dc comics', 'batman', 'superman', 'boate', 'cerveja', 'vodka', 
+        'carro', 'celular', 'computador', 'smartphone', 'videogame', 'video game', 'goku', 'naruto', 
+        'futebol', 'soccer', 'marvel', 'dc comics', 'batman', 'superman', 'boate', 'cerveja', 'vodka', 
         'uísque', 'whisky', 'rockstar', 'balada', 'danceteria', 'nave espacial', 'disco de vinil', 'alienígena'
       ];
       const lowercasePrompt = cleanPrompt.toLowerCase();
@@ -145,23 +154,40 @@ export const generateBiblicalImage = async (
       const keysToTry = [googleKey, googleKey2].filter(Boolean) as string[];
       let promptGenerated = false;
 
+      const isCreateMode = source === 'create';
+
       if (keysToTry.length > 0) {
         const systemInstruction = `REGRAS MESTRAS: ${systemPromptMaster}
 
-Você é um Diretor de Arte de imagens bíblicas e Moderador de Conteúdo extremamente rigoroso.
+Você é um Diretor de Arte de Imagens Bíblicas e Moderador de Conteúdo Mestre, especialista em Engenharia de Prompts para geradores de imagem avançados (FLUX / Midjourney).
 
-REGRA 1 (Nudez e Conteúdo Impróprio): Verifique se o pedido contém qualquer menção direta ou indireta a nudez total ou parcial, sensualidade, erotismo, posições vulgares ou qualquer conteúdo impróprio/adulto. Se violar esta regra, responda EXATAMENTE: "BLOQUEADO".
+REGRA 1 (Nudez e Conteúdo Impróprio): Verifique se o pedido contém qualquer menção direta ou indireta a nudez, sensualidade, erotismo ou conteúdo impróprio/adulto. Se violar esta regra, responda EXATAMENTE: "BLOQUEADO".
 
-REGRA 2 (Filtro Bíblico / Cristão Estrito): Verifique se o pedido é estritamente sobre temas, passagens, cenários, profecias ou personagens descritos na Bíblia Sagrada ou relacionados à história cristã. Se for sobre qualquer assunto secular, moderno (tecnologia moderna, ficção científica, carros, robôs, etc.), super-heróis, outras crenças, esportes modernos, etc., responda EXATAMENTE: "BLOQUEADO".
+REGRA 2 (Filtro Bíblico / Cristão Estrito): Verifique se o pedido é sobre temas, passagens, cenários, profecias ou personagens descritos na Bíblia Sagrada ou relacionados à história cristã. Se for sobre qualquer assunto secular não-bíblico (como carros modernos, tecnologia moderna, ficção científica, super-heróis, outras religiões), responda EXATAMENTE: "BLOQUEADO".
 
-REGRA 3 (Estilo Super Realista): O usuário exige imagens extremamente realistas de acordo com o pedido. Portanto, se o pedido for aprovado, traduza-o para o INGLÊS e adicione tags avançadas de ultra-realismo fotográfico, por exemplo: "ultra-realistic photo, high-end hyperrealistic human features, detailed skin texture, real eyes, historically accurate clothing, cinematic lighting, 8k resolution, masterpiece". EVITE termos de cartoon, anime, desenho ou 3D irrealista.
+${isCreateMode ? `REGRA 3 (MODO CRIAR COM VERSÍCULOS - PAISAGENS NATURAIS SEM HUMANOS):
+ATENÇÃO OBRIGATÓRIA: Este pedido é do Modo Criar com Versículos (fundo de imagem para texto/post). A imagem DEVE SER EXCLUSIVAMENTE UMA PAISAGEM NATURAL BÍBLICA, SEM NENHUMA PESSOA, SEM SERES HUMANOS, SEM ROSTOS, SEM CORPOS E SEM FIGURAS HUMANAS.
+Gere um prompt em inglês focado 100% em elementos de natureza inspiradora (céu, montanhas, vales, desertos, rios, mares, árvores, flores, luz solar divina, névoa, nascer do sol) e adicione OBRIGATORIAMENTE ao final do prompt: "serene scenic natural landscape, no people, no humans, empty nature background, peaceful biblical environment, 8k resolution".` : `REGRA 3 (ANATOMIA E OLHOS NATURAIS PERFEITOS):
+Ao traduzir e enriquecer o pedido para o INGLÊS, crie uma descrição natural, fluida e de altíssima fidelidade.
+- ANATOMIA E OLHOS NATURAIS (CRÍTICO): Os olhos devem ser humanos, anatômicos e totalmente naturais ("natural realistic human eyes, crystal-clear iris, anatomically accurate round pupils, natural realistic eye gaze, sharp eye focus"). NUNCA use olhos desalinhados, vesgos, pupilas deformadas ou íris borradas. Se duas pessoas estiverem na cena, especifique o olhar natural entre elas ("looking at each other with natural emotional connection, natural eye contact") ou olhando naturally para o cenário/câmera.
+- COMPOSIÇÃO E ENQUADRAMENTO: Mantenha um enquadramento equilibrado de retrato (medium shot portrait or standard portrait composition, balanced facial proportions) para evitar deformação facial de lente super próxima.
+- ILUMINAÇÃO E PELE: Iluminação natural e cristalina (bright soft natural daylight), cores vivas e pele limpa e realista.
+- ESTILOS ESPECÍFICOS ([Estilo: ...]):
+  * CINEMATOGRÁFICO: "A high-end cinematic movie still, medium shot portrait, crisp focal clarity on face, natural realistic human eyes, clear detailed iris and pupils, soft golden sunlight, anamorphic lens, shallow depth of field, vivid natural colors, 8k resolution."
+  * ANIMAÇÃO 3D: "A beautiful 3D animated character illustration, Pixar and Disney studio art style, expressive face, clear aligned eyes, smooth 3D rendering, vibrant colors."
+  * PIXEL ART: "Crisp 16-bit pixel art style, detailed retro video game graphics, clean pixel edges, nostalgic vibrant colors."
+  * FOTORREALISMO / PADRÃO: "An award-winning ultra-realistic 8k DSLR portrait photograph, medium portrait composition, crystal clear focus on face, natural realistic human eyes, authentic iris detail and pupils, natural eye gaze, pristine clean skin, bright natural daylight, 85mm lens f/2, authentic historical accuracy."
+  * PINTURA A ÓLEO: "Master classical oil painting on canvas, refined elegant brushwork, luminous lighting, clear detailed facial features and expressive natural eyes, museum fine art quality."
+  * AQUARELA: "Delicate watercolor painting on textured paper, soft fluid pastel colors, clean artistic outlines, graceful watercolor washes."
+  * ANIME: "High quality Studio Ghibli inspired anime illustration, clean line art, luminous soft lighting, vibrant colors, expressive clear eyes."
+  * ILUSTRAÇÃO BÍBLICA SACRA: "Sacred illuminated manuscript artwork, royal gold leaf accents, stained glass radiance, reverent biblical classical art."`}
 
-REGRA 4 (Saída): Responda APENAS com o prompt purificado em inglês enriquecido para ultra-realismo, sem aspas, preâmbulos, notas ou explicações adicionais. Se for inadequado, responda APENAS: "BLOQUEADO".`;
+REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS em um único parágrafo fluido. Não inclua aspas, preâmbulos, avisos ou explicações. Se for inadequado, responda APENAS: "BLOQUEADO".`;
 
         for (const key of keysToTry) {
           if (promptGenerated) break;
           try {
-            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
+            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${key}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -205,8 +231,14 @@ REGRA 4 (Saída): Responda APENAS com o prompt purificado em inglês enriquecido
         throw new Error("Apenas imagens de temas bíblicos/cristãos são permitidas e sem conteúdo impróprio.");
       }
 
-      const qualityTags = "ultra-realistic portrait photography, hyperrealism, 8k resolution, highly detailed, real human features, historical accuracy, masterpieces, cinematic composition";
-      const finalPrompt = `${enhancedPrompt}, ${qualityTags}`;
+      let finalPrompt = enhancedPrompt;
+      if (source === 'create') {
+        if (!enhancedPrompt.toLowerCase().includes("no people") && !enhancedPrompt.toLowerCase().includes("no humans")) {
+          finalPrompt = `${enhancedPrompt}, serene scenic natural landscape, no people, no humans, empty nature background, peaceful biblical environment, bright soft natural daylight, high resolution 8k`;
+        }
+      } else if (!enhancedPrompt.toLowerCase().includes("natural human eyes") && !/pixel art|watercolor|anime|3d animated/i.test(enhancedPrompt)) {
+        finalPrompt = `${enhancedPrompt}, natural realistic human eyes, crystal clear iris and pupils, anatomically correct natural gaze, medium portrait framing, clean skin, bright soft natural daylight, high resolution`;
+      }
 
       let width = 1024;
       let height = 1024;
@@ -219,7 +251,7 @@ REGRA 4 (Saída): Responda APENAS com o prompt purificado em inglês enriquecido
       }
 
       const seed = Math.floor(Math.random() * 2000000000);
-      const pollinationsUrl = `https://image.pollinations.ai/p/${encodeURIComponent(finalPrompt)}?width=${width}&height=${height}&seed=${seed}&nologo=true&enhance=false`;
+      const pollinationsUrl = `https://image.pollinations.ai/p/${encodeURIComponent(finalPrompt)}?width=${width}&height=${height}&seed=${seed}&model=flux&nologo=true`;
 
       // 4. Registrar consumo de cota diária localmente no Supabase se logado e com sucesso
       if (user) {

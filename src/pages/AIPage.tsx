@@ -4,9 +4,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
 import {
   Send, Trash2, Sparkles, GraduationCap, X,
-  Plus, Image, Video, Music, Diamond, Download, LogIn,
+  Plus, Image, Video, Music, Download, LogIn,
   History, ChevronLeft, Zap, Bot, Paperclip, AlertCircle, MessageSquarePlus, Square, Share2,
-  Loader2, ImageOff, FileText, ZoomIn, ZoomOut, WifiOff
+  Loader2, ImageOff, FileText, ZoomIn, ZoomOut, WifiOff, Palette, ChevronDown, Check
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -70,15 +70,100 @@ interface Conversation {
   timestamp: number;
 }
 
-const DiamondSpinner = () => (
-  <motion.div
-    animate={{ rotateY: 360 }}
-    transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-    className="flex items-center justify-center"
-  >
-    <Diamond className="h-5 w-5 text-accent" />
-  </motion.div>
-);
+interface ThinkingSpinnerProps {
+  engine?: "simples" | "complexo";
+  mode?: "chat" | "image" | "video" | "music";
+}
+
+const ThinkingSpinner = ({ engine = "simples", mode = "chat" }: ThinkingSpinnerProps) => {
+  if (mode === "image") {
+    return (
+      <div className="relative flex items-center justify-center h-5 w-5 shrink-0">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+          className="absolute inset-0 rounded-full border border-dashed border-amber-500/60"
+        />
+        <motion.div
+          animate={{ scale: [0.85, 1.15, 0.85] }}
+          transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <Image className="h-3.5 w-3.5 text-amber-500" />
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (mode === "video") {
+    return (
+      <div className="relative flex items-center justify-center h-5 w-5 shrink-0">
+        <motion.div
+          animate={{ rotate: -360 }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+          className="absolute inset-0 rounded-full border border-dotted border-purple-500/70"
+        />
+        <motion.div
+          animate={{ scale: [0.85, 1.15, 0.85] }}
+          transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <Video className="h-3.5 w-3.5 text-purple-500" />
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (mode === "music") {
+    return (
+      <div className="relative flex items-center justify-center h-5 w-5 shrink-0">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          className="absolute inset-0 rounded-full border border-sky-400/50"
+        />
+        <motion.div
+          animate={{ y: [-1, 1, -1] }}
+          transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <Music className="h-3.5 w-3.5 text-sky-400" />
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (engine === "simples") {
+    return (
+      <div className="relative flex items-center justify-center h-5 w-5 shrink-0">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+          className="absolute inset-0 rounded-full border-2 border-amber-500/30 border-t-amber-500"
+        />
+        <motion.div
+          animate={{ scale: [0.9, 1.2, 0.9] }}
+          transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <Zap className="h-3 w-3 text-amber-500 fill-amber-500/20" />
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative flex items-center justify-center h-5 w-5 shrink-0">
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+        className="absolute inset-0 rounded-full border-2 border-accent/30 border-t-accent border-b-primary"
+      />
+      <motion.div
+        animate={{ scale: [0.85, 1.1, 0.85] }}
+        transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <Bot className="h-3.5 w-3.5 text-accent" />
+      </motion.div>
+    </div>
+  );
+};
 
 interface ResilientImageProps {
   src: string;
@@ -150,6 +235,73 @@ const modes: { key: ModeKey; icon: React.ReactNode; label: string; prefix: strin
   { key: "music", icon: <Music className="h-4 w-4" />, label: "Criar Músicas", prefix: "[Modo: Criar Música] " },
 ];
 
+export type ImageStyleOption = {
+  id: string;
+  label: string;
+  badge: string;
+  promptAddon: string;
+  description: string;
+};
+
+const IMAGE_STYLES: ImageStyleOption[] = [
+  {
+    id: "cinematic",
+    label: "Cinematográfico",
+    badge: "Cinematográfico",
+    promptAddon: "CINEMATOGRÁFICO: Ultra-realistic epic movie still, crisp focal clarity, soft golden sunlight, anamorphic camera lens, shallow depth of field, sharp focus on eyes and face, pristine realistic skin tones, 8k resolution",
+    description: "Luz dourada de cinema e lente anamórfica de alta clareza"
+  },
+  {
+    id: "animation",
+    label: "Animação 3D",
+    badge: "Animação 3D",
+    promptAddon: "ANIMAÇÃO 3D: 3D animated character art style, smooth Pixar/Disney rendering, soft subsurface scattering lighting, expressive features, vibrant color palette",
+    description: "Estilo 3D estilizado Pixar e Disney"
+  },
+  {
+    id: "pixel",
+    label: "Pixel Art",
+    badge: "Pixel Art",
+    promptAddon: "PIXEL ART: Detailed 16-bit pixel art style, retro video game aesthetic, crisp pixel edges, nostalgic color palette, masterfully crafted pixel scene",
+    description: "Arte retrô 16-bit em pixels"
+  },
+  {
+    id: "realistic",
+    label: "Fotorrealismo",
+    badge: "Fotorrealismo",
+    promptAddon: "FOTORREALISMO: Award-winning ultra-realistic DSLR portrait photography, 8k UHD, shot on 85mm lens f/1.4, bright soft natural daylight, pristine clean skin, hyper-detailed clear eyes, sharp focus, authentic historical accuracy",
+    description: "Fotografia fotorrealista com pele limpa e iluminação natural"
+  },
+  {
+    id: "oil_painting",
+    label: "Pintura a Óleo",
+    badge: "Pintura a Óleo",
+    promptAddon: "PINTURA A ÓLEO: Classical master oil painting on canvas, refined elegant brushstrokes, warm luminous lighting, deep museum quality fine art",
+    description: "Técnica clássica com iluminação luminosa e textura em tela"
+  },
+  {
+    id: "watercolor",
+    label: "Aquarela",
+    badge: "Aquarela",
+    promptAddon: "AQUARELA: Delicate watercolor painting on textured paper, soft fluid color washes, graceful ink outlines, artistic pigment splashes",
+    description: "Tons suaves e pigmentos fluidos"
+  },
+  {
+    id: "anime",
+    label: "Anime / Desenho",
+    badge: "Anime",
+    promptAddon: "ANIME: High quality Studio Ghibli inspired anime illustration, clean line art, luminous lighting, vibrant colors, detailed hand-drawn anime aesthetic",
+    description: "Ilustração estilo Ghibli / Manga"
+  },
+  {
+    id: "biblical_art",
+    label: "Ilustração Bíblica Sacra",
+    badge: "Ilustração Bíblica",
+    promptAddon: "ILUSTRAÇÃO BÍBLICA SACRA: Sacred medieval illuminated manuscript art, golden leaf accents, stained glass window radiance, reverent biblical fresco style, royal gold hues",
+    description: "Arte sacra medieval com folhas de ouro"
+  },
+];
+
 const AIPage = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
@@ -165,6 +317,8 @@ const AIPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showModes, setShowModes] = useState(false);
+  const [selectedImageStyle, setSelectedImageStyle] = useState<ImageStyleOption | null>(null);
+  const [showStylePicker, setShowStylePicker] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeMode, setActiveMode] = useState<ModeKey | null>(null);
   const [aiEngine, setAiEngine] = useState<AIEngine>("simples");
@@ -412,14 +566,14 @@ const AIPage = () => {
   }, [fetchUsage]);
 
   useEffect(() => {
-    if (aiEngine === "simples") {
+    if (activeMode === "image") {
+      setLimitReached(usageStats.image >= LIMIT_IMAGE);
+    } else if (activeMode) {
+      setLimitReached(usageStats.complex >= LIMIT_COMPLEX);
+    } else if (aiEngine === "simples") {
       setLimitReached(usageStats.simple >= LIMIT_SIMPLE);
     } else {
-      if (activeMode === "image" || activeMode === "video" || activeMode === "music") {
-        setLimitReached(usageStats.image >= LIMIT_IMAGE);
-      } else {
-        setLimitReached(usageStats.complex >= LIMIT_COMPLEX);
-      }
+      setLimitReached(usageStats.complex >= LIMIT_COMPLEX);
     }
   }, [aiEngine, activeMode, usageStats]);
 
@@ -730,17 +884,31 @@ A letra deve ser profunda, emocionante e bíblica. NUNCA use # para títulos, us
 
     // Check quota before loading
     try {
-      const limitType = activeMode === "image" ? "image" : (aiEngine === "complexo" ? "complex" : "simple");
-      const hasQuota = await checkAndIncrementUsage(limitType, user.sub);
-      if (!hasQuota) {
-        toast({ 
-          title: "Limite atingido", 
-          description: activeMode === "image" ? "Limite de 3 imagens atingido. Recarga em 12h." : "Sua cota diária de mensagens acabou. Recarga em até 12h.", 
-          variant: "destructive" 
-        });
-        setLimitReached(true);
-        setIsLoading(false);
-        return;
+      if (activeMode === "image") {
+        if (usageStats.image >= LIMIT_IMAGE) {
+          toast({ 
+            title: "Limite atingido", 
+            description: `Limite de ${LIMIT_IMAGE} imagens atingido. Recarga em 12h.`, 
+            variant: "destructive" 
+          });
+          setLimitReached(true);
+          setIsLoading(false);
+          return;
+        }
+        // Note: image usage is recorded automatically on generation success by server / fallback
+      } else {
+        const limitType = aiEngine === "complexo" ? "complex" : "simple";
+        const hasQuota = await checkAndIncrementUsage(limitType, user.sub);
+        if (!hasQuota) {
+          toast({ 
+            title: "Limite atingido", 
+            description: "Sua cota diária de mensagens acabou. Recarga em até 12h.", 
+            variant: "destructive" 
+          });
+          setLimitReached(true);
+          setIsLoading(false);
+          return;
+        }
       }
     } catch (error: any) {
       console.error("Erro na verificação de cotas:", error);
@@ -758,11 +926,16 @@ A letra deve ser profunda, emocionante e bíblica. NUNCA use # para títulos, us
     setInput("");
     setIsLoading(true);
     setShowModes(false);
+    setShowStylePicker(false);
 
     try {
       let responseText = "";
       if (activeMode === 'image') {
-        responseText = await generateBiblicalImage(finalText, controller.signal, 'square', false, 'chat', aiEngine === 'complexo');
+        let imagePromptWithStyle = finalText;
+        if (selectedImageStyle) {
+          imagePromptWithStyle = `[Estilo: ${selectedImageStyle.label} - ${selectedImageStyle.promptAddon}] ${finalText}`;
+        }
+        responseText = await generateBiblicalImage(imagePromptWithStyle, controller.signal, 'square', false, 'chat', aiEngine === 'complexo');
       } else if (activeMode === 'learning') {
         const learningPrompt = `Você é um professor e teólogo cristão dedicado ao ensino bíblico de forma altamente didática, passo a passo e interativa.
 
@@ -791,13 +964,15 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
       } else {
         toast({ title: "Erro na IA", description: error.message || "Erro ao gerar resposta.", variant: "destructive" });
         if (
-          error.message?.includes('Chave da API') || 
-          error.message?.includes('Todos os modelos falharam') || 
-          error.message?.includes('Falha Gemini') ||
-          error.message?.includes('BLOQUEADO') ||
-          error.message?.includes('Falha de comunicação')
+          activeMode !== "image" && (
+            error.message?.includes('Chave da API') || 
+            error.message?.includes('Todos os modelos falharam') || 
+            error.message?.includes('Falha Gemini') ||
+            error.message?.includes('BLOQUEADO') ||
+            error.message?.includes('Falha de comunicação')
+          )
         ) {
-          refundUsage(activeMode === "image" ? "image" : (aiEngine === "complexo" ? "complex" : "simple")).catch(console.error);
+          refundUsage(aiEngine === "complexo" ? "complex" : "simple").catch(console.error);
         }
       }
       setMessages(prev => prev.slice(0, -1));
@@ -822,6 +997,9 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
       setShowModes(false);
     } else {
       setActiveMode(mode.key);
+      if (mode.key !== "image") {
+        setAiEngine("complexo");
+      }
       setShowModes(false);
     }
   };
@@ -927,15 +1105,15 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
     return (
       <div className="flex h-[100dvh] flex-col bg-background">
         <Header />
-        <div className="flex-1 overflow-hidden container mx-auto max-w-4xl px-3">
-          <div className="flex items-center gap-3 py-3 border-b border-border">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden container mx-auto max-w-4xl px-3 pb-4">
+          <div className="flex items-center gap-3 py-3 border-b border-border shrink-0">
             <button onClick={() => setShowHistory(false)} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors liquid-btn">
               <ChevronLeft className="h-4 w-4" /> Voltar
             </button>
             <h2 className="font-serif text-base font-bold text-foreground">Histórico</h2>
           </div>
 
-          <div className="glass-card rounded-xl p-3 mt-3">
+          <div className="glass-card rounded-xl p-3 mt-3 shrink-0">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-accent mb-2">Uso diário restante</p>
             <div className="grid grid-cols-3 gap-2">
               <div className="text-center rounded-lg bg-secondary/50 p-2">
@@ -953,7 +1131,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto py-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="flex-1 min-h-0 overflow-y-auto py-3 my-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {conversations.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma conversa salva</p>
             ) : (
@@ -1037,7 +1215,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
           <div className="relative flex shrink-0 items-center rounded-xl border border-border bg-secondary/50 p-0.5 sm:p-1">
             <button
               type="button"
-              onClick={() => { setAiEngine("simples"); startNewChat(); }}
+              onClick={() => { setAiEngine("simples"); setShowModes(false); setActiveMode(null); startNewChat(); }}
               className={`relative z-10 flex items-center gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-[10px] font-semibold transition-colors duration-200 ${
                 aiEngine === "simples" ? "text-white font-bold" : "text-muted-foreground hover:text-foreground"
               }`}
@@ -1073,29 +1251,87 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
         </div>
 
         {limitReached && (
-          <div className="shrink-0 flex items-center gap-2 rounded-xl bg-destructive/10 border border-destructive/20 px-3 py-2 mb-2">
-            <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-            <p className="text-xs text-destructive font-medium">Limite atingido. Recarga em até 12h.</p>
-          </div>
+          <motion.div 
+            initial={{ opacity: 0, y: -6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className="shrink-0 mb-3 flex items-center justify-between gap-3 rounded-2xl border border-rose-500/25 bg-rose-500/10 p-3 backdrop-blur-md shadow-sm"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-500/15 text-rose-400 border border-rose-500/20">
+                <AlertCircle className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-semibold text-rose-200 truncate">
+                    Limite Diário Atingido
+                  </p>
+                  <span className="shrink-0 rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-medium text-rose-300 border border-rose-500/30">
+                    Cota Esgotada
+                  </span>
+                </div>
+                <p className="text-[11px] text-rose-300/80 truncate mt-0.5">
+                  A cota para este modo foi atingida. Recarga em até 12 horas.
+                </p>
+              </div>
+            </div>
+
+            <div className="hidden sm:flex shrink-0 items-center gap-1.5 rounded-xl bg-rose-950/40 px-2.5 py-1 text-[11px] text-rose-300 border border-rose-500/20 font-medium">
+              <span>Recarga 00:00</span>
+            </div>
+          </motion.div>
         )}
 
         <div className="flex-1 space-y-2.5 overflow-y-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {messages.length === 0 && (
             <div className="py-6 flex flex-col items-center text-center">
               <h2 className="text-base font-bold text-foreground mb-1">
-                {aiEngine === "simples" ? "IA Simples" : "IA Complexa"}
+                {activeMode === "image"
+                  ? "Gerador de Imagens Bíblicas"
+                  : activeMode === "video"
+                  ? "Roteiros para Vídeo"
+                  : activeMode === "music"
+                  ? "Composição de Músicas"
+                  : activeMode === "learning"
+                  ? "Aprendizado Bíblico"
+                  : aiEngine === "simples"
+                  ? "IA Simples"
+                  : "IA Complexa"}
               </h2>
               <p className="text-xs text-muted-foreground mb-3 max-w-sm leading-relaxed">
-                {aiEngine === "simples"
+                {activeMode === "image"
+                  ? "Crie ilustrações e arte bíblica realista com inteligência artificial."
+                  : activeMode === "video"
+                  ? "Gere roteiros completos para vídeos do YouTube, Reels ou TikTok."
+                  : activeMode === "music"
+                  ? "Crie letras e arranjos musicais para louvores e hinos."
+                  : activeMode === "learning"
+                  ? "Estudos e explicações bíblicas aprofundadas com a IA."
+                  : aiEngine === "simples"
                   ? "Perguntas diretas sobre a Bíblia, com resposta rápida e resumida."
                   : "Respostas detalhadas, geração de imagens, estudos e áudios."}
               </p>
 
               <div className="mb-5">
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-accent text-white px-4 py-1.5 text-xs font-bold shadow-md border border-accent/40">
-                  <Zap className="h-3.5 w-3.5 fill-current text-white shrink-0" />
+                  {activeMode === "image" ? (
+                    <Image className="h-3.5 w-3.5 text-white shrink-0" />
+                  ) : activeMode === "video" ? (
+                    <Video className="h-3.5 w-3.5 text-white shrink-0" />
+                  ) : activeMode === "music" ? (
+                    <Music className="h-3.5 w-3.5 text-white shrink-0" />
+                  ) : activeMode === "learning" ? (
+                    <GraduationCap className="h-3.5 w-3.5 text-white shrink-0" />
+                  ) : aiEngine === "simples" ? (
+                    <Zap className="h-3.5 w-3.5 fill-current text-white shrink-0" />
+                  ) : (
+                    <Bot className="h-3.5 w-3.5 text-white shrink-0" />
+                  )}
                   <span className="text-white font-bold">
-                    {aiEngine === "simples"
+                    {activeMode === "image"
+                      ? `${Math.max(0, imageRemaining)} imgs restantes`
+                      : activeMode
+                      ? `${Math.max(0, chatRemaining)} msgs restantes`
+                      : aiEngine === "simples"
                       ? `${Math.max(0, geminiRemaining)} msgs restantes`
                       : `${Math.max(0, chatRemaining)} msgs restantes`}
                   </span>
@@ -1163,7 +1399,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                 {aiEngine === "simples" ? <Zap className="h-3.5 w-3.5 text-primary-foreground" /> : <Bot className="h-3.5 w-3.5 text-primary-foreground" />}
               </div>
               <div className="glass-card rounded-2xl px-4 py-3 flex items-center gap-2">
-                <DiamondSpinner />
+                <ThinkingSpinner engine={aiEngine} mode={activeMode} />
                 <span className="text-xs text-muted-foreground">
                   {activeMode === "image" ? "Gerando imagem..." : activeMode === "video" ? "Escrevendo roteiro..." : "Pensando..."}
                 </span>
@@ -1175,13 +1411,28 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
 
         <div className="shrink-0 bg-background pb-16 pt-2 md:pb-3">
           <AnimatePresence>
-            {activeModeInfo && aiEngine === "complexo" && (
-              <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-                className="mb-2 flex items-center gap-2 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2"
+            {activeModeInfo && (
+              <motion.div
+                initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                className="mb-2 flex items-center justify-between gap-2 rounded-2xl border border-accent/40 bg-card/95 px-3.5 py-2 shadow-md backdrop-blur-xl"
               >
-                {activeModeInfo.icon}
-                <span className="text-xs font-medium text-accent flex-1">{activeModeInfo.label} ativo</span>
-                <button type="button" onClick={() => setActiveMode(null)} className="text-muted-foreground hover:text-foreground">
+                <div className="flex items-center gap-2 text-xs font-semibold text-accent">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-accent/20 text-accent shrink-0">
+                    {activeModeInfo.icon}
+                  </div>
+                  <span>Modo Ativo: <strong className="font-bold text-foreground">{activeModeInfo.label}</strong></span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveMode(null);
+                    setSelectedImageStyle(null);
+                  }}
+                  className="flex h-6 w-6 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0"
+                  title="Desativar modo"
+                >
                   <X className="h-3.5 w-3.5" />
                 </button>
               </motion.div>
@@ -1193,6 +1444,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="mb-2 flex flex-wrap gap-1.5">
                 {modes.map((m) => (
                   <button key={m.key}
+                    type="button"
                     onClick={() => handleModeSelect(m)}
                     className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-medium transition-colors liquid-btn ${
                       activeMode === m.key ? "border-accent bg-accent/10 text-accent" : "border-border bg-card text-card-foreground hover:border-accent"
@@ -1212,7 +1464,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
               </div>
             )}
             
-            <div className={`flex flex-col rounded-2xl border border-border bg-card p-1.5 focus-within:border-accent/70 transition-all duration-300 shadow-sm relative overflow-hidden ${isDragging ? "min-h-[140px] justify-center" : ""}`}>
+            <div className={`flex flex-col rounded-2xl border border-border bg-card p-1.5 focus-within:border-accent/70 transition-all duration-300 shadow-sm relative ${isDragging ? "min-h-[140px] justify-center" : ""}`}>
               {/* Localized Drag & Drop Overlay */}
               <AnimatePresence>
                 {isDragging && (
@@ -1278,9 +1530,34 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                 )}
               </AnimatePresence>
 
+              {/* Active Style Badge in Image Mode */}
+              <AnimatePresence>
+                {activeMode === "image" && selectedImageStyle && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="p-2 px-3 border-b border-border/60 mb-1 flex items-center justify-between bg-accent/15 rounded-xl border border-accent/30 backdrop-blur-md"
+                  >
+                    <div className="flex items-center gap-2 text-xs text-accent font-semibold truncate pr-2">
+                      <Palette className="h-3.5 w-3.5 shrink-0 text-accent" />
+                      <span className="truncate">Estilo selecionado: <strong className="font-bold text-foreground">{selectedImageStyle.label}</strong></span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedImageStyle(null)}
+                      className="text-muted-foreground hover:text-foreground text-xs p-1 hover:bg-secondary/80 rounded-lg transition-colors shrink-0"
+                      title="Remover estilo"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* Input row */}
               <div className="flex items-center gap-2">
-                <div className="flex gap-1 pl-0.5">
+                <div className="flex items-center gap-1 pl-0.5">
                   {aiEngine === "complexo" && (
                     <button type="button" onClick={() => setShowModes(!showModes)}
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors liquid-btn ${showModes ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
@@ -1295,14 +1572,120 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     <Paperclip className="h-4 w-4" />
                   </button>
                   <input ref={fileInputRef} type="file" className="hidden" accept="image/*,.pdf,.doc,.docx" multiple onChange={handleFileAttach} />
+
+                  {/* Botão de Estilo de Imagem (Modo Gerar Imagens) */}
+                  {activeMode === "image" && (
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowStylePicker(!showStylePicker)}
+                        className={`flex h-9 items-center gap-1.5 rounded-xl px-2.5 text-xs font-semibold transition-all liquid-btn border ${
+                          selectedImageStyle
+                            ? "border-accent bg-accent/15 text-accent shadow-sm"
+                            : "border-border/80 bg-secondary/80 text-muted-foreground hover:text-foreground hover:border-accent/50"
+                        }`}
+                        title="Selecione o estilo da imagem"
+                      >
+                        <Palette className="h-4 w-4 shrink-0 text-accent" />
+                        <span className="text-[11px] font-semibold max-w-[95px] truncate">
+                          {selectedImageStyle ? selectedImageStyle.label : "Estilo"}
+                        </span>
+                        <ChevronDown className={`h-3 w-3 shrink-0 transition-transform duration-200 ${showStylePicker ? "rotate-180" : ""}`} />
+                      </button>
+
+                      {/* Menu Popover de Estilos */}
+                      <AnimatePresence>
+                        {showStylePicker && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setShowStylePicker(false)} />
+                            <motion.div
+                              initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                              className="absolute bottom-full mb-3 left-0 z-50 w-72 sm:w-80 rounded-2xl border border-border/90 bg-card/95 p-3 shadow-2xl backdrop-blur-2xl"
+                            >
+                              <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/60 px-1">
+                                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                  <Palette className="h-4 w-4 text-accent" /> Selecionar Estilo Visual
+                                </span>
+                                {selectedImageStyle && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedImageStyle(null)}
+                                    className="text-[11px] text-accent hover:text-accent/80 font-semibold transition-colors"
+                                  >
+                                    Limpar
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="grid grid-cols-1 gap-1.5 max-h-64 overflow-y-auto pr-1.5 custom-scrollbar">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedImageStyle(null);
+                                    setShowStylePicker(false);
+                                  }}
+                                  className={`flex items-center justify-between rounded-xl px-3 py-2 text-left text-xs transition-all ${
+                                    !selectedImageStyle ? "bg-accent/20 font-bold text-accent border border-accent/40" : "hover:bg-secondary/80 text-foreground"
+                                  }`}
+                                >
+                                  <div>
+                                    <p className="font-semibold text-xs">Nenhum (Padrão Livre)</p>
+                                    <p className="text-[10px] text-muted-foreground">A IA decide o melhor estilo com base no pedido</p>
+                                  </div>
+                                  {!selectedImageStyle && <Check className="h-4 w-4 text-accent shrink-0" />}
+                                </button>
+
+                                {IMAGE_STYLES.map((st) => {
+                                  const isSelected = selectedImageStyle?.id === st.id;
+                                  return (
+                                    <button
+                                      key={st.id}
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedImageStyle(st);
+                                        setShowStylePicker(false);
+                                      }}
+                                      className={`flex items-center justify-between rounded-xl px-3 py-2 text-left text-xs transition-all ${
+                                        isSelected
+                                          ? "bg-accent/20 font-bold text-accent border border-accent/40 shadow-sm"
+                                          : "hover:bg-secondary/80 text-foreground border border-transparent"
+                                      }`}
+                                    >
+                                      <div className="min-w-0 flex-1 pr-2">
+                                        <p className="font-semibold text-xs text-foreground flex items-center justify-between gap-1">
+                                          <span>{st.label}</span>
+                                        </p>
+                                        <p className="text-[10px] text-muted-foreground truncate mt-0.5">{st.description}</p>
+                                      </div>
+                                      {isSelected && <Check className="h-4 w-4 text-accent shrink-0" />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )}
                 </div>
                 <input
-                  value={input} onChange={(e) => setInput(e.target.value)}
+                  id="ai-prompt-input"
+                  aria-label="Campo de mensagem para a IA Bíblica"
+                  maxLength={2000}
+                  value={input} onChange={(e) => setInput(e.target.value.slice(0, 2000))}
                   onPaste={handlePaste}
                   placeholder={!isOnline ? "Necessário internet para IA" : limitReached ? "Limite diário atingido" : activeModeInfo ? `Descreva (${activeModeInfo.label})...` : aiEngine === "simples" ? "Pergunta simples..." : "Pergunte qualquer coisa..."}
                   disabled={isLoading || limitReached || !isOnline}
                   className="flex-1 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                 />
+                {input.length > 1000 && (
+                  <span className="text-[10px] text-muted-foreground font-mono shrink-0 px-1">
+                    {input.length}/2000
+                  </span>
+                )}
                 {isLoading ? (
                   <button
                     type="button"

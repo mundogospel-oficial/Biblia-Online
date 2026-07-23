@@ -14,9 +14,10 @@ import { useToast } from "@/hooks/use-toast";
 import { 
   SearchResult, BiblicalEntity, RecommendedDevotional, PopularVerse,
   allBiblicalCharacters, allBiblicalTopics, allBiblicalEntities,
-  allRecommendedDevotionals, allPopularVerses
+  allRecommendedDevotionals, allPopularVerses, stripLeadingNumber
 } from "@/lib/searchData";
 import { devotionals as allDailyDevotionals, Devotional as MainDevotional } from "@/lib/devotionalsData";
+import { shareBibleText } from "@/lib/downloadUtils";
 
 const HISTORY_KEY = "bible-search-history";
 
@@ -41,6 +42,18 @@ const normalizeStr = (str: string) => {
     .replace(/[\u0300-\u036f]/g, "")
     .trim();
 };
+
+function getShortTitle(name: string): string {
+  if (!name) return "";
+  const clean = stripLeadingNumber(name);
+  if (clean.includes(':')) {
+    return clean.split(':')[0].trim();
+  }
+  if (clean.includes(' - ')) {
+    return clean.split(' - ')[0].trim();
+  }
+  return clean;
+}
 
 // Precise word boundary check to avoid partial substring false positives (e.g., 'jo' inside 'joao')
 const hasExactWord = (source: string, token: string) => {
@@ -160,7 +173,8 @@ const SearchPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(""); // Live input value typed by user
+  const [searchQuery, setSearchQuery] = useState(""); // Submitted query used for filtering & results
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -223,10 +237,11 @@ const SearchPage = () => {
     localStorage.removeItem(HISTORY_KEY);
   };
 
-  const handleSearch = async (searchText: string) => {
-    const q = searchText !== undefined ? searchText : query;
-    if (!q.trim() || loading) return;
+  const handleSearch = async (searchText?: string) => {
+    const q = (searchText !== undefined ? searchText : query).trim();
+    if (!q || loading) return;
     setQuery(q);
+    setSearchQuery(q);
     setActiveTab("todos");
     setLoading(true);
     setSearched(true);
@@ -311,12 +326,12 @@ const SearchPage = () => {
 
   // Rank Matched Entities (Personagens & Conhecimento Geral)
   const matchedEntities = useMemo(() => {
-    if (!query.trim()) return [];
+    if (!searchQuery.trim()) return [];
     
     return allBiblicalEntities
       .map(entity => ({
         entity,
-        score: calculateRelevanceScore(query, {
+        score: calculateRelevanceScore(searchQuery, {
           primaryName: entity.name,
           badge: entity.badge,
           summary: entity.summary,
@@ -326,16 +341,16 @@ const SearchPage = () => {
       .filter(item => item.score > 20)
       .sort((a, b) => b.score - a.score)
       .map(item => item.entity);
-  }, [query]);
+  }, [searchQuery]);
 
   // Rank Characters
   const filteredCharacters = useMemo(() => {
-    if (!query.trim()) return allBiblicalCharacters;
+    if (!searchQuery.trim()) return allBiblicalCharacters;
 
     return allBiblicalCharacters
       .map(c => ({
         character: c,
-        score: calculateRelevanceScore(query, {
+        score: calculateRelevanceScore(searchQuery, {
           primaryName: c.name,
           badge: c.badge,
           summary: c.summary,
@@ -345,16 +360,16 @@ const SearchPage = () => {
       .filter(item => item.score > 15)
       .sort((a, b) => b.score - a.score)
       .map(item => item.character);
-  }, [query]);
+  }, [searchQuery]);
 
   // Rank Topics / Conhecimento
   const filteredTopics = useMemo(() => {
-    if (!query.trim()) return allBiblicalTopics;
+    if (!searchQuery.trim()) return allBiblicalTopics;
 
     return allBiblicalTopics
       .map(t => ({
         topic: t,
-        score: calculateRelevanceScore(query, {
+        score: calculateRelevanceScore(searchQuery, {
           primaryName: t.name,
           badge: t.badge,
           summary: t.summary,
@@ -364,16 +379,16 @@ const SearchPage = () => {
       .filter(item => item.score > 15)
       .sort((a, b) => b.score - a.score)
       .map(item => item.topic);
-  }, [query]);
+  }, [searchQuery]);
 
   // Rank Devotionals
   const filteredDevotionals = useMemo(() => {
-    if (!query.trim()) return unifiedSearchDevotionals;
+    if (!searchQuery.trim()) return unifiedSearchDevotionals;
 
     return unifiedSearchDevotionals
       .map(d => ({
         devotional: d,
-        score: calculateRelevanceScore(query, {
+        score: calculateRelevanceScore(searchQuery, {
           primaryName: d.title,
           category: d.category,
           reference: d.reference,
@@ -383,16 +398,16 @@ const SearchPage = () => {
       .filter(item => item.score > 15)
       .sort((a, b) => b.score - a.score)
       .map(item => item.devotional);
-  }, [query, unifiedSearchDevotionals]);
+  }, [searchQuery, unifiedSearchDevotionals]);
 
   // Rank Popular Verses
   const filteredPopularVerses = useMemo(() => {
-    if (!query.trim()) return allPopularVerses;
+    if (!searchQuery.trim()) return allPopularVerses;
 
     return allPopularVerses
       .map(v => ({
         verse: v,
-        score: calculateRelevanceScore(query, {
+        score: calculateRelevanceScore(searchQuery, {
           primaryName: v.reference,
           reference: v.reference,
           category: v.theme,
@@ -402,7 +417,7 @@ const SearchPage = () => {
       .filter(item => item.score > 15)
       .sort((a, b) => b.score - a.score)
       .map(item => item.verse);
-  }, [query]);
+  }, [searchQuery]);
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
@@ -427,14 +442,26 @@ const SearchPage = () => {
               <div className="flex-1 space-y-2">
                 <div className="relative w-full">
                   <input 
+                    id="search-input"
+                    type="search"
+                    aria-label="Campo de busca bíblica"
+                    maxLength={300}
                     value={query} 
                     onChange={(e) => {
-                      setQuery(e.target.value);
-                      if (!e.target.value) {
+                      const val = e.target.value.slice(0, 300);
+                      setQuery(val);
+                      if (!val) {
+                        setSearchQuery("");
                         setSearched(false);
                         setResults([]);
                       }
                     }} 
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleSearch(query);
+                      }
+                    }}
                     placeholder="Busque sobre algo bíblico..."
                     className={`w-full rounded-xl glass-card py-3.5 ${query ? "pl-4" : "pl-10"} pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent transition-all duration-200 shadow-sm`}
                   />
@@ -442,7 +469,8 @@ const SearchPage = () => {
                   {query && (
                     <button
                       type="button"
-                      onClick={() => { setQuery(""); setSearched(false); setResults([]); }}
+                      aria-label="Limpar campo de busca"
+                      onClick={() => { setQuery(""); setSearchQuery(""); setSearched(false); setResults([]); }}
                       className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
                     >
                       <X className="h-4 w-4" />
@@ -450,7 +478,7 @@ const SearchPage = () => {
                   )}
                 </div>
 
-                {/* BOTÃO "PERGUNTAR À IA BÍBLICA" - Exibido apenas quando o usuário digita alguma busca, exatamente da largura da caixa de texto */}
+                {/* BOTÃO "PERGUNTAR À IA BÍBLICA" - Exibido apenas quando o usuário digita alguma busca */}
                 {query.trim().length > 0 && (
                   <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
                     <button
@@ -479,7 +507,7 @@ const SearchPage = () => {
                 )}
               </div>
 
-              <button type="submit" disabled={loading} className="rounded-xl bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-50 transition-all hover:opacity-90 shadow-sm flex items-center gap-1.5 shrink-0">
+              <button type="submit" disabled={loading || !query.trim()} aria-label="Executar busca bíblica" className="rounded-xl bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-50 transition-all hover:opacity-90 shadow-sm flex items-center gap-1.5 shrink-0">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <> <Search className="h-4 w-4" /> Buscar </>}
               </button>
             </form>
@@ -535,50 +563,53 @@ const SearchPage = () => {
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                {matchedEntities.slice(0, 6).map((entity) => (
-                  <motion.div
-                    key={entity.id}
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="rounded-xl border border-accent/40 bg-card p-4 shadow-sm space-y-2 flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <span className="rounded bg-accent/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-accent">
-                          {entity.badge}
-                        </span>
+                {matchedEntities.slice(0, 6).map((entity) => {
+                  const shortName = getShortTitle(entity.name);
+                  return (
+                    <motion.div
+                      key={entity.id}
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="glass-card rounded-xl p-4 space-y-2 border border-border/40 hover:border-accent/50 transition-all flex flex-col justify-between hover:shadow-md hover:shadow-accent/5 group"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="rounded bg-accent/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-accent line-clamp-1">
+                            {entity.badge.split("•")[0].trim()}
+                          </span>
+                          <button
+                            onClick={() => handleAskAI(entity.aiPrompt)}
+                            className="text-muted-foreground hover:text-accent p-1 transition-colors shrink-0"
+                            title="Perguntar à IA"
+                          >
+                            <Sparkles className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <h3 className="font-serif text-sm font-bold text-foreground">
+                          {stripLeadingNumber(entity.name)}
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-3 leading-relaxed">
+                          {entity.summary}
+                        </p>
+                      </div>
+
+                      <div className="pt-2 border-t border-border/20 flex items-center justify-between gap-2">
                         <button
                           onClick={() => handleAskAI(entity.aiPrompt)}
-                          className="rounded-lg bg-accent/15 hover:bg-accent/30 text-accent p-1 transition-colors"
-                          title="Perguntar à IA"
+                          className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 shrink-0 whitespace-nowrap"
                         >
-                          <Sparkles className="h-3.5 w-3.5" />
+                          <Bot className="h-3.5 w-3.5" /> Perguntar à IA
+                        </button>
+                        <button
+                          onClick={() => handleSearch(shortName)}
+                          className="text-[11px] font-semibold text-accent hover:underline flex items-center gap-1 min-w-0 truncate"
+                        >
+                          <Search className="h-3 w-3 shrink-0" /> <span className="truncate">Buscar sobre {shortName}</span>
                         </button>
                       </div>
-                      <h3 className="font-serif text-sm font-bold text-foreground">
-                        {entity.name}
-                      </h3>
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-3 leading-relaxed">
-                        {entity.summary}
-                      </p>
-                    </div>
-
-                    <div className="pt-2 border-t border-border/20 flex items-center justify-between">
-                      <button
-                        onClick={() => handleAskAI(entity.aiPrompt)}
-                        className="text-xs font-semibold text-accent hover:underline flex items-center gap-1"
-                      >
-                        <Bot className="h-3.5 w-3.5" /> Perguntar à IA
-                      </button>
-                      <button
-                        onClick={() => handleSearch(entity.name)}
-                        className="text-[11px] font-semibold text-accent hover:underline flex items-center gap-1"
-                      >
-                        <Search className="h-3 w-3" /> Buscar sobre {entity.name}
-                      </button>
-                    </div>
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -591,17 +622,17 @@ const SearchPage = () => {
             </div>
           )}
 
-          {!loading && (searched || query.trim().length > 0) && results.length === 0 && matchedEntities.length === 0 && filteredCharacters.length === 0 && filteredTopics.length === 0 && filteredDevotionals.length === 0 && filteredPopularVerses.length === 0 && (
+          {!loading && searched && results.length === 0 && matchedEntities.length === 0 && filteredCharacters.length === 0 && filteredTopics.length === 0 && filteredDevotionals.length === 0 && filteredPopularVerses.length === 0 && (
             <div className="rounded-xl border border-dashed border-border p-8 text-center space-y-3">
               <BookOpen className="h-10 w-10 text-muted-foreground/40 mx-auto" />
               <p className="text-sm font-medium text-muted-foreground">
                 Não há resultados para sua pesquisa tente novamente mais tarde.
               </p>
               <button
-                onClick={() => handleAskAI(`O que a Bíblia ensina sobre: ${query}?`)}
+                onClick={() => handleAskAI(`O que a Bíblia ensina sobre: ${searchQuery}?`)}
                 className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-xs font-bold text-accent-foreground hover:bg-accent/90 transition-all shadow-sm"
               >
-                <Sparkles className="h-3.5 w-3.5" /> Perguntar à IA Bíblica sobre "{query}"
+                <Sparkles className="h-3.5 w-3.5" /> Perguntar à IA Bíblica sobre "{searchQuery}"
               </button>
             </div>
           )}
@@ -625,10 +656,8 @@ const SearchPage = () => {
                     e.stopPropagation();
                     if (isFavorite(verseId, type)) {
                       removeFavorite(verseId, type);
-                      toast({ title: "Removido de " + type });
                     } else {
                       addFavorite({ id: verseId, text: r.text, reference }, type);
-                      toast({ title: "Salvo com sucesso!" });
                     }
                     setRefreshTrigger(p => p + 1);
                   };
@@ -700,48 +729,51 @@ const SearchPage = () => {
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {filteredCharacters.slice(0, activeTab === "todos" ? 6 : visibleCharactersCount).map((p) => (
-                    <motion.div
-                      key={p.id}
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="glass-card rounded-xl p-4 space-y-2 border border-border/40 hover:border-accent/50 transition-all flex flex-col justify-between"
-                    >
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="rounded bg-accent/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-accent line-clamp-1">
-                            {p.badge.split("•")[0]}
-                          </span>
+                  {filteredCharacters.slice(0, activeTab === "todos" ? 6 : visibleCharactersCount).map((p) => {
+                    const shortName = getShortTitle(p.name);
+                    return (
+                      <motion.div
+                        key={p.id}
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="glass-card rounded-xl p-4 space-y-2 border border-border/40 hover:border-accent/50 transition-all flex flex-col justify-between hover:shadow-md hover:shadow-accent/5 group"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-1 gap-2">
+                            <span className="rounded bg-accent/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-accent line-clamp-1">
+                              {p.badge.split("•")[0].trim()}
+                            </span>
+                            <button
+                              onClick={() => handleAskAI(p.aiPrompt)}
+                              title="Perguntar à IA Bíblica"
+                              className="text-muted-foreground hover:text-accent p-1 transition-colors shrink-0"
+                            >
+                              <Sparkles className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <h3 className="font-serif text-sm font-bold text-foreground">{stripLeadingNumber(p.name)}</h3>
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-3 leading-relaxed">
+                            {p.summary}
+                          </p>
+                        </div>
+
+                        <div className="pt-2 border-t border-border/20 flex items-center justify-between gap-2">
                           <button
                             onClick={() => handleAskAI(p.aiPrompt)}
-                            title="Perguntar à IA Bíblica"
-                            className="text-muted-foreground hover:text-accent p-1 transition-colors"
+                            className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 shrink-0 whitespace-nowrap"
                           >
-                            <Sparkles className="h-3.5 w-3.5" />
+                            <Bot className="h-3.5 w-3.5" /> Perguntar à IA
+                          </button>
+                          <button
+                            onClick={() => handleSearch(shortName)}
+                            className="text-[11px] font-semibold text-accent hover:underline flex items-center gap-1 min-w-0 truncate"
+                          >
+                            <Search className="h-3 w-3 shrink-0" /> <span className="truncate">Buscar sobre {shortName}</span>
                           </button>
                         </div>
-                        <h3 className="font-serif text-sm font-bold text-foreground">{p.name}</h3>
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-3 leading-relaxed">
-                          {p.summary}
-                        </p>
-                      </div>
-
-                      <div className="pt-2 border-t border-border/20 flex items-center justify-between">
-                        <button
-                          onClick={() => handleSearch(p.name)}
-                          className="text-xs font-semibold text-accent hover:underline flex items-center gap-1"
-                        >
-                          <Search className="h-3 w-3" /> Buscar sobre {p.name}
-                        </button>
-                        <button
-                          onClick={() => handleAskAI(p.aiPrompt)}
-                          className="text-[11px] font-medium text-muted-foreground hover:text-foreground flex items-center gap-1"
-                        >
-                          IA <Bot className="h-3 w-3 text-accent" />
-                        </button>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    );
+                  })}
                 </div>
 
                 {filteredCharacters.length === 0 && activeTab === "personagens" && (
@@ -781,47 +813,50 @@ const SearchPage = () => {
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {filteredTopics.slice(0, activeTab === "todos" ? 6 : visibleTopicsCount).map((a) => (
-                    <motion.div
-                      key={a.id}
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="glass-card rounded-xl p-4 space-y-2 border border-border/40 hover:border-accent/50 transition-all flex flex-col justify-between"
-                    >
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="rounded bg-secondary px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground line-clamp-1">
-                            {a.badge.split("•")[0]}
-                          </span>
+                  {filteredTopics.slice(0, activeTab === "todos" ? 6 : visibleTopicsCount).map((a) => {
+                    const shortName = getShortTitle(a.name);
+                    return (
+                      <motion.div
+                        key={a.id}
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="glass-card rounded-xl p-4 space-y-2 border border-border/40 hover:border-accent/50 transition-all flex flex-col justify-between hover:shadow-md hover:shadow-accent/5 group"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-1 gap-2">
+                            <span className="rounded bg-accent/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-accent line-clamp-1">
+                              {a.badge.split("•")[0].trim()}
+                            </span>
+                            <button
+                              onClick={() => handleAskAI(a.aiPrompt)}
+                              className="text-muted-foreground hover:text-accent p-1 transition-colors shrink-0"
+                            >
+                              <Sparkles className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <h3 className="font-serif text-sm font-bold text-foreground">{stripLeadingNumber(a.name)}</h3>
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-3 leading-relaxed">
+                            {a.summary}
+                          </p>
+                        </div>
+
+                        <div className="pt-2 border-t border-border/20 flex items-center justify-between gap-2">
                           <button
                             onClick={() => handleAskAI(a.aiPrompt)}
-                            className="text-muted-foreground hover:text-accent p-1"
+                            className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 shrink-0 whitespace-nowrap"
                           >
-                            <Sparkles className="h-3.5 w-3.5" />
+                            <Bot className="h-3.5 w-3.5" /> Perguntar à IA
+                          </button>
+                          <button
+                            onClick={() => handleSearch(shortName)}
+                            className="text-[11px] font-semibold text-accent hover:underline flex items-center gap-1 min-w-0 truncate"
+                          >
+                            <Search className="h-3 w-3 shrink-0" /> <span className="truncate">Buscar sobre {shortName}</span>
                           </button>
                         </div>
-                        <h3 className="font-serif text-sm font-bold text-foreground">{a.name}</h3>
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-3 leading-relaxed">
-                          {a.summary}
-                        </p>
-                      </div>
-
-                      <div className="pt-2 border-t border-border/20 flex items-center justify-between">
-                        <button
-                          onClick={() => handleSearch(a.name)}
-                          className="text-xs font-semibold text-accent hover:underline flex items-center gap-1"
-                        >
-                          <Search className="h-3 w-3" /> Buscar sobre {a.name}
-                        </button>
-                        <button
-                          onClick={() => handleAskAI(a.aiPrompt)}
-                          className="text-[11px] font-medium text-muted-foreground hover:text-foreground flex items-center gap-1"
-                        >
-                          IA <Bot className="h-3 w-3 text-accent" />
-                        </button>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    );
+                  })}
                 </div>
 
                 {filteredTopics.length === 0 && activeTab === "assuntos" && (
@@ -937,7 +972,7 @@ const SearchPage = () => {
                       <div>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-[10px] font-bold text-accent uppercase tracking-wider">{pv.reference}</span>
-                          <span className="rounded bg-secondary px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">{pv.theme}</span>
+                          <span className="rounded bg-secondary px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">{stripLeadingNumber(pv.theme)}</span>
                         </div>
                         <p className="font-serif text-xs italic leading-relaxed text-card-foreground">"{pv.text}"</p>
                       </div>
@@ -1027,7 +1062,6 @@ const SearchPage = () => {
                         navigator.clipboard.writeText(`"${selectedDevotional.verse}" - ${selectedDevotional.reference}`);
                         setCopiedVerse(true);
                         setTimeout(() => setCopiedVerse(false), 2000);
-                        toast({ title: "Versículo copiado!" });
                       }}
                       className="text-[11px] text-accent hover:underline flex items-center gap-1 font-medium"
                     >
@@ -1087,12 +1121,22 @@ const SearchPage = () => {
                       navigator.clipboard.writeText(fullText);
                       setCopiedDevotional(true);
                       setTimeout(() => setCopiedDevotional(false), 2000);
-                      toast({ title: "Devocional completo copiado!" });
                     }}
                     className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-bold text-muted-foreground hover:text-foreground hover:border-accent transition-all"
                   >
                     {copiedDevotional ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
-                    {copiedDevotional ? "Copiado!" : "Copiar Completo"}
+                    {copiedDevotional ? "Copiado!" : "Copiar"}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const fullText = `📖 ${selectedDevotional.title}\n\n📜 "${selectedDevotional.verse}" (${selectedDevotional.reference})\n\n✍️ REFLEXÃO:\n${selectedDevotional.meditation}\n\n🙏 ORAÇÃO:\n${selectedDevotional.prayer}`;
+                      shareBibleText(fullText, `Devocional: ${selectedDevotional.title}`);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-primary text-primary-foreground px-3.5 py-2 text-xs font-bold hover:opacity-90 transition-all shadow-xs"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    Compartilhar
                   </button>
                 </div>
 

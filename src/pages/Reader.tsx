@@ -21,6 +21,7 @@ const DICT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bible-chat`;
 import { translateVersesAI, checkAndIncrementQuota } from "@/services/translationService";
 import { askDictionaryAI } from "@/services/aiService";
 import { checkAndIncrementUsage } from "@/services/usageService";
+import { shareBibleText } from "@/lib/downloadUtils";
 
 const Reader = () => {
   const { abbrev, chapter } = useParams<{ abbrev: string; chapter: string }>();
@@ -277,7 +278,7 @@ const Reader = () => {
     setNotesMap((p) => noteText.trim() ? { ...p, [verseNum]: noteText.trim() } : (() => { const n = { ...p }; delete n[verseNum]; return n; })());
     setShowNoteInput(null);
     setNoteText("");
-    toast({ title: noteText.trim() ? "Nota salva ✏️" : "Nota removida" });
+    toast({ title: noteText.trim() ? "Nota salva" : "Nota removida" });
   };
 
   const handleCreatePage = () => {
@@ -294,36 +295,8 @@ const Reader = () => {
     const selectedTexts = sorted.map((v) => verses.find((vd) => vd.verse === v)?.text.trim() || "");
     const ref = `${book.name} ${chapterNum}:${sorted.join(",")}`;
     
-    // Formato solicitado pelo usuário:
-    // Texto do versículo
-    // - Referência do versículo
     const shareText = `${selectedTexts.join("\n")}\n- ${ref}`;
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: "Versículo Bíblico",
-          text: shareText,
-        });
-        toast({ title: "Compartilhado com sucesso! 🕊️" });
-      } catch (err: any) {
-        if (err.name !== 'AbortError') {
-          try {
-            await navigator.clipboard.writeText(shareText);
-            toast({ title: "Copiado para a área de transferência! 📋" });
-          } catch (clipErr) {
-            console.error("Erro ao copiar texto:", clipErr);
-          }
-        }
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(shareText);
-        toast({ title: "Copiado para a área de transferência! 📋" });
-      } catch (clipErr) {
-        console.error("Erro ao copiar texto:", clipErr);
-      }
-    }
+    await shareBibleText(shareText, `Versículo Bíblico - ${ref}`);
   };
 
   const handleDictionary = async (verseNum: number) => {
@@ -652,11 +625,9 @@ const Reader = () => {
                           if (isFavorite(verseId)) {
                             removeFavorite(verseId);
                             setFavSet((p) => { const n = new Set(p); n.delete(v.verse); return n; });
-                            toast({ title: "Removido dos favoritos" });
                           } else {
                             addFavorite({ id: verseId, text: v.text.trim(), reference: `${book.name} ${chapterNum}:${v.verse}` });
                             setFavSet((p) => new Set(p).add(v.verse));
-                            toast({ title: "Salvo nos favoritos ❤" });
                           }
                         }}
                         className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:text-accent"

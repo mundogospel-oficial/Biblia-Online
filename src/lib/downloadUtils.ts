@@ -1,10 +1,10 @@
 /**
- * Utility for handling image downloads with specific naming and platform checks.
+ * Utility for handling image and text downloads/sharing with cross-platform fallbacks.
  */
 import { toast } from "@/hooks/use-toast";
 
 export const downloadBibleImage = async (dataUrl: string, fileNamePrefix: string = "biblia-online") => {
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const timestamp = Date.now();
   const fileName = `${fileNamePrefix}-${timestamp}.png`;
 
@@ -12,7 +12,7 @@ export const downloadBibleImage = async (dataUrl: string, fileNamePrefix: string
     if (isMobile) {
       toast({
         title: "Iniciando download",
-        description: "A imagem será salva em sua pasta de downloads ou fotos.",
+        description: "A imagem será salva no seu dispositivo.",
       });
     }
 
@@ -22,8 +22,10 @@ export const downloadBibleImage = async (dataUrl: string, fileNamePrefix: string
     if (dataUrl.startsWith('http')) {
       try {
         const response = await fetch(dataUrl, { mode: 'cors' });
-        const blob = await response.blob();
-        downloadUrl = URL.createObjectURL(blob);
+        if (response.ok) {
+          const blob = await response.blob();
+          downloadUrl = URL.createObjectURL(blob);
+        }
       } catch (err) {
         console.warn("Could not proxy download via CORS blob, using direct URL", err);
         downloadUrl = dataUrl;
@@ -38,19 +40,18 @@ export const downloadBibleImage = async (dataUrl: string, fileNamePrefix: string
     document.body.removeChild(link);
     
     if (downloadUrl.startsWith('blob:')) {
-      // Clean up the object URL after a short delay
-      setTimeout(() => URL.revokeObjectURL(downloadUrl), 100);
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
     }
     
     toast({ 
-      title: isMobile ? "Download iniciado" : "Imagem baixada! 📥",
-      description: `Salvo como ${fileName}`
+      title: "Imagem baixada com sucesso",
+      description: `Arquivo: ${fileName}`
     });
   } catch (error) {
     console.error("Download error:", error);
     toast({ 
       title: "Erro ao baixar", 
-      description: "Houve um problema de permissão ou rede. Tente usar o botão Compartilhar.",
+      description: "Houve um problema de permissão ou rede.",
       variant: "destructive" 
     });
   }
@@ -61,90 +62,167 @@ export const shareBibleImage = async (dataUrl: string, fileNamePrefix: string = 
   const fileName = `${fileNamePrefix}-${timestamp}.png`;
 
   try {
-    const isDataUrl = dataUrl.startsWith('data:');
-    let blob: Blob;
+    let blob: Blob | null = null;
     
-    if (isDataUrl) {
-      // Direct data URL to blob conversion (synchronous & extremely robust)
+    if (dataUrl.startsWith('data:')) {
+      // Direct data URL to blob conversion via fetch or atob
       try {
-        const parts = dataUrl.split(',');
-        const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
-        const binary = atob(parts[1]);
-        const array = [];
-        for (let i = 0; i < binary.length; i++) {
-          array.push(binary.charCodeAt(i));
+        const res = await fetch(dataUrl);
+        blob = await res.blob();
+      } catch {
+        try {
+          const parts = dataUrl.split(',');
+          const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+          const binary = atob(parts[1]);
+          const array = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) {
+            array[i] = binary.charCodeAt(i);
+          }
+          blob = new Blob([array], { type: mime });
+        } catch (decodeErr) {
+          console.error("DataURL decode failed", decodeErr);
         }
-        blob = new Blob([new Uint8Array(array)], { type: mime });
-      } catch (decodeErr) {
-        console.error("DataURL sync decode failed, falling back to fetch", decodeErr);
-        const response = await fetch(dataUrl);
-        blob = await response.blob();
+      }
+    } else if (dataUrl.startsWith('blob:')) {
+      try {
+        const res = await fetch(dataUrl);
+        blob = await res.blob();
+      } catch (e) {
+        console.warn("Fetch blob URL failed", e);
       }
     } else {
-      // External URL
+      // External HTTP URL
       try {
         const response = await fetch(dataUrl, { mode: 'cors' });
-        blob = await response.blob();
+        if (response.ok) {
+          blob = await response.blob();
+        }
       } catch (fetchErr) {
-        console.warn("Fetch failed, trying to share as URL link directly", fetchErr);
-        // Fallback: if we cannot fetch, share as link via Web Share API
-        if (navigator.share) {
-          await navigator.share({
-            title: "Imagem Bíblica",
-            text: "Veja este versículo que criei!",
-            url: dataUrl
+        console.warn("Fetch external image failed", fetchErr);
+      }
+    }
+
+    // Try Web Share API with File
+    if (blob) {
+      const mimeType = blob.type || "image/png";
+      const file = new File([blob], fileName, { type: mimeType });
+
+      if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
+        let canShareFile = false;
+        try {
+          canShareFile = navigator.canShare({ files: [file] });
+        } catch {
+          canShareFile = false;
+        }
+
+        if (canShareFile) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: "Bíblia Online",
+              text: "Veja esta imagem da Bíblia Online!",
+            });
+            toast({ title: "Compartilhado com sucesso" });
+            return;
+          } catch (shareErr: any) {
+            console.warn("navigator.share failed or was canceled:", shareErr);
+            // If user explicitly cancelled/aborted, don't show error toast or run fallbacks
+            if (shareErr?.name === 'AbortError' || shareErr?.name === 'CanceledError' || shareErr?.message?.includes('cancel')) {
+              return;
+            }
+            // Otherwise, fall through to Clipboard / Download fallbacks
+          }
+        }
+      }
+
+      // Fallback 1: Clipboard API with PNG image
+      try {
+        if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+          let pngBlob = blob;
+          if (blob.type !== 'image/png') {
+            pngBlob = new Blob([blob], { type: 'image/png' });
+          }
+          const item = new ClipboardItem({ [pngBlob.type]: pngBlob });
+          await navigator.clipboard.write([item]);
+          toast({
+            title: "Imagem copiada",
+            description: "A imagem foi copiada para a área de transferência.",
           });
           return;
         }
-        throw fetchErr; // proceed to clipboard/download fallback
+      } catch (clipErr) {
+        console.warn("ClipboardItem write failed:", clipErr);
       }
     }
-      
-    const file = new File([blob], fileName, { type: "image/png" });
 
-    // Web Share API with File support
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({
-        files: [file],
-        title: fileName, // Using filename as title sometimes helps OS with previews
-        text: "Veja este versículo que criei!",
-      });
-      return;
-    } 
-    
-    // Fallback: Copy to clipboard if Share API is not available or rejected
-    try {
-      if (typeof ClipboardItem !== 'undefined') {
-        const item = new ClipboardItem({ "image/png": blob });
-        await navigator.clipboard.write([item]);
-        toast({
-          title: "Copiado para transferência",
-          description: "Seu sistema não suporta o menu de compartilhamento de arquivos. A imagem foi copiada para você colar onde desejar.",
+    // Fallback 2: Direct URL sharing via Web Share API if blob sharing failed
+    if (dataUrl.startsWith('http') && typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: "Bíblia Online",
+          text: "Veja esta imagem!",
+          url: dataUrl,
         });
+        toast({ title: "Link compartilhado com sucesso" });
         return;
+      } catch (urlShareErr: any) {
+        if (urlShareErr?.name === 'AbortError' || urlShareErr?.name === 'CanceledError') {
+          return;
+        }
       }
-    } catch (clipboardErr) {
-      console.warn("Clipboard fallback failed", clipboardErr);
     }
 
-    // Final fallback: Forced Download
-    const link = document.createElement("a");
-    link.href = dataUrl;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    toast({
-      title: "Download iniciado",
-      description: "Menu de compartilhamento não disponível. Imagem salva no dispositivo.",
-    });
+    // Fallback 3: Direct Download
+    await downloadBibleImage(dataUrl, fileNamePrefix);
   } catch (error) {
     console.error("Share error:", error);
-    toast({
-      title: "Erro ao compartilhar",
-      description: "Houve um problema ao processar o arquivo da imagem.",
-      variant: "destructive",
-    });
+    try {
+      await downloadBibleImage(dataUrl, fileNamePrefix);
+    } catch {
+      toast({
+        title: "Download iniciado",
+        description: "A imagem foi enviada para salvamento.",
+      });
+    }
+  }
+};
+
+export const shareBibleText = async (text: string, title: string = "Bíblia Online") => {
+  if (!text) return;
+  try {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: title,
+          text: text,
+        });
+        toast({ title: "Compartilhado com sucesso" });
+        return;
+      } catch (shareErr: any) {
+        if (shareErr?.name === 'AbortError' || shareErr?.name === 'CanceledError' || shareErr?.message?.includes('cancel')) {
+          return;
+        }
+      }
+    }
+
+    // Fallback to clipboard
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Texto copiado",
+        description: "O texto foi copiado para a área de transferência.",
+      });
+      return;
+    }
+  } catch (err) {
+    console.error("Share text error:", err);
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        toast({ title: "Texto copiado" });
+      }
+    } catch {
+      toast({ title: "Erro ao copiar ou compartilhar texto.", variant: "destructive" });
+    }
   }
 };

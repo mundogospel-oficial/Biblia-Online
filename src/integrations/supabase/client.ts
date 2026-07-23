@@ -36,7 +36,42 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 const originalGetSession = supabase.auth.getSession.bind(supabase.auth);
 const originalGetUser = supabase.auth.getUser.bind(supabase.auth);
 
-const clearStaleSession = () => {
+export const isAuthRefreshError = (error: any) => {
+  if (!error) return false;
+  
+  let str = '';
+  if (typeof error === 'string') {
+    str = error;
+  } else if (typeof error === 'object') {
+    str = [
+      error.message,
+      error.error_description,
+      error.error,
+      error.msg,
+      error.name,
+      JSON.stringify(error)
+    ].filter(Boolean).join(' ');
+  } else {
+    str = String(error);
+  }
+  
+  const lowered = str.toLowerCase();
+  
+  return (
+    lowered.includes("refresh token") ||
+    lowered.includes("invalid_grant") ||
+    lowered.includes("refresh_token_not_found") ||
+    lowered.includes("invalid refresh token") ||
+    lowered.includes("session_not_found") ||
+    lowered.includes("token not found") ||
+    lowered.includes("user_not_found") ||
+    lowered.includes("jwt expired") ||
+    error?.status === 400 ||
+    error?.status === 401
+  );
+};
+
+export const clearStaleSession = () => {
   console.warn("Stale or invalid Supabase session detected. Automatically cleaning up...");
   try {
     const keysToRemove: string[] = [];
@@ -54,20 +89,6 @@ const clearStaleSession = () => {
   }
 };
 
-const isAuthRefreshError = (error: any) => {
-  if (!error) return false;
-  const errMsg = error.message || String(error);
-  return (
-    errMsg.includes("Refresh Token Not Found") ||
-    errMsg.includes("invalid_grant") ||
-    errMsg.includes("refresh_token_not_found") ||
-    errMsg.includes("Invalid Refresh Token") ||
-    errMsg.includes("session_not_found") ||
-    error.status === 400 ||
-    error.status === 401
-  );
-};
-
 supabase.auth.getSession = async () => {
   try {
     const res = await originalGetSession();
@@ -81,7 +102,7 @@ supabase.auth.getSession = async () => {
       clearStaleSession();
       return { data: { session: null }, error: null };
     }
-    throw err;
+    return { data: { session: null }, error: null };
   }
 };
 
@@ -98,6 +119,24 @@ supabase.auth.getUser = async (jwt?: string) => {
       clearStaleSession();
       return { data: { user: null }, error: null };
     }
-    throw err;
+    return { data: { user: null }, error: null };
   }
 };
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('unhandledrejection', (event) => {
+    if (event.reason && isAuthRefreshError(event.reason)) {
+      console.warn("Intercepted unhandled auth refresh rejection. Clearing stale session.");
+      clearStaleSession();
+      event.preventDefault();
+    }
+  });
+
+  window.addEventListener('error', (event) => {
+    if (event.error && isAuthRefreshError(event.error)) {
+      console.warn("Intercepted auth refresh error. Clearing stale session.");
+      clearStaleSession();
+      event.preventDefault();
+    }
+  });
+}

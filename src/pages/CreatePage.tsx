@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, Fragment } from "react";
+import { useState, useRef, useEffect, useCallback, Fragment } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import VerseCard, { themes, type CardFormat } from "@/components/VerseCard";
@@ -186,7 +186,6 @@ const CreatePage = () => {
       if (foundText) {
         setVerseText(foundText);
         setReference(foundRef || query);
-        toast({ title: "Versículo carregado! ✨" });
       } else {
         toast({ title: "Versículo não encontrado", description: "Verifique o nome do livro e capítulo (ex: João 3:16)", variant: "destructive" });
       }
@@ -201,48 +200,75 @@ const CreatePage = () => {
   const [createImageCount, setCreateImageCount] = useState(0);
   const CREATE_IMAGE_LIMIT = 3;
 
-  useEffect(() => {
-    if (!authUser) return;
-    const checkCreateUsage = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+  const checkCreateUsage = useCallback(async (): Promise<number> => {
+    try {
+      let targetUserId = authUser?.sub;
+      if (!targetUserId) {
+        const { data: { session } } = await supabase.auth.getSession();
+        targetUserId = session?.user?.id;
+      }
+      if (!targetUserId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        targetUserId = user?.id;
+      }
+      if (!targetUserId) return 0;
+
       const today = new Date();
       today.setUTCHours(0, 0, 0, 0);
-      const { count } = await (supabase as any)
+
+      const { count, error } = await supabase
         .from('user_ai_usage')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', session.user.id)
+        .eq('user_id', targetUserId)
         .eq('tipo_uso', 'create_image')
         .gte('created_at', today.toISOString());
-      setCreateImageCount(count || 0);
-    };
-    checkCreateUsage();
+
+      if (!error && count !== null) {
+        setCreateImageCount(count);
+        return count;
+      }
+      return 0;
+    } catch (err) {
+      console.error("Erro ao verificar cota no Criar:", err);
+      return 0;
+    }
   }, [authUser]);
+
+  useEffect(() => {
+    checkCreateUsage();
+  }, [checkCreateUsage]);
 
   const createImageLimitReached = createImageCount >= CREATE_IMAGE_LIMIT;
 
   const handleGenerateAIImage = async () => {
     if (!verseText) { toast({ title: "Adicione um versículo primeiro", variant: "destructive" }); return; }
     if (!authUser) { toast({ title: "Faça login para gerar imagens com IA" }); return; }
-    if (createImageLimitReached) { toast({ title: "Limite diário atingido", description: `Máximo ${CREATE_IMAGE_LIMIT} imagens por dia.`, variant: "destructive" }); return; }
+    
+    // Atualiza cota antes da validação obtendo a cota real direto da consulta
+    const freshCount = await checkCreateUsage();
+
+    if (freshCount >= CREATE_IMAGE_LIMIT) { 
+      toast({ 
+        title: "Limite diário atingido", 
+        description: `Você atingiu o limite de ${CREATE_IMAGE_LIMIT} imagens por dia no Modo Criar. Sua cota recarrega em 12 horas.`, 
+        variant: "destructive" 
+      }); 
+      return; 
+    }
     
     setAiImageLoading(true);
     setAiImageError(false);
     setBgType("ai");
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast({ title: "Faça login para usar este recurso" }); setAiImageLoading(false); return; }
-
       const stylePrompt = customAiPrompt.trim() || imageStyles[selectedStyleIndex].prompt;
-      const fullPrompt = `${verseText}. Estilo visual: ${stylePrompt}`;
+      const fullPrompt = `Cenário de paisagem natural inspirada no versículo: "${verseText}". Estilo: ${stylePrompt}. Apenas paisagem natural inspiradora de fundo, sem pessoas, sem rostos e sem seres humanos.`;
 
       const imageUrl = await generateBiblicalImage(fullPrompt, undefined, activeFormat, true, 'create', true);
 
       if (imageUrl) {
         setAiImageUrl(imageUrl);
-        setCreateImageCount(prev => prev + 1);
-        toast({ title: "Imagem criada pela IA! ✨" });
+        await checkCreateUsage();
         return;
       }
       
@@ -251,6 +277,7 @@ const CreatePage = () => {
       console.error("AI Image Error:", e);
       toast({ title: "Erro na IA", description: e.message || "Falha ao gerar imagem", variant: "destructive" });
     } finally {
+      await checkCreateUsage();
       setAiImageLoading(false);
     }
   };
@@ -258,8 +285,6 @@ const CreatePage = () => {
   const handleDownload = async () => {
     if (!cardContainerRef.current) return;
     const activeQualityObj = qualityOptions.find(q => q.key === exportQuality) || qualityOptions[1];
-
-    toast({ title: `Gerando imagem em ${activeQualityObj.badge}... 🎨` });
 
     try {
       const el = cardContainerRef.current;
@@ -275,7 +300,7 @@ const CreatePage = () => {
       const canvas = await html2canvas(clone, {
         scale: activeQualityObj.scale,
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: null,
         logging: false,
         width: clone.scrollWidth,
@@ -290,18 +315,15 @@ const CreatePage = () => {
 
       const dataUrl = canvas.toDataURL(exportFormat.mime, 0.95);
       await downloadBibleImage(dataUrl);
-      toast({ title: "Download concluído! 📥", description: `Salvo em ${exportFormat.label} (${activeQualityObj.badge})` });
     } catch (err) {
       console.error("Erro ao gerar imagem:", err);
-      toast({ title: "Erro ao baixar imagem", variant: "destructive" });
+      toast({ title: "Erro ao baixar imagem", description: "Ocorreu um problema ao processar os elementos visuais.", variant: "destructive" });
     }
   };
 
   const handleShareImage = async () => {
     if (!cardContainerRef.current) return;
     const activeQualityObj = qualityOptions.find(q => q.key === exportQuality) || qualityOptions[1];
-
-    toast({ title: `Preparando imagem em ${activeQualityObj.badge}... 📤` });
 
     try {
       const el = cardContainerRef.current;
@@ -317,7 +339,7 @@ const CreatePage = () => {
       const canvas = await html2canvas(clone, {
         scale: activeQualityObj.scale, 
         useCORS: true, 
-        allowTaint: true, 
+        allowTaint: false, 
         backgroundColor: null, 
         logging: false,
         width: clone.scrollWidth, 
@@ -329,7 +351,7 @@ const CreatePage = () => {
       await shareBibleImage(dataUrl);
     } catch (err) {
       console.error("Share error:", err);
-      toast({ title: "Erro ao compartilhar", variant: "destructive" });
+      toast({ title: "Erro ao processar imagem", description: "Houve um problema ao preparar a imagem.", variant: "destructive" });
     }
   };
 
@@ -381,7 +403,7 @@ const CreatePage = () => {
           <div className="lg:col-span-5 space-y-4">
             
             {/* Tab Navigation Pill Track */}
-            <div className="grid grid-cols-4 gap-1 p-1 rounded-2xl bg-secondary/60 border border-border/50 backdrop-blur-md relative overflow-x-auto scroll-smooth no-scrollbar">
+            <div className="grid grid-cols-4 gap-1 p-1 rounded-2xl bg-secondary/60 border border-border/50 backdrop-blur-md relative overflow-hidden select-none">
               {[
                 { id: "verse", label: "Versículo", icon: Quote },
                 { id: "background", label: "Fundo", icon: Palette },

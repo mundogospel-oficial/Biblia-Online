@@ -5,6 +5,11 @@ export interface SearchResult {
   text: string;
 }
 
+export function stripLeadingNumber(str?: string): string {
+  if (!str) return "";
+  return str.replace(/^\d{1,5}[.\s-]+\s*/, '').trim();
+}
+
 export interface BiblicalEntity {
   id: string;
   name: string;
@@ -339,9 +344,682 @@ const extraCharacterList = [
   { name: "Lúcio, Manean e Barnabé", badge: "Líderes da Igreja em Antioquia", book: "Atos 13", summary: "Serviam ao Senhor e jejuavam quando o Espírito Santo disse: 'Separai-me Barnabé e Saulo para a obra a que os tenho chamado'." }
 ];
 
+// ---------------------------------------------------------------------------
+// DOCUMENT DATASET: PERSONAGENS BÍBLICOS E HISTÓRIAS DE FÉ (1006 A 1050)
+// ---------------------------------------------------------------------------
+export const expandedCharacterStories: BiblicalEntity[] = [
+  {
+    id: "story-1006",
+    name: "1006. O Chamado de Abrão e a Promessa",
+    type: "personagem",
+    badge: "História de Fé • Gênesis 12",
+    summary: "Deus chama Abrão para sair de sua terra e parentela em Harã, prometendo fazer dele uma grande nação e abençoar todas as famílias da terra através de sua obediência.",
+    keyVerses: [{ reference: "Gênesis 12:1-3", text: "Ora, o Senhor disse a Abrão: Sai-te da tua terra, da tua parentela... e abençoarei os que te abençoarem..." }],
+    aiPrompt: "Explique a história do chamado de Abrão em Gênesis 12 e o significado das promessas de Deus.",
+    tags: ["abraao", "abraão", "chamado", "fe", "promessa", "obediencia", "ur dos caldeus", "hara", "harã", "genesis 12", "pai da fe"]
+  },
+  {
+    id: "story-1007",
+    name: "1007. Melquisedeque: Rei de Salém e Sacerdote",
+    type: "personagem",
+    badge: "Sacerdote do Deus Altíssimo • Figura de Cristo",
+    summary: "Misteriosa figura do Antigo Testamento, Melquisedeque era rei de Salém e sacerdote do Deus Altíssimo. Ele abençoou Abraão e prefigura o sacerdócio eterno de Jesus Cristo.",
+    keyVerses: [{ reference: "Hebreus 7:1-3", text: "Porque este Melquisedeque, rei de Salém, sacerdote do Deus Altíssimo... feito semelhante ao Filho de Deus, permanece sacerdote para sempre." }],
+    aiPrompt: "Quem foi Melquisedeque na Bíblia e qual o seu significado profético como figura de Jesus Cristo?",
+    tags: ["melquisedeque", "salem", "salém", "sacerdote", "pao e vinho", "dizimo", "dízimo", "hebreus", "sacerdocio eterno", "figura de cristo"]
+  },
+  {
+    id: "story-1008",
+    name: "1008. A Provocação da Fé no Monte Moriá",
+    type: "personagem",
+    badge: "Jeová Jireh • Sacrifício de Isaque",
+    summary: "Deus provou a fé de Abraão pedindo-lhe que oferecesse seu filho Isaque em sacrifício. Diante da obediência, Deus proveu um carneiro, revelando-se como Jeová Jireh.",
+    keyVerses: [{ reference: "Gênesis 22:14", text: "E chamou Abraão o nome daquele lugar: O Senhor Proverá; donde se diz até ao dia de hoje: No monte do Senhor se proverá." }],
+    aiPrompt: "O que aconteceu no Monte Moriá com Abraão e Isaque e qual a lição sobre Jeová Jireh?",
+    tags: ["isaque", "monte moria", "moriá", "sacrificio", "provisao", "jeova jireh", "jeová jireh", "fe", "obediencia", "carneiro preso no mato"]
+  },
+  {
+    id: "story-1009",
+    name: "1009. Hagar e o Deus Que Tudo Vê (El Roi)",
+    type: "personagem",
+    badge: "El Roi • Consolo no Deserto",
+    summary: "Sozinha e desesperada no deserto após fugir da casa de Abraão e Sara, Hagar é visitada pelo Anjo do Senhor, descobrindo que Deus enxerga a dor dos marginalizados.",
+    keyVerses: [{ reference: "Gênesis 16:13", text: "E ela chamou o nome do Senhor, que com ela falava: Tu és Deus que me vê; porque disse: Não hei eu também visto aqui o posterior daquele que me vê?" }],
+    aiPrompt: "Quem foi Hagar e qual o significado da revelação do Deus que tudo vê (El Roi)?",
+    tags: ["hagar", "ismael", "el roi", "deserto", "deus que me ve", "consolo", "amparo", "poco de laai-roi"]
+  },
+  {
+    id: "story-1010",
+    name: "1010. A Visão da Escada de Jacó em Betel",
+    type: "personagem",
+    badge: "Casa de Deus • Visão de Betel",
+    summary: "Durante sua fuga de Esaú, Jacó adormece e tem uma visão de uma escada que tocava o céu, com anjos subindo e descendo, marcando aquele lugar como Betel (Casa de Deus).",
+    keyVerses: [{ reference: "Gênesis 28:16-17", text: "E acordou Jacó do seu sono, e disse: Na verdade o Senhor está neste lugar; e eu não o sabia... Este não é outro lugar senão a casa de Deus." }],
+    aiPrompt: "O que significa a visão da Escada de Jacó em Betel segundo a Bíblia?",
+    tags: ["jaco", "jacó", "escada de jaco", "betel", "sonhos", "anjos", "presenca de deus", "casa de deus", "visao"]
+  },
+  {
+    id: "story-1011",
+    name: "1011. A Luta de Jacó com o Anjo no Vade de Jaboque",
+    type: "personagem",
+    badge: "Peniel • Mudança para Israel",
+    summary: "Em uma noite decisiva antes de reencontrar seu irmão Esaú, Jacó luta com um homem misterioso até o amanhecer, tem seu nome mudado para Israel e recebe uma bênção.",
+    keyVerses: [{ reference: "Gênesis 32:28", text: "Então disse: Não se chamará mais o teu nome Jacó, mas Israel; pois como príncipe lutaste com Deus e com os homens, e prevaleceste." }],
+    aiPrompt: "Explique a luta de Jacó no Vade de Jaboque e a mudança de seu nome para Israel.",
+    tags: ["jaco", "jacó", "peniel", "jaboque", "luta com o anjo", "mudanca de nome", "israel", "perseveranca", "transformacao"]
+  },
+  {
+    id: "story-1012",
+    name: "1012. José na Prisão e a Interpretação de Sonhos",
+    type: "personagem",
+    badge: "Dons Espirituais • Fidelidade no Egito",
+    summary: "Mesmo injustamente preso no Egito após a acusação da mulher de Potifar, José permaneceu fiel a Deus e usou o dom divino para interpretar os sonhos do padeiro e do copeiro.",
+    keyVerses: [{ reference: "Gênesis 40:8", text: "Porventura não pertencem a Deus as interpretações? Contai-mas, peço-vos." }],
+    aiPrompt: "Como José do Egito interpretou os sonhos do copeiro e do padeiro na prisão?",
+    tags: ["jose do egito", "prisao", "sonhos", "copeiro e padeiro", "fidelidade", "interpretacao", "dons espirituais"]
+  },
+  {
+    id: "story-1013",
+    name: "1013. O Sonho do Faraó e a Ascensão de José",
+    type: "personagem",
+    badge: "Governador do Egito • Sabedoria",
+    summary: "Faraó tem sonhos com vacas gordas e magras e espigas cheias e mirradas. José interpreta a profecia de 7 anos de fartura e 7 de fome, tornando-se governador do Egito.",
+    keyVerses: [{ reference: "Gênesis 41:39-40", text: "Depois disse Faraó a José: Pois que Deus te fez saber tudo isto, ninguém há tão prudente e sábio como tu. Tu estarás sobre a minha casa..." }],
+    aiPrompt: "Como José interpretou os sonhos do Faraó e se tornou o governador do Egito?",
+    tags: ["jose governador", "sonho do farao", "vacas magras", "7 anos de fome", "sabedoria", "administracao", "providencia divina"]
+  },
+  {
+    id: "story-1014",
+    name: "1014. Joquebede: A Mãe Que Teve Fé para Salvar o Filho",
+    type: "personagem",
+    badge: "Proteção Maternal • Coragem e Fé",
+    summary: "Diante do decreto de Faraó para matar os bebês hebreus, Joquebede escondeu o pequeno Moisés por três meses e depois o colocou num cesto no rio Nilo, confiando na proteção de Deus.",
+    keyVerses: [{ reference: "Êxodo 2:3", text: "Não podendo, porém, mais escondê-lo, tomou um cesto de juncos, e o calafetou com betume e pez; e, pondo nele o menino, o pôs nos juncos à borda do rio." }],
+    aiPrompt: "Quem foi Joquebede e como sua fé salvou a vida do pequeno Moisés no rio Nilo?",
+    tags: ["joquebede", "moises", "cesto no nilo", "protecao maternal", "coragem", "fe", "libertacao de israel"]
+  },
+  {
+    id: "story-1015",
+    name: "1015. Moisés e o Arbusto Ardente no Monte Horebe",
+    type: "personagem",
+    badge: "Eu Sou o Que Sou • Sarça Ardente",
+    summary: "Enquanto apascentava o rebanho no deserto de Midiã, Moisés viu uma sarça que ardia em fogo sem se consumir e ouviu a voz de Deus chamando-o para libertar Israel do Egito.",
+    keyVerses: [{ reference: "Êxodo 3:2", text: "E apareceu-lhe o anjo do Senhor em uma chama de fogo do meio duma sarça; e olhou, e eis que a sarça ardia no fogo, e a sarça não se consumia." }],
+    aiPrompt: "O que Deus revelou a Moisés na sarça ardente no Monte Horebe?",
+    tags: ["moises", "sarca ardente", "monte horebe", "eu sou o que sou", "chamado divino", "santidade", "libertacao"]
+  },
+  {
+    id: "story-1016",
+    name: "1016. Miriã: A Profetisa e o Cântico do Mar Vermelho",
+    type: "personagem",
+    badge: "Louvor e Celebração • Vitória no Mar",
+    summary: "Miriã liderou as mulheres de Israel com tamboris e danças na celebração da vitória após Deus abrir e fechar o Mar Vermelho, destruindo o exército egípcio.",
+    keyVerses: [{ reference: "Êxodo 15:20", text: "Então Miriã, a profetisa, a irmã de Arão, tomou o tamboril na sua mão, e todas as mulheres saíram atrás dela com tamboris e com danças." }],
+    aiPrompt: "Qual a história de Miriã liderando o louvor após a vitória no Mar Vermelho?",
+    tags: ["miria", "miriã", "louvor", "tamboril", "danca", "mar vermelho", "vitoria", "profetisa", "celebracao"]
+  },
+  {
+    id: "story-1017",
+    name: "1017. Bezalel e Aoliabe: Artesãos Cheios do Espírito",
+    type: "personagem",
+    badge: "Talentos e Arte • Tabernáculo",
+    summary: "Deus capacitou Bezalel e Aoliabe com sabedoria, entendimento e habilidades artísticas especiais pelo Espírito Santo para construírem o Tabernáculo e suas peças sagradas.",
+    keyVerses: [{ reference: "Êxodo 35:31", text: "E o encheu do Espírito de Deus, de sabedoria, de entendimento, de ciência e de todo o lavor..." }],
+    aiPrompt: "Quem foram Bezalel e Aoliabe e como o Espírito Santo capacita para a arte e o trabalho?",
+    tags: ["bezalel", "aoliabe", "tabernaculo", "artesaos", "talentos", "criatividade", "uncao", "espirito santo"]
+  },
+  {
+    id: "story-1018",
+    name: "1018. Calebe: O Homem de Espírito Diferente aos 85 Anos",
+    type: "personagem",
+    badge: "Fé Vigorosa • Conquista de Hebrom",
+    summary: "Calebe foi um dos 12 espias enviados a Canaã. Aos 85 anos, demonstrando fé inabalável nas promessas de Deus, reivindicou e conquistou a região montanhosa dos gigantes.",
+    keyVerses: [{ reference: "Josué 14:11", text: "E ainda hoje estou tão forte como no dia em que Moisés me enviou; qual a minha força então era, tal é agora a minha força..." }],
+    aiPrompt: "Qual a lição de fé de Calebe ao conquistar a montanha de Hebrom aos 85 anos?",
+    tags: ["calebe", "josue", "espias", "hebrom", "montanha", "perseveranca", "fe vigorosa", "promessa"]
+  },
+  {
+    id: "story-1019",
+    name: "1019. Raabe e o Cordão Escarlate na Janela",
+    type: "personagem",
+    badge: "Salvação de Jericó • Linhagem do Messias",
+    summary: "Raabe, uma moradora de Jericó, escondeu os espias de Israel por crer no Deus vivo. Como sinal de aliança e proteção, colocou um cordão vermelho na janela e salvou sua família.",
+    keyVerses: [{ reference: "Josué 2:18", text: "Eis que, quando nós entrarmos na terra, atarás este cordão de fio de escarlata à janela por onde nos fizeste descer..." }],
+    aiPrompt: "Quem foi Raabe e qual o significado do cordão escarlate pendurado na sua janela?",
+    tags: ["raabe", "jerico", "cordao escarlate", "espias", "fe", "salvacao da familia", "linhagem de jesus"]
+  },
+  {
+    id: "story-1020",
+    name: "1020. Débora e a Liderança Sob as Palmeiras",
+    type: "personagem",
+    badge: "Juíza e Profetisa • Monte Tabor",
+    summary: "Débora atuou como juíza e profetisa em Israel num tempo de opressão. Ela convocou Baraque para a guerra e marchou à frente do exército com coragem e discernimento espiritual.",
+    keyVerses: [{ reference: "Juízes 4:5", text: "E habitava debaixo da palmeira de Débora... e os filhos de Israel subiam a ela a juízo." }],
+    aiPrompt: "Quem foi Débora na Bíblia e como exercia sua liderança espiritual em Israel?",
+    tags: ["debora", "débora", "juiza", "profetisa", "baraque", "lideranca feminina", "monte tabor", "vitoria", "coragem"]
+  },
+  {
+    id: "story-1021",
+    name: "1021. Jael e a Derrota do Comandante Sísera",
+    type: "personagem",
+    badge: "Estratégia e Coragem • Livramento",
+    summary: "Jael cumpriu a profecia de Débora ao demonstrar astúcia e coragem, derrotando Sísera, o comandante das forças opressoras de Canaã, libertando o povo de Deus.",
+    keyVerses: [{ reference: "Juízes 5:24", text: "Bendita seja sobre as mulheres, Jael... bendita seja sobre as mulheres nas tendas." }],
+    aiPrompt: "Como Jael derrotou Sísera e libertou Israel segundo o livro de Juízes?",
+    tags: ["jael", "sisera", "tenda", "libertacao", "coragem", "juizes", "estrategia"]
+  },
+  {
+    id: "story-1022",
+    name: "1022. A Escolha dos 300 Valentes de Gideão",
+    type: "personagem",
+    badge: "Prova da Água • Vitória do Senhor",
+    summary: "Deus reduziu o exército de Gideão de 32 mil homens para apenas 300, testando-os pela forma como bebiam água no ribeiro, mostrando que a vitória pertence ao Senhor e não à força humana.",
+    keyVerses: [{ reference: "Juízes 7:7", text: "E disse o Senhor a Gideão: Com estes trezentos homens... vos livrarei, e darei os meandritas na tua mão." }],
+    aiPrompt: "Como Deus escolheu os 300 valentes de Gideão no ribeiro e qual o ensinamento da vitória?",
+    tags: ["gideao", "gideão", "300 valentes", "prova da agua", "midiagitas", "livramento", "dependencia de deus"]
+  },
+  {
+    id: "story-1023",
+    name: "1023. Rute e a Declaração de Lealdade a Noemi",
+    type: "personagem",
+    badge: "Amor Incondicional • O Teu Deus é o Meu Deus",
+    summary: "A moabita Rute demonstrou amor incondicional e fidelidade à sua sogra Noemi, proferindo o famoso voto: 'O teu povo será o meu povo, e o teu Deus o meu Deus'.",
+    keyVerses: [{ reference: "Rute 1:16", text: "Não me instes para que te deixe, e me abandone... o teu povo é o meu povo, o teu Deus é o meu Deus." }],
+    aiPrompt: "Qual o compromisso de Rute com Noemi e a lição de lealdade para as nossas famílias?",
+    tags: ["rute", "noemi", "lealdade", "moabita", "amizade", "familia", "compromisso", "remidor"]
+  },
+  {
+    id: "story-1024",
+    name: "1024. Boaz: O Remidor Generoso de Belém",
+    type: "personagem",
+    badge: "Parente Remidor • Ancestral do Rei Davi",
+    summary: "Boaz, um homem rico e temente a Deus, agiu como parente remidor na vida de Rute e Noemi, resgatando suas terras e casando-se com Rute, tornando-se bisavô do rei Davi.",
+    keyVerses: [{ reference: "Rute 2:12", text: "O Senhor retribua o teu feito; e te seja concedido pleno galardão da parte do Senhor Deus de Israel, sob cujas asas te vieste abrigar." }],
+    aiPrompt: "Quem foi Boaz e qual a figura do parente remidor como tipo de Cristo resgatador?",
+    tags: ["boaz", "remidor", "resgate", "rute", "generosidade", "belem", "ancestral de cristo"]
+  },
+  {
+    id: "story-1025",
+    name: "1025. Ana e a Oração Silenciosa no Tabernáculo",
+    type: "personagem",
+    badge: "Oração de Coração • Resposta no Tabernáculo",
+    summary: "Estéril e angustiada, Ana orou de todo o coração no Tabernáculo em Siló, movendo os lábios sem emitir som. Deus respondeu sua oração concedendo-lhe o nascimento do profeta Samuel.",
+    keyVerses: [{ reference: "1 Samuel 1:15", text: "Porém Ana respondeu... Sou uma mulher atribulada de espírito... e tenho derramado a minha alma perante o Senhor." }],
+    aiPrompt: "Como Ana orou no Tabernáculo em Siló e como Deus concedeu o nascimento de Samuel?",
+    tags: ["ana", "oracao de coracao", "dor", "esterilidade", "samuel", "voto", "persistencia", "deus responde"]
+  },
+  {
+    id: "story-1026",
+    name: "1026. Samuel: O Jovem Que Ouviu a Voz do Senhor",
+    type: "personagem",
+    badge: "Fala Senhor • Chamado do Profeta",
+    summary: "Servindo no templo desde criança, o menino Samuel ouviu a voz de Deus chamando seu nome durante a noite e respondeu: 'Fala, Senhor, porque o teu servo ouve'.",
+    keyVerses: [{ reference: "1 Samuel 3:9", text: "Se te chamar, dirás: Fala, Senhor, porque o teu servo ouve." }],
+    aiPrompt: "Como o jovem Samuel aprendeu a ouvir a voz de Deus no Templo com a ajuda de Eli?",
+    tags: ["samuel", "voz de deus", "chamado", "infancia", "discernimento", "obediencia", "profeta"]
+  },
+  {
+    id: "story-1027",
+    name: "1027. A Amizade Aliançada de Jônatas e Davi",
+    type: "personagem",
+    badge: "Lealdade Bíblica • Aliança de Irmãos",
+    summary: "Jônatas, filho do rei Saul, fez um pacto de amizade profunda e desinteressada com Davi, protegendo-o da fúria e inveja do próprio pai Saul.",
+    keyVerses: [{ reference: "1 Samuel 20:42", text: "Vai-te em paz; porque nós temos jurado ambos em nome do Senhor, dizendo: O Senhor seja entre mim e ti..." }],
+    aiPrompt: "O que a história da amizade entre Jônatas e Davi nos ensina sobre fidelidade e lealdade?",
+    tags: ["jonatas", "jônatas", "davi", "amizade biblica", "lealdade", "alianca", "protecao", "amor fraterno"]
+  },
+  {
+    id: "story-1028",
+    name: "1028. Abigail: A Mulher Que Evitou a Derramamento de Sangue",
+    type: "personagem",
+    badge: "Pacificadora • Sabedoria e Diplomacia",
+    summary: "Com sabedoria, discernimento e diplomacia, Abigail intercedeu junto a Davi para impedir que ele destruísse sua casa após a insensatez e grosseria de seu marido Nabal.",
+    keyVerses: [{ reference: "1 Samuel 25:33", text: "Bendita seja a tua prudência, e bendita sejas tu, que hoje me impediste de vir com sangue..." }],
+    aiPrompt: "Quem foi Abigail e como sua sabedoria evitou que Davi fizesse justiça com as próprias mãos?",
+    tags: ["abigail", "nabal", "davi", "paciencia", "prudencia", "pacificadora", "sabedoria feminina"]
+  },
+  {
+    id: "story-1029",
+    name: "1029. Mefibosete e a Graça do Rei na Mesa Real",
+    type: "personagem",
+    badge: "Restauração de Lo-Debar • Graça Real",
+    summary: "Mefibosete, neto de Saul e aleijado de ambos os pés, vivia esquecido em Lo-Debar até que Davi demonstrou bondade por amor a Jônatas, restaurando suas terras e colocando-o em sua mesa.",
+    keyVerses: [{ reference: "2 Samuel 9:13", text: "Morava, pois, Mefibosete em Jerusalém, porquanto comia sempre à mesa do rei; e era coxo de ambos os pés." }],
+    aiPrompt: "Como Davi acolheu Mefibosete de Lo-Debar e qual a ilustração da graça de Deus?",
+    tags: ["mefibosete", "lo-debar", "bondade", "graca", "alianca", "restauracao", "mesa do rei", "consideracao"]
+  },
+  {
+    id: "story-1030",
+    name: "1030. Benaia: O Homem Que Matou um Leão num Poço na Neve",
+    type: "personagem",
+    badge: "Valentes de Davi • Ousadia e Coragem",
+    summary: "Benaia, um dos valentes de Davi, destacou-se por atos inacreditáveis de coragem, como descer a uma cova num dia de neve para combater e matar um leão.",
+    keyVerses: [{ reference: "1 Crônicas 11:22", text: "Benaia... homem valente, grande em feitos... ele desceu e matou um leão dentro de uma cova, no tempo da neve." }],
+    aiPrompt: "Quem foi Benaia e qual o significado de enfrentar e matar um leão na cova num dia de neve?",
+    tags: ["benaia", "valentes de davi", "coragem", "leao no poco", "superacao", "ousadia", "guerreiro"]
+  },
+  {
+    id: "story-1031",
+    name: "1031. O Profeta Natã e a Parábola da Ovelhinha",
+    type: "personagem",
+    badge: "Confronto Profético • Tu És Este Homem",
+    summary: "Natã confrontou o rei Davi com coragem profética após o pecado de adultério e assassinato com Bate-Seba, utilizando uma parábola impactante para levar Davi ao arrependimento.",
+    keyVerses: [{ reference: "2 Samuel 12:13", text: "Então disse Davi a Natã: Pequei contra o Senhor. E disse Natã a Davi: Também o Senhor perdoou o teu pecado; não morrerás." }],
+    aiPrompt: "Como a parábola de Natã levou Davi ao verdadeiro arrependimento relatado no Salmo 51?",
+    tags: ["nata", "natã", "davi", "confronto", "arrependimento", "pecado", "restauracao", "parabola da ovelha"]
+  },
+  {
+    id: "story-1032",
+    name: "1032. Salomão e o Julgamento das Duas Mães",
+    type: "personagem",
+    badge: "Tribunal de Salomão • Discernimento",
+    summary: "Recém-empossado rei, Salomão demonstrou a sabedoria divina ao resolver a disputa entre duas mulheres que reivindicavam a maternidade do mesmo bebê vivo.",
+    keyVerses: [{ reference: "1 Reis 3:27", text: "Então respondeu o rei, e disse: Dai a esta o menino vivo, e de modo nenhum o mateis; esta é sua mãe." }],
+    aiPrompt: "Como o rei Salomão resolveu a disputa entre as duas mulheres pelo mesmo bebê?",
+    tags: ["salomao", "salomão", "sabedoria", "julgamento", "duas maes", "discernimento", "justica", "tribunal real"]
+  },
+  {
+    id: "story-1033",
+    name: "1033. Elias e os Ravenos no Ribeiro de Querite",
+    type: "personagem",
+    badge: "Sustento Milagroso • Ribeiro de Querite",
+    summary: "Durante a época de grande seca em Israel, Deus sustentou o profeta Elias escondido no ribeiro de Querite, enviando corvos para lhe trazerem pão e carne todos os dias.",
+    keyVerses: [{ reference: "1 Reis 17:4", text: "E há de ser que beberás do ribeiro; e eu tenho ordenado aos corvos que ali te sustentem." }],
+    aiPrompt: "Como Deus usou corvos para sustentar o profeta Elias no ribeiro durante a seca?",
+    tags: ["elias", "querite", "corvos", "provisao milagrosa", "seca", "obediencia", "cuidado de deus"]
+  },
+  {
+    id: "story-1034",
+    name: "1034. A Viúva de Sarepta e o Pote de Azeite Inesgotável",
+    type: "personagem",
+    badge: "Multiplicação do Azeite • Provisão na Fome",
+    summary: "Uma viúva pobre preparava-se para fazer sua última refeição com o filho quando o profeta Elias pediu água e pão. Pela fé, a farinha da panela e o azeite da botija não se acabaram.",
+    keyVerses: [{ reference: "1 Reis 17:14", text: "Porque assim diz o Senhor Deus de Israel: A farinha da panela não se acabará, e o azeite da botija não faltará..." }],
+    aiPrompt: "Qual o milagre da farinha e do azeite na casa da viúva de Sarepta?",
+    tags: ["viuva de sarepta", "elias", "milagre do azeite", "farinha", "fe", "provisao", "generosidade"]
+  },
+  {
+    id: "story-1035",
+    name: "1035. Eliseu e o Machado Flutuante",
+    type: "personagem",
+    badge: "Poder do Profeta • Cuidado com o Pequeno",
+    summary: "Durante a construção de uma acomodação para os discípulos dos profetas, a cabeça de ferro de um machado emprestado caiu na água. Eliseu jogou um pedaço de pau e fez o ferro flutuar.",
+    keyVerses: [{ reference: "2 Reis 6:6", text: "E cortou um pau, e o deitou ali, e fez flutuar o ferro." }],
+    aiPrompt: "O que nos ensina o milagre de Eliseu fazendo o machado de ferro flutuar nas águas?",
+    tags: ["eliseu", "machado flutuante", "milagre", "sensibilidade", "cuidado com coisas pequenas", "poder divino"]
+  },
+  {
+    id: "story-1036",
+    name: "1036. Naamã e o Mergulho Sete Vezes no Rio Jordão",
+    type: "personagem",
+    badge: "Cura da Lepra • Obediência e Humildade",
+    summary: "Naamã, um poderoso comandante do exército sírio, precisou vencer o orgulho e obedecer à ordem do profeta Eliseu para mergulhar sete vezes no turvo rio Jordão e ser curado da lepra.",
+    keyVerses: [{ reference: "2 Reis 5:10", text: "E Eliseu lhe mandou um mensageiro, dizendo: Vai, e lava-te sete vezes no Jordão, e a tua carne te恢复á, e ficarás purificado." }],
+    aiPrompt: "Como Naamã foi curado ao mergulhar sete vezes no rio Jordão?",
+    tags: ["naama", "naamã", "lepra", "cura", "rio jordao", "humildade", "obediencia", "milagre", "eliseu"]
+  },
+  {
+    id: "story-1037",
+    name: "1037. A Mulher Sunamita e o Quarto de Profeta",
+    type: "personagem",
+    badge: "Vai Tudo Bem • Ressurreição do Filho",
+    summary: "Uma mulher rica da cidade de Suném demonstrou hospitalidade ao construir um quarto em sua casa para o profeta Eliseu. Mais tarde, Deus retribuiu sua generosidade ressuscitando seu filho.",
+    keyVerses: [{ reference: "2 Reis 4:35", text: "Então o menino espirrou sete vezes, e abriu os olhos." }],
+    aiPrompt: "Quem foi a mulher Sunamita e qual a história do quarto preparado para Eliseu e o milagre do seu filho?",
+    tags: ["sunamita", "hospitalidade", "quarto do profeta", "ressurreicao", "recompensa", "generosidade"]
+  },
+  {
+    id: "story-1038",
+    name: "1038. O Rei Ezequias e a Oração no Templo",
+    type: "personagem",
+    badge: "Oração no Templo • Livramento da Assíria",
+    summary: "Quando a cidade de Jerusalém foi cercada pelo exército assírio e ameaçada por Rabsaqué, o rei Ezequias apresentou as cartas de chantagem no Templo e Deus enviou livramento.",
+    keyVerses: [{ reference: "2 Reis 19:19", text: "Agora, pois, ó Senhor nosso Deus, te rogo que nos livres da sua mão; e assim saberao todos os reinos da terra que só tu és o Senhor Deus." }],
+    aiPrompt: "Como o rei Ezequias levou a ameaça assíria ao altar do Templo em oração?",
+    tags: ["ezequias", "assirios", "oracao no templo", "livramento", "livramento divino", "confianca", "vitoria"]
+  },
+  {
+    id: "story-1039",
+    name: "1039. Josias: O Rei Menino Que Restaurou a Aliança",
+    type: "personagem",
+    badge: "Achado da Lei • Reforma Espiritual",
+    summary: "Ao tornar-se rei com apenas 8 anos, Josias promoveu uma das maiores reformas espirituais de Judá após encontrar o Livro da Lei esquecido dentro do Templo.",
+    keyVerses: [{ reference: "2 Crônicas 34:15", text: "E respondeu Hilquias... Achei o livro da lei na casa do Senhor." }],
+    aiPrompt: "Como o rei menino Josias promoveu a reforma espiritual em Judá após achar o Livro da Lei?",
+    tags: ["josias", "livro da lei", "reforma espiritual", "templo", "avivamento", "obediencia", "jovialidade"]
+  },
+  {
+    id: "story-1040",
+    name: "1040. Os Três Jovens na Fornalha de Fogo Ardente",
+    type: "personagem",
+    badge: "Fornalha Ardente • O Quarto Homem",
+    summary: "Sadraque, Mesaque e Abednego recusaram-se a adorar a estátua de ouro do rei Nabucodonosor. Lançados na fornalha ardente, foram salvos e vistos andando com um quarto homem semelhante ao Filho de Deus.",
+    keyVerses: [{ reference: "Daniel 3:17-18", text: "Eis que o nosso Deus, a quem nós servimos, é capaz de nos livrar da fornalha de fogo ardente... E, se não, fica sabendo, ó rei, que não serviremos a teus deuses." }],
+    aiPrompt: "Qual a lição de fidelidade incondicional de Sadraque, Mesaque e Abednego na fornalha?",
+    tags: ["sadraque", "mesaque", "abednego", "fornalha ardente", "fidelidade", "quarto homem", "integridade"]
+  },
+  {
+    id: "story-1041",
+    name: "1041. Daniel na Cova dos Leões e a Fidelidade na Oração",
+    type: "personagem",
+    badge: "Anjo Fechou a Boca dos Leões • Oração Diária",
+    summary: "Por manter seu costume de orar a Deus três vezes ao dia contra o decreto do rei Dario, Daniel foi lançado na cova dos leões, mas Deus enviou seu anjo e fechou a boca dos animais.",
+    keyVerses: [{ reference: "Daniel 6:10", text: "Daniel... entrava em sua casa (ora, havia no seu quarto janelas abertas da banda de Jerusalém), e três vezes ao dia se punha de joelhos, e orava..." }],
+    aiPrompt: "Por que Daniel foi jogado na cova dos leões e como sua fidelidade de oração o salvou?",
+    tags: ["daniel", "cova dos leoes", "oracao diaria", "integridade", "protecao divina", "fidelidade", "livramento"]
+  },
+  {
+    id: "story-1042",
+    name: "1042. Ester: A Rainha Corajosa Que Intercedeu Pelo Povo",
+    type: "personagem",
+    badge: "Se Perecer, Pereci • Festa de Purim",
+    summary: "Diante do decreto de extermínio dos judeus formulado por Hamã, a rainha Ester jejuou e arriscou a própria vida ao entrar na presença do rei Xerxes sem ser chamada.",
+    keyVerses: [{ reference: "Ester 4:16", text: "E assim irei ter com o rei, ainda que não é segundo a lei; e se perecer, pereci." }],
+    aiPrompt: "Quem foi a rainha Ester e como sua coragem salvou o povo judeu da destruição?",
+    tags: ["ester", "mardoqueu", "hama", "jejum", "coragem", "providencia", "salvamento", "purim"]
+  },
+  {
+    id: "story-1043",
+    name: "1043. Neemias e a Reconstrução dos Muros de Jerusalém",
+    type: "personagem",
+    badge: "Muros de Jerusalém • Liderança em 52 Dias",
+    summary: "Copo-de-leite no palácio persa, Neemias sentiu profunda dor ao saber das ruínas de Jerusalém. Ele liderou o povo na reconstrução dos muros da cidade em apenas 52 dias sob oração e vigília.",
+    keyVerses: [{ reference: "Neemias 4:9", text: "Porém nós oramos ao nosso Deus e pusemos uma guarda contra eles, de dia e de noite..." }],
+    aiPrompt: "Como Neemias reconstruiu os muros de Jerusalém e venceu as estratégias dos inimigos?",
+    tags: ["neemias", "muros de jerusalem", "reconstrucao", "lideranca", "oracao e acao", "superacao de oposicao"]
+  },
+  {
+    id: "story-1044",
+    name: "1044. Jó e o Reestabelecimento do Dobro",
+    type: "personagem",
+    badge: "Paciência de Jó • Restauração em Dobro",
+    summary: "Após perder bens, filhos e a própria saúde sem amaldiçoar a Deus, Jó permaneceu firme em sua fé. No final do processo, o Senhor restaurou a vida de Jó e lhe deu o dobro de tudo o que tinha.",
+    keyVerses: [{ reference: "Jó 1:21", text: "O Senhor o deu, e o Senhor o tomou: bendito seja o nome do Senhor." }],
+    aiPrompt: "Como foi o processo de restauração da vida de Jó após a grande provação?",
+    tags: ["jo", "paciencia", "provacao", "integridade", "restauracao", "bencao dobrada", "soberania de deus"]
+  },
+  {
+    id: "story-1045",
+    name: "1045. A Oração de Zacarias e a Visita do Anjo Gabriel",
+    type: "personagem",
+    badge: "Anúncio de João Batista • Oração Ouvida",
+    summary: "O sacerdote Zacarias e sua esposa Isabel eram idosos e irrepreensíveis. Enquanto Zacarias queimava incenso no Templo, o anjo Gabriel apareceu para anunciar o nascimento de João Batista.",
+    keyVerses: [{ reference: "Lucas 1:13", text: "Zacarias, não temas, porque a tua oração foi ouvida, e Isabel, tua mulher, te dará à luz um filho..." }],
+    aiPrompt: "Como o anjo Gabriel apareceu a Zacarias no Templo para anunciar João Batista?",
+    tags: ["zacarias", "isabel", "anjo gabriel", "joao batista", "milagre na velhice", "oracao ouvida"]
+  },
+  {
+    id: "story-1046",
+    name: "1046. A Anunciação do Anjo a Maria e o Magnificat",
+    type: "personagem",
+    badge: "Magnificat • Eis Aqui a Serva do Senhor",
+    summary: "O anjo Gabriel visitou a virgem Maria em Nazaré para anunciar que ela geraria o Messias pelo poder do Espírito Santo. Maria aceitou com humildade e entoou o belo cântico do Magnificat.",
+    keyVerses: [{ reference: "Lucas 1:46-47", text: "A minha alma engrandece ao Senhor, e o meu espírito se alegra em Deus meu Salvador." }],
+    aiPrompt: "O que foi a Anunciação do anjo Gabriel a Maria e o significado do seu louvor no Magnificat?",
+    tags: ["maria", "anjo gabriel", "anunciacao", "magnificat", "submissao", "encarnacao", "graca"]
+  },
+  {
+    id: "story-1047",
+    name: "1047. Os Magos do Oriente e as Ofertas ao Rei",
+    type: "personagem",
+    badge: "Estrela de Belém • Ouro, Incenso e Mirra",
+    summary: "Guiados por uma estrela no céu, sábios e magos vindos do Oriente viajaram até Belém para adorar o menino Jesus, presenteando-o com ouro, incenso e mirra.",
+    keyVerses: [{ reference: "Mateus 2:2", text: "Onde está aquele que é nascido rei dos judeus? Porque vimos a sua estrela no oriente, e viemos a adorá-lo." }],
+    aiPrompt: "Qual o significado da visita dos Magos do Oriente ao menino Jesus em Belém?",
+    tags: ["magos do oriente", "estrela de belem", "ouro incenso mirra", "adoracao", "nascimento de jesus"]
+  },
+  {
+    id: "story-1048",
+    name: "1048. Simeão e Ana no Templo de Jerusalém",
+    type: "personagem",
+    badge: "Consolação de Israel • Apresentação no Templo",
+    summary: "O idoso Simeão e a profetisa Ana esperaram durante décadas pela consolação de Israel. Ao verem o bebê Jesus sendo apresentado no Templo, reconheceram-no como a luz do mundo.",
+    keyVerses: [{ reference: "Lucas 2:29-30", text: "Agora, Senhor, despedes em paz o teu servo, segundo a tua palavra; pois já os meus olhos viram a tua salvação." }],
+    aiPrompt: "Quem foram Simeão e a profetisa Ana ao presenciarem o bebê Jesus no Templo?",
+    tags: ["simeao", "ana", "templo", "promessa cumprida", "consolo de israel", "bebe jesus", "fidelidade"]
+  },
+  {
+    id: "story-1049",
+    name: "1049. João Batista: A Voz Que Clama no Deserto",
+    type: "personagem",
+    badge: "Eis o Cordeiro de Deus • Pregador do Deserto",
+    summary: "Pregando o batismo de arrependimento no deserto da Judeia, João Batista preparou o caminho para a chegada do Messias, exclamando: 'Eis o Cordeiro de Deus, que tira o pecado do mundo'.",
+    keyVerses: [{ reference: "Mateus 3:3", text: "Voz do que clama no deserto: Preparai o caminho do Senhor, endireitai as suas veredas." }],
+    aiPrompt: "Quem foi João Batista e qual sua missão ao pregar o batismo de arrependimento?",
+    tags: ["joao batista", "deserto", "batismo", "cordeiro de deus", "pregador", "arrependimento", "precursor"]
+  },
+  {
+    id: "story-1050",
+    name: "1050. Natanael Encontrado debaixo da Figueira",
+    type: "personagem",
+    badge: "Um Verdadeiro Israelita • Visão sob a Figueira",
+    summary: "Filipe chamou Natanael para conhecer Jesus de Nazaré. Impressionado por Jesus revelar que já o tinha visto orando sob a figueira antes mesmo do encontro, Natanael professou sua fé.",
+    keyVerses: [{ reference: "João 1:47", text: "Eis aqui um verdadeiro israelita, em quem não há dolo." }],
+    aiPrompt: "Como foi o encontro de Jesus com Natanael e a revelação de tê-lo visto sob a figueira?",
+    tags: ["natanael", "figueira", "filipe", "visao de jesus", "sinceridade", "discipulo", "chamado"]
+  }
+].map(item => ({
+  ...item,
+  name: stripLeadingNumber(item.name),
+  devotionalTitle: item.devotionalTitle ? stripLeadingNumber(item.devotionalTitle) : undefined,
+  aiPrompt: stripLeadingNumber(item.aiPrompt)
+}));
+
+// ---------------------------------------------------------------------------
+// DOCUMENT DATASET: CONHECIMENTO BÍBLICO, TEOLOGIA E VIDA CRISTÃ (1351 A 1370)
+// ---------------------------------------------------------------------------
+export const expandedTheologyTopics: BiblicalEntity[] = [
+  {
+    id: "theo-1351",
+    name: "1351. O Significado da Graça Extravagante de Deus",
+    type: "assunto",
+    badge: "Sola Gratia • Favor Imerecido",
+    summary: "A graça é o favor imerecido de Deus concedido à humanidade. Ela não pode ser comprada nem alcançada por obras, sendo a fonte da nossa salvação mediante a fé em Jesus.",
+    keyVerses: [{ reference: "Efésios 2:8-9", text: "Porque pela graça sois salvos, por meio da fé; e isto não vem de vós, é dom de Deus..." }],
+    aiPrompt: "O que é a graça de Deus segundo a Bíblia e por que a salvação é gratuita?",
+    tags: ["graca", "favor imerecido", "salvacao", "efesios 2", "misericordia", "dom gratuito", "amor incondicional"]
+  },
+  {
+    id: "theo-1352",
+    name: "1352. A Doutrina da Justificação Pela Fé (Sola Fide)",
+    type: "assunto",
+    badge: "Sola Fide • Declarado Justo",
+    summary: "A justificação é o ato judicial de Deus em que Ele declara o pecador justo com base no sacrifício purificador de Jesus, recebido unicamente por meio da fé e não por mérito pessoal.",
+    keyVerses: [{ reference: "Romanos 5:1", text: "Tendo sido, pois, justificados pela fé, temos paz com Deus, por nosso Senhor Jesus Cristo." }],
+    aiPrompt: "O que ensina a doutrina da justificação pela fé na Teologia Reformada e em Romanos?",
+    tags: ["justificacao", "sola fide", "fe", "justica de cristo", "perdao", "tribunal divino", "reforma protestante"]
+  },
+  {
+    id: "theo-1353",
+    name: "1353. A Santificação Contínua e a Transformação Diária",
+    type: "assunto",
+    badge: "Crescimento no Espírito • Maturidade",
+    summary: "A santificação é o processo progressivo operado pelo Espírito Santo na vida do crente, separando-o do pecado e conformando seu caráter e atitudes à imagem de Jesus Cristo.",
+    keyVerses: [{ reference: "2 Coríntios 3:18", text: "Mas todos nós, com rosto descoberto, refletindo como um espelho a glória do Senhor, somos transformados de glória em glória..." }],
+    aiPrompt: "O que é a santificação do crente e como o Espírito Santo nos molda dia após dia?",
+    tags: ["santificacao", "crescimento espiritual", "processo", "espirito santo", "purificacao", "frutos", "maturidade"]
+  },
+  {
+    id: "theo-1354",
+    name: "1354. O Mistério da União Hipostática em Jesus Cristo",
+    type: "assunto",
+    badge: "Cristologia • Verdadeiro Deus e Verdadeiro Homem",
+    summary: "O conceito teológico da União Hipostática explica que Jesus Cristo é totalmente Deus e totalmente homem simultaneamente, unindo duas naturezas perfeitas em uma só pessoa.",
+    keyVerses: [{ reference: "Colossenses 2:9", text: "Porque nele habita corporalmente toda a plenitude da divindade." }],
+    aiPrompt: "Explique a União Hipostática e como Jesus é 100% Deus e 100% homem.",
+    tags: ["uniao hipostatica", "divindade de jesus", "humanidade de jesus", "encarnacao", "teologia", "cristo"]
+  },
+  {
+    id: "theo-1355",
+    name: "1355. A Doutrina do Espírito Santo (Pneumatologia)",
+    type: "assunto",
+    badge: "Pneumatologia • O Parácleto e Guia",
+    summary: "A Pneumatologia é o estudo teológico sobre a pessoa, os atributos e a obra do Espírito Santo, terceira pessoa da Trindade que habita, guia, consola e capacita a Igreja.",
+    keyVerses: [{ reference: "João 16:13", text: "Mas, quando vier aquele Espírito de verdade, ele vos me guiará em toda a verdade..." }],
+    aiPrompt: "Quem é o Espírito Santo segundo a Pneumatologia e qual a Sua habitação no crente?",
+    tags: ["pneumatologia", "espirito santo", "consolador", "paracleto", "habitacao", "santificador", "dons espirituais"]
+  },
+  {
+    id: "theo-1356",
+    name: "1356. Os Nomes Redentores de Deus no Antigo Testamento",
+    type: "assunto",
+    badge: "Yahweh • Revelação do Nome Sagrado",
+    summary: "Os nomes revelados de Deus revelam aspectos do Seu caráter e do Seu cuidado: Jeová Jireh (Provedor), Jeová Rapha (Curador), Jeová Shalom (Nossa Paz) e Jeová Nissi (Bandeira).",
+    keyVerses: [{ reference: "Êxodo 3:14", text: "Disse Deus a Moisés: EU SOU O QUE SOU." }],
+    aiPrompt: "Quais os principais nomes redentores de Deus no Antigo Testamento e seus significados?",
+    tags: ["nomes de deus", "jeova jireh", "jeova rapha", "jeova shalom", "yahweh", "revelacao", "carater divino"]
+  },
+  {
+    id: "theo-1357",
+    name: "1357. O Amor Ágape vs. Outros Tipos de Amor",
+    type: "assunto",
+    badge: "Amor Divino • Ágape, Philia e Eros",
+    summary: "A Bíblia utiliza a palavra grega 'Ágape' para descrever o amor incondicional, sacrificial e eterno de Deus, diferenciando-o do amor fraterno (Philia) e do amor romântico (Eros).",
+    keyVerses: [{ reference: "1 João 4:10", text: "Nisto está o amor, não em que nós tenhamos amado a Deus, mas em que ele nos amou a nós, e enviou seu Filho para propiciação pelos nossos pecados." }],
+    aiPrompt: "Qual a diferença entre amor Ágape, Philia e Eros na Bíblia?",
+    tags: ["amor agape", "amor de deus", "philia", "eros", "1 corintios 13", "sacrificio", "amor incondicional"]
+  },
+  {
+    id: "theo-1358",
+    name: "1358. O Papel e o Significado do Fruto do Espírito",
+    type: "assunto",
+    badge: "Virtudes Cristãs • Gálatas 5",
+    summary: "Em Gálatas 5, o Fruto do Espírito representa a transformação interna e as virtudes morais produzidas pelo Espírito no crente: amor, alegria, paz, paciência, benignidade, bondade, fidelidade, mansidão e domínio próprio.",
+    keyVerses: [{ reference: "Gálatas 5:22-23", text: "Mas o fruto do Espírito é: amor, gozo, paz, longanimidade, benignidade, bondade, fé, mansidão, temperança." }],
+    aiPrompt: "O que é o Fruto do Espírito em Gálatas 5 e como ele se manifesta em nossas atitudes?",
+    tags: ["fruto do espirito", "galatas 5", "virtudes", "carater cristao", "dominio proprio", "mansidao", "amor"]
+  },
+  {
+    id: "theo-1359",
+    name: "1359. O Que É a Batalha Espiritual e Como Lutá-la",
+    type: "assunto",
+    badge: "Armadura de Deus • Efésios 6",
+    summary: "A batalha espiritual é o combate invisível contra forças malignas e tentações. É vencida através de armas espirituais: oração, verdade, fé, Palavra de Deus e a armadura do crente.",
+    keyVerses: [{ reference: "2 Coríntios 10:4", text: "Porque as armas da nossa milícia não são carnais, mas sim poderosas em Deus para destruição das fortalezas." }],
+    aiPrompt: "Como travar e vencer a batalha espiritual usando a armadura de Deus?",
+    tags: ["batalha espiritual", "armadura de deus", "efesios 6", "oracao", "autoridade espiritual", "libertacao"]
+  },
+  {
+    id: "theo-1360",
+    name: "1360. A Importância do Perdão para a Saúde da Alma",
+    type: "assunto",
+    badge: "Liberdade da Amargura • Cura da Alma",
+    summary: "O perdão bíblico é uma decisão de libertar o devedor da culpa e da amargura, espelhando o perdão que recebemos de Deus em Cristo e trazendo cura emocional e libertação espiritual.",
+    keyVerses: [{ reference: "Mateus 6:14-15", text: "Porque, se perdoardes aos homens as suas ofensas, também vosso Pai celestial vos perdoará a vós..." }],
+    aiPrompt: "O que a Bíblia ensina sobre perdoar para alcançar a cura da alma?",
+    tags: ["perdao", "cura da alma", "amargura", "libertacao", "reconciliacao", "pai nosso", "magoa"]
+  },
+  {
+    id: "theo-1361",
+    name: "1361. Como Praticar o Jejum Bíblico com Propósito",
+    type: "assunto",
+    badge: "Consagração do Corpo • Jejum e Oração",
+    summary: "O jejum é a abstinência voluntária de alimentos por razões espirituais, visando consagrar o corpo, intensificar a oração, buscar a direção de Deus e subjugar a carne.",
+    keyVerses: [{ reference: "Mateus 6:17-18", text: "Tu, porém, quando jejuares, unge a tua cabeça, e lava o teu rosto, para não pareceres aos homens que jejuas..." }],
+    aiPrompt: "Como praticar o jejum bíblico de forma agradável ao Senhor e com propósito espiritual?",
+    tags: ["jejum", "oracao", "consagracao", "disciplina espiritual", "direcao divina", "fortalecimento"]
+  },
+  {
+    id: "theo-1362",
+    name: "1362. O Significado e a Prática do Dízimo e Ofertas",
+    type: "assunto",
+    badge: "Malaquias 3 • Adoração e Generosidade",
+    summary: "O dízimo (dez por cento) e as ofertas voluntárias são atos de adoração, gratidão e reconhecimento de que tudo pertence a Deus, apoiando a obra da igreja e a assistência social.",
+    keyVerses: [{ reference: "2 Coríntios 9:7", text: "Cada um contribua segundo propôs no seu coração; não com tristeza, ou por necessidade; porque Deus ama ao que dá com alegria." }],
+    aiPrompt: "O que a Bíblia fala sobre dízimos e ofertas como ato de adoração?",
+    tags: ["dizimo", "ofertas", "generosidade", "dizimos e ofertas", "malaquias 3", "sustentaculo da igreja", "mordomia"]
+  },
+  {
+    id: "theo-1363",
+    name: "1363. O Que É a Mordomia Cristã das Finanças",
+    type: "assunto",
+    badge: "Administração Sábia • Fidelidade com Recursos",
+    summary: "A mordomia cristã é a administração sábia e responsável de todos os recursos que Deus confiou ao ser humano: tempo, dinheiro, talentos, corpo e a criação.",
+    keyVerses: [{ reference: "Lucas 16:10", text: "Quem é fiel no pouco, também é fiel no muito; quem é injusto no pouco, também é injusto no muito." }],
+    aiPrompt: "O que é mordomia cristã e como gerir nossas finanças de forma bíblica?",
+    tags: ["mordomia crista", "financas", "orcamento", "fidelidade", "administracao", "talentos", "responsabilidade"]
+  },
+  {
+    id: "theo-1364",
+    name: "1364. A Oração Intercessora: Orando Pelos Outros",
+    type: "assunto",
+    badge: "Estar na Brecha • Amor ao Próximo",
+    summary: "Interceder é colocar-se na brecha em favor de outra pessoa diante de Deus, clamando por suas necessidades, salvação, cura, proteção e restauração espiritual.",
+    keyVerses: [{ reference: "1 Timóteo 2:1", text: "Admoesto-te, pois, antes de tudo, que se façam deprecações, orações, intercessões, e ações de graças, por todos os homens..." }],
+    aiPrompt: "Como funciona a oração de intercessão e a missão de colocar-se na brecha pelos outros?",
+    tags: ["intercessao", "oracao intercessora", "colocar na brecha", "orar pelos outros", "amor pratico"]
+  },
+  {
+    id: "theo-1365",
+    name: "1365. Como Ter um Devocional Diário Relevante",
+    type: "assunto",
+    badge: "Momento a Sós • Hábito com Deus",
+    summary: "O devocional diário é o tempo a sós reservado para cultivar o relacionamento com Deus por meio da leitura meditada da Bíblia, reflexão e oração pessoal.",
+    keyVerses: [{ reference: "Mateus 6:6", text: "Mas tu, quando orares, entra no teu quarto e, fechando a tua porta, ora a teu Pai que está em secreto..." }],
+    aiPrompt: "Como ter um tempo devocional diário consistente e transformador?",
+    tags: ["devocional diario", "momento a sos", "leitura da biblia", "oracao", "comunhao", "habito diario"]
+  },
+  {
+    id: "theo-1366",
+    name: "1366. Como Vencer o Desânimo e a Frieza Espiritual",
+    type: "assunto",
+    badge: "Avivamento Pessoal • Renovar o Fogo",
+    summary: "O desânimo espiritual pode ser superado reavivando a chama da oração, voltando à Palavra de Deus, buscando comunhão com a igreja e focando nas promessas eternas de Deus.",
+    keyVerses: [{ reference: "2 Timóteo 1:6", text: "Por esta razão te lembro que despertes o dom de Deus que existe em ti pela imposição das minhas mãos." }],
+    aiPrompt: "Como vencer o desânimo espiritual e reacender a fé na vida diária?",
+    tags: ["desanimo espiritual", "frieza espiritual", "primeiro amor", "renovacao", "avivamento pessoal"]
+  },
+  {
+    id: "theo-1367",
+    name: "1367. O Que Diz a Bíblia Sobre a Ansiedade",
+    type: "assunto",
+    badge: "Filipenses 4 • Paz de Deus que Guarda",
+    summary: "A Palavra de Deus orienta a lançar toda a ansiedade e preocupação sobre o Senhor mediante a oração e súplica com ações de graças, recebendo a paz que excede o entendimento.",
+    keyVerses: [{ reference: "1 Pedro 5:7", text: "Lançando sobre ele toda a vossa ansiedade, porque ele tem cuidado de vós." }],
+    aiPrompt: "O que a Bíblia orienta sobre como lidar e superar crises de ansiedade?",
+    tags: ["ansiedade", "preocupacao", "filipenses 4", "paz de deus", "descanso", "confianca", "saude mental"]
+  },
+  {
+    id: "theo-1368",
+    name: "1368. O Luto na Perspectiva Cristã de Esperança",
+    type: "assunto",
+    badge: "Consolo do Espírito • Vida Eterna",
+    summary: "Embora o cristão sinta a dor da separação e da perda de entes queridos, o luto é vivido com a esperança viva da ressurreição em Cristo e da reunião eterna no céu.",
+    keyVerses: [{ reference: "João 14:1-3", text: "Não se turbe o vosso coração; credes em Deus, crede também em mim. Na casa de meu Pai há muitas moradas..." }],
+    aiPrompt: "Como o evangelho traz esperança e consolo durante o momento de luto e dor?",
+    tags: ["luto", "perda", "consolacao", "esperanca", "ressurreicao", "vida eterna", "consolo do espirito"]
+  },
+  {
+    id: "theo-1369",
+    name: "1369. O Papel do Cristão no Trabalho e na Profissão",
+    type: "assunto",
+    badge: "Ética Profissional • Servir com Excelência",
+    summary: "A Bíblia ensina que todo trabalho honesto deve ser realizado com excelência, ética e dedicação, como se estivesse sendo feito para o próprio Senhor Jesus e não para homens.",
+    keyVerses: [{ reference: "Efésios 6:7", text: "Servindo de boa vontade como ao Senhor, e não como aos homens..." }],
+    aiPrompt: "Como ser um bom testemunho cristão no ambiente de trabalho e profissão?",
+    tags: ["trabalho", "profissao", "etica profissional", "excelencia", "colossenses 3", "testemunho profissional"]
+  },
+  {
+    id: "theo-1370",
+    name: "1370. O Verdadeiro Culto Familiar (Altar da Família)",
+    type: "assunto",
+    badge: "Altar no Lar • Ensino da Família",
+    summary: "O culto doméstico é a prática regular de reunir a família no lar para ler as Escrituras, cantar louvores e orar juntos, fortalecendo a fé e a unidade familiar.",
+    keyVerses: [{ reference: "Josué 24:15", text: "Eu e a minha casa serviremos ao Senhor." }],
+    aiPrompt: "Como criar o hábito do culto familiar em casa para ensinar a fé aos filhos?",
+    tags: ["culto domestico", "altar familiar", "oracao em familia", "ensino dos filhos", "unidade"]
+  }
+].map(item => ({
+  ...item,
+  name: stripLeadingNumber(item.name),
+  devotionalTitle: item.devotionalTitle ? stripLeadingNumber(item.devotionalTitle) : undefined,
+  aiPrompt: stripLeadingNumber(item.aiPrompt)
+}));
+
 // Combine all character list items into a clean unified collection
 export const allBiblicalCharacters: BiblicalEntity[] = [
   ...baseCharacters,
+  ...expandedCharacterStories,
   ...extraCharacterList.map((item, idx) => ({
     id: `char-extra-${idx}-${item.name.toLowerCase().replace(/[^a-z0-9]/g, "")}`,
     name: item.name,
@@ -354,7 +1032,12 @@ export const allBiblicalCharacters: BiblicalEntity[] = [
     aiPrompt: `Quem foi ${item.name} na Bíblia (${item.book}) e qual o significado da sua história?`,
     tags: [item.name.toLowerCase(), item.book.toLowerCase(), "personagem", "biblia"]
   }))
-];
+].map(item => ({
+  ...item,
+  name: stripLeadingNumber(item.name),
+  devotionalTitle: item.devotionalTitle ? stripLeadingNumber(item.devotionalTitle) : undefined,
+  aiPrompt: stripLeadingNumber(item.aiPrompt)
+}));
 
 // ---------------------------------------------------------------------------
 // 100+ ASSUNTOS E CONHECIMENTOS BÍBLICOS
@@ -476,6 +1159,7 @@ const biblicalTopicTitles = [
 
 export const allBiblicalTopics: BiblicalEntity[] = [
   ...baseTopics,
+  ...expandedTheologyTopics,
   ...biblicalTopicTitles.map((title, idx) => ({
     id: `topic-extra-${idx}-${title.toLowerCase().replace(/[^a-z0-9]/g, "")}`,
     name: title,
@@ -490,7 +1174,12 @@ export const allBiblicalTopics: BiblicalEntity[] = [
     aiPrompt: `O que a Bíblia ensina detalhadamente sobre ${title}? Me dê versículos e explicações práticas.`,
     tags: [title.toLowerCase(), "conhecimento", "assunto", "teologia", "estudo biblico"]
   }))
-];
+].map(item => ({
+  ...item,
+  name: stripLeadingNumber(item.name),
+  devotionalTitle: item.devotionalTitle ? stripLeadingNumber(item.devotionalTitle) : undefined,
+  aiPrompt: stripLeadingNumber(item.aiPrompt)
+}));
 
 // Combine both lists for unified searches
 export const allBiblicalEntities: BiblicalEntity[] = [
@@ -671,11 +1360,49 @@ const popularPassageReferences = [
   { reference: "Apocalipse 21:4", text: "E Deus limpará de seus olhos toda a lágrima; e não haverá mais morte, nem pranto, nem clamor, nem dor.", theme: "Enxugará Toda Lágrima" }
 ];
 
+// ---------------------------------------------------------------------------
+// DOCUMENT DATASET: PASSAGENS, VERSÍCULOS E ORAÇÕES (1701 A 1725)
+// ---------------------------------------------------------------------------
+export const expandedPassagesAndVerses: PopularVerse[] = [
+  { reference: "Salmos 91", text: "Aquele que habita no esconderijo do Altíssimo, à sombra do Onipotente descansará. Direi do Senhor: Ele é o meu Deus, o meu refúgio, a minha fortaleza, e nele confiarei.", theme: "1701. Salmo 91: O Esconderijo do Altíssimo" },
+  { reference: "Salmos 23", text: "O Senhor é o meu pastor, nada me faltará. Deita-me faz em verdes pastos, guia-me mansamente a águas tranquilas. Refrigera a minha alma...", theme: "1702. Salmo 23: O Senhor É o Meu Pastor" },
+  { reference: "Salmos 121", text: "Levantarei os meus olhos para os montes, de onde vem o meu socorro? O meu socorro vem do Senhor que fez o céu e a terra.", theme: "1703. Salmo 121: De Onde Vem o Meu Socorro" },
+  { reference: "Salmos 46", text: "Deus é o nosso refúgio e fortaleza, socorro bem presente na angústia. Portanto não temeremos, ainda que a terra se mude...", theme: "1704. Salmo 46: Deus É o Nosso Refúgio e Fortaleza" },
+  { reference: "Salmos 139", text: "Senhor, tu me sondaste, e me conheces. Tu sabes o meu assentar e o meu levantar; de longe entendes o meu pensamento.", theme: "1705. Salmo 139: O Deus Que Tudo Sondou e Conhece" },
+  { reference: "Salmos 51", text: "Tem misericórdia de mim, ó Deus, segundo a tua benignidade; apaga as minhas transgressões, segundo a multidão das tuas misericórdias. Lava-me completamente da minha iniquidade...", theme: "1706. Salmo 51: O Clamor de Arrependimento de Davi" },
+  { reference: "Salmos 37:4-5", text: "Deleita-te também no Senhor, e ele te concederá os desejos do teu coração. Entrega o teu caminho ao Senhor; confia nele, e ele o fará.", theme: "1707. Salmo 37: Confia e Deleita-te no Senhor" },
+  { reference: "João 3:16", text: "Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito, para que todo aquele que nele crê não pereça, mas tenha a vida eterna.", theme: "1708. João 3:16 - O Amor de Deus Manifestado no Mundo" },
+  { reference: "Filipenses 4:13", text: "Tudo posso naquele que me fortalece.", theme: "1709. Filipenses 4:13 - Tudo Posso Naquele Que Me Fortalece" },
+  { reference: "Romanos 8:28", text: "E sabemos que todas as coisas cooperam juntamente para o bem daqueles que amam a Deus, daqueles que são chamados segundo o seu propósito.", theme: "1710. Romanos 8:28 - Todas as Coisas Cooperam Para o Bem" },
+  { reference: "Jeremias 29:11", text: "Porque eu bem sei os pensamentos que tenho a vosso respeito, diz o Senhor; pensamentos de paz, e não de mal, para vos dar o fim que esperais.", theme: "1711. Jeremias 29:11 - Pensamentos de Paz e Não de Mal" },
+  { reference: "Isaías 40:31", text: "Mas os que esperam no Senhor renovarão as forças, subirão com asas como águias; correrão, e não se cansarão; caminharão, e não se fatigarão.", theme: "1712. Isaías 40:31 - Os Que Esperam no Senhor Renovam Suas Forças" },
+  { reference: "Josué 1:9", text: "Não te mandei eu? Sê forte e corajoso; não temas, nem te espantes; porque o Senhor teu Deus é contigo, por onde quer que andares.", theme: "1713. Josué 1:9 - Sê Forte e Corajoso, Não Temas" },
+  { reference: "Mateus 6:33", text: "Mas, buscai primeiro o reino de Deus, e a sua justiça, e todas estas coisas vos serão acrescentadas.", theme: "1714. Mateus 6:33 - Buscai Primeiro o Reino de Deus" },
+  { reference: "Provérbios 3:5-6", text: "Confia no Senhor de todo o teu coração, e não te estribes no teu próprio entendimento. Reconhece-o em todos os teus caminhos, e ele endireitará as tuas veredas.", theme: "1715. Provérbios 3:5-6 - Confia no Senhor de Todo o Teu Coração" },
+  { reference: "2 Crônicas 7:14", text: "E se o meu povo, que se chama pelo meu nome, se humilhar, e orar, e buscar a minha face e se converter dos seus maus caminhos, então eu ouvirei dos céus, e perdoarei os seus pecados, e sararei a sua terra.", theme: "1716. 2 Crônicas 7:14 - Se o Meu Povo Se Humilhar e Orar" },
+  { reference: "Isaías 41:10", text: "Não temas, porque eu sou contigo; não te assombres, porque eu sou o teu Deus; eu te fortaleço, e te ajudo, e te sustento com a destra da minha justiça.", theme: "1717. Isaías 41:10 - Não Temas, Porque Eu Sou Contigo" },
+  { reference: "1 Coríntios 13:4-7", text: "O amor é paciente, é bondoso. O amor não inveja, não se vangloria, não se orgulha. Não maltrata, não procura seus interesses, não se ira facilmente, não guarda rancor...", theme: "1718. 1 Coríntios 13:4-7 - O Amor É Paciente e Bondoso" },
+  { reference: "Efésios 6:10-18", text: "Revesti-vos de toda a armadura de Deus, para que possais estar firmes contra as astutas ciladas do diabo... Cingindo os vossos lombos com a verdade, e vestindo-vos da couraça da justiça...", theme: "1719. Efésios 6:10-18 - A Armadura Completa de Deus" },
+  { reference: "Êxodo 15:26 / Isaías 53:5", text: "Eu sou o Senhor que te sara. Pelas suas pisaduras fomos sarados. Ele enviou a sua palavra e os curou, e os livrou da sua destruição.", theme: "1720. Versículos de Cura e Saúde para Enfermos" },
+  { reference: "2 Timóteo 1:7 / 1 João 4:18", text: "Porque Deus não nos deu o espírito de temor, mas de fortaleza, de amor e de moderação. No amor não há medo, antes o perfeito amor lança fora o medo.", theme: "1721. Versículos de Vitória Sobre o Medo e Pânico" },
+  { reference: "Salmos 118:24 / Luta 3:22", text: "Este é o dia que fez o Senhor; regozijemo-nos e alegremo-nos nele. As misericórdias do Senhor são a causa de não sermos consumidos, novas são cada manhã.", theme: "1722. Versículos para Início do Dia e Agradecimento" },
+  { reference: "João 11:25-26 / Apocalipse 21:4", text: "Eu sou a ressurreição e a vida; quem crê em mim, ainda que esteja morto, viverá. E Deus limpará de seus olhos toda a lágrima...", theme: "1723. Versículos de Consolo para Momentos de Luto" },
+  { reference: "Filipenses 4:19 / Salmos 34:10", text: "O meu Deus, segundo as suas riquezas, suprirá todas as vossas necessidades em glória, por Cristo Jesus. Os leõezinhos passam necessidade e fome, mas aos que buscam o Senhor bem nenhum faltará.", theme: "1724. Orações e Versículos de Provisão Financeira" },
+  { reference: "Mateus 6:9-13", text: "Pai nosso, que estás nos céus, santificado seja o teu nome. Venha o teu reino. Seja feita a tua vontade, tanto na terra como no céu. O pão nosso de cada dia nos dá hoje...", theme: "1725. Oração do Pai Nosso Versículo por Versículo" }
+].map(item => ({
+  ...item,
+  theme: item.theme ? stripLeadingNumber(item.theme) : undefined
+}));
+
 export const allPopularVerses: PopularVerse[] = [
   ...popularVerses,
+  ...expandedPassagesAndVerses,
   ...popularPassageReferences.map(p => ({
     reference: p.ref || p.reference || "Bíblia",
     text: p.text,
     theme: p.theme
   }))
-];
+].map(item => ({
+  ...item,
+  theme: item.theme ? stripLeadingNumber(item.theme) : undefined
+}));

@@ -81,7 +81,7 @@ const FavoritesPage = () => {
       ? `"${item.text}" — ${item.reference}\nNota: ${item.note}`
       : `"${item.text}" — ${item.reference}`;
     navigator.clipboard.writeText(textToCopy);
-    toast({ title: "Versículo copiado!" });
+    toast({ title: "Versículo copiado" });
   };
 
   const handleStartEditNote = (item: FavoriteVerse) => {
@@ -93,7 +93,7 @@ const FavoritesPage = () => {
     updateNote(id, noteInputValue.trim(), "notes");
     setItems(getFavorites("notes"));
     setEditingNoteId(null);
-    toast({ title: noteInputValue.trim() ? "Anotação salva! 📝" : "Anotação limpa" });
+    toast({ title: noteInputValue.trim() ? "Anotação salva" : "Anotação removida" });
   };
 
   const getLabel = () => {
@@ -135,7 +135,7 @@ const FavoritesPage = () => {
       <Header />
       <section className="container mx-auto px-4 py-5 sm:py-8">
         <div className="mx-auto max-w-4xl">
-          <div className="mb-6 flex gap-2">
+          <div className="mb-6 flex p-1 gap-1 rounded-full bg-secondary/40 border border-border/60 backdrop-blur-xl shadow-inner relative select-none max-w-lg mx-auto">
             {(["favorites", "markings", "notes"] as ReactionType[]).map((tab) => {
               const isActive = activeTab === tab;
               let label = "";
@@ -156,12 +156,21 @@ const FavoritesPage = () => {
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-[13px] font-bold transition-all ${
-                    isActive ? "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/20" : "bg-[#1e293b] text-white/90 hover:bg-[#2e3d52]"
+                  className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-[13px] font-bold transition-colors duration-200 ${
+                    isActive ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <IconComp className="h-4 w-4" />
-                  {label}
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeFavoriteTabPill"
+                      className="absolute inset-0 rounded-full bg-primary shadow-md"
+                      transition={{ type: "spring", stiffness: 380, damping: 28 }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-1.5">
+                    <IconComp className="h-4 w-4" />
+                    {label}
+                  </span>
                 </button>
               );
             })}
@@ -341,10 +350,8 @@ const FavoritesPage = () => {
                           onClick={() => {
                             if (isSavedInActiveTab) {
                               removeFavorite(recId, activeTab);
-                              toast({ title: `Removido de ${getLabel()}` });
                             } else {
                               addFavorite({ id: recId, text: r.text, reference: r.reference }, activeTab);
-                              toast({ title: `Adicionado a ${getLabel()}!` });
                             }
                             setItems(getFavorites(activeTab));
                           }}
@@ -364,7 +371,6 @@ const FavoritesPage = () => {
                               onClick={() => {
                                 if (isFavorite(recId, "favorites")) removeFavorite(recId, "favorites");
                                 else addFavorite({ id: recId, text: r.text, reference: r.reference }, "favorites");
-                                toast({ title: isFavorite(recId, "favorites") ? "Removido dos Favoritos" : "Salvo em Favoritos!" });
                               }}
                               title="Favoritos"
                               className={`p-1 transition-colors ${
@@ -379,7 +385,6 @@ const FavoritesPage = () => {
                               onClick={() => {
                                 if (isFavorite(recId, "markings")) removeFavorite(recId, "markings");
                                 else addFavorite({ id: recId, text: r.text, reference: r.reference }, "markings");
-                                toast({ title: isFavorite(recId, "markings") ? "Removido das Marcações" : "Salvo em Marcações!" });
                               }}
                               title="Marcações"
                               className={`p-1 transition-colors ${
@@ -394,7 +399,6 @@ const FavoritesPage = () => {
                               onClick={() => {
                                 if (isFavorite(recId, "notes")) removeFavorite(recId, "notes");
                                 else addFavorite({ id: recId, text: r.text, reference: r.reference }, "notes");
-                                toast({ title: isFavorite(recId, "notes") ? "Removido das Anotações" : "Salvo em Anotações!" });
                               }}
                               title="Anotações"
                               className={`p-1 transition-colors ${

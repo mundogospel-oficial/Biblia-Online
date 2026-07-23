@@ -23,6 +23,7 @@ import {
   Filter
 } from "lucide-react";
 import { devotionals, Devotional } from "@/lib/devotionalsData";
+import { shareBibleText } from "@/lib/downloadUtils";
 
 // Helper function to get the icon associated with a category
 const getCategoryIcon = (category: string) => {
@@ -276,12 +277,22 @@ const DevotionalPage = () => {
                     <button
                       onClick={() => handleCopy(
                         "today-full", 
-                        `📖 DEVOCIONAL DIÁRIO\n\n✨ ${todayDevotional.title}\n\n🏷️ Tema: ${todayDevotional.category}\n\n📜 Verse: "${todayDevotional.verse}" (${todayDevotional.reference})\n\n✍️ Reflexão: ${todayDevotional.meditation}\n\n🙏 Oração: ${todayDevotional.prayer}`
+                        `📖 DEVOCIONAL DIÁRIO\n\n✨ ${todayDevotional.title}\n\n🏷️ Tema: ${todayDevotional.category}\n\n📜 Versículo: "${todayDevotional.verse}" (${todayDevotional.reference})\n\n✍️ Reflexão: ${todayDevotional.meditation}\n\n🙏 Oração: ${todayDevotional.prayer}`
                       )}
                       className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-xs font-semibold hover:bg-secondary transition-colors text-foreground"
                     >
                       {copyStatus["today-full"] ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
-                      {copyStatus["today-full"] ? "Copiado para Área de Transferência!" : "Copiar Devocional Completo"}
+                      {copyStatus["today-full"] ? "Copiado!" : "Copiar Devocional"}
+                    </button>
+                    <button
+                      onClick={() => shareBibleText(
+                        `📖 DEVOCIONAL DIÁRIO\n\n✨ ${todayDevotional.title}\n\n🏷️ Tema: ${todayDevotional.category}\n\n📜 Versículo: "${todayDevotional.verse}" (${todayDevotional.reference})\n\n✍️ Reflexão: ${todayDevotional.meditation}\n\n🙏 Oração: ${todayDevotional.prayer}`,
+                        `Devocional: ${todayDevotional.title}`
+                      )}
+                      className="flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold hover:opacity-90 transition-all shadow-sm"
+                    >
+                      <Share2 className="h-3.5 w-3.5" />
+                      Compartilhar Devocional
                     </button>
                   </div>
                 </div>
@@ -297,8 +308,8 @@ const DevotionalPage = () => {
                 exit={{ opacity: 0, y: -10 }}
                 className="space-y-6"
               >
-                {/* Search & Category Filter Section */}
-                <div className="space-y-4">
+                  {/* Search & Category Filter Section */}
+                  <div className="space-y-4">
                   {/* Search input */}
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -440,7 +451,17 @@ const DevotionalPage = () => {
                                   className="flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-[10px] font-semibold hover:bg-secondary transition-colors text-foreground"
                                 >
                                   {copyStatus[copyKey] ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
-                                  {copyStatus[copyKey] ? "Copiado!" : "Copiar Completo"}
+                                  {copyStatus[copyKey] ? "Copiado!" : "Copiar"}
+                                </button>
+                                <button
+                                  onClick={() => shareBibleText(
+                                    `📖 DEVOCIONAL: ${d.title}\n\n📜 "${d.verse}" — ${d.reference}\n\n✍️ Reflexão: ${d.meditation}\n\n🙏 Oração: ${d.prayer}`,
+                                    `Devocional: ${d.title}`
+                                  )}
+                                  className="flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-2.5 py-1.5 text-[10px] font-semibold hover:opacity-90 transition-all shadow-xs"
+                                >
+                                  <Share2 className="h-3 w-3" />
+                                  Compartilhar
                                 </button>
                               </div>
                             </motion.div>
@@ -563,7 +584,17 @@ const DevotionalPage = () => {
                                   className="flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-[10px] font-semibold hover:bg-secondary transition-colors text-foreground"
                                 >
                                   {copyStatus[copyKey] ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
-                                  {copyStatus[copyKey] ? "Copiado!" : "Copiar Completo"}
+                                  {copyStatus[copyKey] ? "Copiado!" : "Copiar"}
+                                </button>
+                                <button
+                                  onClick={() => shareBibleText(
+                                    `📖 DEVOCIONAL: ${d.title}\n\n📜 "${d.verse}" — ${d.reference}\n\n✍️ Reflexão: ${d.meditation}\n\n🙏 Oração: ${d.prayer}`,
+                                    `Devocional: ${d.title}`
+                                  )}
+                                  className="flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-2.5 py-1.5 text-[10px] font-semibold hover:opacity-90 transition-all shadow-xs"
+                                >
+                                  <Share2 className="h-3 w-3" />
+                                  Compartilhar
                                 </button>
                               </div>
                             </motion.div>
