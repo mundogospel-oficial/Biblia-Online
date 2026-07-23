@@ -1,22 +1,23 @@
-const CACHE_NAME = 'biblia-online-v10';
+const CACHE_NAME = 'biblia-online-v11';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/manifest.v2.json',
+  '/manifest.webmanifest',
   '/favicon.ico',
-  '/favicon-32x32.png',
   '/favicon-16x16.png',
+  '/favicon-32x32.png',
+  '/favicon-48x48.png',
   '/apple-touch-icon.png',
   '/apple-touch-icon-precomposed.png',
+  '/icon-144.png',
   '/icon-192.png',
+  '/icon-256.png',
+  '/icon-384.png',
   '/icon-512.png',
   '/icons/logo2.png',
   '/icons/logo3.png',
-  '/icons/icon-any-192.png',
-  '/icons/icon-any-512.png',
-  '/icons/icon-maskable-192.png',
-  '/icons/icon-maskable-512.png',
   '/placeholder.svg'
 ];
 
