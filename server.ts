@@ -7,7 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import fs from "fs";
-import { sanitizeUserPrompt, buildPrivacyEnhancedSystemRule } from "./src/lib/security/privacyGuard";
+import { sanitizeUserPrompt, buildPrivacyEnhancedSystemRule } from "./src/lib/security/privacyGuard.js";
 
 // --- ESM & CJS COMPATIBLE RUNTIME RESOLUTION ---
 

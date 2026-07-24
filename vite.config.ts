@@ -31,8 +31,31 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       emptyOutDir: true,
-      chunkSizeWarningLimit: 2000,
+      chunkSizeWarningLimit: 1200,
       reportCompressedSize: true,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('react/') || id.includes('react-dom/') || id.includes('react-router-dom/')) {
+                return 'vendor-react';
+              }
+              if (id.includes('@supabase/')) {
+                return 'vendor-supabase';
+              }
+              if (id.includes('framer-motion') || id.includes('lucide-react')) {
+                return 'vendor-ui-core';
+              }
+              if (id.includes('@radix-ui')) {
+                return 'vendor-radix';
+              }
+              if (id.includes('recharts') || id.includes('d3')) {
+                return 'vendor-charts';
+              }
+            }
+          }
+        }
+      }
     }
   };
 });
