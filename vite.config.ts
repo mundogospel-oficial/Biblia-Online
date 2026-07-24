@@ -31,25 +31,28 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       emptyOutDir: true,
-      chunkSizeWarningLimit: 1200,
-      reportCompressedSize: true,
+      chunkSizeWarningLimit: 2500,
+      reportCompressedSize: false,
       rollupOptions: {
         output: {
           manualChunks(id) {
             if (id.includes('node_modules')) {
-              if (id.includes('react/') || id.includes('react-dom/') || id.includes('react-router-dom/')) {
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
                 return 'vendor-react';
               }
-              if (id.includes('@supabase/')) {
+              if (id.includes('@supabase')) {
                 return 'vendor-supabase';
               }
-              if (id.includes('framer-motion') || id.includes('lucide-react')) {
-                return 'vendor-ui-core';
+              if (id.includes('framer-motion')) {
+                return 'vendor-motion';
+              }
+              if (id.includes('lucide-react')) {
+                return 'vendor-icons';
               }
               if (id.includes('@radix-ui')) {
                 return 'vendor-radix';
               }
-              if (id.includes('recharts') || id.includes('d3')) {
+              if (id.includes('recharts') || id.includes('d3') || id.includes('d3-')) {
                 return 'vendor-charts';
               }
             }
