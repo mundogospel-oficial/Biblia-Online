@@ -20,10 +20,14 @@ import {
   Check, 
   HeartHandshake,
   ArrowRight,
-  Filter
+  Filter,
+  Clock
 } from "lucide-react";
 import { devotionals, Devotional } from "@/lib/devotionalsData";
+import { readingPlans } from "@/lib/readingPlansData";
+import { getFavoritePlanIds, toggleFavoritePlan } from "@/services/readingPlanService";
 import { shareBibleText } from "@/lib/downloadUtils";
+import { ReadingPlansSection } from "@/components/ReadingPlansSection";
 
 // Helper function to get the icon associated with a category
 const getCategoryIcon = (category: string) => {
@@ -44,14 +48,15 @@ const getCategoryIcon = (category: string) => {
 };
 
 const DevotionalPage = () => {
-  const [activeTab, setActiveTab] = useState<"hoje" | "explorar" | "favoritos">("hoje");
+  const [activeTab, setActiveTab] = useState<"hoje" | "planos" | "explorar" | "favoritos">("hoje");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("Todas");
   const [expandedDevotionalId, setExpandedDevotionalId] = useState<number | null>(null);
   const [favoritedIds, setFavoritedIds] = useState<number[]>([]);
+  const [favoritedPlanIds, setFavoritedPlanIds] = useState<string[]>(getFavoritePlanIds());
   const [copyStatus, setCopyStatus] = useState<{ [key: string]: boolean }>({});
 
-  // Load favorites from localStorage on mount
+  // Load favorites from localStorage on mount & when switching tabs
   useEffect(() => {
     const saved = localStorage.getItem("biblia-devocionais-favoritos");
     if (saved) {
@@ -61,7 +66,8 @@ const DevotionalPage = () => {
         console.error("Error parsing favorites", e);
       }
     }
-  }, []);
+    setFavoritedPlanIds(getFavoritePlanIds());
+  }, [activeTab]);
 
   // Save favorites to localStorage when they change
   const toggleFavorite = (id: number) => {
@@ -140,20 +146,21 @@ const DevotionalPage = () => {
             <div>
               <div className="flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-accent sm:h-6 sm:w-6" />
-                <h1 className="font-serif text-xl font-bold text-foreground sm:text-2xl">Devocionais Diários</h1>
+                <h1 className="font-serif text-xl font-bold text-foreground sm:text-2xl">Devocionais e Planos Diários</h1>
               </div>
               <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-                Uma coleção inspiradora de mais de 100 meditações diárias para fortalecer sua fé
+                Meditações diárias e planos de leitura estruturados para fortalecer sua fé a cada dia.
               </p>
             </div>
           </div>
 
           {/* Tab Navigation */}
-          <div className="mb-6 flex flex-wrap gap-2 border-b border-border pb-4 relative overflow-x-auto scroll-smooth no-scrollbar">
+          <div className="mb-6 flex gap-1.5 overflow-x-auto pb-2.5 border-b border-border/30 relative scroll-smooth themed-scrollbar select-none">
             {[
               { id: "hoje", label: "Devocional de Hoje", icon: Sparkles },
-              { id: "explorar", label: `Explorar Todos (${devotionals.length})`, icon: Compass },
-              { id: "favoritos", label: `Meus Favoritos (${favoritedIds.length})`, icon: Heart },
+              { id: "planos", label: "Planos de Leitura", icon: BookOpen },
+              { id: "explorar", label: `Explorar Devocionais (${devotionals.length})`, icon: Compass },
+              { id: "favoritos", label: `Meus Favoritos (${favoritedIds.length + favoritedPlanIds.length})`, icon: Heart },
             ].map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -161,10 +168,10 @@ const DevotionalPage = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`relative flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition-colors select-none ${
+                  className={`relative flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors select-none shrink-0 ${
                     isActive
                       ? "text-primary-foreground font-bold"
-                      : "bg-secondary/40 text-secondary-foreground hover:bg-secondary"
+                      : "bg-secondary/70 text-muted-foreground hover:bg-secondary hover:text-foreground"
                   }`}
                 >
                   {isActive && (
@@ -194,14 +201,17 @@ const DevotionalPage = () => {
                 className="space-y-6"
               >
                 {/* Header card info */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-accent/5 rounded-xl border border-accent/20 gap-3">
-                  <div>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent mb-1.5">
-                      🌟 Meditação do Dia
+                <div className="glass-card rounded-2xl p-5 sm:p-6 border border-border bg-card/50 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1.5">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/15 px-3 py-1 text-xs font-bold text-accent border border-accent/20">
+                      <Sparkles className="h-3.5 w-3.5" /> Meditação do Dia
                     </span>
-                    <h2 className="text-sm font-semibold text-foreground capitalize">{formattedTodayDate}</h2>
+                    <h2 className="font-serif text-lg sm:text-xl font-bold text-foreground capitalize">
+                      {formattedTodayDate}
+                    </h2>
                   </div>
-                  <div className="text-xs text-muted-foreground flex items-center gap-1 bg-secondary/30 px-3 py-1.5 rounded-lg border border-border">
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-secondary/60 px-3.5 py-1.5 text-xs font-medium text-muted-foreground border border-border/80 shadow-xs shrink-0 self-start md:self-center">
+                    <Clock className="h-3.5 w-3.5 text-accent" />
                     <span>Muda automaticamente à meia-noite</span>
                   </div>
                 </div>
@@ -299,7 +309,19 @@ const DevotionalPage = () => {
               </motion.div>
             )}
 
-            {/* 2. EXPLORAR ALL TAB */}
+            {/* 2. PLANOS DE LEITURA TAB */}
+            {activeTab === "planos" && (
+              <motion.div
+                key="planos-tab"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                <ReadingPlansSection />
+              </motion.div>
+            )}
+
+            {/* 3. EXPLORAR ALL TAB */}
             {activeTab === "explorar" && (
               <motion.div
                 key="explorar-tab"
@@ -328,24 +350,36 @@ const DevotionalPage = () => {
                       <Filter className="h-3 w-3" />
                       Filtrar por Tema
                     </label>
-                    <div className="flex gap-1.5 overflow-x-auto pb-2.5 themed-scrollbar">
-                      {categories.map((cat) => (
-                        <button
-                          key={cat}
-                          onClick={() => {
-                            setSelectedCategory(cat);
-                            setExpandedDevotionalId(null);
-                          }}
-                          className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
-                            selectedCategory === cat
-                              ? "bg-accent text-accent-foreground"
-                              : "bg-secondary/50 text-secondary-foreground hover:bg-secondary"
-                          }`}
-                        >
-                          {cat !== "Todas" && getCategoryIcon(cat)}
-                          {cat}
-                        </button>
-                      ))}
+                    <div className="flex gap-1.5 overflow-x-auto pb-2.5 scroll-smooth themed-scrollbar select-none">
+                      {categories.map((cat) => {
+                        const isActive = selectedCategory === cat;
+                        return (
+                          <button
+                            key={cat}
+                            onClick={() => {
+                              setSelectedCategory(cat);
+                              setExpandedDevotionalId(null);
+                            }}
+                            className={`relative flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors select-none shrink-0 ${
+                              isActive
+                                ? "text-primary-foreground font-bold"
+                                : "bg-secondary/70 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                            }`}
+                          >
+                            {isActive && (
+                              <motion.div
+                                layoutId="activeDevotionalCategoryPill"
+                                className="absolute inset-0 rounded-full bg-primary shadow-sm"
+                                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                              />
+                            )}
+                            <span className="relative z-10 flex items-center gap-1.5">
+                              {cat !== "Todas" && getCategoryIcon(cat)}
+                              {cat}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -491,130 +525,191 @@ const DevotionalPage = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="space-y-6"
+                className="space-y-8"
               >
-                {favoritedDevotionals.length > 0 ? (
-                  <div className="space-y-3">
-                    {favoritedDevotionals.map((d, index) => {
-                      const isExpanded = expandedDevotionalId === d.id;
-                      const copyKey = `favorito-full-${d.id}`;
+                {/* Devocionais Favoritos */}
+                <div className="space-y-3">
+                  <h2 className="text-sm font-bold text-foreground flex items-center gap-2 font-serif">
+                    <Heart className="h-4 w-4 text-red-500 fill-red-500" />
+                    Devocionais Favoritados ({favoritedDevotionals.length})
+                  </h2>
 
-                      return (
-                        <motion.div
-                          key={d.id}
-                          initial={{ opacity: 0, y: 5 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.03 }}
-                          className={`glass-card rounded-xl border transition-all cursor-pointer p-4 hover:border-accent/40 ${
-                            isExpanded ? "bg-secondary/20 !border-accent/30 shadow-sm" : "bg-card/40"
-                          }`}
-                          onClick={() => setExpandedDevotionalId(isExpanded ? null : d.id)}
-                        >
-                          <div className="flex justify-between items-start gap-3">
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-1.5 text-accent font-semibold text-[10px] uppercase tracking-wider">
-                                {getCategoryIcon(d.category)}
-                                <span>{d.category}</span>
+                  {favoritedDevotionals.length > 0 ? (
+                    <div className="space-y-3">
+                      {favoritedDevotionals.map((d, index) => {
+                        const isExpanded = expandedDevotionalId === d.id;
+                        const copyKey = `favorito-full-${d.id}`;
+
+                        return (
+                          <motion.div
+                            key={d.id}
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.03 }}
+                            className={`glass-card rounded-xl border transition-all cursor-pointer p-4 hover:border-accent/40 ${
+                              isExpanded ? "bg-secondary/20 !border-accent/30 shadow-sm" : "bg-card/40"
+                            }`}
+                            onClick={() => setExpandedDevotionalId(isExpanded ? null : d.id)}
+                          >
+                            <div className="flex justify-between items-start gap-3">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5 text-accent font-semibold text-[10px] uppercase tracking-wider">
+                                  {getCategoryIcon(d.category)}
+                                  <span>{d.category}</span>
+                                </div>
+                                <h3 className="font-serif text-sm sm:text-base font-bold text-foreground">
+                                  {d.title}
+                                </h3>
                               </div>
-                              <h3 className="font-serif text-sm sm:text-base font-bold text-foreground">
-                                {d.title}
-                              </h3>
+
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleFavorite(d.id);
+                                }}
+                                className="rounded-full p-1.5 bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20"
+                                title="Remover dos favoritos"
+                              >
+                                <Heart className="h-3.5 w-3.5" fill="currentColor" />
+                              </button>
                             </div>
 
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleFavorite(d.id);
-                              }}
-                              className="rounded-full p-1.5 bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20"
-                              title="Remover dos favoritos"
-                            >
-                              <Heart className="h-3.5 w-3.5" fill="currentColor" />
-                            </button>
+                            <p className="mt-2.5 font-serif text-xs italic leading-relaxed text-card-foreground line-clamp-2">
+                              "{d.verse}"
+                            </p>
+                            <p className="mt-1 text-[10px] font-bold text-accent/90 flex justify-between items-center">
+                              <span>— {d.reference}</span>
+                              <span className="text-[10px] font-normal text-muted-foreground/75 flex items-center gap-0.5">
+                                {isExpanded ? "Recolher" : "Ler reflexão completa"}
+                                <ArrowRight className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                              </span>
+                            </p>
+
+                            {/* Expanded content */}
+                            {isExpanded && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="mt-4 pt-4 border-t border-border/50 space-y-4"
+                              >
+                                {/* Meditation */}
+                                <div className="space-y-1.5">
+                                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                                    <BookOpen className="h-3 w-3 text-accent" />
+                                    Reflexão
+                                  </h4>
+                                  <p className="text-xs leading-relaxed text-foreground/85 whitespace-pre-line text-justify">
+                                    {d.meditation}
+                                  </p>
+                                </div>
+
+                                {/* Prayer */}
+                                <div className="rounded-lg bg-background p-3.5 border border-border/50 space-y-1">
+                                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                                    <HeartHandshake className="h-3 w-3 text-primary" />
+                                    Oração recomendada
+                                  </h4>
+                                  <p className="text-xs italic leading-relaxed text-foreground/75">
+                                    {d.prayer}
+                                  </p>
+                                </div>
+
+                                {/* Action buttons */}
+                                <div className="flex gap-2 justify-end pt-2">
+                                  <button
+                                    onClick={() => handleCopy(
+                                      copyKey, 
+                                      `📖 DEVOCIONAL: ${d.title}\n\n📜 "${d.verse}" — ${d.reference}\n\n✍️ Reflexão: ${d.meditation}\n\n🙏 Oração: ${d.prayer}`
+                                    )}
+                                    className="flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-[10px] font-semibold hover:bg-secondary transition-colors text-foreground"
+                                  >
+                                    {copyStatus[copyKey] ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                                    {copyStatus[copyKey] ? "Copiado!" : "Copiar"}
+                                  </button>
+                                  <button
+                                    onClick={() => shareBibleText(
+                                      `📖 DEVOCIONAL: ${d.title}\n\n📜 "${d.verse}" — ${d.reference}\n\n✍️ Reflexão: ${d.meditation}\n\n🙏 Oração: ${d.prayer}`,
+                                      `Devocional: ${d.title}`
+                                    )}
+                                    className="flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-2.5 py-1.5 text-[10px] font-semibold hover:opacity-90 transition-all shadow-xs"
+                                  >
+                                    <Share2 className="h-3 w-3" />
+                                    Compartilhar
+                                  </button>
+                                </div>
+                              </motion.div>
+                            )}
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic bg-secondary/20 p-3 rounded-lg border border-border/40">
+                      Nenhum devocional individual salvo nos favoritos ainda.
+                    </p>
+                  )}
+                </div>
+
+                {/* Planos de Leitura Favoritados */}
+                <div className="space-y-3 pt-4 border-t border-border/40">
+                  <h2 className="text-sm font-bold text-foreground flex items-center gap-2 font-serif">
+                    <Calendar className="h-4 w-4 text-accent" />
+                    Planos de Leitura Favoritados ({favoritedPlanIds.length})
+                  </h2>
+
+                  {favoritedPlanIds.length > 0 ? (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {readingPlans
+                        .filter((p) => favoritedPlanIds.includes(p.id))
+                        .map((plan) => (
+                          <div
+                            key={plan.id}
+                            className="glass-card rounded-2xl p-4 border border-border/60 bg-card/40 space-y-3 flex flex-col justify-between hover:border-accent/40 transition-all shadow-xs"
+                          >
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className={`inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[10px] font-bold border ${plan.bgGradient}`}>
+                                  {plan.badge}
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    toggleFavoritePlan(plan.id);
+                                    setFavoritedPlanIds(getFavoritePlanIds());
+                                  }}
+                                  className="p-1 rounded-full text-red-500 hover:bg-red-500/10 transition-colors"
+                                  title="Remover dos favoritos"
+                                >
+                                  <Heart className="h-4 w-4 fill-red-500" />
+                                </button>
+                              </div>
+
+                              <div>
+                                <h3 className="font-serif text-base font-bold text-foreground">{plan.title}</h3>
+                                <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{plan.description}</p>
+                              </div>
+                            </div>
+
+                            <div className="pt-2 border-t border-border/30 flex items-center justify-between gap-2">
+                              <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1">
+                                <Clock className="h-3 w-3" /> {plan.durationDays} Dias
+                              </span>
+                              <button
+                                onClick={() => setActiveTab("planos")}
+                                className="inline-flex items-center gap-1 text-xs font-bold text-accent hover:underline"
+                              >
+                                Ir para o Plano <ArrowRight className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
                           </div>
-
-                          <p className="mt-2.5 font-serif text-xs italic leading-relaxed text-card-foreground line-clamp-2">
-                            "{d.verse}"
-                          </p>
-                          <p className="mt-1 text-[10px] font-bold text-accent/90 flex justify-between items-center">
-                            <span>— {d.reference}</span>
-                            <span className="text-[10px] font-normal text-muted-foreground/75 flex items-center gap-0.5">
-                              {isExpanded ? "Recolher" : "Ler reflexão completa"}
-                              <ArrowRight className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
-                            </span>
-                          </p>
-
-                          {/* Expanded content */}
-                          {isExpanded && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: "auto" }}
-                              onClick={(e) => e.stopPropagation()}
-                              className="mt-4 pt-4 border-t border-border/50 space-y-4"
-                            >
-                              {/* Meditation */}
-                              <div className="space-y-1.5">
-                                <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                                  <BookOpen className="h-3 w-3 text-accent" />
-                                  Reflexão
-                                </h4>
-                                <p className="text-xs leading-relaxed text-foreground/85 whitespace-pre-line text-justify">
-                                  {d.meditation}
-                                </p>
-                              </div>
-
-                              {/* Prayer */}
-                              <div className="rounded-lg bg-background p-3.5 border border-border/50 space-y-1">
-                                <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                                  <HeartHandshake className="h-3 w-3 text-primary" />
-                                  Oração recomendada
-                                </h4>
-                                <p className="text-xs italic leading-relaxed text-foreground/75">
-                                  {d.prayer}
-                                </p>
-                              </div>
-
-                              {/* Action buttons */}
-                              <div className="flex gap-2 justify-end pt-2">
-                                <button
-                                  onClick={() => handleCopy(
-                                    copyKey, 
-                                    `📖 DEVOCIONAL: ${d.title}\n\n📜 "${d.verse}" — ${d.reference}\n\n✍️ Reflexão: ${d.meditation}\n\n🙏 Oração: ${d.prayer}`
-                                  )}
-                                  className="flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-[10px] font-semibold hover:bg-secondary transition-colors text-foreground"
-                                >
-                                  {copyStatus[copyKey] ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
-                                  {copyStatus[copyKey] ? "Copiado!" : "Copiar"}
-                                </button>
-                                <button
-                                  onClick={() => shareBibleText(
-                                    `📖 DEVOCIONAL: ${d.title}\n\n📜 "${d.verse}" — ${d.reference}\n\n✍️ Reflexão: ${d.meditation}\n\n🙏 Oração: ${d.prayer}`,
-                                    `Devocional: ${d.title}`
-                                  )}
-                                  className="flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-2.5 py-1.5 text-[10px] font-semibold hover:opacity-90 transition-all shadow-xs"
-                                >
-                                  <Share2 className="h-3 w-3" />
-                                  Compartilhar
-                                </button>
-                              </div>
-                            </motion.div>
-                          )}
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-12 rounded-xl border border-dashed border-border bg-secondary/10">
-                    <Heart className="mx-auto h-8 w-8 text-muted-foreground/50 mb-3" />
-                    <p className="text-sm text-muted-foreground">Você ainda não salvou nenhum devocional nos seus favoritos.</p>
-                    <button 
-                      onClick={() => setActiveTab("explorar")}
-                      className="mt-3 text-xs text-accent font-semibold hover:underline"
-                    >
-                      Começar a explorar e favoritar
-                    </button>
-                  </div>
-                )}
+                        ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic bg-secondary/20 p-3 rounded-lg border border-border/40">
+                      Nenhum plano de leitura salvo nos favoritos ainda.
+                    </p>
+                  )}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'biblia-online-v16';
+const CACHE_NAME = 'biblia-online-v17';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -100,8 +100,8 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // Rule 2: Serve PWA icons from cache with network fallback
-  if (url.pathname.includes('/icons/') || url.pathname.includes('/icon-') || url.pathname.endsWith('.png') || url.pathname.endsWith('.ico')) {
+  // Rule 2: Serve PWA icons and apple-touch-icons from cache with network fallback
+  if (url.pathname.includes('/icons/') || url.pathname.includes('/icon-') || url.pathname.includes('apple-touch-icon') || url.pathname.endsWith('.png') || url.pathname.endsWith('.ico')) {
     event.respondWith(
       caches.match(event.request).then((cached) => {
         return cached || fetch(event.request).then((networkResponse) => {

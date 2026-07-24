@@ -57,7 +57,7 @@ const AccountPage = () => {
   const { checkRisk } = useSentinel();
 
   const [turnstileToken, setTurnstileToken] = useState("");
-  const [appVersion, setAppVersion] = useState("2.1");
+  const [appVersion, setAppVersion] = useState("2.5");
   const [notificationTestError, setNotificationTestError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,7 +68,7 @@ const AccountPage = () => {
     fetch('/version.json', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => setAppVersion(data.version))
-      .catch(() => setAppVersion("2.1"));
+      .catch(() => setAppVersion("2.5"));
 
     const loadProfile = async () => {
       if (authCtx.user) {

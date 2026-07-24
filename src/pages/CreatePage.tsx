@@ -7,7 +7,7 @@ import {
   Download, Palette, RectangleVertical, Square, RectangleHorizontal,
   Image, Type, Search, Loader2, Sparkles, Wand2, Eye, Share2, ImageOff, WifiOff,
   Sliders, RefreshCw, Check, BookOpen, Quote, Layers, SlidersHorizontal, SlidersVertical,
-  Maximize2, AlignmentLeft, AlignmentCenter, AlignmentRight
+  Maximize2, AlignmentLeft, AlignmentCenter, AlignmentRight, AlertCircle
 } from "lucide-react";
 import html2canvas from "html2canvas-pro";
 import { useToast } from "@/hooks/use-toast";
@@ -58,7 +58,7 @@ const imageStyles = [
 ];
 
 const verseCategorySuggestions = [
-  { topic: "Amor & Fé", ref: "1 Coríntios 13:13" },
+  { topic: "Amor e Fé", ref: "1 Coríntios 13:13" },
   { topic: "Paz", ref: "Filipe 4:7" },
   { topic: "Força", ref: "Isaías 40:31" },
   { topic: "Proteção", ref: "Salmos 91:1" },
@@ -288,33 +288,20 @@ const CreatePage = () => {
 
     try {
       const el = cardContainerRef.current;
-      const clone = el.cloneNode(true) as HTMLElement;
-      clone.style.position = "absolute";
-      clone.style.left = "-9999px";
-      clone.style.top = "0";
-      clone.style.width = el.scrollWidth + "px";
-      clone.style.height = el.scrollHeight + "px";
-      clone.style.overflow = "visible";
-      document.body.appendChild(clone);
 
-      const canvas = await html2canvas(clone, {
+      const canvas = await html2canvas(el, {
         scale: activeQualityObj.scale,
         useCORS: true,
         allowTaint: false,
         backgroundColor: null,
         logging: false,
-        width: clone.scrollWidth,
-        height: clone.scrollHeight,
-        windowWidth: clone.scrollWidth,
-        windowHeight: clone.scrollHeight,
-        x: 0,
-        y: 0,
+        imageTimeout: 15000,
+        scrollX: 0,
+        scrollY: 0,
       });
-      
-      document.body.removeChild(clone);
 
       const dataUrl = canvas.toDataURL(exportFormat.mime, 0.95);
-      await downloadBibleImage(dataUrl);
+      await downloadBibleImage(dataUrl, "Biblia-Online-Arte");
     } catch (err) {
       console.error("Erro ao gerar imagem:", err);
       toast({ title: "Erro ao baixar imagem", description: "Ocorreu um problema ao processar os elementos visuais.", variant: "destructive" });
@@ -327,28 +314,20 @@ const CreatePage = () => {
 
     try {
       const el = cardContainerRef.current;
-      const clone = el.cloneNode(true) as HTMLElement;
-      clone.style.position = "absolute";
-      clone.style.left = "-9999px";
-      clone.style.top = "0";
-      clone.style.width = el.scrollWidth + "px";
-      clone.style.height = el.scrollHeight + "px";
-      clone.style.overflow = "visible";
-      document.body.appendChild(clone);
 
-      const canvas = await html2canvas(clone, {
+      const canvas = await html2canvas(el, {
         scale: activeQualityObj.scale, 
         useCORS: true, 
         allowTaint: false, 
         backgroundColor: null, 
         logging: false,
-        width: clone.scrollWidth, 
-        height: clone.scrollHeight,
+        imageTimeout: 15000,
+        scrollX: 0,
+        scrollY: 0,
       });
-      document.body.removeChild(clone);
 
       const dataUrl = canvas.toDataURL("image/png", 0.95);
-      await shareBibleImage(dataUrl);
+      await shareBibleImage(dataUrl, "Biblia-Online-Arte");
     } catch (err) {
       console.error("Share error:", err);
       toast({ title: "Erro ao processar imagem", description: "Houve um problema ao preparar a imagem.", variant: "destructive" });
@@ -705,12 +684,58 @@ const CreatePage = () => {
                           />
                         </div>
 
+                        {/* Animated Limit Banner */}
+                        <AnimatePresence>
+                          {createImageLimitReached && (
+                            <motion.div 
+                              initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                              className="p-3.5 rounded-2xl border border-rose-500/30 bg-gradient-to-r from-rose-500/15 via-rose-500/10 to-amber-500/10 backdrop-blur-md shadow-md space-y-2 overflow-hidden"
+                            >
+                              <div className="flex items-center gap-3">
+                                <motion.div 
+                                  animate={{ scale: [1, 1.15, 1], rotate: [0, -6, 6, 0] }}
+                                  transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+                                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 shadow-inner"
+                                >
+                                  <AlertCircle className="h-5 w-5" />
+                                </motion.div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center justify-between gap-1.5">
+                                    <p className="text-xs font-bold text-rose-200 tracking-tight">
+                                      Limite Diário Atingido
+                                    </p>
+                                    <span className="shrink-0 rounded-full bg-rose-500/25 px-2 py-0.5 text-[10px] font-bold text-rose-300 border border-rose-500/30">
+                                      {CREATE_IMAGE_LIMIT}/{CREATE_IMAGE_LIMIT} hoje
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-rose-300/80 leading-snug mt-0.5">
+                                    Você atingiu o limite de {CREATE_IMAGE_LIMIT} imagens por dia. Sua cota recarrega em 12 horas.
+                                  </p>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+
                         <button
                           onClick={handleGenerateAIImage}
                           disabled={aiImageLoading || createImageLimitReached}
-                          className="w-full flex items-center justify-center gap-2 rounded-xl bg-accent py-2.5 text-xs font-bold text-accent-foreground hover:opacity-90 active:scale-95 disabled:opacity-50 transition-all shadow-md"
+                          className={`w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all shadow-md ${
+                            createImageLimitReached
+                              ? "bg-rose-950/40 text-rose-300 border border-rose-500/30 cursor-not-allowed opacity-80"
+                              : "bg-accent text-accent-foreground hover:opacity-90 active:scale-95 disabled:opacity-50"
+                          }`}
                         >
-                          {aiImageLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                          {aiImageLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : createImageLimitReached ? (
+                            <AlertCircle className="h-4 w-4 text-rose-400 animate-pulse" />
+                          ) : (
+                            <Sparkles className="h-4 w-4" />
+                          )}
                           <span>
                             {createImageLimitReached
                               ? `Limite diário atingido (${CREATE_IMAGE_LIMIT}/${CREATE_IMAGE_LIMIT})`
@@ -839,7 +864,7 @@ const CreatePage = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                       <Sparkles className="h-3.5 w-3.5 text-accent" />
-                      Qualidade & Resolução
+                      Qualidade e Resolução
                     </span>
                     <span className="text-[10px] font-mono font-medium text-accent bg-accent/15 px-2 py-0.5 rounded-full border border-accent/30">
                       {qualityOptions.find(q => q.key === exportQuality)?.badge}
@@ -935,10 +960,19 @@ const CreatePage = () => {
               </div>
             </div>
 
-            {/* Canvas Outer Frame - Full background edge-to-edge */}
-            <div className="rounded-2xl border border-border/60 bg-black/40 shadow-2xl flex flex-col items-center justify-center overflow-hidden p-0 w-full transition-all relative">
+            {/* Canvas Outer Frame - Adjusted tightly to image aspect ratio */}
+            <div className="flex flex-col items-center justify-center w-full transition-all relative py-1">
               
-              <div ref={cardContainerRef} className="w-full transition-all duration-300 rounded-2xl overflow-hidden">
+              <div 
+                ref={cardContainerRef} 
+                className={`w-full transition-all duration-300 rounded-2xl overflow-hidden shadow-2xl border border-border/40 ${
+                  activeFormat === "story" 
+                    ? "max-w-xs sm:max-w-sm mx-auto" 
+                    : activeFormat === "square" 
+                    ? "max-w-md mx-auto" 
+                    : "max-w-xl mx-auto"
+                }`}
+              >
                 
                 {/* Condition A: AI Image Background */}
                 {bgType === "ai" && (aiImageUrl || aiImageLoading) ? (
@@ -1007,6 +1041,18 @@ const CreatePage = () => {
                         </>
                       )}
                     </div>
+
+                    {/* Marca d'água permanente no canto direito */}
+                    <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-20 pointer-events-none select-none">
+                      <img 
+                        src="/logo-white.png" 
+                        alt="" 
+                        draggable={false}
+                        onContextMenu={(e) => e.preventDefault()}
+                        onDragStart={(e) => e.preventDefault()}
+                        className="h-6 sm:h-8 w-auto object-contain opacity-40 drop-shadow-sm pointer-events-none select-none no-copy-logo"
+                      />
+                    </div>
                   </div>
                 ) : bgType === "gradient" ? (
                   /* Condition B: Custom Gradient Background */
@@ -1043,6 +1089,18 @@ const CreatePage = () => {
                           )}
                         </>
                       )}
+                    </div>
+
+                    {/* Marca d'água permanente no canto direito */}
+                    <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-20 pointer-events-none select-none">
+                      <img 
+                        src="/logo-white.png" 
+                        alt="" 
+                        draggable={false}
+                        onContextMenu={(e) => e.preventDefault()}
+                        onDragStart={(e) => e.preventDefault()}
+                        className="h-6 sm:h-8 w-auto object-contain opacity-40 drop-shadow-sm pointer-events-none select-none no-copy-logo"
+                      />
                     </div>
                   </div>
                 ) : (

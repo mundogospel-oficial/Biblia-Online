@@ -27,7 +27,7 @@ export const checkAndIncrementUsage = async (type: 'simple' | 'complex' | 'image
     }
 
     const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
     const todayISO = today.toISOString();
 
     // 1. VERIFICAÇÃO RÍGIDA DE COTA: Consultar contagem direta na tabela user_ai_usage
@@ -108,7 +108,7 @@ export const getUserUsage = async (providedUserId?: string) => {
     if (!navigator.onLine) return { simple_count: 0, complex_count: 0, image_count: 0 };
 
     const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
     const todayISO = today.toISOString();
 
     const { data, error } = await supabase
@@ -163,7 +163,7 @@ export const refundUsage = async (type: 'simple' | 'complex' | 'image' | 'create
 
     // Remove o último registro de uso desse tipo hoje
     const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
     
     const { data: lastUsage, error: selectError } = await supabase
       .from('user_ai_usage')

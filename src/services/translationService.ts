@@ -1,6 +1,5 @@
-import { supabase } from '@/integrations/supabase/client';
 import { checkAndIncrementUsage } from './usageService';
-import { getSystemRule } from './aiService';
+import { getSystemRule, fetchKeys } from './aiService';
 
 export interface VerseToTranslate {
   verse: number;
@@ -30,95 +29,94 @@ export const translateVersesAI = async (
   targetLang: 'en' | 'pt',
   signal?: AbortSignal
 ): Promise<TranslatedVerse[]> => {
-  const openRouterKey = import.meta.env.VITE_OPENROUTER_API_KEY;
-  if (!openRouterKey) throw new Error("Chave VITE_OPENROUTER_API_KEY não configurada.");
+  const { openRouterKey, openRouterKey2 } = await fetchKeys();
+  const openRouterKeys = [openRouterKey, openRouterKey2, import.meta.env.VITE_OPENROUTER_API_KEY].filter(Boolean) as string[];
 
-  const freeModels = [
-    "deepseek/deepseek-chat",
-    "google/gemma-2-9b-it:free",
-    "meta-llama/llama-3.1-8b-instruct:free",
-    "mistralai/mistral-7b-instruct:free",
-    "microsoft/phi-3-medium-128k-instruct:free",
-    "qwen/qwen-2.5-7b-instruct:free",
-    "nousresearch/hermes-3-llama-3.1-8b:free",
-    "openrouter/free"
-  ];
+  if (openRouterKeys.length === 0) {
+    throw new Error("Chave OpenRouter não configurada para tradução.");
+  }
 
-  const systemRule = await getSystemRule();
   const sourceLang = targetLang === 'en' ? 'Português' : 'Inglês';
   const languageName = targetLang === 'en' ? 'Inglês' : 'Português';
-  
+
+  const systemRule = await getSystemRule();
+
   const prompt = `REGRAS MESTRAS: ${systemRule}
 
-Você é um tradutor bíblico especializado. Sua missão é traduzir versículos do ${sourceLang} para o ${languageName}.
+Você é um tradutor bíblico de altíssima precisão. Traduza do ${sourceLang} para o ${languageName}.
 Diretrizes:
-- Use uma linguagem reverente e erudita (Almeida no PT, KJV/NIV no EN).
-- Mantenha a numeração original dos versículos.
-- NÃO adicione justificativas, comentários ou explicações.
-- Responda apenas com o JSON solicitado.
-- Respeite as REGRAS MESTRAS acima.
+- Use linguagem bíblica fluida e erudita (Almeida no PT, KJV/NIV no EN).
+- Mantenha a numeração exata dos versículos.
+- NÃO adicione notas, comentários ou explicações extra.
+- Responda estritamente no formato JSON solicitado.
 
-Formato esperado:
+Formato de resposta JSON:
 {
   "translations": [
-    { "verse": número, "text": "tradução aqui" }
+    { "verse": número, "text": "texto traduzido" }
   ]
 }
 
 Versículos para traduzir:
 ${verses.map(v => `${v.verse}: ${v.text}`).join('\n')}`;
 
-  let lastError = "";
+  const freeModels = [
+    "deepseek/deepseek-chat",
+    "google/gemma-2-9b-it:free",
+    "meta-llama/llama-3.1-8b-instruct:free",
+    "mistralai/mistral-7b-instruct:free",
+    "qwen/qwen-2.5-7b-instruct:free",
+    "openrouter/free"
+  ];
 
-  for (const model of freeModels) {
-    try {
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openRouterKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': window.location.origin,
-          'X-Title': 'Biblia Online Translation'
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: [
-            { role: "system", content: "Você é um tradutor especializado em textos bíblicos. Retorne apenas JSON." },
-            { role: "user", content: prompt }
-          ],
-          response_format: { type: "json_object" }
-        }),
-        signal
-      });
+  let lastError = "Não foi possível conectar ao serviço OpenRouter de tradução.";
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error?.message || `Status HTTP: ${response.status}`);
-      }
+  for (const routerKey of openRouterKeys) {
+    for (const model of freeModels) {
+      try {
+        if (!navigator.onLine) throw new Error("Sem conexão com a internet.");
 
-      const data = await response.json();
-      const content = data?.choices?.[0]?.message?.content;
-      
-      if (content) {
-        try {
-          // Remover possíveis blocos de código markdown se o modelo ignorar o system prompt
-          const cleanContent = content.replace(/```json\n?|```/g, '').trim();
-          const parsed = JSON.parse(cleanContent);
-          if (parsed && Array.isArray(parsed.translations)) {
-            return parsed.translations;
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${routerKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': window.location.origin,
+            'X-Title': 'Biblia Online Translation'
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              { role: "system", content: "Você é um tradutor especializado em textos bíblicos. Retorne apenas JSON." },
+              { role: "user", content: prompt }
+            ],
+            response_format: { type: "json_object" }
+          }),
+          signal
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const content = data?.choices?.[0]?.message?.content;
+          if (content) {
+            const cleanContent = content.replace(/```json\n?|```/g, '').trim();
+            const parsed = JSON.parse(cleanContent);
+            if (parsed && Array.isArray(parsed.translations)) {
+              return parsed.translations;
+            }
           }
-        } catch (parseError) {
-          console.warn(`Erro ao processar JSON do modelo ${model}:`, parseError);
-          lastError = "JSON inválido retornado pelo modelo";
-          continue; // Tenta o próximo modelo
+        } else {
+          const errorData = await response.json().catch(() => null);
+          lastError = errorData?.error?.message || `Status HTTP: ${response.status}`;
         }
+      } catch (err: any) {
+        if (err.name === 'AbortError') throw err;
+        lastError = err.message;
+        console.warn(`[Tradução OpenRouter - ${model}] falhou:`, err.message);
       }
-    } catch (error: any) {
-      console.warn(`Modelo ${model} falhou na tradução:`, error.message);
-      lastError = error.message;
-      if (error.name === 'AbortError') throw error;
     }
   }
-  
-  throw new Error(`Falha em todos os modelos de tradução. Detalhe: ${lastError}`);
+
+  throw new Error(`Erro na tradução: ${lastError}`);
 };
+

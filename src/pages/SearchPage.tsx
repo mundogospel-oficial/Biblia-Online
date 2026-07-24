@@ -5,7 +5,7 @@ import {
   Search, Loader2, Clock, X, Filter, Sparkles, Bot, 
   BookOpen, Heart, Highlighter, StickyNote, Copy, 
   ArrowRight, User, Flame, Shield, Star, Sun, Cross, Crown, MessageSquare, Compass, ChevronDown,
-  Eye, CheckCircle2, Bookmark, Share2, Check
+  Eye, CheckCircle2, Bookmark, Share2, Check, Calendar, Trash2
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { bibleBooks } from "@/lib/bibleData";
@@ -17,6 +17,7 @@ import {
   allRecommendedDevotionals, allPopularVerses, stripLeadingNumber
 } from "@/lib/searchData";
 import { devotionals as allDailyDevotionals, Devotional as MainDevotional } from "@/lib/devotionalsData";
+import { readingPlans } from "@/lib/readingPlansData";
 import { shareBibleText } from "@/lib/downloadUtils";
 
 const HISTORY_KEY = "bible-search-history";
@@ -179,7 +180,7 @@ const SearchPage = () => {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<"todos" | "personagens" | "assuntos" | "devocionais" | "passagens">("todos");
+  const [activeTab, setActiveTab] = useState<"todos" | "planos" | "personagens" | "assuntos" | "devocionais" | "passagens">("todos");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Devotional Modal state
@@ -189,6 +190,7 @@ const SearchPage = () => {
   const [copiedDevotional, setCopiedDevotional] = useState(false);
 
   // Visible counts for "Ver mais" / pagination in tabs
+  const [visiblePlansCount, setVisiblePlansCount] = useState(12);
   const [visibleCharactersCount, setVisibleCharactersCount] = useState(12);
   const [visibleTopicsCount, setVisibleTopicsCount] = useState(12);
   const [visibleDevotionalsCount, setVisibleDevotionalsCount] = useState(12);
@@ -248,6 +250,7 @@ const SearchPage = () => {
     addToHistory(q);
 
     // Reset pagination counts when new search is run
+    setVisiblePlansCount(12);
     setVisibleCharactersCount(12);
     setVisibleTopicsCount(12);
     setVisibleDevotionalsCount(12);
@@ -381,6 +384,26 @@ const SearchPage = () => {
       .map(item => item.topic);
   }, [searchQuery]);
 
+  // Rank Reading Plans
+  const filteredReadingPlans = useMemo(() => {
+    if (!searchQuery.trim()) return readingPlans;
+
+    return readingPlans
+      .map(p => ({
+        plan: p,
+        score: calculateRelevanceScore(searchQuery, {
+          primaryName: p.title,
+          secondaryName: p.subtitle,
+          category: p.category,
+          badge: p.badge,
+          summary: p.description
+        })
+      }))
+      .filter(item => item.score > 15)
+      .sort((a, b) => b.score - a.score)
+      .map(item => item.plan);
+  }, [searchQuery]);
+
   // Rank Devotionals
   const filteredDevotionals = useMemo(() => {
     if (!searchQuery.trim()) return unifiedSearchDevotionals;
@@ -443,7 +466,8 @@ const SearchPage = () => {
                 <div className="relative w-full">
                   <input 
                     id="search-input"
-                    type="search"
+                    type="text"
+                    inputMode="search"
                     aria-label="Campo de busca bíblica"
                     maxLength={300}
                     value={query} 
@@ -514,9 +538,10 @@ const SearchPage = () => {
           </div>
 
           {/* Quick Category Tabs with Counts */}
-          <div className="flex gap-1.5 overflow-x-auto pb-1 scroll-smooth scrollbar-none border-b border-border/30 relative">
+          <div className="flex gap-1.5 overflow-x-auto pb-2.5 scroll-smooth themed-scrollbar border-b border-border/30 relative">
             {[
-              { id: "todos", label: "Todos & Destaques", icon: Compass },
+              { id: "todos", label: "Todos e Destaques", icon: Compass },
+              { id: "planos", label: `Planos Diários (${filteredReadingPlans.length})`, icon: Calendar },
               { id: "personagens", label: `Personagens (${filteredCharacters.length})`, icon: User },
               { id: "assuntos", label: `Conhecimento (${filteredTopics.length})`, icon: BookOpen },
               { id: "devocionais", label: `Devocionais (${filteredDevotionals.length})`, icon: Flame },
@@ -557,7 +582,7 @@ const SearchPage = () => {
                 <div className="flex items-center gap-1.5">
                   <User className="h-4 w-4 text-accent" />
                   <h2 className="font-serif text-sm font-bold text-foreground sm:text-base">
-                    Conhecimento & Personagens Relacionados ({matchedEntities.length})
+                    Conhecimento e Personagens Relacionados ({matchedEntities.length})
                   </h2>
                 </div>
               </div>
@@ -693,21 +718,118 @@ const SearchPage = () => {
             
             {/* History if available */}
             {!searched && history.length > 0 && (
-              <div className="rounded-xl border border-border/40 bg-card/60 p-3.5 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                    <Clock className="h-3.5 w-3.5" /> Histórico de Buscas
+              <div className="glass-card rounded-2xl border border-border/80 bg-card/60 p-4 sm:p-5 space-y-3 shadow-sm backdrop-blur-md">
+                <div className="flex items-center justify-between pb-2 border-b border-border/40">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-accent/15 text-accent border border-accent/20">
+                      <Clock className="h-4 w-4" />
+                    </div>
+                    <span className="font-serif text-sm font-bold text-foreground">
+                      Histórico de Buscas
+                    </span>
                   </div>
-                  <button onClick={clearHistory} className="text-[11px] text-muted-foreground hover:text-foreground">Limpar</button>
+                  <button
+                    onClick={clearHistory}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-all duration-150 cursor-pointer"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    <span>Limpar</span>
+                  </button>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+
+                <div className="flex flex-wrap gap-2 pt-0.5">
                   {history.map((h) => (
-                    <div key={h} className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1">
-                      <button onClick={() => handleSearch(h)} className="text-xs text-foreground hover:text-accent font-medium">{h}</button>
-                      <button onClick={() => removeFromHistory(h)} className="text-muted-foreground hover:text-destructive"><X className="h-3 w-3" /></button>
+                    <div
+                      key={h}
+                      className="group inline-flex items-center gap-2 rounded-xl border border-border/80 bg-secondary/40 hover:bg-secondary/80 hover:border-accent/40 px-3 py-1.5 text-xs font-medium text-foreground transition-all duration-200 shadow-2xs"
+                    >
+                      <button
+                        onClick={() => handleSearch(h)}
+                        className="flex items-center gap-1.5 text-foreground hover:text-accent font-medium transition-colors cursor-pointer"
+                      >
+                        <Clock className="h-3 w-3 text-muted-foreground group-hover:text-accent transition-colors" />
+                        <span>{h}</span>
+                      </button>
+                      <button
+                        onClick={() => removeFromHistory(h)}
+                        className="p-0.5 rounded-md text-muted-foreground/70 hover:text-destructive hover:bg-destructive/15 transition-colors cursor-pointer"
+                        title="Remover do histórico"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT: PLANOS DIÁRIOS DE LEITURA */}
+            {((activeTab === "todos" && filteredReadingPlans.length > 0) || activeTab === "planos") && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="h-4 w-4 text-accent" />
+                    <h2 className="font-serif text-base font-bold text-foreground">
+                      Planos Diários de Leitura ({filteredReadingPlans.length})
+                    </h2>
+                  </div>
+                  {activeTab === "todos" && (
+                    <Link to="/devocionais" className="text-xs text-accent hover:underline font-medium">
+                      Ver Todos em Devocionais e Planos →
+                    </Link>
+                  )}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {filteredReadingPlans.slice(0, activeTab === "todos" ? 4 : visiblePlansCount).map((plan) => (
+                    <motion.div
+                      key={plan.id}
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="glass-card rounded-xl p-4 space-y-2 border border-border/40 hover:border-accent/50 transition-all flex flex-col justify-between hover:shadow-md hover:shadow-accent/5"
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[9px] font-bold border ${plan.bgGradient}`}>
+                            {plan.badge}
+                          </span>
+                          <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
+                            <Clock className="h-3 w-3" /> {plan.durationDays} Dias
+                          </span>
+                        </div>
+                        <h3 className="font-serif text-sm font-bold text-foreground">{plan.title}</h3>
+                        <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{plan.description}</p>
+                      </div>
+
+                      <div className="pt-2 border-t border-border/20 flex items-center justify-between">
+                        <span className="text-[10px] font-semibold text-accent uppercase tracking-wider">{plan.category}</span>
+                        <Link
+                          to="/devocionais"
+                          className="inline-flex items-center gap-1 text-xs font-bold text-accent hover:underline"
+                        >
+                          <BookOpen className="h-3.5 w-3.5" /> Acessar Plano →
+                        </Link>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {filteredReadingPlans.length === 0 && activeTab === "planos" && (
+                  <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs font-medium text-muted-foreground my-2">
+                    Nenhum plano de leitura encontrado para sua busca.
+                  </div>
+                )}
+
+                {activeTab === "planos" && visiblePlansCount < filteredReadingPlans.length && (
+                  <div className="text-center pt-2">
+                    <button
+                      onClick={() => setVisiblePlansCount(prev => prev + 12)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-5 py-2.5 text-xs font-bold text-foreground hover:border-accent hover:text-accent transition-all shadow-sm"
+                    >
+                      <ChevronDown className="h-4 w-4" /> Carregar Mais Planos ({filteredReadingPlans.length - visiblePlansCount} restantes)
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -802,7 +924,7 @@ const SearchPage = () => {
                   <div className="flex items-center gap-1.5">
                     <BookOpen className="h-4 w-4 text-accent" />
                     <h2 className="font-serif text-base font-bold text-foreground">
-                      Conhecimento & Temas Bíblicos ({filteredTopics.length})
+                      Conhecimento e Temas Bíblicos ({filteredTopics.length})
                     </h2>
                   </div>
                   {activeTab === "todos" && (

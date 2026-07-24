@@ -837,7 +837,7 @@ export const devotionals: Devotional[] = [
     prayer: "Jesus, meu Salvador, obrigado por me dar livre acesso ao trono da graça. Aproximo-me hoje buscando tua misericórdia e o teu auxílio diário. Amém."
   },
 
-  // PROPÓSITO & PROTEÇÃO (91-105)
+  // PROPÓSITO E PROTEÇÃO (91-105)
   {
     id: 91,
     title: "Todas as Coisas Cooperam para o Bem",

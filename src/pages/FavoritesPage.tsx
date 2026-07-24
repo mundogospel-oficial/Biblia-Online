@@ -1,7 +1,18 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
-import { Heart, Trash2, Copy, BookOpen, Lightbulb, Highlighter, StickyNote, Edit3, Check, X, Sparkles } from "lucide-react";
+import { 
+  Heart, 
+  Trash2, 
+  Copy, 
+  BookOpen, 
+  Highlighter, 
+  StickyNote, 
+  Edit3, 
+  Check, 
+  X, 
+  Sparkles
+} from "lucide-react";
 import { getFavorites, removeFavorite, addFavorite, isFavorite, updateNote, FavoriteVerse, ReactionType } from "@/lib/favorites";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
@@ -20,11 +31,11 @@ const recommendationsByTab: Record<ReactionType, { title: string; subtitle: stri
     items: [
       { text: "Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito, para que todo aquele que nele crê não pereça, mas tenha a vida eterna.", reference: "João 3:16", theme: "Amor de Deus" },
       { text: "O Senhor é o meu pastor; nada me faltará. Deitar-me faz em verdes pastos, guia-me mansamente a águas tranqüilas.", reference: "Salmos 23:1", theme: "Cuidado Divino" },
-      { text: "Tudo posso naquele que me fortalece.", reference: "Filipenses 4:13", theme: "Força & Vitória" },
+      { text: "Tudo posso naquele que me fortalece.", reference: "Filipenses 4:13", theme: "Força e Vitória" },
       { text: "Não temas, porque eu sou contigo; não te assombres, porque eu sou o teu Deus; eu te fortaleço, e te ajudo, e te sustento.", reference: "Isaías 41:10", theme: "Proteção" },
       { text: "Confia no Senhor de todo o teu coração e não te estribes no teu próprio entendimento.", reference: "Provérbios 3:5", theme: "Confiança" },
       { text: "Os que esperam no Senhor renovarão as forças, subirão com asas como águias; correrão, e não se cansarão.", reference: "Isaías 40:31", theme: "Esperança" },
-      { text: "Porque eu bem sei os pensamentos que tenho a vosso respeito, diz o Senhor; pensamentos de paz, e não de mal.", reference: "Jeremias 29:11", theme: "Futuro & Paz" },
+      { text: "Porque eu bem sei os pensamentos que tenho a vosso respeito, diz o Senhor; pensamentos de paz, e não de mal.", reference: "Jeremias 29:11", theme: "Futuro e Paz" },
       { text: "E sabemos que todas as coisas contribuem juntamente para o bem daqueles que amam a Deus.", reference: "Romanos 8:28", theme: "Propósito" },
     ]
   },
@@ -43,7 +54,7 @@ const recommendationsByTab: Record<ReactionType, { title: string; subtitle: stri
     ]
   },
   notes: {
-    title: "Recomendações para Anotações & Reflexão",
+    title: "Recomendações para Anotações e Reflexão",
     subtitle: "Passagens profundas para meditação, oração e anotações do seu diário espiritual.",
     items: [
       { text: "Sonda-me, ó Deus, e conhece o meu coração; prova-me e conhece os meus pensamentos. E vê se há em mim algum caminho mau.", reference: "Salmos 139:23", theme: "Auto-exame" },
@@ -63,6 +74,7 @@ const FavoritesPage = () => {
   const [items, setItems] = useState<FavoriteVerse[]>([]);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteInputValue, setNoteInputValue] = useState("");
+
   const { toast } = useToast();
 
   useEffect(() => {
@@ -98,7 +110,7 @@ const FavoritesPage = () => {
 
   const getLabel = () => {
     switch (activeTab) {
-      case "favorites": return "Favoritos";
+      case "favorites": return "Versículos Favoritos";
       case "markings": return "Marcações";
       case "notes": return "Anotações";
     }
@@ -112,51 +124,25 @@ const FavoritesPage = () => {
     }
   };
 
-  const getEmptyMessage = () => {
-    switch (activeTab) {
-      case "favorites": return "Nenhum versículo nos favoritos ainda.";
-      case "markings": return "Nenhuma marcação feita ainda.";
-      case "notes": return "Nenhuma anotação feita ainda.";
-    }
-  };
-
-  const getInstructions = () => {
-    switch (activeTab) {
-      case "favorites": return "Toque no ❤ para guardar seus versículos mais amados.";
-      case "markings": return "Toque no ícone de marca texto para destacar versículos.";
-      case "notes": return "Toque no ícone de nota para criar anotações e meditações.";
-    }
-  };
-
-  const currentTabRecs = recommendationsByTab[activeTab];
-
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
       <Header />
       <section className="container mx-auto px-4 py-5 sm:py-8">
         <div className="mx-auto max-w-4xl">
-          <div className="mb-6 flex p-1 gap-1 rounded-full bg-secondary/40 border border-border/60 backdrop-blur-xl shadow-inner relative select-none max-w-lg mx-auto">
-            {(["favorites", "markings", "notes"] as ReactionType[]).map((tab) => {
-              const isActive = activeTab === tab;
-              let label = "";
-              let IconComp: any = Heart;
-
-              if (tab === "markings") {
-                label = "Marcações";
-                IconComp = Highlighter;
-              } else if (tab === "notes") {
-                label = "Anotações";
-                IconComp = StickyNote;
-              } else {
-                label = "Favoritos";
-                IconComp = Heart;
-              }
+          <div className="mb-6 flex p-1 gap-1 rounded-full bg-secondary/40 border border-border/60 backdrop-blur-xl shadow-inner relative select-none max-w-md mx-auto overflow-x-auto themed-scrollbar">
+            {[
+              { id: "favorites", label: "Favoritos", icon: Heart },
+              { id: "markings", label: "Marcações", icon: Highlighter },
+              { id: "notes", label: "Anotações", icon: StickyNote },
+            ].map((tab) => {
+              const isActive = activeTab === tab.id;
+              const IconComp = tab.icon;
 
               return (
                 <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-[13px] font-bold transition-colors duration-200 ${
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as ReactionType)}
+                  className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 px-3 text-[12px] sm:text-[13px] font-bold transition-colors duration-200 whitespace-nowrap ${
                     isActive ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -169,7 +155,7 @@ const FavoritesPage = () => {
                   )}
                   <span className="relative z-10 flex items-center gap-1.5">
                     <IconComp className="h-4 w-4" />
-                    {label}
+                    {tab.label}
                   </span>
                 </button>
               );
@@ -190,8 +176,7 @@ const FavoritesPage = () => {
             {items.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 px-4 text-center">
                 <BookOpen className="mb-3 h-12 w-12 text-muted-foreground/30" />
-                <p className="text-sm font-medium text-muted-foreground">{getEmptyMessage()}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground/70">{getInstructions()}</p>
+                <p className="text-sm font-medium text-muted-foreground">Nenhum item nesta aba ainda.</p>
                 <Link to="/" className="mt-4 rounded-lg bg-primary px-4 py-2 text-xs font-medium text-primary-foreground transition-all hover:opacity-90">
                   Explorar Bíblia
                 </Link>
@@ -290,131 +275,85 @@ const FavoritesPage = () => {
               </div>
             )}
 
-            {/* Distinct Tab Recommendations */}
-            <div className="mt-9 rounded-xl border border-border/30 bg-card/40 p-4 sm:p-5 shadow-sm">
-              <div className="mb-3">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-accent" />
-                  <h2 className="font-serif text-base font-bold text-foreground sm:text-lg">
-                    {currentTabRecs.title}
-                  </h2>
+            {/* Recommendations section for verses tabs */}
+            {recommendationsByTab[activeTab] && (
+              <div className="mt-9 rounded-xl border border-border/30 bg-card/40 p-4 sm:p-5 shadow-sm">
+                <div className="mb-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-accent" />
+                    <h2 className="font-serif text-base font-bold text-foreground sm:text-lg">
+                      {recommendationsByTab[activeTab].title}
+                    </h2>
+                  </div>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {recommendationsByTab[activeTab].subtitle}
+                  </p>
                 </div>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {currentTabRecs.subtitle}
-                </p>
-              </div>
 
-              <div className="grid gap-2.5 sm:grid-cols-2">
-                {currentTabRecs.items.map((r, i) => {
-                  const refParts = r.reference.match(/^(.+?)\s+(\d+):(\d+)$/);
-                  let recId = `rec:${r.reference}`;
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  {recommendationsByTab[activeTab].items.map((r) => {
+                    const refParts = r.reference.match(/^(.+?)\s+(\d+):(\d+)$/);
+                    let recId = `rec:${r.reference}`;
 
-                  if (refParts) {
-                    const [_, bookName, chapter, verse] = refParts;
-                    const book = bibleBooks.find((b) => b.name.toLowerCase() === bookName.toLowerCase());
-                    if (book) {
-                      recId = `${book.abbrev}:${chapter}:${verse}`;
+                    if (refParts) {
+                      const [_, bookName, chapter, verse] = refParts;
+                      const book = bibleBooks.find((b) => b.name.toLowerCase() === bookName.toLowerCase());
+                      if (book) {
+                        recId = `${book.abbrev}:${chapter}:${verse}`;
+                      }
                     }
-                  }
 
-                  const isSavedInActiveTab = isFavorite(recId, activeTab);
+                    const isSavedInActiveTab = isFavorite(recId, activeTab);
 
-                  return (
-                    <motion.div
-                      key={r.reference}
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.03 }}
-                      className={`glass-card rounded-lg p-3 flex flex-col justify-between transition-all hover:border-accent/50 ${
-                        isSavedInActiveTab ? "border-accent/60 bg-accent/5" : ""
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-accent">
-                            {r.reference}
+                    return (
+                      <motion.div
+                        key={r.reference}
+                        className={`glass-card rounded-lg p-3 flex flex-col justify-between transition-all hover:border-accent/50 ${
+                          isSavedInActiveTab ? "border-accent/60 bg-accent/5" : ""
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-accent">
+                              {r.reference}
+                            </p>
+                            {r.theme && (
+                              <span className="rounded bg-secondary/80 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                                {r.theme}
+                              </span>
+                            )}
+                          </div>
+                          <p className="font-serif text-xs italic leading-relaxed text-card-foreground">
+                            "{r.text}"
                           </p>
-                          {r.theme && (
-                            <span className="rounded bg-secondary/80 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
-                              {r.theme}
-                            </span>
-                          )}
                         </div>
-                        <p className="font-serif text-xs italic leading-relaxed text-card-foreground">
-                          "{r.text}"
-                        </p>
-                      </div>
 
-                      <div className="mt-3 pt-2 flex items-center justify-between border-t border-border/20">
-                        <button
-                          onClick={() => {
-                            if (isSavedInActiveTab) {
-                              removeFavorite(recId, activeTab);
-                            } else {
-                              addFavorite({ id: recId, text: r.text, reference: r.reference }, activeTab);
-                            }
-                            setItems(getFavorites(activeTab));
-                          }}
-                          className={`flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-all ${
-                            isSavedInActiveTab
-                              ? "bg-accent/20 text-accent"
-                              : "bg-secondary text-foreground hover:bg-accent hover:text-accent-foreground"
-                          }`}
-                        >
-                          {getIcon("h-3 w-3")}
-                          {isSavedInActiveTab ? "Salvo" : `Salvar em ${getLabel()}`}
-                        </button>
-
-                        <div className="flex items-center gap-1.5">
-                          {activeTab !== "favorites" && (
-                            <button
-                              onClick={() => {
-                                if (isFavorite(recId, "favorites")) removeFavorite(recId, "favorites");
-                                else addFavorite({ id: recId, text: r.text, reference: r.reference }, "favorites");
-                              }}
-                              title="Favoritos"
-                              className={`p-1 transition-colors ${
-                                isFavorite(recId, "favorites") ? "text-accent" : "text-muted-foreground hover:text-accent"
-                              }`}
-                            >
-                              <Heart className={`h-3.5 w-3.5 ${isFavorite(recId, "favorites") ? "fill-accent" : ""}`} />
-                            </button>
-                          )}
-                          {activeTab !== "markings" && (
-                            <button
-                              onClick={() => {
-                                if (isFavorite(recId, "markings")) removeFavorite(recId, "markings");
-                                else addFavorite({ id: recId, text: r.text, reference: r.reference }, "markings");
-                              }}
-                              title="Marcações"
-                              className={`p-1 transition-colors ${
-                                isFavorite(recId, "markings") ? "text-accent" : "text-muted-foreground hover:text-accent"
-                              }`}
-                            >
-                              <Highlighter className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                          {activeTab !== "notes" && (
-                            <button
-                              onClick={() => {
-                                if (isFavorite(recId, "notes")) removeFavorite(recId, "notes");
-                                else addFavorite({ id: recId, text: r.text, reference: r.reference }, "notes");
-                              }}
-                              title="Anotações"
-                              className={`p-1 transition-colors ${
-                                isFavorite(recId, "notes") ? "text-accent" : "text-muted-foreground hover:text-accent"
-                              }`}
-                            >
-                              <StickyNote className="h-3.5 w-3.5" />
-                            </button>
-                          )}
+                        <div className="mt-3 pt-2 flex items-center justify-between border-t border-border/20">
+                          <button
+                            onClick={() => {
+                              if (isSavedInActiveTab) {
+                                removeFavorite(recId, activeTab);
+                              } else {
+                                addFavorite({ id: recId, text: r.text, reference: r.reference }, activeTab);
+                              }
+                              setItems(getFavorites(activeTab));
+                            }}
+                            className={`flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-all ${
+                              isSavedInActiveTab
+                                ? "bg-accent/20 text-accent"
+                                : "bg-secondary text-foreground hover:bg-accent hover:text-accent-foreground"
+                            }`}
+                          >
+                            {getIcon("h-3 w-3")}
+                            {isSavedInActiveTab ? "Salvo" : `Salvar em ${getLabel()}`}
+                          </button>
                         </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
+                      </motion.div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
           </motion.div>
         </div>
       </section>

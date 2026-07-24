@@ -96,13 +96,37 @@ html, body, #root {
   height: 100%;
 }
 
+/* Global default: hide vertical/page body scrollbars for a clean app feel */
+html, body {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+  width: 0px;
+  height: 0px;
+}
+
 html, body {
   scroll-behavior: smooth;
   overflow-y: auto !important;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Proteção contra cópia e arrasto de logos */
+img[src*="logo"],
+.no-copy-logo {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  -webkit-user-drag: none !important;
+  -khtml-user-drag: none !important;
+  pointer-events: none !important;
 }
 
 #root {
@@ -212,36 +236,38 @@ body::-webkit-scrollbar,
     opacity: 1;
   }
 
-  .scrollbar-none {
+  .scrollbar-none, .no-scrollbar {
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
   }
-  .scrollbar-none::-webkit-scrollbar {
+  .scrollbar-none::-webkit-scrollbar, .no-scrollbar::-webkit-scrollbar {
     display: none; /* Chrome, Safari and Opera */
     width: 0;
     height: 0;
   }
 
-  /* Custom themed scrollbar for horizontal categories and popovers */
+  /* Custom themed scrollbar utility for horizontal options & categories */
   .themed-scrollbar, .custom-scrollbar {
+    -ms-overflow-style: auto;
     scrollbar-width: thin;
-    scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
+    scrollbar-color: hsl(var(--accent) / 0.65) hsl(var(--secondary) / 0.4);
   }
   .themed-scrollbar::-webkit-scrollbar, .custom-scrollbar::-webkit-scrollbar {
-    height: 5px;
-    width: 5px;
+    display: block !important;
+    height: 6px !important;
+    width: 6px !important;
   }
   .themed-scrollbar::-webkit-scrollbar-track, .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-    border-radius: 9999px;
+    background: hsl(var(--secondary) / 0.4) !important;
+    border-radius: 9999px !important;
   }
   .themed-scrollbar::-webkit-scrollbar-thumb, .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: hsl(var(--accent) / 0.35);
-    border-radius: 9999px;
-    transition: background 0.2s ease;
+    background: hsl(var(--accent) / 0.65) !important;
+    border-radius: 9999px !important;
+    transition: background 0.2s ease !important;
   }
   .themed-scrollbar::-webkit-scrollbar-thumb:hover, .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--accent) / 0.7);
+    background: hsl(var(--accent) / 0.95) !important;
   }
 }
 
@@ -251,6 +277,17 @@ body::-webkit-scrollbar,
     font-size: 16px !important;
   }
 }
+
+/* Hide default native browser clear/cancel button on search inputs */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-results-button,
+input[type="search"]::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none !important;
+}
+
 /* Ocultar badge do Lovable */
 [id*="lovable"],
 [class*="lovable-badge"],

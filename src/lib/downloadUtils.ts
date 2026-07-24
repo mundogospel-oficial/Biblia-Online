@@ -3,10 +3,37 @@
  */
 import { toast } from "@/hooks/use-toast";
 
-export const downloadBibleImage = async (dataUrl: string, fileNamePrefix: string = "biblia-online") => {
+export const generateProfessionalFileName = (prefix: string = "Biblia-Online"): string => {
+  if (/\.(png|jpg|jpeg|webp)$/i.test(prefix)) {
+    return prefix;
+  }
+
+  let clean = prefix
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // removes accents e.g. Bíblia -> Biblia
+    .replace(/[^a-zA-Z0-9\s-_]/g, "")
+    .replace(/\s+/g, "-");
+
+  if (!clean || clean === "-") {
+    clean = "Biblia-Online";
+  }
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+
+  const formattedDate = `${year}-${month}-${day}_${hours}h${minutes}`;
+
+  return `${clean}_${formattedDate}.png`;
+};
+
+export const downloadBibleImage = async (dataUrl: string, fileNamePrefix: string = "Biblia-Online") => {
   const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  const timestamp = Date.now();
-  const fileName = `${fileNamePrefix}-${timestamp}.png`;
+  const fileName = generateProfessionalFileName(fileNamePrefix);
 
   try {
     if (isMobile) {
@@ -57,9 +84,8 @@ export const downloadBibleImage = async (dataUrl: string, fileNamePrefix: string
   }
 };
 
-export const shareBibleImage = async (dataUrl: string, fileNamePrefix: string = "biblia-online") => {
-  const timestamp = Date.now();
-  const fileName = `${fileNamePrefix}-${timestamp}.png`;
+export const shareBibleImage = async (dataUrl: string, fileNamePrefix: string = "Biblia-Online") => {
+  const fileName = generateProfessionalFileName(fileNamePrefix);
 
   try {
     let blob: Blob | null = null;

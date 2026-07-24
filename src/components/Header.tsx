@@ -21,7 +21,7 @@ const Header = () => {
     { to: "/", icon: <Home className="h-5 w-5" />, label: "Início" },
     { to: "/buscar", icon: <Search className="h-5 w-5" />, label: "Buscar" },
     { to: "/ia", icon: <Bot className="h-5 w-5" />, label: "IA" },
-    { to: "/devocionais", icon: <Calendar className="h-5 w-5" />, label: "Devocional" },
+    { to: "/devocionais", icon: <Calendar className="h-5 w-5" />, label: "Devocionais e Planos" },
     { to: "/favoritos", icon: <Heart className="h-5 w-5" />, label: "Favoritos" },
     { to: "/criar", icon: <Sparkles className="h-5 w-5" />, label: "Criar" },
     { to: "/conta", icon: <User className="h-5 w-5" />, label: "Conta" },
@@ -37,11 +37,14 @@ const Header = () => {
       {/* Desktop Header - Full-width Glass Bar with Oval Pills */}
       <header className="sticky top-0 z-50 hidden md:block glass-card !rounded-none border-b border-border/50 safe-area-top">
         <div className="container mx-auto flex items-center justify-between px-4 py-2.5">
-          <Link to="/" className="flex items-center gap-2.5 group shrink-0">
+          <Link to="/" className="flex items-center gap-2.5 group shrink-0 select-none">
             <img
               src="/icons/logo2.png"
               alt="Logo Biblia Online"
-              className="h-7 w-7 object-contain transition-transform duration-200 group-hover:scale-105"
+              draggable={false}
+              onContextMenu={(e) => e.preventDefault()}
+              onDragStart={(e) => e.preventDefault()}
+              className="h-7 w-7 object-contain transition-transform duration-200 group-hover:scale-105 pointer-events-none select-none no-copy-logo"
             />
             <span className="font-serif text-lg font-bold text-foreground">
               Biblia Online
@@ -82,11 +85,14 @@ const Header = () => {
       {/* Mobile Top Header - Clean Glass Bar */}
       <header className="sticky top-0 z-50 md:hidden glass-card !rounded-none border-b border-border/50 safe-area-top">
         <div className="flex items-center justify-center px-4 py-2.5">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2 select-none">
             <img
               src="/icons/logo2.png"
               alt="Logo Biblia Online"
-              className="h-7 w-7 object-contain"
+              draggable={false}
+              onContextMenu={(e) => e.preventDefault()}
+              onDragStart={(e) => e.preventDefault()}
+              className="h-7 w-7 object-contain pointer-events-none select-none no-copy-logo"
             />
             <span className="font-serif text-lg font-bold text-foreground">
               Biblia Online

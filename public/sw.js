@@ -88,9 +88,17 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // Rule 2: Strictly bypass Service Worker for PWA icons (fetch directly from network)
-  if (url.pathname.includes('/icons/') || url.pathname.includes('/icon-')) {
-    event.respondWith(fetch(event.request));
+  // Rule 2: Strictly bypass Service Worker for PWA icons and apple-touch-icons (fetch directly from network)
+  if (
+    url.pathname.includes('/icons/') || 
+    url.pathname.includes('/icon-') || 
+    url.pathname.includes('apple-touch-icon') ||
+    url.pathname.endsWith('.png') || 
+    url.pathname.endsWith('.ico')
+  ) {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request))
+    );
     return;
   }
 

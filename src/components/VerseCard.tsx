@@ -100,6 +100,18 @@ const VerseCard = forwardRef<HTMLDivElement, VerseCardProps>(
             </>
           )}
         </div>
+
+        {/* Marca d'água permanente no canto direito */}
+        <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-20 pointer-events-none select-none">
+          <img 
+            src="/logo-white.png" 
+            alt="" 
+            draggable={false}
+            onContextMenu={(e) => e.preventDefault()}
+            onDragStart={(e) => e.preventDefault()}
+            className="h-6 sm:h-8 w-auto object-contain opacity-40 drop-shadow-sm pointer-events-none select-none no-copy-logo"
+          />
+        </div>
       </Wrapper>
     );
   }

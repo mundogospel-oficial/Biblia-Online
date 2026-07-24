@@ -11,7 +11,7 @@ let cachedOpenRouterKey: string | null = null;
 let cachedOpenRouterKey2: string | null = null;
 let lastKeyFetchTime = 0;
 
-const fetchKeys = async (): Promise<{ googleKey: string; googleKey2: string; openRouterKey: string; openRouterKey2: string }> => {
+export const fetchKeys = async (): Promise<{ googleKey: string; googleKey2: string; openRouterKey: string; openRouterKey2: string }> => {
   const now = Date.now();
   if (
     cachedGoogleKey !== null && 
@@ -418,15 +418,26 @@ REGRAS ABSOLUTAS:
 };
 
 export const askDictionaryAI = async (verseText: string, reference: string, signal?: AbortSignal): Promise<string> => {
-  const { googleKey, googleKey2 } = await fetchKeys();
-  if (!googleKey && !googleKey2) throw new Error("Chave do Google AI/Gemini não configurada no ambiente ou no banco de dados.");
+  const { googleKey, googleKey2, openRouterKey, openRouterKey2 } = await fetchKeys();
 
-  const rawRule = await getSystemRule('gemini_prompt_dicionario');
-  const combinedRule = buildPrivacyEnhancedSystemRule(rawRule);
-  const dictPrompt = `Aja como um Dicionário Bíblico Erudito. Analise o versículo abaixo.
-Versículo: "${verseText}" — ${reference}`;
+  const dictSystemInstruction = `Você é um Dicionário e Comentário Bíblico Erudito.
+Sua missão é explicar o versículo bíblico fornecido de maneira rica, profunda, respeitosa e clara para qualquer leitor.
+
+REGRAS OBRIGATÓRIAS DE RESPOSTA:
+1. Escreva uma explicação detalhada e muito bem explicada em pelo menos 3 a 5 parágrafos/linhas completas de texto explicativo.
+2. Aborde obrigatoriamente em tópicos claros:
+   - **Contexto Histórico e Teológico**: O significado bíblico no contexto da época.
+   - **Termos Originais**: As palavras-chave em Hebraico ou Grego com seu significado bíblico preciso.
+   - **Aplicação Prática**: Como aplicar esse ensinamento na vida cristã hoje.
+3. NUNCA responda apenas com palavras soltas, símbolos técnicos ou frases cortadas (como '*Length check'). Responda em Português limpo, fluido e com excelente formatação em Markdown.`;
+
+  const dictPrompt = `Forneça a análise bíblica e comentário explicativo para o seguinte versículo:
+"${verseText}" — Referência: ${reference}`;
 
   const geminiModels = [
+    'gemini-2.5-flash',
+    'gemini-1.5-flash',
+    'gemini-2.0-flash',
     'gemini-3.6-flash',
     'gemini-flash-latest'
   ];
@@ -444,8 +455,12 @@ Versículo: "${verseText}" — ${reference}`;
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            systemInstruction: { parts: [{ text: combinedRule }] },
-            contents: [{ parts: [{ text: dictPrompt }] }]
+            systemInstruction: { parts: [{ text: dictSystemInstruction }] },
+            contents: [{ parts: [{ text: dictPrompt }] }],
+            generationConfig: {
+              temperature: 0.3,
+              maxOutputTokens: 1024
+            }
           }),
           signal
         });
@@ -453,7 +468,9 @@ Versículo: "${verseText}" — ${reference}`;
         if (response.ok) {
           const data = await response.json();
           const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (content) return sanitizeAIResponse(content);
+          if (content && content.trim().length > 30) {
+            return sanitizeAIResponse(content);
+          }
         } else {
           const errorData = await response.json().catch(() => null);
           const errMsg = errorData?.error?.message || `Status HTTP: ${response.status}`;
@@ -473,7 +490,56 @@ Versículo: "${verseText}" — ${reference}`;
     }
     if (keyFailed) continue;
   }
-  throw new Error(`Dicionário indisponível: ${lastError}`);
+
+  // Fallback para OpenRouter se o Gemini falhar ou não retornar conteúdo suficiente
+  const openRouterKeys = [openRouterKey, openRouterKey2, import.meta.env.VITE_OPENROUTER_API_KEY].filter(Boolean) as string[];
+  const freeModels = [
+    "deepseek/deepseek-chat",
+    "google/gemma-2-9b-it:free",
+    "meta-llama/llama-3.1-8b-instruct:free",
+    "mistralai/mistral-7b-instruct:free",
+    "openrouter/free"
+  ];
+
+  for (const rKey of openRouterKeys) {
+    for (const model of freeModels) {
+      try {
+        if (!navigator.onLine) throw new Error("Sem conexão com a internet.");
+
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${rKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': window.location.origin,
+            'X-Title': 'Bíblia Digital Dicionário'
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: dictSystemInstruction },
+              { role: 'user', content: dictPrompt }
+            ],
+            temperature: 0.3,
+            max_tokens: 1024
+          }),
+          signal
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const content = data?.choices?.[0]?.message?.content;
+          if (content && content.trim().length > 30) {
+            return sanitizeAIResponse(content);
+          }
+        }
+      } catch (orErr: any) {
+        if (orErr.name === 'AbortError') throw orErr;
+      }
+    }
+  }
+
+  throw new Error(`Dicionário indisponível: ${lastError || "Serviço de IA temporariamente indisponível."}`);
 };
 
 export const askBibleAI = async (

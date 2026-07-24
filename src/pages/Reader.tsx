@@ -11,7 +11,7 @@ import Header from "@/components/Header";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft, ChevronRight, Sparkles, Loader2, Heart,
-  Highlighter, StickyNote, X, Languages, BookOpen, WifiOff, Download, Share2
+  Highlighter, StickyNote, X, Languages, BookOpen, WifiOff, Download, Share2, AlertCircle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +38,8 @@ const Reader = () => {
   const [favSet, setFavSet] = useState<Set<number>>(new Set());
   const [translation, setTranslation] = useState("almeida");
   const [bilingual, setBilingual] = useState(false);
+  const [bilingualLimitReached, setBilingualLimitReached] = useState(false);
+  const [dictLimitReached, setDictLimitReached] = useState(false);
   
   // Controle de paginação suave/on-demand para carregar capítulos por demanda
   const [visibleLimit, setVisibleLimit] = useState(25);
@@ -109,6 +111,8 @@ const Reader = () => {
     setShowNoteInput(null);
     setDictVerse(null);
     setBilingualVerses([]);
+    setBilingualLimitReached(false);
+    setDictLimitReached(false);
     setVisibleLimit(25); // Reseta a paginação suave ao mudar de capítulo ou livro
 
     fetchChapter(abbrev, parseInt(chapter), translation)
@@ -159,16 +163,9 @@ const Reader = () => {
       return;
     }
 
-    const cacheKey = `bilingual_v2:${abbrev}:${chapter}:${translation}`;
-    const cached = sessionStorage.getItem(cacheKey);
-    if (cached) {
-      try {
-        setBilingualVerses(JSON.parse(cached));
-        return;
-      } catch {}
-    }
-
     setBilingualLoading(true);
+    setBilingualLimitReached(false);
+
     const translateVerses = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -182,12 +179,7 @@ const Reader = () => {
         // Verificar e Incrementar Cota
         const quotaResult = await checkAndIncrementQuota(session.user.id);
         if (!quotaResult.success) {
-          toast({ 
-            title: "Limite de Tradução Atingido", 
-            description: "Você atingiu o limite de 3 capítulos traduzidos por dia no modo gratuito.", 
-            variant: "destructive" 
-          });
-          setBilingual(false);
+          setBilingualLimitReached(true);
           setBilingualLoading(false);
           return;
         }
@@ -205,27 +197,42 @@ const Reader = () => {
         const targetLang = currentLang === 'pt' ? 'en' : 'pt';
 
         const allVerses = verses.map((v) => ({ verse: v.verse, text: v.text.trim() }));
-        const BATCH_SIZE = 10;
+        const BATCH_SIZE = 5;
         const batches = [];
         for (let i = 0; i < allVerses.length; i += BATCH_SIZE) {
           batches.push(allVerses.slice(i, i + BATCH_SIZE));
         }
 
-        const allTranslations: any[] = [];
-        for (const batch of batches) {
-          const results = await translateVersesAI(batch, targetLang as 'en' | 'pt');
-          allTranslations.push(...results);
+        let accumulated: VerseData[] = [];
+
+        await Promise.all(
+          batches.map(async (batch) => {
+            try {
+              const results = await translateVersesAI(batch, targetLang as 'en' | 'pt');
+              const formatted: VerseData[] = results.map((t: any) => ({
+                book_name: verses[0]?.book_name || "",
+                chapter: parseInt(chapter || "1"),
+                verse: t.verse,
+                text: t.text,
+              }));
+
+              accumulated = [...accumulated, ...formatted];
+
+              // Atualiza a interface em tempo real à medida que cada mini-lote de 5 versículos é traduzido
+              setBilingualVerses((prev) => {
+                const map = new Map(prev.map((v) => [v.verse, v]));
+                formatted.forEach((v) => map.set(v.verse, v));
+                return Array.from(map.values()).sort((a, b) => a.verse - b.verse);
+              });
+            } catch (err) {
+              console.warn("Erro ao traduzir lote de versículos:", err);
+            }
+          })
+        );
+
+        if (accumulated.length === 0) {
+          throw new Error("Não foi possível traduzir os versículos. Tente novamente.");
         }
-
-        const translated: VerseData[] = (allTranslations).map((t: any) => ({
-          book_name: verses[0]?.book_name || "",
-          chapter: parseInt(chapter || "1"),
-          verse: t.verse,
-          text: t.text,
-        }));
-
-        setBilingualVerses(translated);
-        sessionStorage.setItem(cacheKey, JSON.stringify(translated));
       } catch (e: any) {
         toast({ title: e.message || "Erro ao traduzir versículos", variant: "destructive" });
         setBilingual(false);
@@ -308,6 +315,7 @@ const Reader = () => {
     if (!v || !book) return;
 
     setDictVerse(verseNum);
+    setDictLimitReached(false);
 
     if (!isOnline) {
       setDictLoading(false);
@@ -322,12 +330,8 @@ const Reader = () => {
       const hasQuota = await checkAndIncrementUsage('dictionary', authUser?.id);
       if (!hasQuota) {
         setDictLoading(false);
+        setDictLimitReached(true);
         setDictContent("Você atingiu o limite de 3 consultas ao Dicionário por dia no modo gratuito.");
-        toast({
-          title: "Limite do Dicionário Atingido",
-          description: "Você atingiu o limite de 3 consultas ao Dicionário por dia.",
-          variant: "destructive"
-        });
         return;
       }
 
@@ -448,7 +452,13 @@ const Reader = () => {
             <button
               onClick={() => {
                 if (!authUser) { toast({ title: "Faça login para usar o modo bilíngue" }); return; }
-                setBilingual(!bilingual);
+                if (bilingual) {
+                  setBilingual(false);
+                  setBilingualLimitReached(false);
+                } else {
+                  setBilingualLimitReached(false);
+                  setBilingual(true);
+                }
               }}
               className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
                 bilingual
@@ -472,7 +482,15 @@ const Reader = () => {
             <button
               onClick={() => {
                 if (!authUser) { toast({ title: "Faça login para usar o dicionário" }); return; }
-                setDictMode(!dictMode);
+                if (dictMode) {
+                  setDictMode(false);
+                  setDictLimitReached(false);
+                  setDictVerse(null);
+                  setDictContent("");
+                } else {
+                  setDictLimitReached(false);
+                  setDictMode(true);
+                }
               }}
               className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
                 dictMode
@@ -530,7 +548,7 @@ const Reader = () => {
         </div>
       </div>
 
-      <div className="container mx-auto max-w-2xl px-4 pb-32">
+      <div className="container mx-auto max-w-2xl px-4 pt-6 pb-32">
         {loading ? (
           <div className="flex justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-accent" />
@@ -567,8 +585,76 @@ const Reader = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.4 }}
-            className="space-y-1"
+            className="space-y-3.5"
           >
+            {/* Animated Bilingual Limit Banner */}
+            <AnimatePresence>
+              {bilingual && bilingualLimitReached && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  className="mb-4 p-3.5 rounded-2xl border border-rose-500/30 bg-gradient-to-r from-rose-500/15 via-rose-500/10 to-amber-500/10 backdrop-blur-md shadow-md overflow-hidden relative"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <motion.div 
+                        animate={{ scale: [1, 1.15, 1], rotate: [0, -6, 6, 0] }}
+                        transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 shadow-inner"
+                      >
+                        <AlertCircle className="h-5 w-5" />
+                      </motion.div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs font-bold text-rose-200 tracking-tight">Limite do Modo Bilíngue Atingido</h4>
+                          <span className="rounded-full bg-rose-500/25 px-2 py-0.5 text-[10px] font-bold text-rose-300 border border-rose-500/30">
+                            3/3 hoje
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-rose-300/80 leading-snug mt-0.5">
+                          Você atingiu o limite de 3 capítulos traduzidos por dia no modo gratuito. Sua cota recarrega em 12 horas.
+                        </p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setBilingualLimitReached(false)} 
+                      className="text-rose-300/60 hover:text-rose-200 p-1 rounded-lg transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Bilingual Streaming Progress Banner */}
+            {bilingual && bilingualLoading && (
+              <motion.div 
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                className="mb-4 p-3.5 rounded-2xl border border-accent/30 bg-accent/10 backdrop-blur-md shadow-sm space-y-2"
+              >
+                <div className="flex items-center justify-between text-xs font-semibold text-accent">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 animate-spin text-accent" />
+                    <span>Traduzindo versículos em tempo real (blocos de 5)...</span>
+                  </div>
+                  <span className="text-[11px] font-bold">
+                    {bilingualVerses.length} / {verses.length}
+                  </span>
+                </div>
+                <div className="h-1.5 w-full bg-accent/20 rounded-full overflow-hidden">
+                  <motion.div 
+                    className="h-full bg-accent rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, Math.round((bilingualVerses.length / (verses.length || 1)) * 100))}%` }}
+                  />
+                </div>
+              </motion.div>
+            )}
+
             {bilingual && !isOnline && (
               <div className="mb-4 rounded-xl border border-red-500/20 bg-red-950/10 p-4 text-center flex flex-col items-center justify-center">
                 <WifiOff className="h-6 w-6 text-red-500 animate-pulse mb-2" />
@@ -612,10 +698,22 @@ const Reader = () => {
                       <span className="font-serif text-base leading-relaxed text-foreground">
                         {v.text.trim()}
                       </span>
-                      {bilingual && bilingualVerse && (
-                        <p className="mt-1 font-sans text-sm italic leading-relaxed text-muted-foreground">
-                          {bilingualVerse.text.trim()}
-                        </p>
+                      {bilingual && (
+                        bilingualVerse ? (
+                          <motion.p 
+                            initial={{ opacity: 0, y: 3 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="mt-1 font-sans text-sm italic leading-relaxed text-muted-foreground"
+                          >
+                            {bilingualVerse.text.trim()}
+                          </motion.p>
+                        ) : bilingualLoading ? (
+                          <div className="mt-1 flex items-center gap-1.5 text-xs text-accent/60 animate-pulse">
+                            <Loader2 className="h-3 w-3 animate-spin text-accent" />
+                            <span className="italic text-[11px]">Traduzindo versículo...</span>
+                          </div>
+                        ) : null
                       )}
                     </button>
 
@@ -721,21 +819,22 @@ const Reader = () => {
                   </AnimatePresence>
 
                   <AnimatePresence>
-                    {dictVerse === v.verse && (
+                    {dictMode && dictVerse === v.verse && (
                       <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="ml-3 py-2"
+                        initial={{ opacity: 0, height: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, height: "auto", scale: 1 }}
+                        exit={{ opacity: 0, height: 0, scale: 0.98 }}
+                        transition={{ type: "spring", stiffness: 380, damping: 26 }}
+                        className="ml-3 py-2 overflow-hidden"
                       >
-                        <div className="rounded-xl border border-accent/20 bg-accent/5 p-3">
-                          <div className="flex items-center justify-between gap-1.5 mb-2">
+                        <div className="rounded-2xl border border-accent/25 bg-accent/5 p-3.5 backdrop-blur-md shadow-sm">
+                          <div className="flex items-center justify-between gap-1.5 mb-2.5">
                             <div className="flex items-center gap-1.5">
                               <BookOpen className="h-3.5 w-3.5 text-accent" />
-                              <span className="text-[10px] font-semibold uppercase tracking-wider text-accent">Dicionário Bíblico</span>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-accent">Dicionário Bíblico IA</span>
                             </div>
                             <span className="text-[9px] text-muted-foreground/60 italic">
-                              O modo Dicionário é uma IA ela comete erros.
+                              IA com auxílio de erudição bíblica
                             </span>
                           </div>
                           {!isOnline ? (
@@ -745,12 +844,56 @@ const Reader = () => {
                               <span className="text-[10px] text-muted-foreground">Por favor, reconecte-se e tente novamente.</span>
                             </div>
                           ) : dictLoading ? (
-                            <div className="flex items-center gap-2 py-2">
-                              <Loader2 className="h-4 w-4 animate-spin text-accent" />
-                              <span className="text-xs text-muted-foreground">Analisando versículo...</span>
+                            <div className="space-y-2 py-1.5">
+                              <div className="flex items-center gap-2 text-accent text-xs font-semibold animate-pulse">
+                                <Sparkles className="h-3.5 w-3.5 animate-spin text-accent" />
+                                <span>Analisando versículo e contexto histórico...</span>
+                              </div>
+                              <div className="space-y-1.5 pt-1">
+                                <div className="h-2.5 w-3/4 rounded-full bg-accent/20 animate-pulse" />
+                                <div className="h-2.5 w-full rounded-full bg-accent/15 animate-pulse" />
+                                <div className="h-2.5 w-5/6 rounded-full bg-accent/10 animate-pulse" />
+                              </div>
                             </div>
+                          ) : dictLimitReached ? (
+                            <motion.div 
+                              initial={{ opacity: 0, scale: 0.96, y: 4 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                              className="p-3 rounded-xl border border-rose-500/30 bg-gradient-to-r from-rose-500/15 via-rose-500/10 to-amber-500/10 backdrop-blur-md shadow-sm"
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <motion.div 
+                                  animate={{ scale: [1, 1.15, 1], rotate: [0, -6, 6, 0] }}
+                                  transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+                                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-500/20 text-rose-400 border border-rose-500/30"
+                                >
+                                  <AlertCircle className="h-4 w-4" />
+                                </motion.div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center justify-between gap-1">
+                                    <p className="text-xs font-bold text-rose-200 tracking-tight">
+                                      Limite do Dicionário Atingido
+                                    </p>
+                                    <span className="shrink-0 rounded-full bg-rose-500/25 px-1.5 py-0.5 text-[9px] font-bold text-rose-300 border border-rose-500/30">
+                                      3/3 hoje
+                                    </span>
+                                  </div>
+                                  <p className="text-[10px] text-rose-300/80 leading-snug mt-0.5">
+                                    Você atingiu o limite de 3 consultas ao Dicionário por dia no modo gratuito. Cota recarrega em 12 horas.
+                                  </p>
+                                </div>
+                              </div>
+                            </motion.div>
                           ) : (
-                            <div className="space-y-0.5">{renderDictContent(dictContent)}</div>
+                            <motion.div 
+                              initial={{ opacity: 0, y: 4 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="space-y-1"
+                            >
+                              {renderDictContent(dictContent)}
+                            </motion.div>
                           )}
                         </div>
                       </motion.div>
@@ -807,23 +950,23 @@ const Reader = () => {
       )}
 
       {verses.length > 0 && (
-        <div className="fixed bottom-16 md:bottom-4 left-0 right-0 z-40 flex justify-between px-3 pointer-events-none">
+        <div className="fixed bottom-20 md:bottom-6 left-0 right-0 z-40 flex justify-between px-4 max-w-5xl mx-auto pointer-events-none">
           {chapterNum > 1 ? (
             <Link
               to={`/livro/${abbrev}/${chapterNum - 1}`}
-              className="pointer-events-auto flex items-center gap-1 rounded-full bg-card/90 backdrop-blur-md border border-border px-3 py-2 text-xs font-medium text-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
+              className="group pointer-events-auto flex items-center gap-1.5 rounded-full bg-card/90 backdrop-blur-md border border-border/80 hover:border-accent/50 hover:bg-accent/10 px-4 py-2 text-xs sm:text-sm font-medium text-foreground shadow-lg shadow-black/20 transition-all duration-200 active:scale-95"
             >
-              <ChevronLeft className="h-4 w-4 text-accent" />
-              Cap. {chapterNum - 1}
+              <ChevronLeft className="h-4 w-4 text-accent transition-transform duration-200 group-hover:-translate-x-0.5" />
+              <span>Cap. {chapterNum - 1}</span>
             </Link>
           ) : <div />}
           {chapterNum < book.chapters ? (
             <Link
               to={`/livro/${abbrev}/${chapterNum + 1}`}
-              className="pointer-events-auto flex items-center gap-1 rounded-full bg-card/90 backdrop-blur-md border border-border px-3 py-2 text-xs font-medium text-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
+              className="group pointer-events-auto ml-auto flex items-center gap-1.5 rounded-full bg-card/90 backdrop-blur-md border border-border/80 hover:border-accent/50 hover:bg-accent/10 px-4 py-2 text-xs sm:text-sm font-medium text-foreground shadow-lg shadow-black/20 transition-all duration-200 active:scale-95"
             >
-              Cap. {chapterNum + 1}
-              <ChevronRight className="h-4 w-4 text-accent" />
+              <span>Cap. {chapterNum + 1}</span>
+              <ChevronRight className="h-4 w-4 text-accent transition-transform duration-200 group-hover:translate-x-0.5" />
             </Link>
           ) : <div />}
         </div>

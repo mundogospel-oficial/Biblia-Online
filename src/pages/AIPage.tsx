@@ -648,7 +648,7 @@ const AIPage = () => {
   };
 
   const downloadImage = async (dataUrl: string) => {
-    await downloadBibleImage(dataUrl);
+    await downloadBibleImage(dataUrl, "Biblia-Online-IA");
   };
 
   const validateAndAddFile = (file: File) => {
@@ -1257,9 +1257,13 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
             className="shrink-0 mb-3 flex items-center justify-between gap-3 rounded-2xl border border-rose-500/25 bg-rose-500/10 p-3 backdrop-blur-md shadow-sm"
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-500/15 text-rose-400 border border-rose-500/20">
+              <motion.div 
+                animate={{ scale: [1, 1.15, 1], rotate: [0, -6, 6, 0] }}
+                transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-500/15 text-rose-400 border border-rose-500/20"
+              >
                 <AlertCircle className="h-4 w-4" />
-              </div>
+              </motion.div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="text-xs font-semibold text-rose-200 truncate">
