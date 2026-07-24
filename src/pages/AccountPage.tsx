@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import zxcvbn from "zxcvbn";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
-import TermsModal from "@/components/TermsModal";
 import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2, AlertTriangle, Languages, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, forceSignOut, handleAuthError } from "@/contexts/AuthContext";
@@ -50,7 +49,6 @@ const AccountPage = () => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showTermsModal, setShowTermsModal] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [editingName, setEditingName] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -395,7 +393,7 @@ const AccountPage = () => {
 
         if (Notification.permission === "denied") {
           toast({
-            title: "Permissão Bloqueada 🚫",
+            title: "Permissão Bloqueada",
             description: "As notificações estão bloqueadas no seu navegador ou dispositivo. Por favor, ative-as nas configurações do site para receber atualizações.",
             variant: "destructive"
           });
@@ -409,7 +407,7 @@ const AccountPage = () => {
 
         if (permission !== "granted") {
           toast({
-            title: "Permissão Negada 🔔",
+            title: "Permissão Negada",
             description: "Você precisa conceder permissão no navegador ou dispositivo para ativar as notificações.",
             variant: "destructive"
           });
@@ -737,10 +735,10 @@ const AccountPage = () => {
                               }
 
                               // Dispara imediatamente de forma local e 100% nativa e aguarda
-                              await sendLocalNotification("Teste de Notificação 🔔", "Sua notificação de teste da Biblia Online foi enviada com sucesso! 🎉");
+                              await sendLocalNotification("Teste de Notificação", "Sua notificação de teste da Bíblia Online foi enviada com sucesso.");
                               
                               toast({ 
-                                title: "Teste Enviado! 🔔", 
+                                title: "Teste Enviado", 
                                 description: "A notificação de teste foi disparada diretamente para o seu dispositivo." 
                               });
                             } catch (err: any) {
@@ -749,7 +747,7 @@ const AccountPage = () => {
                               setNotificationTestError(errMsg);
                               toast({ 
                                 title: "Erro de Teste", 
-                                description: "Não foi possível enviar a notificação. Veja o motivo na tela.", 
+                                description: "Não foi possível enviar a notificação no momento.", 
                                 variant: "destructive" 
                               });
                             }
@@ -761,15 +759,12 @@ const AccountPage = () => {
                         </button>
 
                         {notificationTestError && (
-                          <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-left text-xs text-red-400 flex flex-col gap-1.5 animate-fadeIn">
-                            <span className="font-semibold flex items-center gap-1 text-red-500">
-                              ⚠️ Detalhes do erro no dispositivo:
+                          <div className="rounded-xl bg-destructive/10 border border-destructive/20 p-3 text-left text-xs text-foreground flex flex-col gap-1 animate-fadeIn">
+                            <span className="font-semibold text-xs text-destructive">
+                              Falha ao disparar notificação:
                             </span>
-                            <p className="font-mono text-[10px] bg-black/35 rounded p-1.5 overflow-x-auto text-red-300 border border-red-500/10">
-                              {notificationTestError}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground leading-normal">
-                              <strong>Dica importante:</strong> Se você estiver usando o visualizador interno do AI Studio (iframe), o navegador pode bloquear notificações nativas por motivos de segurança. Abra a aplicação em uma <strong>nova aba</strong> do seu navegador para testar as notificações nativas perfeitamente.
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                              Verifique se as notificações do site estão permitidas nas configurações do seu navegador ou dispositivo.
                             </p>
                           </div>
                         )}
@@ -975,20 +970,11 @@ const AccountPage = () => {
             </>
           )}
 
-          <div className="mt-8 pb-4 text-center flex flex-col items-center gap-2">
+          <div className="mt-8 pb-4 text-center">
             <p className="text-xs text-muted-foreground font-sans font-medium tracking-wide">
               Biblia Online — Versão {appVersion || "2.1"}
             </p>
-            <button
-              type="button"
-              onClick={() => setShowTermsModal(true)}
-              className="text-[11px] text-accent hover:text-accent/80 font-semibold hover:underline"
-            >
-              Termos de Uso e Política de Privacidade
-            </button>
           </div>
-
-          <TermsModal isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} />
 
         </motion.div>
       </section>

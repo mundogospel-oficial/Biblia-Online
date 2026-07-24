@@ -18,6 +18,7 @@ import { askBibleAI, AIAttachment } from "@/services/aiService";
 import { checkAndIncrementUsage, getUserUsage, refundUsage } from "@/services/usageService";
 import { saveAIHistory } from "@/services/userDataService";
 import { generateBiblicalImage } from "@/services/imageGenerationService";
+import { encryptConversationMessages, decryptConversationMessages } from "@/lib/security/cryptoService";
 
 const formatMessageForDisplay = (text: string): string => {
   if (!text) return "";
@@ -541,11 +542,25 @@ const AIPage = () => {
   };
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(CONVERSATIONS_KEY);
-      if (saved) setConversations(JSON.parse(saved));
-    } catch {}
-  }, []);
+    async function loadSavedConversations() {
+      try {
+        const saved = localStorage.getItem(CONVERSATIONS_KEY);
+        if (saved) {
+          const parsed: Conversation[] = JSON.parse(saved);
+          const decryptedConversations = await Promise.all(
+            parsed.map(async (c) => ({
+              ...c,
+              messages: await decryptConversationMessages(c.messages, user?.sub)
+            }))
+          );
+          setConversations(decryptedConversations);
+        }
+      } catch (err) {
+        console.warn("Erro ao carregar histórico criptografado:", err);
+      }
+    }
+    loadSavedConversations();
+  }, [user?.sub]);
 
   const fetchUsage = useCallback(async () => {
     if (!user) return;
@@ -598,13 +613,14 @@ const AIPage = () => {
     );
   }
 
-  // NOVO: Lógica corrigida para não duplicar conversas no histórico
+  // NOVO: Lógica criptografada de persistência para proibir vazamentos
   const saveConversation = (msgs: Msg[]) => {
     if (msgs.length < 2) return;
+    const userSecret = user?.sub;
     
     setConversations(prev => {
       const title = formatMessageForDisplay(msgs[0]?.content).slice(0, 50) || "Conversa";
-      let updated;
+      let updated: Conversation[];
 
       if (currentChatIdRef.current) {
         // Se já existe um ID atual, atualiza a conversa existente
@@ -619,7 +635,16 @@ const AIPage = () => {
         updated = [conv, ...prev].slice(0, 50);
       }
 
-      localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(updated));
+      // Salva criptografado em background no localStorage
+      Promise.all(
+        updated.map(async (c) => ({
+          ...c,
+          messages: await encryptConversationMessages(c.messages, userSecret)
+        }))
+      ).then(encryptedConversations => {
+        localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(encryptedConversations));
+      }).catch(console.error);
+
       return updated;
     });
   };
@@ -641,7 +666,16 @@ const AIPage = () => {
   const deleteConversation = (id: string) => {
     const updated = conversations.filter(c => c.id !== id);
     setConversations(updated);
-    localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(updated));
+    
+    Promise.all(
+      updated.map(async (c) => ({
+        ...c,
+        messages: await encryptConversationMessages(c.messages, user?.sub)
+      }))
+    ).then(encryptedConversations => {
+      localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(encryptedConversations));
+    }).catch(console.error);
+
     if (currentChatIdRef.current === id) {
       startNewChat(); // Se apagar o chat atual, limpa a tela
     }

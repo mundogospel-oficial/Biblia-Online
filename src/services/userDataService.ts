@@ -1,21 +1,50 @@
 import { supabase } from '@/integrations/supabase/client';
 import { generateChatTitle } from './aiService';
+import { encryptPayload, decryptPayload } from '@/lib/security/cryptoService';
 
 export const saveAIHistory = async (prompt: string, response: string, complexity: string) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
 
-  // Gera o título elegante via IA
+  // Gera o título elegante via IA antes de criptografar
   const generatedTitle = await generateChatTitle(prompt, response);
 
-  // Salva no banco de dados, agora incluindo a coluna 'title'
+  // Criptografa o prompt e a resposta com chave derivada do ID do usuário para privacidade total
+  const encryptedPrompt = await encryptPayload(prompt, user.id);
+  const encryptedResponse = await encryptPayload(response, user.id);
+
+  // Salva no banco de dados com dados criptografados em repouso
   await supabase.from('user_ai_history').insert({ 
     user_id: user.id, 
-    prompt: prompt, // Mantém o prompt original intacto com as tags para a IA ter o contexto real
-    response: response, 
+    prompt: encryptedPrompt, 
+    response: encryptedResponse, 
     complexity: complexity,
-    title: generatedTitle // A nova coluna visual
+    title: generatedTitle
   });
+};
+
+export const getAIHistory = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('user_ai_history')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error || !data) return [];
+
+  // Descriptografa os registros de forma transparente
+  const decryptedHistory = await Promise.all(
+    data.map(async (row) => ({
+      ...row,
+      prompt: await decryptPayload(row.prompt, user.id),
+      response: await decryptPayload(row.response, user.id)
+    }))
+  );
+
+  return decryptedHistory;
 };
 
 export const toggleFavoriteVerse = async (verseReference: string, verseText: string) => {

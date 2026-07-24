@@ -321,6 +321,18 @@ const sanitizeAIResponse = (text: string, skipBracketRemoval: boolean = true): s
     .trim();
 };
 
+export const BIBLE_VERSIONS_DIRECTIVE = `\n\n[INTEGRAÇÃO DAS VERSÕES BÍBLICAS DO APLICATIVO]:
+1. As versões e traduções da Bíblia Sagrada que estão oficialmente integradas e disponíveis no aplicativo são:
+   - Bíblia Sagrada de Almeida (Almeida / Almeida Corrigida Fiel - ARC / Almeida 1980 - Português) [Versão Principal do App]
+   - Bíblia Livre (BLivre 2018 - Português)
+   - King James Version (KJV - Inglês)
+   - Bible in Basic English (BBE - Inglês)
+   - World English Bible (WEB - Inglês)
+2. REGRA DE RESPOSTA E CITAÇÃO OBRIGATÓRIA:
+   - Quando responder a perguntas, explicar estudos ou citar versículos bíblicos, utilize ESTRITAMENTE o texto exato e fiel destas versões integradas no aplicativo (em português, priorize a Bíblia Sagrada de Almeida e a Bíblia Livre).
+   - NUNCA invente ou altere palavras do texto bíblico oficial nem forneça traduções que não existem no app.
+   - Quando citar diretamente versículos na íntegra, informe sempre a referência com o nome do livro, capítulo, versículo e a versão utilizada entre parênteses (exemplo: "João 3:16 - Almeida" ou "Salmos 23:1 - Bíblia Livre").`;
+
 export const getSystemRule = async (specificKey?: string): Promise<string> => {
   const christianEthicsDirective = `\n\n[DIRETRIZES DE SEGURANÇA E ÉTICA CRISTÃ - REGRAS INVIOLÁVEIS]:
 1. Você é um assistente virtual bíblico dedicado ao ensino, edificação e estudos da Fé Cristã.
@@ -344,12 +356,12 @@ export const getSystemRule = async (specificKey?: string): Promise<string> => {
       const privacyDirective = "\n\n[PRIVACY_DIRECTIVE]: Esta conversa é privada. Não armazene, processe ou utilize este histórico para treinamento de modelos ou melhoria de serviços de terceiros. Trate as informações como efêmeras.";
       
       const baseRule = `${master}\n\n${specific}`.trim() || "Você SÓ PODE responder sobre a Bíblia. Use markdown limpo.";
-      return `${baseRule}${christianEthicsDirective}${privacyDirective}`;
+      return `${baseRule}${BIBLE_VERSIONS_DIRECTIVE}${christianEthicsDirective}${privacyDirective}`;
     }
   } catch (err) {
     console.warn("Falha ao ler regras do Supabase, usando fallback.");
   }
-  return `Você SÓ PODE responder sobre a Bíblia. Use markdown limpo.${christianEthicsDirective}`;
+  return `Você SÓ PODE responder sobre a Bíblia. Use markdown limpo.${BIBLE_VERSIONS_DIRECTIVE}${christianEthicsDirective}`;
 };
 
 export const generateChatTitle = async (userPrompt: string, aiResponse: string): Promise<string> => {
@@ -557,7 +569,8 @@ export const askBibleAI = async (
   }
 
   const ruleKey = complexity === 'simple' ? 'gemini_prompt_simples' : 'gemini_prompt_complexo';
-  const rawRule = customSystemRule || await getSystemRule(ruleKey);
+  const baseRule = await getSystemRule(ruleKey);
+  const rawRule = customSystemRule ? `${customSystemRule}${BIBLE_VERSIONS_DIRECTIVE}` : baseRule;
   const SYSTEM_RULE = buildPrivacyEnhancedSystemRule(rawRule);
 
   const MAX_PROMPT_LENGTH = 2000;

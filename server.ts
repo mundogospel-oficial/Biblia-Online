@@ -559,7 +559,7 @@ function startServer() {
       // 3. Obter chave do Gemini e prompt mestre do Banco de Dados / Ambiente de forma segura
       let googleKey = (process.env.VITE_GEMINI_API_KEY || "").trim();
       let googleKey2 = (process.env.VITE_GEMINI_API_KEY_2 || "").trim();
-      let systemPromptMaster = "Você SÓ PODE responder sobre a Bíblia. Use markdown limpo.";
+      let systemPromptMaster = "Você SÓ PODE responder sobre a Bíblia. Use markdown limpo. As versões oficiais de Bíblia integradas no aplicativo são: Almeida (ARC/Almeida 1980), Bíblia Livre (BLivre 2018), King James Version (KJV), Bible in Basic English (BBE) e World English Bible (WEB). Responda e cite versículos fielmente utilizando estritamente estas versões.";
 
       if (adminClient) {
         try {

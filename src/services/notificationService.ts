@@ -92,7 +92,7 @@ export const checkScheduledNotifications = () => {
     if (lastMorning !== todayStr) {
       const verse = getDailyVerseForSlot(false);
       sendLocalNotification(
-        `Versículo do Dia 🌅 - ${verse.reference}`,
+        `Versículo do Dia - ${verse.reference}`,
         verse.text
       );
       localStorage.setItem("biblia_online_last_morning_notification", todayStr);
@@ -105,7 +105,7 @@ export const checkScheduledNotifications = () => {
     if (lastEvening !== todayStr) {
       const verse = getDailyVerseForSlot(true);
       sendLocalNotification(
-        `Versículo da Noite 🌌 - ${verse.reference}`,
+        `Versículo da Noite - ${verse.reference}`,
         verse.text
       );
       localStorage.setItem("biblia_online_last_evening_notification", todayStr);
