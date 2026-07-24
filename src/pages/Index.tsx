@@ -316,7 +316,7 @@ const Index = () => {
             onClick={() => setIsTermsOpen(true)}
             className="text-[11px] text-accent hover:text-accent/80 transition-all font-bold hover:underline underline-offset-4"
           >
-            Termos de Uso
+            Termos de Uso e Política de Privacidade
           </button>
         </div>
       </footer>

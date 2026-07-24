@@ -32,7 +32,7 @@ const TermsModal = ({ isOpen, onClose }: TermsModalProps) => {
               </div>
 
               <div className="relative flex items-center justify-between p-8 border-b border-white/5 bg-white/5">
-                <h2 className="text-xl font-bold text-foreground font-serif tracking-tight">Termos de Uso e Política de Privacidade – Biblia Online</h2>
+                <h2 className="text-xl font-bold text-foreground font-serif tracking-tight">Termos de Uso e Política de Privacidade – Bíblia Online</h2>
                 <button 
                   onClick={onClose} 
                   className="rounded-full p-2 bg-white/5 hover:bg-white/10 hover:scale-110 transition-all duration-300"
@@ -44,94 +44,131 @@ const TermsModal = ({ isOpen, onClose }: TermsModalProps) => {
               <div className="relative flex-1 overflow-y-auto p-8 md:p-10 scrollbar-hide">
                 <div className="space-y-6 text-[13px] leading-relaxed text-foreground/80 pb-6">
                   <section>
-                    <h3 className="font-bold text-foreground mb-1">1. Aceitação dos Termos</h3>
-                    <p>Ao acessar ou utilizar o site e o aplicativo Biblia Online, o usuário manifesta sua concordância integral com estes Termos de Uso. Caso não concorde com quaisquer das diretrizes aqui estabelecidas, recomendamos que se abstenha de utilizar nossos serviços.</p>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">1. Aceitação dos Termos</h3>
+                    <p>Ao acessar, cadastrar-se ou utilizar o site e o aplicativo Bíblia Online, o usuário declara ter lido, compreendido e concordado integralmente com estes Termos de Uso e Política de Privacidade. Caso o usuário não concorde com qualquer uma das disposições estabelecidas neste documento, deve abster-se imediatamente de utilizar os nossos serviços e funcionalidades.</p>
                   </section>
 
                   <section>
-                    <h3 className="font-bold text-foreground mb-1">2. Uso da Inteligência Artificial (IA) e Isenção de Responsabilidade</h3>
-                    <p>Nossa Inteligência Artificial atua exclusivamente como uma ferramenta de apoio para pesquisas e estudos bíblicos, não substituindo, sob nenhuma hipótese, o aconselhamento humano ou pastoral. O Biblia Online trabalha para minimizar eventuais inconsistências ou "alucinações" (erros gerados por sistemas de IA), mas reforça que as respostas geradas possuem caráter estritamente informativo. Elas não devem ser utilizadas como única base para decisões pessoais, jurídicas, médicas, financeiras ou espirituais relevantes. O aviso sobre essa limitação está disponível no próprio chat do aplicativo. As respostas do Fórum e de qualquer outra funcionalidade baseada em IA, incluindo o modo Bilíngue e o Dicionário, também estão sujeitas a essas imprecisões.</p>
-                    <p className="mt-2 text-accent font-semibold italic text-xs">Aviso de Segurança: É expressamente desaconselhado o compartilhamento de dados pessoais, senhas ou informações financeiras no ambiente de chat da IA.</p>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">2. Uso da Inteligência Artificial (IA) e Isenção de Responsabilidade</h3>
+                    <p>A Inteligência Artificial disponibilizada pela plataforma atua exclusivamente como ferramenta auxiliar para pesquisas, consultas e estudos bíblicos.</p>
+                    <ul className="mt-2 space-y-1.5 pl-4 list-disc text-muted-foreground">
+                      <li><strong className="text-foreground font-semibold">Ausência de Aconselhamento:</strong> As respostas e interações geradas por IA não substituem, sob nenhuma hipótese, o aconselhamento humano, seja ele pastoral, teológico, médico, jurídico, financeiro ou psicológico.</li>
+                      <li><strong className="text-foreground font-semibold">Inconsistências e "Alucinações":</strong> Embora a plataforma adote medidas contínuas para mitigar erros, o usuário reconhece que sistemas de IA podem gerar conteúdos incorretos, imprecisos ou fora de contexto ("alucinações"). Tais respostas possuem caráter estritamente informativo e não devem ser utilizadas como fonte única para decisões pessoais.</li>
+                      <li><strong className="text-foreground font-semibold">Escopo de Aplicação:</strong> Os avisos sobre as limitações da IA aplicam-se a todas as funcionalidades baseadas nessa tecnologia, incluindo o chat, o Fórum, o modo Bilíngue, o Dicionário e demais ferramentas integradas.</li>
+                      <li><strong className="text-foreground font-semibold">Recomendação de Segurança:</strong> Desaconselha-se expressamente o envio ou compartilhamento de dados pessoais sensíveis, senhas, documentos ou informações financeiras no ambiente de chat com a IA.</li>
+                    </ul>
                   </section>
 
                   <section>
-                    <h3 className="font-bold text-foreground mb-1">3. Privacidade e Proteção de Dados</h3>
-                    <p>A proteção da privacidade dos nossos usuários é uma prioridade. Adotamos práticas rigorosas de segurança da informação e criptografia para salvaguardar os dados pessoais coletados. O usuário compreende, contudo, que nenhum sistema digital é completamente imune a incidentes. Caso alguma eventualidade ocorra, a plataforma se compromete a agir com prontidão e em estrita conformidade com a Lei Geral de Proteção de Dados (LGPD).</p>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">3. Privacidade e Proteção de Dados</h3>
+                    <p>A segurança e a privacidade das informações dos usuários são compromissos prioritários do Bíblia Online. Adotamos medidas técnicas e administrativas aptas a proteger os dados pessoais contra acessos não autorizados, perdas ou alterações. Contudo, tendo em vista a natureza dos ambientes digitais, o usuário reconhece que nenhum sistema é inexpugnável. Ocorrendo qualquer incidente de segurança relevante, a plataforma agirá com prontidão para mitigar os impactos, em estrita conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018 - LGPD).</p>
                   </section>
 
                   <section>
-                    <h3 className="font-bold text-foreground mb-1">4. Ferramenta de Geração de Imagens</h3>
-                    <p>Este recurso destina-se exclusivamente à criação de conteúdos visuais com versículos e mensagens de cunho cristão. O uso indevido da ferramenta para geração de conteúdos ofensivos, ilícitos ou incompatíveis com o propósito bíblico da plataforma resultará na análise da conta do usuário, podendo culminar em sanções que vão da suspensão temporária ao banimento definitivo.</p>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">4. Ferramenta de Geração de Imagens</h3>
+                    <p>O recurso de geração visual destina-se exclusivamente à criação de artes com versículos, trechos e mensagens de cunho cristão e edificante.</p>
+                    <ul className="mt-2 space-y-1.5 pl-4 list-disc text-muted-foreground">
+                      <li><strong className="text-foreground font-semibold">Uso Proibido:</strong> É vedada a utilização da ferramenta para gerar conteúdos ofensivos, ilícitos, difamatórios, de cunho odioso ou incompatíveis com a finalidade espiritual e ética da plataforma.</li>
+                      <li><strong className="text-foreground font-semibold">Mecanismos de Controle e Sanções:</strong> A ferramenta conta com filtros automatizados que podem aplicar suspensões temporárias preventivas. Qualquer tentativa de burlar esses controles ou fazer uso indevido do sistema sujeitará a conta do usuário à análise técnica e humana, podendo acarretar o banimento definitivo, sem prejuízo das penalidades legais cabíveis.</li>
+                    </ul>
                   </section>
 
                   <section>
-                    <h3 className="font-bold text-foreground mb-1">5. Contas de Usuário</h3>
-                    <p>Ao registrar-se no aplicativo, o usuário assume responsabilidade exclusiva pela confidencialidade de suas credenciais de acesso, bem como por todas as atividades realizadas em sua conta. O acesso é estritamente pessoal e intransferível.</p>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">5. Contas de Usuário e Credenciais</h3>
+                    <p>Ao criar uma conta no aplicativo, o usuário responsabiliza-se integralmente pela manutenção da confidencialidade de suas credenciais de acesso (e-mail e senha) e por todas as atividades realizadas sob sua conta. O acesso é estritamente pessoal e intransferível, sendo vedado o compartilhamento de credenciais com terceiros.</p>
                   </section>
 
                   <section>
-                    <h3 className="font-bold text-foreground mb-1">6. Modificações dos Termos</h3>
-                    <p>O Biblia Online reserva-se o direito de revisar e atualizar estes Termos de Uso. Em caso de mudanças significativas que afetem os direitos dos usuários, envidaremos esforços para notificá-los previamente. A continuidade no uso da plataforma após a publicação das alterações será interpretada como concordância com os novos termos.</p>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">6. Modificações dos Termos de Uso</h3>
+                    <p>O Bíblia Online reserva-se o direito de revisar, alterar ou atualizar estes Termos a qualquer tempo, visando ao aprimoramento dos serviços ou ao cumprimento de exigências legais. Em caso de alterações substanciais que impactem os direitos dos usuários, envidaremos esforços razoáveis para notificá-los por meio da plataforma ou e-mail cadastrado. O uso continuado dos serviços após a publicação das alterações constituirá aceitação tácita dos novos Termos.</p>
                   </section>
 
                   <section>
-                    <h3 className="font-bold text-foreground mb-1">7. Suporte e Atendimento ao Usuário</h3>
-                    <p>Dúvidas, solicitações de suporte ou reclamações devem ser encaminhadas prioritariamente pelo Fórum Biblia Online, ferramenta devidamente integrada ao sistema da plataforma.</p>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">7. Suporte e Atendimento ao Usuário</h3>
+                    <p>O atendimento a dúvidas, solicitações de suporte e reclamações deve ser canalizado prioritariamente através do Fórum Bíblia Online, integrado ao sistema da plataforma. Para maior agilidade, o usuário poderá optar pelo Suporte Rápido de IA, ciente de que se trata de um atendimento automatizado sujeito a eventuais inconsistências informacionais. Atendimentos diretos também podem ser solicitados pelo e-mail: <a href="mailto:suporte.mundogospel@gmail.com" className="text-accent hover:underline font-semibold">suporte.mundogospel@gmail.com</a>.</p>
                   </section>
 
                   <section>
-                    <h3 className="font-bold text-foreground mb-1">8. Exclusão de Conta</h3>
-                    <p>O usuário tem the direito de excluir sua conta a qualquer momento. Essa ação pode ser realizada diretamente no aplicativo, por meio da página de configurações da conta, e o sistema excluirá automaticamente todos os dados associados. Alternativamente, o usuário pode solicitar a exclusão por meio do Portal de Direitos de Dados.</p>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">8. Exclusão de Conta e Eliminação de Dados</h3>
+                    <p>O usuário possui o direito de encerrar sua conta e solicitar a exclusão de seus dados a qualquer momento. O procedimento pode ser realizado diretamente pelo aplicativo, na seção de configurações da conta, resultando no desligamento e remoção automatizada dos dados. Alternativamente, a solicitação pode ser formalizada por meio do nosso Portal de Direitos de Dados ou enviando um e-mail para <a href="mailto:suporte.mundogospel@gmail.com" className="text-accent hover:underline font-semibold">suporte.mundogospel@gmail.com</a>.</p>
                   </section>
 
                   <section>
-                    <h3 className="font-bold text-foreground mb-1">9. Direitos sobre os Dados</h3>
-                    <p>O usuário pode exercer seus direitos de dados acessando o Portal de Direitos de Dados, disponível em nosso site. Por meio desse portal, é possível solicitar: acesso aos seus dados; exclusão permanente de dados e da conta; correção de informações incorretas; e portabilidade de dados, com envio de um relatório completo para o e-mail cadastrado, de forma segura. Atualmente, a plataforma não utiliza IA para banir ou restringir usuários de forma autônoma. O Biblia Online não se responsabiliza pelo envio de dados a serviços de terceiros realizado pelo próprio usuário, nem por restrições de acesso decorrentes de tentativas de ataque à infraestrutura do aplicativo.</p>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">9. Direitos sobre os Dados e Limitação de Responsabilidade por Terceiros</h3>
+                    <p>Por meio do Portal de Direitos de Dados disponível em nosso site ou pelo e-mail <a href="mailto:suporte.mundogospel@gmail.com" className="text-accent hover:underline font-semibold">suporte.mundogospel@gmail.com</a>, o usuário pode exercer suas prerrogativas legais, solicitando:</p>
+                    <ul className="my-2 space-y-1 pl-4 list-disc text-muted-foreground">
+                      <li>Confirmação e acesso aos seus dados pessoais;</li>
+                      <li>Correção de dados incompletos, inexatos ou desatualizados;</li>
+                      <li>Exclusão permanente da conta e dados vinculados;</li>
+                      <li>Portabilidade dos dados, mediante envio de relatório seguro ao e-mail cadastrado.</li>
+                    </ul>
+                    <p><strong className="text-foreground font-semibold">Isenções e Revisão:</strong> A plataforma garante o direito de revisão humana para casos de banimentos permanentes aplicados ao usuário. O Bíblia Online não se responsabiliza pela transmissão não autorizada de dados efetuada diretamente pelo próprio usuário a serviços externos, tampouco por indisponibilidades técnicas decorrentes de ataques cibernéticos ou falhas de infraestrutura alheias ao seu controle direto.</p>
                   </section>
 
                   <section>
-                    <h3 className="font-bold text-foreground mb-1">10. Atendimento e Ajuda Humana</h3>
-                    <p>O usuário tem direito a suporte contínuo para os serviços do Biblia Online. O atendimento inicial, o Suporte Rápido e as respostas por e-mail podem ser intermediados por sistemas de Inteligência Artificial para maior agilidade, estando sujeitos a eventuais imprecisões. Caso a IA não consiga resolver a sua solicitação de forma satisfatória, o usuário poderá acionar imediatamente a opção Ajuda Humana no site, garantindo o direcionamento do seu caso para a nossa equipe de suporte dedicada.</p>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">10. Atendimento e Suporte Humano Complementar</h3>
+                    <p>Garantimos ao usuário o direito de suporte para o uso adequado da plataforma. O atendimento inicial, o Suporte Rápido e os e-mails informativos podem ser intermediados por sistemas automatizados de Inteligência Artificial para otimização de tempo. Caso a resposta automatizada não solucione a demanda de maneira satisfatória, o usuário poderá acionar a opção Ajuda Humana no site ou escrever para <a href="mailto:suporte.mundogospel@gmail.com" className="text-accent hover:underline font-semibold">suporte.mundogospel@gmail.com</a>, direcionando a solicitação para nossa equipe especializada. O atendimento humano está sujeito a prazos de resposta que variam conforme a demanda do serviço.</p>
                   </section>
 
                   <section>
-                    <h3 className="font-bold text-foreground mb-1">11. Avaliações e Melhoria Contínua</h3>
-                    <p>O usuário tem o direito e é encorajado a enviar avaliações e feedbacks sobre o aplicativo. Disponibilizamos espaços dedicados a esse exercício no Fórum, no Portal de Direitos de Dados e no canal de Avaliações. Valorizamos cada contribuição e nos comprometemos a utilizá-la como subsídio para a melhoria contínua da experiência. Caso encontre qualquer inconsistência gerada pela IA nesses ambientes, recomendamos o uso da ferramenta de Ajuda Humana para os devidos esclarecimentos.</p>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">11. Avaliações, Feedbacks e Melhoria Contínua</h3>
+                    <p>O usuário é incentivado a enviar avaliações, comentários e sugestões de melhoria por meio do Fórum, do Portal de Direitos de Dados ou do canal dedicado a Avaliações. Toda contribuição é tratada como subsídio para o aprimoramento da plataforma. Caso identifique imprecisões geradas pela IA nesses canais, o usuário deve acionar a ferramenta de Ajuda Humana para os devidos ajustes.</p>
                   </section>
 
-                  <div className="pt-8 border-t border-white/5">
-                    <h2 className="text-xl font-bold text-accent font-serif mb-6 tracking-tight">Política de Privacidade e LGPD</h2>
-                    
-                    <section className="mb-6">
-                      <h3 className="font-bold text-foreground mb-2 text-sm">12. Transparência no Uso da IA</h3>
-                      <p>Ao utilizar o chat da plataforma, o usuário interage com um sistema de Inteligência Artificial. As interações podem ser processadas com o objetivo de aprimorar a experiência, sendo garantida a anonimização rigorosa dos dados. Nenhuma informação pessoal será vinculada ao treinamento do modelo de forma que possa identificar o usuário, garantindo sua total privacidade em conformidade com as políticas dos nossos parceiros de tecnologia.</p>
-                    </section>
+                  <section>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">12. Transparência no Processamento e Treinamento de IA</h3>
+                    <p>Ao utilizar o chat da plataforma, o usuário interage com um modelo de Inteligência Artificial. Os dados das interações podem ser processados para fins de aprimoramento da experiência de uso, sendo submetidos a processos rigorosos de anonimização e pseudonimização. Nenhuma informação pessoal identificável será vinculada ao treinamento público de modelos, assegurando a conformidade com as diretrizes de privacidade dos nossos provedores de tecnologia.</p>
+                  </section>
 
-                    <section className="mb-6">
-                      <h3 className="font-bold text-foreground mb-2 text-sm">13. Coleta de Dados, Finalidade e Transferência Internacional</h3>
-                      <p>A plataforma coleta dados básicos — nome, e-mail e logs de acesso com IP anonimizado — para fins de segurança, suporte e cumprimento do Marco Civil da Internet. A operação do sistema é sustentada por infraestrutura tecnológica de alta performance (como Supabase e Vercel), o que pode implicar o armazenamento em servidores internacionais. Esses servidores seguem padrões globais rigorosos de segurança, em plena compatibilidade com as exigências da LGPD.</p>
-                    </section>
+                  <section>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">13. Coleta de Dados, Finalidades e Transferência Internacional</h3>
+                    <p>Coletamos dados estritamente necessários para a operação e segurança da plataforma — tais como nome, endereço de e-mail e registros de acesso (endereço IP anonimizado) —, cumprindo as disposições do Marco Civil da Internet (Lei nº 12.965/2014) e da LGPD. Para garantir alta disponibilidade, a plataforma utiliza infraestrutura em nuvem de ponta (como Supabase e Vercel), o que pode envolver a transferência internacional de dados para servidores localizados no exterior. Tais prestadores adotam padrões globais rígidos de segurança da informação compatíveis com a legislação brasileira.</p>
+                  </section>
 
-                    <section className="mb-6">
-                      <h3 className="font-bold text-foreground mb-2 text-sm">14. Direitos do Titular dos Dados (Art. 18 da LGPD)</h3>
-                      <p>É assegurado ao usuário o direito de acessar, retificar ou solicitar a exclusão permanente de seus dados pessoais. Os procedimentos para exclusão de conta e dos dados a ela vinculados podem ser realizados diretamente no menu de configurações do aplicativo ou por meio de solicitação no Portal de Direitos de Dados.</p>
-                    </section>
+                  <section>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">14. Direitos do Titular dos Dados e Encarregado (Art. 18 da LGPD)</h3>
+                    <p>Em conformidade com o Artigo 18 da LGPD, o usuário, na condição de titular dos dados pessoais, pode a qualquer momento requerer a confirmação da existência de tratamento, o acesso aos dados, a correção de dados incorretos, a anonimização, bloqueio ou eliminação de dados desnecessários, bem como a revogação do consentimento.</p>
+                    <p className="mt-1">As solicitações referentes à proteção de dados e ao exercício dos direitos do titular devem ser direcionadas ao nosso canal de atendimento / encarregado através do e-mail: <a href="mailto:suporte.mundogospel@gmail.com" className="text-accent hover:underline font-semibold">suporte.mundogospel@gmail.com</a>.</p>
+                  </section>
 
-                    <section className="mb-6">
-                      <h3 className="font-bold text-foreground mb-2 text-sm">15. Gerenciamento e Uso de Cookies</h3>
-                      <p>A plataforma utiliza cookies essenciais, necessários para autenticação e segurança, e cookies analíticos, de uso opcional. O usuário tem total autonomia para gerenciar suas preferências de cookies a qualquer momento por meio do banner de consentimento disponível na plataforma.</p>
-                    </section>
+                  <section>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">15. Gerenciamento e Uso de Cookies</h3>
+                    <p>A plataforma utiliza:</p>
+                    <ul className="mt-1.5 space-y-1 pl-4 list-disc text-muted-foreground">
+                      <li><strong className="text-foreground font-semibold">Cookies Essenciais:</strong> Indispensáveis para o funcionamento do sistema, autenticação de sessão e segurança;</li>
+                      <li><strong className="text-foreground font-semibold">Cookies Analíticos:</strong> Utilizados (de forma opcional) para compreender o comportamento de navegação e melhorar a performance da aplicação. O usuário pode gerenciar suas preferências e aceite de cookies não essenciais a qualquer momento por meio do banner de consentimento disponibilizado na plataforma.</li>
+                    </ul>
+                  </section>
 
-                    <section className="mb-6">
-                      <h3 className="font-bold text-foreground mb-2 text-sm">16. Usuários Menores de Idade</h3>
-                      <p>O Biblia Online incentiva o estudo das Escrituras por jovens. Usuários com menos de 18 anos declaram estar sob supervisão de seus pais ou responsáveis ao utilizar a plataforma. No caso de crianças com menos de 12 anos, o cadastro e o fornecimento de dados devem ser realizados exclusivamente pelo responsável legal, em estrita conformidade com o Art. 14 da LGPD.</p>
-                    </section>
+                  <section>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">16. Proteção de Menores de Idade</h3>
+                    <p>O Bíblia Online incentiva o estudo bíblico por jovens e adolescentes.</p>
+                    <ul className="mt-1.5 space-y-1 pl-4 list-disc text-muted-foreground">
+                      <li><strong className="text-foreground font-semibold">Adolescentes (entre 12 e 18 anos):</strong> Declaram que utilizam a plataforma sob a supervisão de seus pais ou responsáveis legais.</li>
+                      <li><strong className="text-foreground font-semibold">Crianças (menores de 12 anos):</strong> O cadastro e o fornecimento de qualquer dado pessoal deverão ser realizados exclusivamente por um dos pais ou pelo responsável legal, em estrita observância ao Artigo 14 da LGPD e ao Estatuto da Criança e do Adolescente (ECA).</li>
+                    </ul>
+                  </section>
 
-                    <section>
-                      <h3 className="font-bold text-foreground mb-2 text-sm">17. Segurança e Prevenção de Abusos (Sentinel Security)</h3>
-                      <p>Para garantir a integridade da plataforma e a segurança dos dados dos usuários, utilizamos tecnologias avançadas de monitoramento. Coletamos dados técnicos do dispositivo — como o fingerprint — e analisamos padrões de interação e navegação de forma anonimizada. O objetivo é detectar automações indevidas e prevenir ataques cibernéticos, assegurando que o acesso à plataforma ocorra de maneira legítima e protegida para toda a comunidade.</p>
-                    </section>
-                  </div>
+                  <section>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">17. Segurança da Informação e Prevenção de Abusos (Sentinel Security)</h3>
+                    <p>Com o objetivo de salvaguardar a integridade do sistema e proteger os usuários contra fraudes e ataques, a plataforma utiliza soluções de segurança e monitoramento contínuo. Coletamos dados técnicos do dispositivo (como fingerprint técnico) e analisamos padrões de navegação de forma anonimizada para identificar automações maliciosas, acessos não autorizados e prevenir ataques à infraestrutura.</p>
+                  </section>
+
+                  <section>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">18. Serviços de Terceiros e Processamento Terceirizado</h3>
+                    <p>Para viabilizar as funcionalidades avançadas da aplicação, o Bíblia Online integra APIs de processamento de dados e modelos de linguagem mantidos por terceiros. Os dados pessoais identificáveis são removidos das requisições enviadas à IA sempre que viável. No entanto, o usuário é ostensivamente alertado a não inserir dados sigilosos, financeiros ou sensíveis no chat. Para tratar de assuntos confidenciais, o usuário deve recorrer exclusivamente aos canais de suporte humano.</p>
+                  </section>
+
+                  <section>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">19. Natureza do Serviço e Diretrizes de Comunidade</h3>
+                    <p>O Bíblia Online é um serviço de acesso público e gratuito destinado ao fomento e estudo da fé cristã. A utilização da plataforma está condicionada ao uso ético, respeitoso e alinhado com suas finalidades institucionais. Recomendamos que usuários que não concordem com os valores éticos e cristãos promovidos pela plataforma observem estritamente as diretrizes de convivência e respeitem o propósito comunitário do aplicativo.</p>
+                  </section>
+
+                  <section>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">20. Propriedade Intelectual e Legislação Aplicável</h3>
+                    <p>Todos os direitos de propriedade intelectual referentes ao software, código-fonte, interface visual, layout, arquitetura de sistema, bases de dados e conteúdos originais do Bíblia Online pertencem exclusivamente aos seus desenvolvedores e mantenedores, sendo protegidos pela legislação brasileira de direitos autorais e de software (Lei nº 9.610/1998 e Lei nº 9.609/1998). O acesso e uso da plataforma não concedem ao usuário qualquer licença, cessão ou direito de cópia, engenharia reversa ou reprodução não autorizada desses elementos.</p>
+                    <p className="mt-2 text-xs font-semibold text-accent">Este documento é regido, interpretado e sujeito integralmente às leis vigentes da República Federativa do Brasil.</p>
+                  </section>
 
                   <div className="pt-4 flex justify-end pb-4 pr-1">
                     <button

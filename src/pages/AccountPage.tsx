@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import zxcvbn from "zxcvbn";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
+import TermsModal from "@/components/TermsModal";
 import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2, AlertTriangle, Languages, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, forceSignOut, handleAuthError } from "@/contexts/AuthContext";
@@ -49,6 +50,7 @@ const AccountPage = () => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [editingName, setEditingName] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -973,11 +975,20 @@ const AccountPage = () => {
             </>
           )}
 
-          <div className="mt-8 pb-4 text-center">
+          <div className="mt-8 pb-4 text-center flex flex-col items-center gap-2">
             <p className="text-xs text-muted-foreground font-sans font-medium tracking-wide">
               Biblia Online — Versão {appVersion || "2.1"}
             </p>
+            <button
+              type="button"
+              onClick={() => setShowTermsModal(true)}
+              className="text-[11px] text-accent hover:text-accent/80 font-semibold hover:underline"
+            >
+              Termos de Uso e Política de Privacidade
+            </button>
           </div>
+
+          <TermsModal isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} />
 
         </motion.div>
       </section>
