@@ -300,17 +300,27 @@ export const reportBanToSupabase = async (record: SecurityBanRecord) => {
       banned_at: record.timestamp || new Date().toISOString(),
     };
 
-    // Tenta gravar na tabela security_bans
-    const { error: banErr } = await supabase.from("security_bans" as any).upsert(payload as any, { onConflict: "ip_hash" });
+    // Tenta gravar na tabela security_bans via upsert e fallback para insert
+    let { error: banErr } = await supabase.from("security_bans" as any).upsert(payload as any, { onConflict: "ip_hash" });
 
     if (banErr) {
-      console.warn("Notificação Supabase (security_bans):", banErr.message);
-      // Tenta gravar como log alternativo na tabela security_logs
+      console.warn("Aviso ao tentar UPSERT no Supabase (security_bans):", banErr.message);
+      // Fallback 1: Tenta INSERT simples caso a coluna ip_hash não tenha restrição UNIQUE
+      const { error: insertErr } = await supabase.from("security_bans" as any).insert(payload as any);
+      if (!insertErr) {
+        banErr = null;
+      } else {
+        console.warn("Aviso ao tentar INSERT no Supabase (security_bans):", insertErr.message);
+      }
+    }
+
+    if (banErr) {
+      // Fallback 2: Tenta gravar como log alternativo na tabela security_logs
       await supabase.from("security_logs" as any).insert({
         event: "IP_BLOCKED",
         details: payload,
         created_at: new Date().toISOString(),
-      } as any).catch(() => {});
+      } as any).catch((e) => console.warn("Erro ao salvar security_logs:", e));
     }
 
     // Se o usuário estiver logado, marca também no perfil
