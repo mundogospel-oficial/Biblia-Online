@@ -47,8 +47,8 @@ export function useSentinel(config: any = {}) {
         if (result.isBanned && result.record) {
           setIsBlocked(true);
           setBlockInfo(result.record);
-        } else {
-          // Se o IP/Usuário foi removido da tabela do Supabase, libera o app!
+        } else if (!result.isBanned) {
+          // Se a verificação confirmou que o IP foi removido da tabela do Supabase, libera o app!
           setIsBlocked(false);
           setBlockInfo(null);
         }
@@ -58,9 +58,44 @@ export function useSentinel(config: any = {}) {
     };
 
     verifySupabaseBan();
+    const timer = setTimeout(verifySupabaseBan, 3000);
 
     return () => {
       mounted = false;
+      clearTimeout(timer);
+    };
+  }, []);
+
+  // Escuta alterações locais e em tempo real do estado de bloqueio
+  useEffect(() => {
+    const handleBlockChange = (e: any) => {
+      const { isBlocked: blocked, record } = e.detail || {};
+      setIsBlocked(!!blocked);
+      setBlockInfo(record || null);
+    };
+
+    window.addEventListener("sentinel-block-change", handleBlockChange);
+
+    // Helpers globais para o usuário testar o bloqueio pelo console
+    if (typeof window !== "undefined") {
+      (window as any).testSentinelBlock = (reason = "Teste de bloqueio de IP/Dispositivo pelo Sentinel Security") => {
+        const testRecord: SecurityBanRecord = {
+          fingerprint: sentinelRef.current?.lastFingerprint || "HASH_TEST_0x" + Math.floor(Math.random() * 0xFFFFFF).toString(16),
+          reason,
+          errorCode: "ERR_SENTINEL_SECURITY_0x800403",
+          score: 100,
+          timestamp: new Date().toISOString()
+        };
+        reportBanToSupabase(testRecord);
+      };
+
+      (window as any).testSentinelUnblock = () => {
+        clearLocalBan();
+      };
+    }
+
+    return () => {
+      window.removeEventListener("sentinel-block-change", handleBlockChange);
     };
   }, []);
 

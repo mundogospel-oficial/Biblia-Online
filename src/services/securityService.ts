@@ -15,10 +15,14 @@ const LOCAL_BAN_KEY = "sentinel_ip_blocked_v1";
 
 export const saveLocalBan = (banInfo: SecurityBanRecord) => {
   try {
-    localStorage.setItem(LOCAL_BAN_KEY, JSON.stringify({
+    const fullRecord = {
       ...banInfo,
-      bannedAt: new Date().toISOString()
-    }));
+      bannedAt: banInfo.timestamp || new Date().toISOString()
+    };
+    localStorage.setItem(LOCAL_BAN_KEY, JSON.stringify(fullRecord));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("sentinel-block-change", { detail: { isBlocked: true, record: fullRecord } }));
+    }
   } catch (e) {
     console.warn("Could not save local ban state:", e);
   }
@@ -37,12 +41,18 @@ export const getLocalBan = (): SecurityBanRecord | null => {
 export const clearLocalBan = () => {
   try {
     localStorage.removeItem(LOCAL_BAN_KEY);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("sentinel-block-change", { detail: { isBlocked: false, record: null } }));
+    }
   } catch (e) {
     console.warn("Could not clear local ban state:", e);
   }
 };
 
 export const checkIsBannedInSupabase = async (fingerprintHash?: string): Promise<{ isBanned: boolean; record?: SecurityBanRecord }> => {
+  const localBan = getLocalBan();
+  const effectiveFp = fingerprintHash || localBan?.fingerprint;
+
   try {
     let currentUserId: string | null = null;
     let currentUserEmail: string | null = null;
@@ -59,12 +69,15 @@ export const checkIsBannedInSupabase = async (fingerprintHash?: string): Promise
 
     // Consulta no Supabase na tabela security_bans
     const queries: string[] = [];
-    if (fingerprintHash) queries.push(`ip_hash.eq.${fingerprintHash}`);
+    if (effectiveFp && effectiveFp !== "HASH_PROTECTED" && effectiveFp !== "unknown_fingerprint") {
+      queries.push(`ip_hash.eq.${effectiveFp}`);
+    }
     if (currentUserId) queries.push(`user_id.eq.${currentUserId}`);
     if (currentUserEmail) queries.push(`user_email.eq.${currentUserEmail}`);
 
     if (queries.length === 0) {
-      return { isBanned: false };
+      // Sem dados suficientes para consultar o Supabase ainda — mantém o estado local sem limpar
+      return { isBanned: !!localBan, record: localBan || undefined };
     }
 
     const { data: banData, error } = await supabase
@@ -75,11 +88,13 @@ export const checkIsBannedInSupabase = async (fingerprintHash?: string): Promise
 
     if (error && error.code !== "PGRST116") {
       console.warn("Aviso na checagem de banimento no Supabase:", error.message);
+      // Em caso de erro na consulta do Supabase (ex: tabela inexistente ou sem permissão), mantemos a proteção local!
+      return { isBanned: !!localBan, record: localBan || undefined };
     }
 
     if (banData && (banData.status === "banned" || !banData.status)) {
       const record: SecurityBanRecord = {
-        fingerprint: banData.ip_hash || fingerprintHash || "HASH_PROTECTED",
+        fingerprint: banData.ip_hash || effectiveFp || "HASH_PROTECTED",
         userId: banData.user_id || currentUserId,
         userEmail: banData.user_email || currentUserEmail,
         reason: banData.reason || "Seu IP ou conta foi bloqueada na tabela de segurança por motivos de violação.",
@@ -89,17 +104,21 @@ export const checkIsBannedInSupabase = async (fingerprintHash?: string): Promise
         timestamp: banData.banned_at || new Date().toISOString(),
       };
 
-      // Atualiza o cache local
+      // Atualiza e confirma no cache local
       saveLocalBan(record);
       return { isBanned: true, record };
     }
 
-    // Se NÃO encontrou registro banido no Supabase, remove do cache local (permite liberar se o admin removeu da tabela!)
-    clearLocalBan();
+    // Se a consulta no Supabase retornou com SUCESSO (sem erro) e NÃO encontrou o registro:
+    // Significa que o IP/Usuário NÃO está mais na tabela de banidos do Supabase (ex: removido pelo administrador).
+    // Nesse caso, limpamos o bloqueio local para permitir o acesso!
+    if (localBan) {
+      clearLocalBan();
+    }
     return { isBanned: false };
   } catch (err) {
     console.error("Erro ao verificar status de banimento no Supabase:", err);
-    return { isBanned: false };
+    return { isBanned: !!localBan, record: localBan || undefined };
   }
 };
 
