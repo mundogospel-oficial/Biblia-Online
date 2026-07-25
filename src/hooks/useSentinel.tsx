@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import SentinelCore from "../lib/security/sentinel-security.js";
-import { getLocalBan, reportBanToSupabase, checkIsBannedInSupabase, emergencyUnblockSentinel, SecurityBanRecord } from "@/services/securityService";
+import { getLocalBan, reportBanToSupabase, checkIsBannedInSupabase, SecurityBanRecord } from "@/services/securityService";
 import { SentinelSecurityOverlay } from "@/components/SentinelSecurityOverlay";
 
 export function useSentinel(config: any = {}) {
@@ -73,7 +73,7 @@ export function useSentinel(config: any = {}) {
     };
   }, []);
 
-  // Escuta alterações locais e em tempo real do estado de bloqueio
+  // Escuta alterações em tempo real do estado de bloqueio
   useEffect(() => {
     const handleBlockChange = (e: any) => {
       const { isBlocked: blocked, record } = e.detail || {};
@@ -82,21 +82,6 @@ export function useSentinel(config: any = {}) {
     };
 
     window.addEventListener("sentinel-block-change", handleBlockChange);
-
-    if (typeof window !== "undefined") {
-      // Comando secreto de desbloqueio de emergência
-      (window as any).unblockSentinel = async (code = "admin") => {
-        const res = await emergencyUnblockSentinel(code);
-        if (res.success) {
-          setIsBlocked(false);
-          setBlockInfo(null);
-        }
-        return res.message;
-      };
-
-      (window as any).sentinelUnlock = (window as any).unblockSentinel;
-      (window as any).sentinelEmergencyUnlock = (window as any).unblockSentinel;
-    }
 
     return () => {
       window.removeEventListener("sentinel-block-change", handleBlockChange);

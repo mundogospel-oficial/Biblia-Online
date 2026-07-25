@@ -89,49 +89,14 @@ export const clearLocalBan = () => {
   }
 };
 
-export const emergencyUnblockSentinel = async (secretCode?: string): Promise<{ success: boolean; message: string }> => {
-  const allowedCodes = ["unlock", "admin", "desbloquear", "sentinel123", "777", "admin123", "unblock"];
-  const provided = (secretCode || "").toString().toLowerCase().trim();
-
-  // Se nenhum código foi passado ou se o código é válido
-  if (provided && !allowedCodes.includes(provided)) {
-    return { success: false, message: "❌ Código de autorização inválido." };
-  }
-
+// Execução imediata para destravar computadores travados por cache local antigo
+if (typeof window !== "undefined") {
   try {
-    const localBan = getLocalBan();
-    const fp = localBan?.fingerprint;
-    const ip = localBan?.ipAddress;
-
-    // Limpa estado local
     clearLocalBan();
-
-    // Atualiza status no Supabase se disponível para evitar re-bloqueio automático
-    if (fp || ip) {
-      const matchQueries: string[] = [];
-      if (fp && fp !== "HASH_PROTECTED") matchQueries.push(`ip_hash.eq.${fp}`);
-      if (ip && ip !== "N/A") matchQueries.push(`ip_address.eq.${ip}`);
-
-      if (matchQueries.length > 0) {
-        await supabase
-          .from("security_bans" as any)
-          .update({ status: "unbanned" })
-          .or(matchQueries.join(","));
-      }
-    }
-
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("sentinel-block-change", { detail: { isBlocked: false, record: null } }));
-    }
-
-    console.log("✅ Sentinel Security: Bloqueio removido com sucesso!");
-    return { success: true, message: "✅ Bloqueio removido e acesso liberado!" };
-  } catch (err) {
-    console.error("Erro ao desbloquear Sentinel:", err);
-    clearLocalBan();
-    return { success: true, message: "✅ Bloqueio local removido." };
+  } catch {
+    // ignora
   }
-};
+}
 
 export const checkIsBannedInSupabase = async (fingerprintHash?: string): Promise<{ isBanned: boolean; record?: SecurityBanRecord }> => {
   const localBan = getLocalBan();
@@ -164,7 +129,9 @@ export const checkIsBannedInSupabase = async (fingerprintHash?: string): Promise
     if (currentUserEmail) queries.push(`user_email.eq.${currentUserEmail}`);
 
     if (queries.length === 0) {
-      return { isBanned: !!localBan, record: localBan || undefined };
+      // Se não há parâmetros de busca válidos, não bloqueia
+      clearLocalBan();
+      return { isBanned: false };
     }
 
     const { data: banData, error } = await supabase
@@ -175,19 +142,13 @@ export const checkIsBannedInSupabase = async (fingerprintHash?: string): Promise
 
     if (error && error.code !== "PGRST116") {
       console.warn("Consulta Supabase security_bans:", error.message);
-      // Se deu erro no Supabase (ex: tabela ainda não criada), mantemos a trava local intacta!
-      return { isBanned: !!localBan, record: localBan || undefined };
+      // Se houver erro de conexão ou tabela ausente, libera por padrão para não bloquear usuários legítimos
+      clearLocalBan();
+      return { isBanned: false };
     }
 
     // Se encontrou registro no Supabase
-    if (banData) {
-      // Se estiver explicitamente desbanido pelo admin no Supabase (status === 'unbanned' ou status === 'active' === false)
-      if (banData.status === "unbanned" || banData.status === "active_false") {
-        clearLocalBan();
-        return { isBanned: false };
-      }
-
-      // Caso contrário (status === 'banned' ou qualquer outro), está bloqueado!
+    if (banData && (banData.status === "banned" || !banData.status)) {
       const record: SecurityBanRecord = {
         fingerprint: banData.ip_hash || effectiveFp || "HASH_PROTECTED",
         userId: banData.user_id || currentUserId,
@@ -203,16 +164,14 @@ export const checkIsBannedInSupabase = async (fingerprintHash?: string): Promise
       return { isBanned: true, record };
     }
 
-    // Se o usuário já tinha um bloqueio local e no Supabase não retornou nada:
-    // MANTÉM o bloqueio local! Não remove automaticamente para impedir que recarregar a página desfaça o bloqueio!
-    if (localBan) {
-      return { isBanned: true, record: localBan };
-    }
-
+    // Se a consulta no Supabase NÃO retornou banimento ativo:
+    // Limpa qualquer trava local para destravar o computador!
+    clearLocalBan();
     return { isBanned: false };
   } catch (err) {
     console.error("Erro ao verificar status de banimento no Supabase:", err);
-    return { isBanned: !!localBan, record: localBan || undefined };
+    clearLocalBan();
+    return { isBanned: false };
   }
 };
 
