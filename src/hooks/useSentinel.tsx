@@ -58,11 +58,18 @@ export function useSentinel(config: any = {}) {
     };
 
     verifySupabaseBan();
-    const timer = setTimeout(verifySupabaseBan, 3000);
+    // Utiliza intervalo seguro de 30s para evitar erro 429 (Too Many Requests / WAF Challenge)
+    const interval = setInterval(verifySupabaseBan, 30000);
+
+    const handleFocus = () => {
+      verifySupabaseBan();
+    };
+    window.addEventListener("focus", handleFocus);
 
     return () => {
       mounted = false;
-      clearTimeout(timer);
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
     };
   }, []);
 

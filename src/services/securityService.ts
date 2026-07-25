@@ -172,31 +172,91 @@ export const checkIsBannedInSupabase = async (fingerprintHash?: string): Promise
   }
 };
 
+let cachedIpPromise: Promise<string | null> | null = null;
+let lastIpFetchTime = 0;
+let cachedIpValue: string | null = null;
+let rateLimitBlockedUntil = 0; // Backoff timestamp when 429/708 is encountered
+
 export const fetchClientPublicIp = async (): Promise<string | null> => {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
-    const res = await fetch("https://api.ipify.org?format=json", { signal: controller.signal });
-    clearTimeout(timeoutId);
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.ip) return data.ip;
-    }
-  } catch {
+  const now = Date.now();
+
+  // Se estiver em período de Backoff devido a Rate Limit (429 / WAF Challenge)
+  if (now < rateLimitBlockedUntil) {
+    return cachedIpValue;
+  }
+
+  // Cache por 10 minutos (600,000ms)
+  if (cachedIpValue && (now - lastIpFetchTime < 600000)) {
+    return cachedIpValue;
+  }
+
+  // Se já houver uma requisição em andamento, reutiliza a Promise para evitar duplicidade de chamadas
+  if (cachedIpPromise) {
+    return cachedIpPromise;
+  }
+
+  cachedIpPromise = (async () => {
+    const headers = {
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+    };
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
-      const res = await fetch("https://ipapi.co/json/", { signal: controller.signal });
+      const res = await fetch("https://api.ipify.org?format=json", {
+        headers,
+        signal: controller.signal
+      });
       clearTimeout(timeoutId);
+
+      if (res.status === 429 || res.status === 708) {
+        // Ativa backoff de 60 segundos se receber 429 ou desafio de WAF
+        rateLimitBlockedUntil = Date.now() + 60000;
+        return cachedIpValue;
+      }
+
       if (res.ok) {
         const data = await res.json();
-        if (data && data.ip) return data.ip;
+        if (data && data.ip) {
+          cachedIpValue = data.ip;
+          lastIpFetchTime = Date.now();
+          return data.ip;
+        }
       }
     } catch {
-      // Ignora falhas de consulta de IP
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const res = await fetch("https://ipapi.co/json/", {
+          headers,
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (res.status === 429 || res.status === 708) {
+          rateLimitBlockedUntil = Date.now() + 60000;
+          return cachedIpValue;
+        }
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.ip) {
+            cachedIpValue = data.ip;
+            lastIpFetchTime = Date.now();
+            return data.ip;
+          }
+        }
+      } catch {
+        // Ignora falhas de consulta sem travar o aplicativo
+      }
+    } finally {
+      cachedIpPromise = null;
     }
-  }
-  return null;
+    return cachedIpValue;
+  })();
+
+  return cachedIpPromise;
 };
 
 export const reportBanToSupabase = async (record: SecurityBanRecord) => {
