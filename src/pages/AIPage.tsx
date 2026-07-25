@@ -500,6 +500,8 @@ const AIPage = () => {
   const [usageStats, setUsageStats] = useState({ simple: 0, complex: 0, image: 0 });
   const [limitReached, setLimitReached] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -509,6 +511,67 @@ const AIPage = () => {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    const isMobileScreen = () => window.innerWidth < 768;
+
+    const handleFocusIn = (e: FocusEvent) => {
+      if (!isMobileScreen()) return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        setIsKeyboardOpen(true);
+        if (window.visualViewport) {
+          setViewportHeight(window.visualViewport.height);
+        }
+        window.scrollTo(0, 0);
+        setTimeout(() => {
+          bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 150);
+      }
+    };
+
+    const handleFocusOut = () => {
+      if (!isMobileScreen()) return;
+      setIsKeyboardOpen(false);
+      setViewportHeight(null);
+      window.scrollTo(0, 0);
+    };
+
+    const handleViewportResize = () => {
+      if (!isMobileScreen()) {
+        setIsKeyboardOpen(false);
+        setViewportHeight(null);
+        return;
+      }
+      if (window.visualViewport) {
+        const currentHeight = window.visualViewport.height;
+        const isSmall = currentHeight < window.innerHeight * 0.85;
+        setIsKeyboardOpen(isSmall);
+        if (isSmall) {
+          setViewportHeight(currentHeight);
+          window.scrollTo(0, 0);
+        } else {
+          setViewportHeight(null);
+        }
+      }
+    };
+
+    window.addEventListener("focusin", handleFocusIn);
+    window.addEventListener("focusout", handleFocusOut);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", handleViewportResize);
+      window.visualViewport.addEventListener("scroll", handleViewportResize);
+    }
+
+    return () => {
+      window.removeEventListener("focusin", handleFocusIn);
+      window.removeEventListener("focusout", handleFocusOut);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", handleViewportResize);
+        window.visualViewport.removeEventListener("scroll", handleViewportResize);
+      }
     };
   }, []);
 
@@ -723,12 +786,12 @@ const AIPage = () => {
       return;
     }
 
-    // Filtro de segurança para imagem inapropriada/obscena
+    // Filtro de segurança para imagem inapropriada/obscena/fora do escopo cristão
     const moderation = await validateImageContent(file);
     if (!moderation.isAppropriate) {
       toast({ 
-        title: "Aviso", 
-        description: "Imagem inapropriada tente novamente", 
+        title: "Envio Bloqueado", 
+        description: moderation.reason || "Imagem não pode ser enviada pois contém conteúdo impróprio ou fora do escopo ético/cristão.", 
         variant: "destructive" 
       });
       return;
@@ -829,42 +892,45 @@ const AIPage = () => {
 
     const videoSystemPrompt = `Atue como um roteirista profissional de vídeos, especializado em teologia e conteúdo cristão focado em engajamento digital (YouTube/Instagram/TikTok). Seu objetivo é criar um roteiro dinâmico, profundo e estritamente fiel às Escrituras Sagradas.
 
-🛑 Regras de Ouro (Proibido Violar)
-- Fidelidade Bíblica Rigorosa: Todo o conteúdo deve ser fundamentado diretamente na Bíblia. Não invente diálogos que não estão no texto, não use livros apócrifos, lendas urbanas ou interpretações seculares que distorçam o sentido original.
-- Citação de Fontes: Sempre que citar um acontecimento, milagre, parábola ou ensinamento, inclua a referência bíblica exata (Ex: Gênesis 1:1 ou João 3:16).
-- Sem Desvios: Mantenha o foco absoluto no tema proposto. Evite filosofias humanas, debates políticos ou analogias mundanas longas que tirem a centralidade da Palavra de Deus.
-- Tom de Voz: Reverente, inspirador, acolhedor e com autoridade bíblica, sem ser excessivamente acadêmico ou cansativo.
-- Respostas Equilibradas: Escreva de maneira rica mas direta, evitando explicações redundantes ou textos exageradamente longos. O roteiro deve ser completo e de tamanho médio, sem enrolação.
+🛑 REGRAS INVIOLÁVEIS DE ESCOPO E TAMANHO:
+- ESCOPO BÍBLICO ESTRITO: Se o tema solicitado pelo usuário NÃO for de contexto bíblico ou cristão, RECUSE COM EXTREMA EDUCAÇÃO: "Olá! Este gerador de roteiros atende exclusivamente temas bíblicos e cristãos. Não posso criar roteiros para temas seculares. Como posso ajudar em seus estudos ou vídeos cristãos hoje?"
+- ⚠️ LIMITE DE TAMANHO OBRIGATÓRIO DE ATÉ 2.000 CARACTERES: Sua resposta inteira DEVE ter no MÁXIMO 2.000 CARACTERES no total. Seja conciso, dinâmico, objetivo e direto ao ponto.
+- Fidelidade Bíblica Rigorosa: Todo o conteúdo deve ser fundamentado diretamente na Bíblia, citando a referência exata (Ex: João 3:16).
+- Tom de Voz: Reverente, inspirador, acolhedor e com autoridade bíblica.
 
-🎬 Estrutura do Roteiro
-O roteiro deve conter as seguintes divisões claras, indicando o que deve ser falado (locução) e o que deve aparecer na tela (instruções visuais/B-roll):
-- O Gancho (Primeiros 15 segundos): Uma pergunta ou afirmação forte baseada no tema para capturar a atenção imediatamente.
-- A Introdução: Apresentação do tema central e leitura do versículo-chave que guiará o vídeo.
-- O Desenvolvimento (Dividido em 2 ou 3 pontos): Explicação do contexto histórico e cultural da época, destrinchando o significado espiritual do tema.
-- A Aplicação Prática: Como o cristão de hoje pode aplicar essa verdade bíblica em sua vida diária (família, fé, trabalho).
-- Conclusão e Chamada para Ação (CTA): Uma oração ou reflexão final rápida, seguida do pedido de inscrição/curtida e uma pergunta para os comentários (Ex: "Qual desses pontos falou mais ao seu coração?").
+🎬 Estrutura do Roteiro (deve ser conciso e objetivo):
+- O Gancho (Primeiros 15s): Pergunta ou afirmação impactante.
+- A Introdução: Apresentação do tema e versículo-chave.
+- O Desenvolvimento (1 ou 2 pontos diretos): Explicação bíblica e espiritual.
+- A Aplicação Prática e Conclusão com CTA.
 
-📝 Informações do Vídeo atual
-- Tema do Vídeo: [O que o usuário disser]
-- Plataforma: [A que o usuário disser]
-- Tempo de Duração Estimado: [O que o usuário disser]
+NUNCA use # para títulos, use **negrito**.`;
 
-Gere o roteiro completo seguindo essas diretrizes. NUNCA use # para títulos, use **negrito**.`;
+    const musicSystemPrompt = `Você é um compositor de músicas cristãs talentoso. Crie uma letra de música completa e inspiradora.
 
-    const musicSystemPrompt = `Você é um compositor de músicas cristãs talentoso. Crie uma letra de música completa e inspiradora. Inclua:
+🛑 REGRAS INVIOLÁVEIS DE ESCOPO E TAMANHO:
+- ESCOPO BÍBLICO ESTRITO: Se o tema solicitado pelo usuário NÃO for de contexto bíblico ou cristão, RECUSE COM EXTREMA EDUCAÇÃO: "Olá! Este compositor atende exclusivamente hinos, louvores e canções de fé cristã. Não posso compor músicas para temas seculares. Como posso ajudar na sua composição cristã hoje?"
+- ⚠️ LIMITE DE TAMANHO OBRIGATÓRIO DE ATÉ 2.000 CARACTERES: Sua resposta inteira DEVE ter no MÁXIMO 2.000 CARACTERES no total. Crie uma composição profunda, emocionante e marcante sem ultrapassar 2000 caracteres.
+
+Inclua:
 - Título da música
-- Estilo musical sugerido (ex: worship, gospel contemporâneo, etc)
-- Versos (pelo menos 2)
+- Estilo musical sugerido (ex: worship, gospel contemporâneo)
+- Versos
 - Refrão marcante
 - Ponte
 - Tom sugerido
-A letra deve ser profunda, emocionante e bíblica. NUNCA use # para títulos, use **negrito**.`;
+
+NUNCA use # para títulos, use **negrito**.`;
 
     const systemPrompt = mode === 'video' ? videoSystemPrompt : musicSystemPrompt;
 
     try {
       const cleanPrompt = text.replace(/\[Modo:.*?\]\s*/g, "");
-      const responseText = await askBibleAI(cleanPrompt, "complex", controller.signal, attachments, systemPrompt, true);
+      let responseText = await askBibleAI(cleanPrompt, "complex", controller.signal, attachments, systemPrompt, true);
+
+      if (responseText && responseText.length > 2000) {
+        responseText = responseText.slice(0, 1997) + "...";
+      }
       
       const assistantMsg: Msg = { role: "assistant", content: responseText || "Conteúdo gerado!" };
       const finalMessages = [...currentMsgs, assistantMsg];
@@ -986,14 +1052,21 @@ A letra deve ser profunda, emocionante e bíblica. NUNCA use # para títulos, us
       } else if (activeMode === 'learning') {
         const learningPrompt = `Você é um professor e teólogo cristão dedicado ao ensino bíblico de forma altamente didática, passo a passo e interativa.
 
-Seu objetivo é ensinar o tema bíblico solicitado seguindo rigorosamente estas diretrizes:
-1. Ensine o tema de forma PASSO A PASSO (dividido em etapas claras e estruturadas). Explique o contexto histórico, teológico e espiritual de cada etapa de maneira progressiva, clara e de fácil compreensão, sem colocar todas as informações de uma vez só de forma massiva.
-2. Seja conciso e objetivo: evite explicações redundantes ou exageradamente longas. O texto deve ser de tamanho médio, rico em conteúdo, mas direto ao ponto e sem enrolação.
-3. Ao final da explicação passo a passo, apresente um RESUMO claro e objetivo com as principais lições práticas e espirituais que o cristão pode extrair desse aprendizado para sua vida hoje.
-4. Finalize OBRIGATORIAMENTE com uma PERGUNTA reflexiva ou desafiadora sobre o tema para incentivar a reflexão e resposta do usuário.
+🛑 REGRAS INVIOLÁVEIS DE ESCOPO E TAMANHO:
+- ESCOPO BÍBLICO ESTRITO: Se o tema solicitado pelo usuário NÃO for de contexto bíblico ou cristão, RECUSE COM EXTREMA EDUCAÇÃO: "Olá! O modo aprendizado é exclusivo para estudos da Bíblia Sagrada e fé cristã. Não posso ensinar sobre temas seculares. Como posso ajudar em seus estudos bíblicos hoje?"
+- ⚠️ LIMITE DE TAMANHO OBRIGATÓRIO DE ATÉ 2.000 CARACTERES: Sua resposta inteira DEVE ter no MÁXIMO 2.000 CARACTERES no total. Seja conciso, objetivo e direto para garantir que todo o texto caiba em até 2000 caracteres.
+
+Seu objetivo é ensinar o tema bíblico solicitado seguindo estas diretrizes:
+1. Ensine o tema de forma PASSO A PASSO (dividido em etapas curtas e claras).
+2. Seja conciso e objetivo: evite explicações redundantes ou exageradamente longas.
+3. Apresente um RESUMO claro com as principais lições práticas e espirituais.
+4. Finalize OBRIGATORIAMENTE com uma PERGUNTA reflexiva sobre o tema.
 
 Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex: João 3:16, Efésios 2:8). NUNCA use # para títulos, use **negrito**.`;
         responseText = await askBibleAI(finalText, aiEngine === "complexo" ? "complex" : "simple", controller.signal, attachments, learningPrompt, true);
+        if (responseText && responseText.length > 2000) {
+          responseText = responseText.slice(0, 1997) + "...";
+        }
       } else {
         responseText = await askBibleAI(finalText, aiEngine === "complexo" ? "complex" : "simple", controller.signal, attachments, undefined, true);
       }
@@ -1231,7 +1304,14 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
 
   return (
     <div 
-      className="flex h-[100dvh] flex-col bg-background relative"
+      className={`flex flex-col bg-background relative w-full overflow-hidden transition-[height,max-height,padding] duration-300 ease-out ${
+        isKeyboardOpen ? "fixed inset-0 z-30 md:relative md:inset-auto md:z-auto md:h-[100dvh]" : "h-[100dvh]"
+      }`}
+      style={
+        isKeyboardOpen && viewportHeight && window.innerWidth < 768
+          ? { height: `${viewportHeight}px`, maxHeight: `${viewportHeight}px` }
+          : undefined
+      }
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -1459,7 +1539,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
           <div ref={bottomRef} />
         </div>
 
-        <div className="shrink-0 bg-background pb-16 pt-2 md:pb-3">
+        <div className={`shrink-0 bg-background pt-2 transition-all duration-300 ease-out ${isKeyboardOpen ? 'pb-2 md:pb-3' : 'pb-16 md:pb-3'}`}>
           <AnimatePresence>
             {activeModeInfo && (
               <motion.div
@@ -1727,6 +1807,12 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                   maxLength={2000}
                   value={input} onChange={(e) => setInput(e.target.value.slice(0, 2000))}
                   onPaste={handlePaste}
+                  onFocus={() => {
+                    window.scrollTo(0, 0);
+                    setTimeout(() => {
+                      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+                    }, 120);
+                  }}
                   placeholder={!isOnline ? "Necessário internet para IA" : limitReached ? "Limite diário atingido" : activeModeInfo ? `Descreva (${activeModeInfo.label})...` : aiEngine === "simples" ? "Pergunta simples..." : "Pergunte qualquer coisa..."}
                   disabled={isLoading || limitReached || !isOnline}
                   className="flex-1 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"

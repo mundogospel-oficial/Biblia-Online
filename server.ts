@@ -343,7 +343,8 @@ function startServer() {
       }
     }
   }));
-  app.use(express.json());
+  app.use(express.json({ limit: "15mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "15mb" }));
   app.use(cookieParser());
   app.use(checkBanned); // Verifica banimento em todas as rotas
 
@@ -492,6 +493,156 @@ function startServer() {
     res.json({ status: "ok" });
   });
 
+  // Lista expandida de termos proibidos para moderação e auditoria rígida (Étnica/Cristã/Segurança)
+  const EXPANDED_FORBIDDEN_TERMS = [
+    // Nudity / NSFW / Sexual / Vulgarity
+    'nude', 'nudity', 'pelad', 'nuas', 'nus', 'nua', 'sexy', 'peito', 'bumbum', 'bunda', 'vagina', 'penis', 
+    'sexo', 'erotic', 'sensual', 'porno', 'naked', 'breast', 'butt', 'ass', 'hentai', 'safada', 'gostosa',
+    'mamilo', 'pussy', 'dick', 'bikini', 'biquini', 'lingerie', 'suruba', 'orgy', 'strip', 'prostituta', 'puta',
+    
+    // Occultism / Paganism / Magic / Non-Christian Religions / Esoterism
+    'satan', 'demonio', 'diabo', 'lucifer', 'baphomet', 'pentagrama', 'pentagram', 'bruxa', 'bruxo', 'bruxaria',
+    'witch', 'witchcraft', 'tarot', 'horoscopo', 'zodiaco', 'astrologia', 'signo', 'voodoo', 'mago', 'magia negra',
+    'black magic', 'pact', 'pacto', 'exu', 'pombagira', 'orixas', 'orixa', 'ze pilintra', 'umbanda', 'candomble',
+    'buda', 'buddha', 'oxum', 'ogum', 'shiva', 'vishnu', 'hindu', 'ganesha', 'allah', 'islamo', 'ocultismo',
+    'esoterismo', 'paganismo', 'pagan', 'ritual macabro', 'caveira', 'skull', 'gore',
+    
+    // Violence / Weapons / Crime / Drugs / Alcohol
+    'drogas', 'maconha', 'cocaina', 'crack', 'weed', 'cannabis', 'cerveja', 'vodka', 'uísque', 'whisky',
+    'embriaguez', 'arma de fogo', 'revolver', 'pistola', 'fuzil', 'tiro', 'assassino', 'estupro', 'sangue', 'mutilacao',
+    'suicidio', 'morte violenta', 'tortura',
+
+    // Modern Secular Pop Culture / Anime / Fiction / Secular Entertainment
+    'carro', 'celular', 'computador', 'smartphone', 'videogame', 'video game', 'goku', 'naruto', 'one piece',
+    'futebol', 'soccer', 'marvel', 'dc comics', 'batman', 'superman', 'spiderman', 'boate', 'rockstar',
+    'balada', 'danceteria', 'nave espacial', 'disco de vinil', 'alienígena', 'ufo', 'extraterrestre',
+    'pokemon', 'fortnite', 'minecraft', 'cyberpunk', 'zumbi', 'zombie', 'vampiro', 'vampire', 'lobisomem'
+  ];
+
+  function isPromptForbiddenByTerms(text: string): boolean {
+    const lower = text.toLowerCase();
+    return EXPANDED_FORBIDDEN_TERMS.some(term => {
+      const regex = new RegExp(`(?:^|[^a-z0-9_])${term}(?:$|[^a-z0-9_])`, 'i');
+      return regex.test(lower);
+    });
+  }
+
+  // --- ROTA DE MODERAÇÃO DE IMAGEM ENVIADA VIA VISÃO COMPUTACIONAL (GEMINI VISION) ---
+  app.post("/api/moderate-image", async (req, res) => {
+    try {
+      const { imageBase64, mimeType = "image/jpeg", fileName = "" } = req.body || {};
+
+      if (!imageBase64) {
+        return res.status(400).json({ isAppropriate: true, reason: null });
+      }
+
+      // 1. Verificação prévia por nome de arquivo e texto rápido
+      if (fileName && isPromptForbiddenByTerms(fileName)) {
+        return res.json({
+          isAppropriate: false,
+          reason: "Imagem bloqueada por conter nome ou conteúdo inadequado para os padrões bíblicos e éticos."
+        });
+      }
+
+      // Limpar prefixo data URI se houver
+      const cleanBase64 = imageBase64.replace(/^data:image\/[a-zA-Z]+;base64,/, "").trim();
+
+      // 2. Chaves de API do Gemini
+      let googleKey = (process.env.VITE_GEMINI_API_KEY || "").trim();
+      let googleKey2 = (process.env.VITE_GEMINI_API_KEY_2 || "").trim();
+      const adminClient = getSupabaseAdmin();
+
+      if (adminClient) {
+        try {
+          const { data } = await adminClient
+            .from('ai_settings')
+            .select('config_key, config_value')
+            .in('config_key', ['google_ai_key', 'google_ai_key_2']);
+          if (data) {
+            const dbGoogle = data.find(d => d.config_key === 'google_ai_key')?.config_value;
+            const dbGoogle2 = data.find(d => d.config_key === 'google_ai_key_2')?.config_value;
+            if (dbGoogle && dbGoogle.trim()) googleKey = dbGoogle.trim();
+            if (dbGoogle2 && dbGoogle2.trim()) googleKey2 = dbGoogle2.trim();
+          }
+        } catch (err) {
+          console.warn("[Moderation Backend] Erro ao buscar chaves no banco:", err);
+        }
+      }
+
+      const keysToTry = [googleKey, googleKey2].filter(Boolean) as string[];
+      if (keysToTry.length === 0) {
+        // Se sem chave no servidor, aprova com segurança padrão
+        return res.json({ isAppropriate: true, reason: null });
+      }
+
+      const MODERATION_VISION_PROMPT = `Você é um Moderador e Auditor de Segurança e Ética Cristã Mestre para um aplicativo da Bíblia Sagrada.
+Analise a imagem enviada com Máxima Rigidez e determine se ela está em total conformidade com os princípios bíblicos, cristãos e éticos.
+
+A IMAGEM DEVE SER REJEITADA (isAppropriate: false) SE CONTIVER:
+1. Nudez, erotismo, sensualidade, apelo sexual, roupas curtas ou provocantes, lingerie, biquínis, gestos sensuais, corpos expostos ou conteúdo adulto.
+2. Símbolos, rituais, ídolos, ocultismo, feitiçaria, bruxaria, satanismo, demônios, tarot, zodíaco, astrologia, horóscopo, pentagramas ou elementos/entidades de outras religiões/doutrinas não cristãs (estátuas de deuses pagãos, rituais profanos).
+3. Violência, sangue, mutilação, armas de fogo em contexto de crime/violência, cenas macabras, caveiras, horror, imagens de ódio ou profanação.
+4. Drogas, bebidas alcoólicas, cigarros, festas profanas, ostentação imoral ou condutas ilícitas.
+5. Imagens com deboche, fofocas profanas, caricaturas zombeteiras da Bíblia ou figuras sagradas, ou conteúdo secular inadequado.
+
+A IMAGEM PODE SER APROVADA (isAppropriate: true) SE FOR:
+- Paisagens naturais puras (montanhas, céus, rios, flores), fotos de igrejas, arte bíblica/cristã respeitosa, pessoas vestidas modestamente e respeitosamente em atitudes éticas normais, ou símbolos cristãos sagrados (cruz, Bíblia, pomba).
+
+Responda ESTRITAMENTE em formato JSON simples sem formatação markdown extra:
+{"isAppropriate": true, "reason": null}
+ou
+{"isAppropriate": false, "reason": "Motivo da rejeição em português"}
+`;
+
+      for (const key of keysToTry) {
+        try {
+          const { GoogleGenAI } = await import("@google/genai");
+          const ai = new GoogleGenAI({ apiKey: key });
+          const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  { text: MODERATION_VISION_PROMPT },
+                  {
+                    inlineData: {
+                      mimeType: mimeType || "image/jpeg",
+                      data: cleanBase64
+                    }
+                  }
+                ]
+              }
+            ],
+            config: {
+              temperature: 0.1,
+              maxOutputTokens: 256
+            }
+          });
+
+          const responseText = response.text || "";
+          let cleanedJson = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(cleanedJson);
+
+          if (parsed && typeof parsed.isAppropriate === "boolean") {
+            return res.json({
+              isAppropriate: parsed.isAppropriate,
+              reason: parsed.isAppropriate ? null : (parsed.reason || "Imagem não condiz com os padrões bíblicos e éticos do aplicativo.")
+            });
+          }
+        } catch (visionErr: any) {
+          console.warn("[Moderation Backend] Erro na análise Gemini Vision:", visionErr?.message || visionErr);
+        }
+      }
+
+      // Se falhou a chamada Gemini mas passou no teste prévio de termos, aprova
+      return res.json({ isAppropriate: true, reason: null });
+    } catch (err) {
+      console.error("[Moderation Backend Error]:", err);
+      return res.status(500).json({ isAppropriate: true, reason: null });
+    }
+  });
+
   app.post("/api/generate-image", async (req, res) => {
     try {
       const { prompt: rawPrompt, aspectRatio, source = 'chat', isComplex = false } = req.body;
@@ -585,23 +736,7 @@ function startServer() {
       let isBlocked = false;
 
       // Local safety and Biblical context filter (fail-fast first layer)
-      const forbiddenTerms = [
-        // Nudity/NSFW/Vulgar
-        'nude', 'nudity', 'pelad', 'nuas', 'nus', 'nua', 'sexy', 'peito', 'bumbum', 'bunda', 'vagina', 'penis', 
-        'sexo', 'erotic', 'sensual', 'porno', 'naked', 'breast', 'butt', 'ass', 'hentai', 'safada', 'gostosa',
-        // Non-Biblical/Secular obvious modern elements
-        'carro', 'celular', 'computador', 'smartphone', 'videogame', 'video game', 'goku', 'naruto', 
-        'futebol', 'soccer', 'marvel', 'dc comics', 'batman', 'superman', 'boate', 'cerveja', 'vodka', 
-        'uísque', 'whisky', 'rockstar', 'balada', 'danceteria', 'nave espacial', 'disco de vinil', 'alienígena'
-      ];
-
-      const lowercasePrompt = prompt.toLowerCase();
-      const hasForbiddenTerm = forbiddenTerms.some(term => {
-        const regex = new RegExp(`\\b${term}`, 'i');
-        return regex.test(lowercasePrompt);
-      });
-
-      if (hasForbiddenTerm) {
+      if (isPromptForbiddenByTerms(prompt)) {
         return res.status(400).json({ error: "Imagem não pode ser gerada pois contem conteudo improprio" });
       }
 
@@ -609,11 +744,11 @@ function startServer() {
 
       const systemInstruction = `REGRAS MESTRAS: ${systemPromptMaster}
 
-Você é um Diretor de Arte de Imagens Bíblicas e Moderador de Conteúdo Mestre, especialista em Engenharia de Prompts para geradores de imagem avançados (FLUX / Midjourney).
+Você é um Diretor de Arte de Imagens Bíblicas e Moderador de Conteúdo Mestre, especialista em Engenharia de Prompts para geradores de imagem avançados.
 
-REGRA 1 (Nudez e Conteúdo Impróprio): Verifique se o pedido contém qualquer menção direta ou indireta a nudez, sensualidade, erotismo ou conteúdo impróprio/adulto. Se violar esta regra, responda EXATAMENTE: "BLOQUEADO".
+REGRA 1 (Nudez e Conteúdo Impróprio/Sensual): Verifique se o pedido contém qualquer menção direta ou indireta a nudez, sensualidade, erotismo, trajes sumários/íntimos ou conteúdo adulto. Se violar esta regra, responda EXATAMENTE: "BLOQUEADO".
 
-REGRA 2 (Filtro Bíblico / Cristão Estrito): Verifique se o pedido é sobre temas, passagens, cenários, profecias ou personagens descritos na Bíblia Sagrada ou relacionados à história cristã. Se for sobre qualquer assunto secular não-bíblico (como carros modernos, tecnologia moderna, ficção científica, super-heróis, outras religiões), responda EXATAMENTE: "BLOQUEADO".
+REGRA 2 (Filtro Bíblico e Cristão Estrito): Verifique se o pedido é EXCLUSIVAMENTE sobre temas, passagens, cenários, profecias, virtudes ou personagens descritos na Bíblia Sagrada ou relacionados à fé e história cristã. Se contiver QUALQUER assunto de outras religiões (Budismo, Hinduísmo, Mitologia, Entidades de Matriz Africana, etc.), feitiçaria, bruxaria, ocultismo, satanismo, horóscopo, tarô, astrologia, deuses pagãos ou temas seculares/mundanos (tecnologia moderna, carros, super-heróis, anime, esportes seculares), responda EXATAMENTE: "BLOQUEADO".
 
 ${isCreateMode ? `REGRA 3 (MODO CRIAR COM VERSÍCULOS - PAISAGENS NATURAIS SEM HUMANOS):
 ATENÇÃO OBRIGATÓRIA: Este pedido é do Modo Criar com Versículos (fundo de imagem para texto/post). A imagem DEVE SER EXCLUSIVAMENTE UMA PAISAGEM NATURAL BÍBLICA, SEM NENHUMA PESSOA, SEM SERES HUMANOS, SEM ROSTOS, SEM CORPOS E SEM FIGURAS HUMANAS.

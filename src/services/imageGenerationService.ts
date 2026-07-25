@@ -108,13 +108,27 @@ export const generateBiblicalImage = async (
         throw new Error("Sessão inválida ou expirada. Por favor, faça login para gerar imagens.");
       }
 
-      // 2. Moderação local e detecção de conteúdo impróprio ou fora do escopo
+      // 2. Moderação local e detecção de conteúdo impróprio ou fora do escopo cristão
       const forbiddenTerms = [
+        // Nudity/NSFW/Vulgar/Sensual
         'nude', 'nudity', 'pelad', 'nuas', 'nus', 'nua', 'sexy', 'peito', 'bumbum', 'bunda', 'vagina', 'penis', 
         'sexo', 'erotic', 'sensual', 'porno', 'naked', 'breast', 'butt', 'ass', 'hentai', 'safada', 'gostosa',
+        'biquini', 'lingerie', 'toples', 'topless', 'sensualidade', 'erotismo', 'despida', 'despido',
+        // Non-Christian / Occult / Pagan / Satanism / Other religions
+        'diabo', 'demônio', 'demonio', 'satanas', 'satã', 'satanismo', 'buda', 'budismo', 'orixá', 'orixas', 
+        'umbanda', 'candomblé', 'candomble', 'exu', 'pombagira', 'pomba gira', 'ze pilintra', 'bruxaria', 
+        'feitiçaria', 'feitico', 'ocultismo', 'horóscopo', 'horoscopo', 'astrologia', 'signos', 'tarô', 'tarot', 
+        'hindu', 'shiva', 'zeus', 'thor', 'mitologia', 'paganismo', 'pagão', 'pagao', 'magia negra', 'voodoo', 
+        'pacto', 'ritual pagão', 'deus pagão', 'idolo', 'ídolo', 'baphomet', 'pentagrama',
+        // Drugs / Alcohol / Crime / Violence / Weapons
+        'drogas', 'maconha', 'cocaina', 'crack', 'lança perfume', 'vape', 'cigarro', 'tabaco', 'arma', 'tiro', 
+        'sangue', 'violencia', 'mutilacao', 'morte sangrenta', 'assassino', 'crime', 'cerveja', 'vodka', 
+        'uísque', 'whisky', 'vinho com bebedeira', 'balada', 'boate', 'danceteria', 'prostituta', 'prostituição', 
+        'cassino', 'apostas', 'tigrinho', 'poker',
+        // Secular non-Christian themes / Modern pop culture
         'carro', 'celular', 'computador', 'smartphone', 'videogame', 'video game', 'goku', 'naruto', 
-        'futebol', 'soccer', 'marvel', 'dc comics', 'batman', 'superman', 'boate', 'cerveja', 'vodka', 
-        'uísque', 'whisky', 'rockstar', 'balada', 'danceteria', 'nave espacial', 'disco de vinil', 'alienígena'
+        'futebol', 'soccer', 'marvel', 'dc comics', 'batman', 'superman', 'rockstar', 'funk', 'ostentação', 
+        'anime', 'otaku', 'alienígena', 'disco voador'
       ];
       const lowercasePrompt = cleanPrompt.toLowerCase();
       const hasForbiddenTerm = forbiddenTerms.some(term => {
@@ -159,17 +173,17 @@ export const generateBiblicalImage = async (
       if (keysToTry.length > 0) {
         const systemInstruction = `REGRAS MESTRAS: ${systemPromptMaster}
 
-Você é um Diretor de Arte de Imagens Bíblicas e Moderador de Conteúdo Mestre, especialista em Engenharia de Prompts para geradores de imagem avançados (FLUX / Midjourney).
+Você é um Diretor de Arte de Imagens Bíblicas e Moderador de Conteúdo Mestre, especialista em Engenharia de Prompts para geradores de imagem avançados.
 
-REGRA 1 (Nudez e Conteúdo Impróprio): Verifique se o pedido contém qualquer menção direta ou indireta a nudez, sensualidade, erotismo ou conteúdo impróprio/adulto. Se violar esta regra, responda EXATAMENTE: "BLOQUEADO".
+REGRA 1 (Nudez e Conteúdo Impróprio/Sensual): Verifique se o pedido contém qualquer menção direta ou indireta a nudez, sensualidade, erotismo, trajes sumários/íntimos ou conteúdo adulto. Se violar esta regra, responda EXATAMENTE: "BLOQUEADO".
 
-REGRA 2 (Filtro Bíblico / Cristão Estrito): Verifique se o pedido é sobre temas, passagens, cenários, profecias ou personagens descritos na Bíblia Sagrada ou relacionados à história cristã. Se for sobre qualquer assunto secular não-bíblico (como carros modernos, tecnologia moderna, ficção científica, super-heróis, outras religiões), responda EXATAMENTE: "BLOQUEADO".
+REGRA 2 (Filtro Bíblico e Cristão Estrito): Verifique se o pedido é EXCLUSIVAMENTE sobre temas, passagens, cenários, profecias, virtudes ou personagens descritos na Bíblia Sagrada ou relacionados à fé e história cristã. Se contiver QUALQUER assunto de outras religiões (Budismo, Hinduísmo, Mitologia, Entidades de Matriz Africana, etc.), feitiçaria, bruxaria, ocultismo, satanismo, horóscopo, tarô, astrologia, deuses pagãos ou temas seculares/mundanos (tecnologia moderna, carros, super-heróis, anime, esportes seculares), responda EXATAMENTE: "BLOQUEADO".
 
 ${isCreateMode ? `REGRA 3 (MODO CRIAR COM VERSÍCULOS - PAISAGENS NATURAIS SEM HUMANOS):
 ATENÇÃO OBRIGATÓRIA: Este pedido é do Modo Criar com Versículos (fundo de imagem para texto/post). A imagem DEVE SER EXCLUSIVAMENTE UMA PAISAGEM NATURAL BÍBLICA, SEM NENHUMA PESSOA, SEM SERES HUMANOS, SEM ROSTOS, SEM CORPOS E SEM FIGURAS HUMANAS.
 Gere um prompt em inglês focado 100% em elementos de natureza inspiradora (céu, montanhas, vales, desertos, rios, mares, árvores, flores, luz solar divina, névoa, nascer do sol) e adicione OBRIGATORIAMENTE ao final do prompt: "serene scenic natural landscape, no people, no humans, empty nature background, peaceful biblical environment, 8k resolution".` : `REGRA 3 (ANATOMIA E OLHOS NATURAIS PERFEITOS):
-Ao traduzir e enriquecer o pedido para o INGLÊS, crie uma descrição natural, fluida e de altíssima fidelidade.
-- ANATOMIA E OLHOS NATURAIS (CRÍTICO): Os olhos devem ser humanos, anatômicos e totalmente naturais ("natural realistic human eyes, crystal-clear iris, anatomically accurate round pupils, natural realistic eye gaze, sharp eye focus"). NUNCA use olhos desalinhados, vesgos, pupilas deformadas ou íris borradas. Se duas pessoas estiverem na cena, especifique o olhar natural entre elas ("looking at each other with natural emotional connection, natural eye contact") ou olhando naturally para o cenário/câmera.
+Ao traduzir e enriquecer o pedido para o INGLÊS, crie uma descrição natural, fluida e de altísima fidelidade.
+- ANATOMIA E OLHOS NATURAIS (CRÍTICO): Os olhos devem ser humanos, anatômicos e totalmente naturais ("natural realistic human eyes, crystal-clear iris, anatomically accurate round pupils, natural realistic eye gaze, sharp eye focus"). NUNCA use olhos desalinhados, vesgos, pupilas deformadas ou íris borradas. Se duas pessoas estiverem na cena, especifique o olhar natural entre elas ("looking at each other with natural emotional connection, natural eye contact") ou olhando naturalmente para o cenário/câmera.
 - COMPOSIÇÃO E ENQUADRAMENTO: Mantenha um enquadramento equilibrado de retrato (medium shot portrait or standard portrait composition, balanced facial proportions) para evitar deformação facial de lente super próxima.
 - ILUMINAÇÃO E PELE: Iluminação natural e cristalina (bright soft natural daylight), cores vivas e pele limpa e realista.
 - ESTILOS ESPECÍFICOS ([Estilo: ...]):
