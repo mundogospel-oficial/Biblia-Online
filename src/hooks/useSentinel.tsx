@@ -83,6 +83,22 @@ export function useSentinel(config: any = {}) {
 
     window.addEventListener("sentinel-block-change", handleBlockChange);
 
+    if (typeof window !== "undefined") {
+      // Comando manual para ativar o bloqueio e registrar no Supabase
+      (window as any).testSentinelBlock = (reason = "Tentativa de invasão ou script suspeito detectado pelo Sentinel") => {
+        const testRecord: SecurityBanRecord = {
+          fingerprint: sentinelRef.current?.lastFingerprint || "HASH_TEST_0x" + Math.floor(Math.random() * 0xFFFFFF).toString(16),
+          reason,
+          errorCode: "ERR_SENTINEL_SECURITY_0x800403",
+          score: 100,
+          timestamp: new Date().toISOString()
+        };
+        reportBanToSupabase(testRecord);
+        return "🚨 Sentinel: Bloqueio ativado e registrado no Supabase!";
+      };
+      (window as any).triggerSentinelBlock = (window as any).testSentinelBlock;
+    }
+
     return () => {
       window.removeEventListener("sentinel-block-change", handleBlockChange);
     };
