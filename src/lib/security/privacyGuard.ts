@@ -11,6 +11,66 @@ export interface SanitizedPromptResult {
 }
 
 /**
+ * Mask PII in text for UI display and AI transmission
+ */
+export function maskPiiInText(text: string): string {
+  if (!text) return text;
+  let result = text;
+
+  // 1. Email
+  const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
+  result = result.replace(emailRegex, "[E-MAIL OCULTO]");
+
+  // 2. CPF (Formatted: 000.000.000-00 or Unformatted: 11 digits like 13183018381)
+  const formattedCpfRegex = /\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g;
+  result = result.replace(formattedCpfRegex, "[CPF OCULTO]");
+
+  // Unformatted 11 digits (e.g., 13183018381 or cpf:13183018381)
+  const unformattedCpfRegex = /(?:cpf\s*:?\s*|\b)(\d{11})\b/gi;
+  result = result.replace(unformattedCpfRegex, (match, digits) => {
+    // Exclude bible references like 12345678901 unless specified
+    if (match.toLowerCase().includes("cpf") || (digits && digits.length === 11)) {
+      return match.toLowerCase().includes("cpf") ? "cpf: [CPF OCULTO]" : "[CPF OCULTO]";
+    }
+    return match;
+  });
+
+  // 3. CNPJ
+  const cnpjRegex = /\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g;
+  result = result.replace(cnpjRegex, "[CNPJ OCULTO]");
+
+  // 4. Cartão de Crédito / Dados de Pagamento / PIX / Conta Bancária
+  const paymentRegex = /\b(?:\d[ -]*?){13,19}\b/g;
+  result = result.replace(paymentRegex, (match) => {
+    const cleanNums = match.replace(/\D/g, "");
+    if (cleanNums.length >= 13 && cleanNums.length <= 19) {
+      return "[DADOS DE PAGAMENTO OCULTOS]";
+    }
+    return match;
+  });
+
+  // Sensitive payment key patterns (CVV, agência/conta, chave pix)
+  const pixKeyRegex = /(?:chave\s*pix|cart[aã]o|cvv|senha|dados\s*de\s*pagamento)\s*:?\s*[a-zA-Z0-9.\-_@+]+/gi;
+  result = result.replace(pixKeyRegex, (match) => {
+    const prefix = match.split(/[:\s]+/)[0];
+    return `${prefix}: [DADOS DE PAGAMENTO OCULTOS]`;
+  });
+
+  // 5. Telefone
+  const phoneRegex = /(?:\+?55\s?)?(?:\(?\d{2}\)?\s?)?(?:9\d{4}|\d{4})[-.\s]?\d{4}\b/g;
+  result = result.replace(phoneRegex, (match) => {
+    if (match.includes(":") || match.trim().length < 8) return match;
+    return "[TELEFONE OCULTO]";
+  });
+
+  // 6. Credenciais / API Keys
+  const secretsRegex = /\b(?:sk-[a-zA-Z0-9]{20,}|AIzaSy[a-zA-Z0-9_-]{33}|sbp_[a-zA-Z0-9]{20,}|bearer\s+[a-zA-Z0-9._-]{20,})\b/gi;
+  result = result.replace(secretsRegex, "[CREDENCIAIS OCULTAS]");
+
+  return result;
+}
+
+/**
  * Sanitizes user prompt by removing PII data (CPF, CNPJ, Email, Phone, Credit Cards, Keys)
  * and neutralizing potential prompt injection triggers.
  */
@@ -19,63 +79,19 @@ export function sanitizeUserPrompt(rawPrompt: string): SanitizedPromptResult {
     return { cleanPrompt: "", hasPiiDetected: false, detectedTypes: [] };
   }
 
-  let text = rawPrompt;
+  const maskedText = maskPiiInText(rawPrompt);
+  const hasPii = maskedText !== rawPrompt;
   const detectedTypes: string[] = [];
 
-  // 1. CPF (e.g., 000.000.000-00 or 11 continuous digits in context)
-  const cpfRegex = /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g;
-  if (cpfRegex.test(text)) {
-    detectedTypes.push("CPF");
-    text = text.replace(cpfRegex, "[CPF_REMOVIDO_POR_PRIVACIDADE]");
-  }
+  if (maskedText.includes("[CPF OCULTO]")) detectedTypes.push("CPF");
+  if (maskedText.includes("[E-MAIL OCULTO]")) detectedTypes.push("Email");
+  if (maskedText.includes("[DADOS DE PAGAMENTO OCULTOS]")) detectedTypes.push("Dados_Pagamento");
+  if (maskedText.includes("[TELEFONE OCULTO]")) detectedTypes.push("Telefone");
+  if (maskedText.includes("[CNPJ OCULTO]")) detectedTypes.push("CNPJ");
 
-  // 2. CNPJ
-  const cnpjRegex = /\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g;
-  if (cnpjRegex.test(text)) {
-    detectedTypes.push("CNPJ");
-    text = text.replace(cnpjRegex, "[CNPJ_REMOVIDO_POR_PRIVACIDADE]");
-  }
-
-  // 3. Email
-  const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
-  if (emailRegex.test(text)) {
-    detectedTypes.push("Email");
-    text = text.replace(emailRegex, "[EMAIL_REMOVIDO_POR_PRIVACIDADE]");
-  }
-
-  // 4. Phone Numbers (BR formats: (11) 99999-9999, +5511999999999, 11 99999-9999)
-  const phoneRegex = /(?:\+?55\s?)?(?:\(?\d{2}\)?\s?)?(?:9\d{4}|\d{4})[-.\s]?\d{4}\b/g;
-  if (phoneRegex.test(text)) {
-    // Only replace if it looks like a phone and not a bible chapter/verse reference like "11:9" or "John 3:16"
-    text = text.replace(phoneRegex, (match) => {
-      if (match.includes(":") || match.trim().length < 8) return match;
-      detectedTypes.push("Telefone");
-      return "[TELEFONE_REMOVIDO_POR_PRIVACIDADE]";
-    });
-  }
-
-  // 5. Credit Cards (13 to 19 digits)
-  const creditCardRegex = /\b(?:\d[ -]*?){13,19}\b/g;
-  if (creditCardRegex.test(text)) {
-    text = text.replace(creditCardRegex, (match) => {
-      const cleanNums = match.replace(/\D/g, "");
-      if (cleanNums.length >= 13 && cleanNums.length <= 19) {
-        detectedTypes.push("Cartão");
-        return "[CARTAO_REMOVIDO_POR_PRIVACIDADE]";
-      }
-      return match;
-    });
-  }
-
-  // 6. API Keys / Passwords / Secrets patterns
-  const secretsRegex = /\b(?:sk-[a-zA-Z0-9]{20,}|AIzaSy[a-zA-Z0-9_-]{33}|sbp_[a-zA-Z0-9]{20,}|bearer\s+[a-zA-Z0-9._-]{20,})\b/gi;
-  if (secretsRegex.test(text)) {
-    detectedTypes.push("Chave/Segredo");
-    text = text.replace(secretsRegex, "[CREDENCIAIS_REMOVIDAS]");
-  }
-
-  // 7. Strip potential Jailbreak / System Prompt Exfiltration attempts
+  // Strip potential Jailbreak / System Prompt Exfiltration attempts
   const injectionRegex = /(?:ignore\s+previous\s+instructions|system\s+prompt|revelar\s+instruç[õo]es|exibir\s+chave|mostre\s+seu\s+prompt\s+mestre|ignore\s+todas\s+as\s+regras)/gi;
+  let text = maskedText;
   if (injectionRegex.test(text)) {
     detectedTypes.push("Tentativa_Injecao");
     text = text.replace(injectionRegex, "[COMANDO_RESTRITO_NEUTRALIZADO]");
@@ -83,7 +99,7 @@ export function sanitizeUserPrompt(rawPrompt: string): SanitizedPromptResult {
 
   return {
     cleanPrompt: text.trim(),
-    hasPiiDetected: detectedTypes.length > 0,
+    hasPiiDetected: hasPii,
     detectedTypes
   };
 }

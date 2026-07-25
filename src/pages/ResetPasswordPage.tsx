@@ -9,10 +9,12 @@ import { useNavigate } from "react-router-dom";
 import { useSentinel } from "@/hooks/useSentinel";
 
 const translateAuthError = (message: string) => {
+  if (!message) return "Ocorreu um erro ao atualizar a senha.";
   const lowered = message.toLowerCase();
   if (lowered.includes("password should be at least")) return "A senha deve ter pelo menos 6 caracteres.";
   if (lowered.includes("new password should be different")) return "A nova senha deve ser diferente da antiga.";
-  return message;
+  if (lowered.includes("401") || lowered.includes("unauthorized")) return "Sessão expirada. Tente novamente.";
+  return "Ocorreu um erro ao atualizar a senha.";
 };
 
 const ResetPasswordPage = () => {

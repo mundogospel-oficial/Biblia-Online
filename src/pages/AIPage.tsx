@@ -19,6 +19,8 @@ import { checkAndIncrementUsage, getUserUsage, refundUsage } from "@/services/us
 import { saveAIHistory } from "@/services/userDataService";
 import { generateBiblicalImage } from "@/services/imageGenerationService";
 import { encryptConversationMessages, decryptConversationMessages } from "@/lib/security/cryptoService";
+import { maskPiiInText } from "@/lib/security/privacyGuard";
+import { validateImageContent } from "@/services/imageModerationService";
 
 const formatMessageForDisplay = (text: string): string => {
   if (!text) return "";
@@ -685,7 +687,7 @@ const AIPage = () => {
     await downloadBibleImage(dataUrl, "Biblia-Online-IA");
   };
 
-  const validateAndAddFile = (file: File) => {
+  const validateAndAddFile = async (file: File) => {
     if (attachedFiles.length >= 2) {
       toast({ title: "Limite de arquivos atingido", description: "Você só pode anexar no máximo 2 arquivos por mensagem.", variant: "destructive" });
       return;
@@ -716,6 +718,17 @@ const AIPage = () => {
       toast({ 
         title: "Formato não suportado", 
         description: "Formatos permitidos: Imagens (PNG, JPG, JPEG, WEBP, GIF), PDF e Word (DOC, DOCX).", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    // Filtro de segurança para imagem inapropriada/obscena
+    const moderation = await validateImageContent(file);
+    if (!moderation.isAppropriate) {
+      toast({ 
+        title: "Aviso", 
+        description: "Imagem inapropriada tente novamente", 
         variant: "destructive" 
       });
       return;
@@ -807,7 +820,7 @@ const AIPage = () => {
     const controller = new AbortController();
     setAbortController(controller);
     
-    const userMsg: Msg = { role: "user", content: text, fileName: attachedFileName || undefined, files: attachedFilesList };
+    const userMsg: Msg = { role: "user", content: maskPiiInText(text), fileName: attachedFileName || undefined, files: attachedFilesList };
     const currentMsgs = [...messages, userMsg];
     setMessages(currentMsgs);
     setInput("");
@@ -865,7 +878,7 @@ A letra deve ser profunda, emocionante e bíblica. NUNCA use # para títulos, us
       if (e.name === 'AbortError') {
         toast({ description: "Geração interrompida." });
       } else {
-        toast({ title: "Erro", description: e.message || "Erro ao gerar resposta.", variant: "destructive" });
+        toast({ title: "Erro na IA", description: "Tente novamente mais tarde.", variant: "destructive" });
       }
       setMessages(prev => prev.slice(0, -1));
     } finally {
@@ -877,7 +890,7 @@ A letra deve ser profunda, emocionante e bíblica. NUNCA use # para títulos, us
   const send = async (text: string) => {
     if (!user || !text.trim() || isLoading || limitReached) return;
 
-    let finalText = text.trim();
+    let finalText = maskPiiInText(text.trim());
     const currentMode = activeMode ? modes.find(m => m.key === activeMode) : null;
     if (currentMode && !finalText.startsWith(currentMode.prefix.trim())) {
       finalText = currentMode.prefix + finalText;
@@ -996,15 +1009,14 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
       if (error.name === 'AbortError' || error.message?.includes('abort') || error.message?.includes('The user aborted a request')) {
         toast({ description: "Geração interrompida." });
       } else {
-        toast({ title: "Erro na IA", description: error.message || "Erro ao gerar resposta.", variant: "destructive" });
+        const errMsg = error?.message || "";
+        if (errMsg.toLowerCase().includes("improprio") || errMsg.toLowerCase().includes("bloqueado") || errMsg.toLowerCase().includes("inapropriad")) {
+          toast({ title: "Geração Cancelada", description: "Imagem não pode ser gerada pois contem conteudo improprio", variant: "destructive" });
+        } else {
+          toast({ title: "Erro na IA", description: "Tente novamente mais tarde.", variant: "destructive" });
+        }
         if (
-          activeMode !== "image" && (
-            error.message?.includes('Chave da API') || 
-            error.message?.includes('Todos os modelos falharam') || 
-            error.message?.includes('Falha Gemini') ||
-            error.message?.includes('BLOQUEADO') ||
-            error.message?.includes('Falha de comunicação')
-          )
+          activeMode !== "image"
         ) {
           refundUsage(aiEngine === "complexo" ? "complex" : "simple").catch(console.error);
         }

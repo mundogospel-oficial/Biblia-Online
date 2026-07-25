@@ -602,7 +602,7 @@ function startServer() {
       });
 
       if (hasForbiddenTerm) {
-        return res.status(400).json({ error: "O pedido contém termos impróprios ou fora do contexto bíblico permitido." });
+        return res.status(400).json({ error: "Imagem não pode ser gerada pois contem conteudo improprio" });
       }
 
       const isCreateMode = source === 'create';
@@ -677,7 +677,7 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
       }
 
       if (isBlocked) {
-        return res.status(400).json({ error: "Apenas imagens de temas bíblicos/cristãos são permitidas e sem conteúdo impróprio." });
+        return res.status(400).json({ error: "Imagem não pode ser gerada pois contem conteudo improprio" });
       }
 
       // 5. Geração de imagens via Pollinations.ai usando modelo FLUX para máxima fidelidade e realismo

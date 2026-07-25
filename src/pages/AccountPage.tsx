@@ -18,18 +18,20 @@ const OFFLINE_KEY = "bible-offline-enabled";
 
 // Helper to translate common Supabase auth errors
 const translateAuthError = (message: string) => {
+  if (!message) return "Ocorreu um erro ao processar. Tente novamente.";
   const lowered = message.toLowerCase();
-  if (lowered.includes("database error saving new user") || lowered.includes("database error") || lowered.includes("user already registered") || lowered.includes("user_already_exists") || lowered.includes("already registered")) {
-    return "Este e-mail já está em uso ou foi excluído recentemente (aguarde o período de 30 dias para criar uma nova conta com este e-mail).";
+  if (lowered.includes("database error") || lowered.includes("user already registered") || lowered.includes("user_already_exists") || lowered.includes("already registered")) {
+    return "E-mail já cadastrado. Tente fazer login ou recuperar senha.";
   }
-  if (lowered.includes("timeout-or-duplicate")) return "A verificação de segurança expirou. Por favor, tente novamente.";
-  if (lowered.includes("failed to fetch")) return "Erro de conexão. Verifique sua internet ou se o serviço está disponível.";
-  if (lowered.includes("invalid login credentials")) return "Credenciais inválidas. Verifique seu e-mail e senha.";
-  if (lowered.includes("password should contain at least one character of each")) return "A senha deve conter letras (maiúsculas e minúsculas), números e símbolos (!@#$).";
-  if (lowered.includes("password should be at least")) return "A senha deve ter pelo menos 6 caracteres.";
-  if (lowered.includes("email not confirmed")) return "Por favor, verifique seu e-mail antes de entrar.";
-  if (lowered.includes("refresh token") || lowered.includes("refresh_token") || lowered.includes("not found")) return "Sessão expirada ou inválida. Por favor, entre novamente.";
-  return message; // fallback
+  if (lowered.includes("timeout-or-duplicate")) return "A verificação de segurança expirou. Tente novamente.";
+  if (lowered.includes("failed to fetch")) return "Erro de conexão. Verifique sua internet.";
+  if (lowered.includes("invalid login credentials")) return "E-mail ou senha incorretos.";
+  if (lowered.includes("password should contain at least")) return "Senha fraca. Use letras, números e símbolos.";
+  if (lowered.includes("password should be at least")) return "A senha deve ter no mínimo 6 caracteres.";
+  if (lowered.includes("email not confirmed")) return "Verifique seu e-mail para confirmar a conta.";
+  if (lowered.includes("refresh token") || lowered.includes("refresh_token") || lowered.includes("not found")) return "Sessão expirada. Entre novamente.";
+  if (lowered.includes("401") || lowered.includes("unauthorized")) return "Sessão expirada. Entre novamente.";
+  return "Ocorreu um erro ao processar. Tente novamente.";
 };
 
 const AccountPage = () => {
@@ -394,7 +396,7 @@ const AccountPage = () => {
         if (Notification.permission === "denied") {
           toast({
             title: "Permissão Bloqueada",
-            description: "As notificações estão bloqueadas no seu navegador ou dispositivo. Por favor, ative-as nas configurações do site para receber atualizações.",
+            description: "Notificações bloqueadas. Ative-as nas configurações do site no seu navegador.",
             variant: "destructive"
           });
           return;

@@ -122,7 +122,7 @@ export const generateBiblicalImage = async (
         return regex.test(lowercasePrompt);
       });
       if (hasForbiddenTerm) {
-        throw new Error("O pedido contém termos impróprios ou fora do contexto bíblico permitido.");
+        throw new Error("Imagem não pode ser gerada pois contem conteudo improprio");
       }
 
       // 3. Obter chaves do Gemini do Supabase para tradução/refinamento local
@@ -228,7 +228,7 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
       }
 
       if (isBlocked) {
-        throw new Error("Apenas imagens de temas bíblicos/cristãos são permitidas e sem conteúdo impróprio.");
+        throw new Error("Imagem não pode ser gerada pois contem conteudo improprio");
       }
 
       let finalPrompt = enhancedPrompt;

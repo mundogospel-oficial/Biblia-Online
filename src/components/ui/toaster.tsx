@@ -13,15 +13,15 @@ export function Toaster() {
 
         return (
           <Toast key={id} variant={variant} {...props}>
-            <div className="flex items-start gap-3 w-full pr-5">
+            <div className="flex items-start gap-2.5 sm:gap-3 w-full pr-4 sm:pr-5">
               <div
-                className={`mt-0.5 shrink-0 p-2 rounded-xl border flex items-center justify-center ${
+                className={`mt-0.5 shrink-0 p-1.5 sm:p-2 rounded-lg sm:rounded-xl border flex items-center justify-center ${
                   isDestructive
                     ? "bg-rose-500/15 text-rose-400 border-rose-500/20"
                     : "bg-accent/15 text-accent border-accent/20"
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </div>
               <div className="grid gap-0.5 flex-1 text-left min-w-0">
                 {title && <ToastTitle>{title}</ToastTitle>}

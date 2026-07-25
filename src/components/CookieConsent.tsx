@@ -74,41 +74,41 @@ export const CookieConsent = () => {
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
-          className="fixed bottom-0 left-0 right-0 z-[100] p-4 md:p-6"
+          className="fixed bottom-0 left-0 right-0 z-[100] p-2.5 sm:p-4 md:p-6"
         >
-          <div className="mx-auto max-w-4xl glass-card border-white/10 shadow-2xl overflow-hidden rounded-[2rem]">
-            <div className="p-6 md:p-8">
-              <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
-                <div className="flex-1 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center">
-                      <ShieldCheck className="h-6 w-6 text-accent" />
+          <div className="mx-auto max-w-4xl glass-card border-white/10 shadow-2xl overflow-hidden rounded-2xl sm:rounded-[2rem]">
+            <div className="p-3.5 sm:p-5 md:p-8">
+              <div className="flex flex-col md:flex-row gap-3 sm:gap-6 items-start md:items-center">
+                <div className="flex-1 space-y-1.5 sm:space-y-3">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="h-7 w-7 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+                      <ShieldCheck className="h-4 w-4 sm:h-6 sm:w-6 text-accent" />
                     </div>
-                    <h2 className="font-serif text-xl font-bold text-foreground">Privacidade e Cookies (LGPD)</h2>
+                    <h2 className="font-serif text-sm sm:text-lg md:text-xl font-bold text-foreground">Privacidade e Cookies (LGPD)</h2>
                   </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
+                  <p className="text-[11px] sm:text-xs md:text-sm text-muted-foreground leading-snug sm:leading-relaxed line-clamp-2 sm:line-clamp-none">
                     Visando a máxima transparência e conformidade legal, informamos que utilizamos cookies para oferecer uma experiência personalizada, otimizar a navegação e analisar o tráfego do site. Respeitamos os seus direitos conforme a <span className="font-semibold text-foreground">Lei Geral de Proteção de Dados (Lei 13.709/2018)</span> e garantimos a você o total controle sobre as suas preferências de privacidade.
                   </p>
                 </div>
                 
                 {!isConfiguring ? (
-                  <div className="flex flex-col gap-2 w-full md:w-auto min-w-[200px]">
+                  <div className="flex flex-col gap-1.5 sm:gap-2 w-full md:w-auto min-w-[180px]">
                     <button 
                       onClick={handleAcceptAll}
-                      className="w-full rounded-xl bg-accent py-3 px-6 text-sm font-bold text-accent-foreground shadow-lg transition-all hover:scale-[1.02] active:scale-95"
+                      className="w-full rounded-xl bg-accent py-2 sm:py-3 px-4 sm:px-6 text-xs sm:text-sm font-bold text-accent-foreground shadow-lg transition-all hover:scale-[1.02] active:scale-95"
                     >
                       Aceitar Todos
                     </button>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
                       <button 
                         onClick={handleRejectNonEssential}
-                        className="rounded-xl bg-secondary/50 py-2.5 px-4 text-xs font-medium text-foreground transition-all hover:bg-secondary"
+                        className="rounded-xl bg-secondary/50 py-1.5 sm:py-2.5 px-2.5 sm:px-4 text-[11px] sm:text-xs font-medium text-foreground transition-all hover:bg-secondary"
                       >
                         Rejeitar Não-Essenciais
                       </button>
                       <button 
                         onClick={() => setIsConfiguring(true)}
-                        className="rounded-xl border border-white/10 bg-transparent py-2.5 px-4 text-xs font-medium text-foreground transition-all hover:bg-white/5"
+                        className="rounded-xl border border-white/10 bg-transparent py-1.5 sm:py-2.5 px-2.5 sm:px-4 text-[11px] sm:text-xs font-medium text-foreground transition-all hover:bg-white/5"
                       >
                         Configurar
                       </button>

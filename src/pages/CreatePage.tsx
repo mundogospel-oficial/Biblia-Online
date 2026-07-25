@@ -275,7 +275,12 @@ const CreatePage = () => {
       throw new Error("O modelo não retornou uma imagem. Tente novamente.");
     } catch (e: any) {
       console.error("AI Image Error:", e);
-      toast({ title: "Erro na IA", description: e.message || "Falha ao gerar imagem", variant: "destructive" });
+      const errMsg = e.message || "";
+      if (errMsg.toLowerCase().includes("improprio") || errMsg.toLowerCase().includes("bloqueado") || errMsg.toLowerCase().includes("inapropriad")) {
+        toast({ title: "Geração Cancelada", description: "Imagem não pode ser gerada pois contem conteudo improprio", variant: "destructive" });
+      } else {
+        toast({ title: "Erro na IA", description: "Tente novamente mais tarde.", variant: "destructive" });
+      }
     } finally {
       await checkCreateUsage();
       setAiImageLoading(false);

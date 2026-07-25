@@ -135,8 +135,68 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">;
 
+function cleanToastText(text?: React.ReactNode): React.ReactNode {
+  if (typeof text !== "string") return text;
+  
+  let str = text.trim();
+  const lowered = str.toLowerCase();
+
+  if (
+    lowered.includes("401") ||
+    lowered.includes("403") ||
+    lowered.includes("500") ||
+    lowered.includes("key_error") ||
+    lowered.includes("openrouter") ||
+    lowered.includes("gemini") ||
+    lowered.includes("api_key") ||
+    lowered.includes("status code") ||
+    lowered.includes("unauthorized") ||
+    lowered.includes("failed to fetch") ||
+    lowered.includes("jwt") ||
+    lowered.includes("bad request") ||
+    lowered.includes("internal server error")
+  ) {
+    if (lowered.includes("401") || lowered.includes("unauthorized") || lowered.includes("jwt")) {
+      return "Sessão expirada. Entre novamente.";
+    }
+    return "Tente novamente mais tarde.";
+  }
+
+  str = str.replace(/^(erro|error|key_error|exception):\s*/i, "");
+  return str;
+}
+
 function toast({ ...props }: Toast) {
   const id = genId();
+
+  let title = props.title;
+  let description = props.description;
+
+  if (typeof title === "string") {
+    const titleLower = title.toLowerCase();
+    if (titleLower.includes("401") || titleLower.includes("key_error") || titleLower.includes("erro: 401")) {
+      title = "Erro na IA";
+      description = "Tente novamente mais tarde.";
+    } else {
+      title = cleanToastText(title);
+    }
+  }
+
+  if (typeof description === "string" && title !== "Erro na IA") {
+    const descLower = description.toLowerCase();
+    if (descLower.includes("401") || descLower.includes("key_error") || descLower.includes("openrouter") || descLower.includes("gemini")) {
+      title = "Erro na IA";
+      description = "Tente novamente mais tarde.";
+    } else {
+      description = cleanToastText(description);
+    }
+  }
+
+  const sanitizedProps = {
+    ...props,
+    title,
+    description,
+  };
 
   const update = (props: ToasterToast) =>
     dispatch({
@@ -148,7 +208,7 @@ function toast({ ...props }: Toast) {
   dispatch({
     type: "ADD_TOAST",
     toast: {
-      ...props,
+      ...sanitizedProps,
       id,
       open: true,
       onOpenChange: (open) => {

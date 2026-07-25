@@ -234,7 +234,7 @@ const Reader = () => {
           throw new Error("Não foi possível traduzir os versículos. Tente novamente.");
         }
       } catch (e: any) {
-        toast({ title: e.message || "Erro ao traduzir versículos", variant: "destructive" });
+        toast({ title: "Erro na tradução", description: "Tente novamente mais tarde.", variant: "destructive" });
         setBilingual(false);
       } finally {
         setBilingualLoading(false);
@@ -341,7 +341,7 @@ const Reader = () => {
     } catch (error: any) {
       console.error("Erro no dicionário:", error);
       setDictContent("Erro ao carregar o dicionário. Tente novamente.");
-      toast({ title: "Erro no dicionário", description: error.message, variant: "destructive" });
+      toast({ title: "Erro no dicionário", description: "Tente novamente mais tarde.", variant: "destructive" });
     } finally {
       setDictLoading(false);
     }
