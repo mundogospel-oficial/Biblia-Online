@@ -89,6 +89,163 @@ export const clearLocalBan = () => {
   }
 };
 
+// Anti-F12 e Proteção de DevTools quando bloqueado ou sob ataque
+let antiF12Active = false;
+
+export const enableAntiF12Protection = () => {
+  if (antiF12Active || typeof window === "undefined") return;
+  antiF12Active = true;
+
+  // Bloqueia teclas de inspeção F12 / Ctrl+Shift+I / Ctrl+Shift+J / Ctrl+U
+  window.addEventListener("keydown", (e) => {
+    if (
+      e.key === "F12" ||
+      (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "i" || e.key === "J" || e.key === "j" || e.key === "C" || e.key === "c")) ||
+      (e.ctrlKey && (e.key === "U" || e.key === "u" || e.key === "S" || e.key === "s"))
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    }
+  }, true);
+
+  // Bloqueia botão direito (Menu de contexto/Inspecionar)
+  window.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    return false;
+  }, true);
+
+  // Trava o depurador caso o DevTools seja aberto
+  setInterval(() => {
+    if (antiF12Active) {
+      try {
+        const start = Date.now();
+        // eslint-disable-next-line no-debugger
+        debugger;
+        const end = Date.now();
+        if (end - start > 100) {
+          console.clear();
+        }
+      } catch {
+        // ignora
+      }
+    }
+  }, 1000);
+};
+
+// Detecção de injeção pesada (SQLi, XSS, scripts maliciosos)
+export const checkSecurityInput = (input: string): { isSafe: boolean; reason?: string } => {
+  if (!input || typeof input !== "string") return { isSafe: true };
+
+  const lower = input.toLowerCase();
+  const injectionPatterns = [
+    /<script/i,
+    /javascript:/i,
+    /onload\s*=/i,
+    /onerror\s*=/i,
+    /eval\s*\(/i,
+    /document\.cookie/i,
+    /union\s+select/i,
+    /drop\s+table/i,
+    /insert\s+into/i,
+    /delete\s+from/i,
+    /--\s*$/i,
+    /or\s+1\s*=\s*1/i,
+    /'\s*or\s*'/i,
+  ];
+
+  for (const pattern of injectionPatterns) {
+    if (pattern.test(lower)) {
+      enableAntiF12Protection();
+      const reason = "Injeção de código ou payload malicioso detectado pelo Sentinel";
+      const banRecord: SecurityBanRecord = {
+        fingerprint: "INJECTION_BLOCKED_0x" + Math.floor(Math.random() * 0xFFFFFF).toString(16),
+        reason,
+        errorCode: "ERR_SENTINEL_INJECTION_0x800999",
+        score: 100,
+        timestamp: new Date().toISOString()
+      };
+      reportBanToSupabase(banRecord);
+      return { isSafe: false, reason };
+    }
+  }
+
+  return { isSafe: true };
+};
+
+// Controle progressivo de tentativas (Login e IA)
+const rateLimitTrackers: Record<string, number[]> = {
+  login: [],
+  ai_prompt: []
+};
+
+const rateLimitWarnings: Record<string, number> = {
+  login: 0,
+  ai_prompt: 0
+};
+
+export const recordRateLimitAttempt = (category: "login" | "ai_prompt"): {
+  allowed: boolean;
+  isWarning: boolean;
+  isBlocked: boolean;
+  message?: string;
+} => {
+  const now = Date.now();
+  const windowMs = 60000; // janela de 1 minuto
+
+  // Limpa registros mais antigos que 1 minuto
+  rateLimitTrackers[category] = (rateLimitTrackers[category] || []).filter((t) => now - t < windowMs);
+  rateLimitTrackers[category].push(now);
+
+  const count = rateLimitTrackers[category].length;
+
+  const limits = {
+    login: { warnThreshold: 4, blockThreshold: 8 },
+    ai_prompt: { warnThreshold: 6, blockThreshold: 12 }
+  };
+
+  const limit = limits[category];
+
+  // 2ª ocorrência / Limite grave -> Bloqueio total com Tela Azul do Sentinel
+  if (count >= limit.blockThreshold) {
+    enableAntiF12Protection();
+    const reason = category === "login"
+      ? "Bloqueio Sentinel: Excesso recorrente de tentativas de login (Tentativa de Força Bruta)"
+      : "Bloqueio Sentinel: Excesso de solicitações para IA (Rate Limit Severo Violado)";
+
+    const banRecord: SecurityBanRecord = {
+      fingerprint: "RATELIMIT_BLOCKED_0x" + Math.floor(Math.random() * 0xFFFFFF).toString(16),
+      reason,
+      errorCode: "ERR_SENTINEL_RATELIMIT_0x800429",
+      score: 100,
+      timestamp: new Date().toISOString()
+    };
+    reportBanToSupabase(banRecord);
+    return {
+      allowed: false,
+      isWarning: false,
+      isBlocked: true,
+      message: "🚨 Acesso suspenso por violação de segurança e abuso de taxa."
+    };
+  }
+
+  // 1ª ocorrência -> Aviso de Rate Limit / Desafio Cloudflare
+  if (count >= limit.warnThreshold) {
+    rateLimitWarnings[category] = (rateLimitWarnings[category] || 0) + 1;
+    return {
+      allowed: false,
+      isWarning: true,
+      isBlocked: false,
+      message: category === "login"
+        ? "⚠️ Aviso de Segurança Cloudflare/Sentinel: Muitas tentativas de login em curto intervalo. Aguarde 1 minuto."
+        : "⚠️ Aviso de Rate Limit: Muitas requisições de IA enviadas. Aguarde alguns instantes antes de enviar novamente."
+    };
+  }
+
+  return { allowed: true, isWarning: false, isBlocked: false };
+};
+
 // Execução imediata para destravar computadores travados por cache local antigo
 if (typeof window !== "undefined") {
   try {
