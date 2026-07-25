@@ -12,6 +12,7 @@ import { Turnstile } from '@marsidev/react-turnstile';
 import { useSentinel } from "@/hooks/useSentinel";
 import { setupPushNotifications } from "@/services/pushService";
 import { sendLocalNotification, getNotificationSettings, saveNotificationSettings } from "@/services/notificationService";
+import { validatePasswordSecurity } from "@/utils/passwordValidator";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
 const OFFLINE_KEY = "bible-offline-enabled";
@@ -34,6 +35,12 @@ const translateAuthError = (message: string) => {
   return "Ocorreu um erro ao processar. Tente novamente.";
 };
 
+const isInvalidName = (name?: string | null) => {
+  if (!name || !name.trim()) return true;
+  const clean = name.trim().toLowerCase();
+  return clean.includes("@") || clean.includes("gmail") || clean.includes("outlook");
+};
+
 const AccountPage = () => {
   const authCtx = useAuth();
   const { language, setLanguage, t } = useLanguage();
@@ -42,6 +49,7 @@ const AccountPage = () => {
   const [loading, setLoading] = useState(authCtx.loading);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [signUpName, setSignUpName] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -51,6 +59,8 @@ const AccountPage = () => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [editingName, setEditingName] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -81,30 +91,31 @@ const AccountPage = () => {
             .eq('id', authCtx.user.sub)
             .maybeSingle();
 
-          if (profile) {
-            setDisplayName(profile.display_name || authCtx.user.name || "");
-            // Preferimos a imagem do perfil do Supabase se houver, senão usamos a do Google
-            setAvatarUrl(profile.avatar_url || authCtx.user.picture || null);
-          } else {
-            // Se o perfil não existir no banco, usamos os dados do Google
-            setDisplayName(authCtx.user.name || "");
-            const googlePicture = authCtx.user.picture || null;
-            setAvatarUrl(googlePicture);
-            
-            // Criação silenciosa do perfil se possível para garantir persistência
-            try {
-              await supabase.from('profiles').upsert({ 
-                id: authCtx.user.sub, 
-                display_name: authCtx.user.name, 
-                avatar_url: googlePicture 
-              });
-            } catch (upsertErr) {
-              console.warn("Silent profile creation failed:", upsertErr);
-            }
+          let validName = "";
+          if (profile && profile.display_name && !isInvalidName(profile.display_name)) {
+            validName = profile.display_name;
+          } else if (authCtx.user.name && !isInvalidName(authCtx.user.name)) {
+            validName = authCtx.user.name;
+          }
+
+          setDisplayName(validName);
+          setAvatarUrl(profile?.avatar_url || authCtx.user.picture || null);
+
+          if (!validName) {
+            toast({
+              title: "Defina seu nome de exibição",
+              description: "Por favor, adicione o seu nome para personalizar seu perfil.",
+            });
+          }
+
+          // Se o perfil no banco estivesse com um e-mail como nome, limpa
+          if (profile && profile.display_name && isInvalidName(profile.display_name)) {
+            await supabase.from('profiles').upsert({ id: authCtx.user.sub, display_name: null });
           }
         } catch (err) {
           console.error("Error loading profile:", err);
-          setDisplayName(authCtx.user.name || "");
+          const fallbackName = !isInvalidName(authCtx.user.name) ? authCtx.user.name : "";
+          setDisplayName(fallbackName);
           setAvatarUrl(authCtx.user.picture || null);
         }
       }
@@ -125,33 +136,124 @@ const AccountPage = () => {
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error) await handleAuthError(error);
       if (session?.user) {
+        const userId = session.user.id;
+        const folderPath = `avatars/${userId}`;
+
+        // Deleta todas as fotos anteriores da pasta do usuário no storage para não deixar lixo
+        const { data: existingFiles } = await supabase.storage.from('media').list(folderPath);
+        if (existingFiles && existingFiles.length > 0) {
+          const filesToRemove = existingFiles.map(f => `${folderPath}/${f.name}`);
+          await supabase.storage.from('media').remove(filesToRemove);
+        }
+
         const ext = file.name.split('.').pop() || 'jpg';
-        const path = `avatars/${session.user.id}/avatar.${ext}`;
+        const path = `${folderPath}/avatar_${Date.now()}.${ext}`;
         const { error: uploadError } = await supabase.storage.from('media').upload(path, file, { upsert: true });
         if (uploadError) throw uploadError;
+
         const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path);
         const avatarWithBuster = `${publicUrl}?t=${Date.now()}`;
         setAvatarUrl(avatarWithBuster);
-        await supabase.from('profiles').upsert({ id: session.user.id, avatar_url: avatarWithBuster });
-        toast({ title: "Foto de perfil atualizada" });
+        await supabase.from('profiles').upsert({ id: userId, avatar_url: avatarWithBuster });
+        
+        toast({ 
+          title: "Foto de perfil atualizada", 
+          description: "Sua nova foto foi salva e a anterior foi excluída do servidor." 
+        });
         return;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Avatar upload error:", err);
+      toast({ 
+        title: "Erro ao atualizar foto", 
+        description: err?.message || "Não foi possível enviar a nova foto de perfil.", 
+        variant: "destructive" 
+      });
+      return;
     }
     toast({ title: "Erro", description: "Sessão não encontrada. Faça login novamente.", variant: "destructive" });
   };
 
+  const handleDeleteAvatar = async () => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) await handleAuthError(error);
+      if (session?.user) {
+        const userId = session.user.id;
+        const folderPath = `avatars/${userId}`;
+
+        // Limpa a pasta no Supabase Storage
+        const { data: existingFiles } = await supabase.storage.from('media').list(folderPath);
+        if (existingFiles && existingFiles.length > 0) {
+          const filesToRemove = existingFiles.map(f => `${folderPath}/${f.name}`);
+          await supabase.storage.from('media').remove(filesToRemove);
+        }
+
+        // Atualiza perfil no banco de dados para nulo
+        await supabase.from('profiles').upsert({ id: userId, avatar_url: null });
+        setAvatarUrl(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+
+        toast({ 
+          title: "Foto de perfil removida", 
+          description: "Sua foto de perfil foi excluída com sucesso." 
+        });
+        return;
+      }
+    } catch (err: any) {
+      console.error("Delete avatar error:", err);
+      toast({ 
+        title: "Erro ao excluir foto", 
+        description: err?.message || "Não foi possível remover a foto de perfil.", 
+        variant: "destructive" 
+      });
+    }
+  };
+
   const saveName = async () => {
+    const cleanName = displayName.trim();
+    if (!cleanName) {
+      toast({ title: "Atenção", description: "Por favor, digite um nome válido.", variant: "destructive" });
+      return;
+    }
+    if (isInvalidName(cleanName)) {
+      toast({ title: "Atenção", description: "O nome não pode ser um endereço de e-mail.", variant: "destructive" });
+      return;
+    }
+
     setEditingName(false);
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error) await handleAuthError(error);
       if (session?.user) {
-        await supabase.from('profiles').upsert({ id: session.user.id, display_name: displayName });
+        // 1. Atualiza na tabela profiles
+        await supabase.from('profiles').upsert({ 
+          id: session.user.id, 
+          display_name: cleanName,
+          updated_at: new Date().toISOString()
+        });
+
+        // 2. Sincroniza com Supabase Auth User Metadata
+        await supabase.auth.updateUser({
+          data: {
+            display_name: cleanName,
+            full_name: cleanName
+          }
+        });
+
+        toast({ 
+          title: "Nome salvo", 
+          description: "Seu nome foi atualizado e sincronizado no Supabase." 
+        });
       }
-    } catch {}
-    toast({ title: "Nome salvo com sucesso" });
+    } catch (err: any) {
+      console.error("Save name error:", err);
+      toast({ 
+        title: "Erro ao salvar nome", 
+        description: err?.message || "Não foi possível salvar o nome no momento.", 
+        variant: "destructive" 
+      });
+    }
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -166,6 +268,36 @@ const AccountPage = () => {
         variant: "destructive",
       });
       return;
+    }
+
+    if (isSignUp) {
+      if (!signUpName.trim()) {
+        toast({
+          title: "Nome Obrigatório",
+          description: "Por favor, informe seu nome completo para criar a conta.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (isInvalidName(signUpName)) {
+        toast({
+          title: "Nome Inválido",
+          description: "O seu nome de exibição não pode ser um e-mail.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validação de senha fraca / genérica
+      const passValidation = validatePasswordSecurity(password, cleanEmail, signUpName);
+      if (!passValidation.isValid) {
+        toast({
+          title: "Senha Insegura",
+          description: passValidation.error,
+          variant: "destructive",
+        });
+        return;
+      }
     }
     
     // Sentinel check as first layer
@@ -188,10 +320,15 @@ const AccountPage = () => {
     setAuthLoading(true);
     try {
       if (isSignUp) {
+        const cleanName = signUpName.trim();
         const { data, error } = await supabase.auth.signUp({ 
-          email, 
+          email: cleanEmail, 
           password,
           options: {
+            data: {
+              full_name: cleanName,
+              display_name: cleanName
+            },
             captchaToken: turnstileToken
           }
         });
@@ -205,7 +342,14 @@ const AccountPage = () => {
         }
 
         if (data.user) {
-          toast({ title: "Conta criada com sucesso", description: "Redirecionando..." });
+          if (cleanName) {
+            await supabase.from('profiles').upsert({
+              id: data.user.id,
+              display_name: cleanName,
+              updated_at: new Date().toISOString()
+            });
+          }
+          toast({ title: "Conta criada com sucesso", description: "Sua conta foi criada e sincronizada." });
           navigate("/");
         }
       } else {
@@ -329,6 +473,7 @@ const AccountPage = () => {
   };
 
   const handleLogout = async () => {
+    setShowLogoutModal(false);
     try {
       await supabase.auth.signOut();
     } catch (e) {}
@@ -596,17 +741,22 @@ const AccountPage = () => {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           {authCtx.user ? (
             <>
-              <div className="mb-4 text-center">
+              {/* Profile Card */}
+              <div className="glass-card relative rounded-2xl p-6 text-center border border-white/10 shadow-xl backdrop-blur-xl mb-4">
+                {/* Subtle ambient light glow behind avatar - isolado em container com overflow-hidden para nao cortar o menu flutuante */}
+                <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
+                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 h-40 w-40 rounded-full bg-accent/15 blur-3xl" />
+                </div>
+
                 <div className="relative mx-auto mb-3 h-24 w-24">
                   {avatarUrl ? (
                     <img 
                       src={avatarUrl} 
                       alt="" 
-                      className="h-24 w-24 rounded-full object-cover border-3 border-accent"
+                      className="h-24 w-24 rounded-full object-cover ring-2 ring-accent/40 ring-offset-2 ring-offset-background/80 shadow-lg shadow-accent/20"
                       referrerPolicy="no-referrer"
-                      onError={(e) => {
+                      onError={() => {
                         console.warn("Avatar image failed to load, trying fallback");
-                        // Se falhou a imagem do Supabase e temos a do Google, tenta a do Google
                         if (avatarUrl !== authCtx.user?.picture && authCtx.user?.picture) {
                           setAvatarUrl(authCtx.user.picture);
                         } else {
@@ -615,40 +765,98 @@ const AccountPage = () => {
                       }}
                     />
                   ) : (
-                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-accent to-primary">
-                      <User className="h-12 w-12 text-primary-foreground" />
+                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-accent/80 to-primary/80 ring-2 ring-accent/40 ring-offset-2 ring-offset-background/80 shadow-lg shadow-accent/20">
+                      <User className="h-11 w-11 text-primary-foreground" />
                     </div>
                   )}
-                  <button onClick={() => fileInputRef.current?.click()}
-                    className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-md hover:scale-110 transition-transform">
-                    <Camera className="h-4 w-4" />
+                  <button 
+                    type="button"
+                    onClick={() => setShowAvatarMenu(!showAvatarMenu)}
+                    title="Opções da foto de perfil"
+                    className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg shadow-accent/30 hover:scale-110 active:scale-95 transition-all z-20"
+                  >
+                    <Settings className="h-4 w-4" />
                   </button>
+
+                  <AnimatePresence>
+                    {showAvatarMenu && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40" 
+                          onClick={() => setShowAvatarMenu(false)} 
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.9, y: 5 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.9, y: 5 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 min-w-[170px] rounded-2xl border border-white/10 bg-background/95 p-1.5 shadow-2xl backdrop-blur-xl text-left"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowAvatarMenu(false);
+                              fileInputRef.current?.click();
+                            }}
+                            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary/60 hover:text-accent transition-all"
+                          >
+                            <Camera className="h-4 w-4 text-accent" />
+                            <span>{avatarUrl ? "Alterar foto" : "Colocar foto"}</span>
+                          </button>
+
+                          {avatarUrl && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowAvatarMenu(false);
+                                handleDeleteAvatar();
+                              }}
+                              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-all mt-0.5"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                              <span>Excluir foto</span>
+                            </button>
+                          )}
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
                   <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
                 </div>
 
                 {editingName ? (
                   <div className="mt-2 flex items-center gap-2 justify-center">
-                    <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={t("your_name")}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-sm text-foreground text-center placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent w-48"
+                    <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Defina um nome"
+                      className="rounded-xl border border-white/10 bg-secondary/40 px-3.5 py-1.5 text-sm text-foreground text-center placeholder:text-muted-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent w-52 backdrop-blur-md"
                       autoFocus onKeyDown={(e) => e.key === "Enter" && saveName()} />
-                    <button onClick={saveName} className="rounded-lg bg-accent px-3 py-1.5 text-xs text-accent-foreground liquid-btn">OK</button>
+                    <button onClick={saveName} className="rounded-xl bg-accent px-3.5 py-1.5 text-xs font-bold text-accent-foreground shadow-md shadow-accent/20 liquid-btn">OK</button>
                   </div>
                 ) : (
-                  <button onClick={() => setEditingName(true)} className="mt-1 flex items-center gap-1 mx-auto text-base font-semibold text-foreground hover:text-accent transition-colors">
-                    {displayName || t("add_name")} <Pencil className="h-3 w-3 text-muted-foreground" />
-                  </button>
+                  <div className="mt-1 flex flex-col items-center">
+                    {displayName ? (
+                      <button onClick={() => setEditingName(true)} className="flex items-center gap-1.5 text-base font-bold text-foreground hover:text-accent transition-colors">
+                        {displayName} <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
+                    ) : (
+                      <button onClick={() => setEditingName(true)} className="flex items-center gap-1.5 text-sm font-bold text-accent hover:underline transition-colors bg-accent/10 border border-accent/20 px-3.5 py-1.5 rounded-full shadow-sm">
+                        <span>Defina um nome</span>
+                        <Pencil className="h-3.5 w-3.5 text-accent" />
+                      </button>
+                    )}
+                  </div>
                 )}
-                <p className="mt-1 text-sm text-muted-foreground">{authCtx.user?.email}</p>
+
+                <p className="mt-2 text-xs font-mono text-muted-foreground tracking-wide">{authCtx.user?.email}</p>
               </div>
 
-              <div className="mt-6 space-y-3">
-                <div className="glass-card rounded-xl p-4">
-                  <h3 className="mb-3 text-sm font-semibold text-foreground flex items-center gap-2">
+              <div className="space-y-3">
+                <div className="glass-card rounded-2xl p-5 border border-white/10 shadow-xl backdrop-blur-xl">
+                  <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-accent/90 flex items-center gap-2">
                     <Settings className="h-4 w-4 text-accent" /> {t("settings_title")}
                   </h3>
                   <div className="space-y-3">
                     {/* Idioma Selection Row */}
-                    <div className="rounded-xl bg-secondary/30 p-3 flex flex-col gap-2 border border-border/20">
+                    <div className="rounded-xl bg-secondary/30 p-3.5 flex flex-col gap-2.5 border border-white/5">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <span className="text-muted-foreground">
@@ -661,7 +869,7 @@ const AccountPage = () => {
                         </div>
                       </div>
                       
-                      <div className="flex gap-1.5 mt-1 p-1 rounded-xl bg-secondary/40 border border-border/30 relative select-none">
+                      <div className="flex gap-1.5 mt-1 p-1 rounded-xl bg-secondary/40 border border-white/10 relative select-none">
                         <button
                           type="button"
                           onClick={() => setLanguage("pt")}
@@ -674,7 +882,7 @@ const AccountPage = () => {
                           {language === "pt" && (
                             <motion.div
                               layoutId="activeLanguagePill"
-                              className="absolute inset-0 rounded-lg bg-accent/10 border border-accent/40 shadow-sm"
+                              className="absolute inset-0 rounded-lg bg-accent/15 border border-accent/40 shadow-sm"
                               transition={{ type: "spring", stiffness: 380, damping: 28 }}
                             />
                           )}
@@ -692,7 +900,7 @@ const AccountPage = () => {
                           {language === "en" && (
                             <motion.div
                               layoutId="activeLanguagePill"
-                              className="absolute inset-0 rounded-lg bg-accent/10 border border-accent/40 shadow-sm"
+                              className="absolute inset-0 rounded-lg bg-accent/15 border border-accent/40 shadow-sm"
                               transition={{ type: "spring", stiffness: 380, damping: 28 }}
                             />
                           )}
@@ -701,7 +909,7 @@ const AccountPage = () => {
                       </div>
                     </div>
 
-                    <button onClick={toggleNotifications} className="flex w-full items-center justify-between rounded-xl bg-secondary/50 p-3 transition-colors hover:bg-secondary liquid-btn">
+                    <button onClick={toggleNotifications} className="flex w-full items-center justify-between rounded-xl bg-secondary/30 border border-white/5 p-3.5 transition-all hover:bg-secondary/50 hover:border-white/10 liquid-btn">
                       <div className="flex items-center gap-3">
                         <span className="text-muted-foreground">{notificationsEnabled ? <Bell className="h-4 w-4 text-accent" /> : <BellOff className="h-4 w-4" />}</span>
                         <div className="text-left">
@@ -709,7 +917,7 @@ const AccountPage = () => {
                           <p className="text-[10px] text-muted-foreground">{notificationsEnabled ? t("notifications_desc_active") : t("notifications_desc_inactive")}</p>
                         </div>
                       </div>
-                      <div className={`h-5 w-9 rounded-full transition-colors ${notificationsEnabled ? "bg-accent" : "bg-muted"} flex items-center px-0.5`}>
+                      <div className={`h-5 w-9 rounded-full transition-colors ${notificationsEnabled ? "bg-accent" : "bg-muted/60"} flex items-center px-0.5`}>
                         <div className={`h-4 w-4 rounded-full bg-white transition-transform ${notificationsEnabled ? "translate-x-4" : "translate-x-0"}`} />
                       </div>
                     </button>
@@ -720,7 +928,6 @@ const AccountPage = () => {
                           onClick={async () => {
                             setNotificationTestError(null);
                             try {
-                              // Verifica se o suporte a notificações locais está disponível no navegador
                               if (!("Notification" in window)) {
                                 toast({ 
                                   title: "Não suportado", 
@@ -730,13 +937,11 @@ const AccountPage = () => {
                                 return;
                               }
 
-                              // Se a permissão não foi concedida, tenta solicitar via OneSignal
                               if (Notification.permission !== "granted") {
                                 const { oneSignalService } = await import("@/services/oneSignalService");
                                 await oneSignalService.requestPermission();
                               }
 
-                              // Dispara imediatamente de forma local e 100% nativa e aguarda
                               await sendLocalNotification("Teste de Notificação", "Sua notificação de teste da Bíblia Online foi enviada com sucesso.");
                               
                               toast({ 
@@ -754,7 +959,7 @@ const AccountPage = () => {
                               });
                             }
                           }}
-                          className="w-full rounded-lg bg-blue-500/10 py-2.5 text-xs font-semibold text-blue-500 hover:bg-blue-500/20 transition-colors flex items-center justify-center gap-2"
+                          className="w-full rounded-xl bg-accent/10 border border-accent/20 py-2.5 text-xs font-semibold text-accent hover:bg-accent/20 transition-all flex items-center justify-center gap-2 shadow-sm liquid-btn"
                         >
                           <Bell className="h-3.5 w-3.5" />
                           Testar Notificação
@@ -771,14 +976,14 @@ const AccountPage = () => {
                           </div>
                         )}
 
-                        <div className="rounded-lg bg-secondary/30 px-3 py-2 flex items-center justify-between">
+                        <div className="rounded-xl bg-secondary/20 border border-white/5 px-3.5 py-2 flex items-center justify-between">
                           <span className="text-[10px] text-muted-foreground">{t("clock_status")}</span>
                           <span className="text-[10px] font-mono text-accent animate-pulse">{t("clock_active")}</span>
                         </div>
                       </div>
                     )}
 
-                    <button onClick={toggleOffline} disabled={isDownloading} className="flex w-full items-center justify-between rounded-xl bg-secondary/50 p-3 transition-colors hover:bg-secondary disabled:opacity-70 liquid-btn">
+                    <button onClick={toggleOffline} disabled={isDownloading} className="flex w-full items-center justify-between rounded-xl bg-secondary/30 border border-white/5 p-3.5 transition-all hover:bg-secondary/50 hover:border-white/10 disabled:opacity-70 liquid-btn">
                       <div className="flex items-center gap-3">
                         <span className="text-muted-foreground">
                           {offlineEnabled ? <CheckCircle className="h-4 w-4 text-accent" /> : isDownloading ? <Download className="h-4 w-4 animate-bounce text-accent" /> : <WifiOff className="h-4 w-4" />}
@@ -789,13 +994,13 @@ const AccountPage = () => {
                             {isDownloading ? `${t("offline_desc_downloading")} ${offlineProgress}%` : offlineEnabled ? t("offline_desc_active") : t("offline_desc_inactive")}
                           </p>
                           {isDownloading && (
-                            <div className="mt-1 h-1 w-full rounded-full bg-muted overflow-hidden">
+                            <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
                               <div className="h-full rounded-full bg-accent transition-all duration-300" style={{ width: `${offlineProgress}%` }} />
                             </div>
                           )}
                         </div>
                       </div>
-                      <div className={`h-5 w-9 rounded-full transition-colors ${offlineEnabled ? "bg-accent" : "bg-muted"} flex items-center px-0.5`}>
+                      <div className={`h-5 w-9 rounded-full transition-colors ${offlineEnabled ? "bg-accent" : "bg-muted/60"} flex items-center px-0.5`}>
                         <div className={`h-4 w-4 rounded-full bg-white transition-transform ${offlineEnabled ? "translate-x-4" : "translate-x-0"}`} />
                       </div>
                     </button>
@@ -804,9 +1009,9 @@ const AccountPage = () => {
                       type="button" 
                       onClick={() => setShowDeleteModal(true)} 
                       disabled={deleting}
-                      className="flex w-full items-center gap-3 rounded-xl bg-destructive/10 p-3 text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50 disabled:cursor-not-allowed liquid-btn"
+                      className="flex w-full items-center gap-3 rounded-xl bg-destructive/10 border border-destructive/20 p-3.5 text-destructive transition-all hover:bg-destructive/20 disabled:opacity-50 disabled:cursor-not-allowed liquid-btn"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4 shrink-0" />
                       <div className="text-left">
                         <p className="text-sm font-medium">{deleting ? t("deleting_profile") : t("delete_account")}</p>
                         <p className="text-[10px] opacity-70">{t("delete_account_desc")}</p>
@@ -815,27 +1020,27 @@ const AccountPage = () => {
                   </div>
                 </div>
 
-                <button onClick={handleLogout}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive/10 py-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 liquid-btn">
+                <button onClick={() => setShowLogoutModal(true)}
+                  className="flex w-full items-center justify-center gap-2.5 rounded-xl bg-destructive/10 border border-destructive/20 py-3.5 text-sm font-semibold text-destructive transition-all hover:bg-destructive/20 hover:border-destructive/30 shadow-md liquid-btn">
                   <LogOut className="h-4 w-4" /> {t("sign_out")}
                 </button>
               </div>
             </>
           ) : showForgotPassword ? (
-            <>
-              <div className="mb-6 text-center">
-                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-primary">
-                  <KeyRound className="h-7 w-7 text-primary-foreground" />
+            <div className="glass-card rounded-2xl p-6 border border-white/10 shadow-2xl backdrop-blur-xl space-y-4">
+              <div className="text-center">
+                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/15 border border-accent/30 text-accent shadow-lg shadow-accent/10">
+                  <KeyRound className="h-7 w-7 text-accent" />
                 </div>
                 <h1 className="font-serif text-xl font-bold text-foreground">Recuperar Senha</h1>
-                <p className="mt-1 text-sm text-muted-foreground">Enviaremos um link para redefinir sua senha</p>
+                <p className="mt-1 text-xs text-muted-foreground">Enviaremos um link para redefinir sua senha</p>
               </div>
-              <form onSubmit={handleForgotPassword} className="space-y-3">
+              <form onSubmit={handleForgotPassword} className="space-y-3.5">
                 <input type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="Seu e-mail" required
-                  className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
+                  className="w-full rounded-xl border border-white/10 bg-secondary/30 px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:bg-secondary/50 focus:outline-none focus:ring-1 focus:ring-accent transition-all backdrop-blur-md" />
                 
                 <button type="submit" disabled={authLoading || !turnstileToken}
-                  className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50 liquid-btn">
+                  className="w-full rounded-xl bg-accent py-3.5 text-sm font-bold text-accent-foreground shadow-lg shadow-accent/20 hover:shadow-accent/35 transition-all disabled:opacity-50 liquid-btn">
                   {authLoading ? "Enviando..." : "Enviar Link"}
                 </button>
               </form>
@@ -845,7 +1050,7 @@ const AccountPage = () => {
                   setTurnstileToken("");
                   turnstileRef.current?.reset();
                 }} 
-                className="mt-4 w-full text-center text-sm text-accent hover:underline"
+                className="w-full text-center text-xs font-semibold text-accent hover:underline transition-colors"
               >
                 Voltar ao login
               </button>
@@ -865,25 +1070,37 @@ const AccountPage = () => {
                   options={{ theme: "auto" }}
                 />
               </div>
-            </>
+            </div>
           ) : (
-            <>
-              <div className="mb-6 text-center">
-                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-primary">
-                  <LogIn className="h-7 w-7 text-primary-foreground" />
+            <div className="glass-card rounded-2xl p-6 border border-white/10 shadow-2xl backdrop-blur-xl space-y-4">
+              <div className="text-center">
+                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/15 border border-accent/30 text-accent shadow-lg shadow-accent/10">
+                  <LogIn className="h-7 w-7 text-accent" />
                 </div>
                 <h1 className="font-serif text-xl font-bold text-foreground">{isSignUp ? "Criar Conta" : "Entrar"}</h1>
-                <p className="mt-1 text-sm text-muted-foreground">{isSignUp ? "Crie sua conta para salvar progresso" : "Acesse sua conta"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{isSignUp ? "Crie sua conta para salvar progresso" : "Acesse sua conta para continuar"}</p>
               </div>
 
-              <form onSubmit={handleAuth} className="space-y-3" autoComplete="on">
+              <form onSubmit={handleAuth} className="space-y-3.5" autoComplete="on">
+                {isSignUp && (
+                  <input 
+                    type="text" 
+                    name="signUpName" 
+                    autoComplete="name"
+                    value={signUpName} 
+                    onChange={(e) => setSignUpName(e.target.value)} 
+                    placeholder="Seu nome completo" 
+                    required
+                    className="w-full rounded-xl border border-white/10 bg-secondary/30 px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:bg-secondary/50 focus:outline-none focus:ring-1 focus:ring-accent transition-all backdrop-blur-md" 
+                  />
+                )}
                 <input type="email" name="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-mail" required
-                  className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
+                  className="w-full rounded-xl border border-white/10 bg-secondary/30 px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:bg-secondary/50 focus:outline-none focus:ring-1 focus:ring-accent transition-all backdrop-blur-md" />
                 <div className="relative">
                   <input type={showPassword ? 'text' : 'password'} name="password" autoComplete={isSignUp ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Senha" required minLength={6}
-                    className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                    {showPassword ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+                    className="w-full rounded-xl border border-white/10 bg-secondary/30 px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:bg-secondary/50 focus:outline-none focus:ring-1 focus:ring-accent transition-all backdrop-blur-md" />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                    {showPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                   </button>
                 </div>
                 
@@ -909,7 +1126,7 @@ const AccountPage = () => {
                 })()}
 
                 <button type="submit" disabled={authLoading || !turnstileToken || (isSignUp && zxcvbn(password).score < 3)}
-                  className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed liquid-btn">
+                  className="w-full rounded-xl bg-accent py-3.5 text-sm font-bold text-accent-foreground shadow-lg shadow-accent/20 hover:shadow-accent/35 transition-all disabled:opacity-50 disabled:cursor-not-allowed liquid-btn">
                   {authLoading ? "Carregando..." : isSignUp ? "Criar Conta" : "Entrar"}
                 </button>
 
@@ -918,12 +1135,12 @@ const AccountPage = () => {
                     setShowForgotPassword(true);
                     setTurnstileToken("");
                     turnstileRef.current?.reset();
-                  }} className="w-full text-center text-sm text-accent hover:underline">
+                  }} className="w-full text-center text-xs font-semibold text-accent hover:underline transition-colors">
                     Esqueci minha senha
                   </button>
                 )}
 
-                <div className="flex justify-center overflow-hidden min-h-[65px] w-[300px] mx-auto mt-4 relative">
+                <div className="flex justify-center overflow-hidden min-h-[65px] w-[300px] mx-auto mt-3 relative">
                   <Turnstile 
                     ref={turnstileRef}
                     siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || ""} 
@@ -941,14 +1158,14 @@ const AccountPage = () => {
               </form>
 
               <div className="my-4 flex items-center gap-3">
-                <div className="h-px flex-1 bg-border" />
-                <span className="text-xs text-muted-foreground">ou</span>
-                <div className="h-px flex-1 bg-border" />
+                <div className="h-px flex-1 bg-white/10" />
+                <span className="text-xs text-muted-foreground font-mono">ou</span>
+                <div className="h-px flex-1 bg-white/10" />
               </div>
 
               <div className="space-y-2">
                 <button onClick={handleGoogleLogin}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary liquid-btn">
+                  className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-white/10 bg-secondary/30 hover:bg-secondary/50 py-3.5 text-sm font-semibold text-foreground transition-all backdrop-blur-md shadow-md liquid-btn">
                   <svg className="h-4 w-4" viewBox="0 0 24 24">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -959,17 +1176,17 @@ const AccountPage = () => {
                 </button>
               </div>
 
-              <p className="mt-4 text-center text-sm text-muted-foreground">
+              <p className="mt-4 text-center text-xs text-muted-foreground">
                 {isSignUp ? "Já tem conta?" : "Não tem conta?"}{" "}
                 <button onClick={() => {
                   setIsSignUp(!isSignUp);
                   setTurnstileToken("");
                   turnstileRef.current?.reset();
-                }} className="font-medium text-accent hover:underline">
+                }} className="font-bold text-accent hover:underline transition-colors">
                   {isSignUp ? "Entrar" : "Criar conta"}
                 </button>
               </p>
-            </>
+            </div>
           )}
 
           <div className="mt-8 pb-4 text-center">
@@ -1000,8 +1217,8 @@ const AccountPage = () => {
               onClick={(e) => e.stopPropagation()}
             >
               {/* Efeito de brilho ambiente sutil */}
-              <div className="absolute -top-16 -left-16 h-36 w-36 rounded-full bg-red-500/15 blur-3xl pointer-events-none" />
-              <div className="absolute -bottom-16 -right-16 h-36 w-36 rounded-full bg-red-500/10 blur-3xl pointer-events-none" />
+              <div className="absolute -top-16 -left-16 h-36 w-36 rounded-full bg-accent/15 blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-16 -right-16 h-36 w-36 rounded-full bg-accent/10 blur-3xl pointer-events-none" />
 
               {/* Botão Fechar */}
               <button
@@ -1015,26 +1232,26 @@ const AccountPage = () => {
 
               <div className="relative flex flex-col items-center text-center">
                 {/* Ícone de Aviso */}
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/10 text-red-500 ring-1 ring-red-500/20 shadow-sm">
-                  <AlertTriangle className="h-7 w-7 text-red-500" />
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/15 border border-accent/30 text-accent shadow-lg shadow-accent/10">
+                  <AlertTriangle className="h-7 w-7 text-accent" />
                 </div>
                 
                 <h3 className="font-serif text-xl font-bold text-foreground mb-3">{t("delete_modal_title")}</h3>
                 
-                <div className="mb-6 w-full text-left space-y-2.5 rounded-2xl border border-red-500/20 bg-red-500/5 dark:bg-red-950/20 p-4 text-xs sm:text-sm text-foreground/90 shadow-sm">
+                <div className="mb-6 w-full text-left space-y-2.5 rounded-2xl border border-white/10 bg-secondary/30 backdrop-blur-md p-4 text-xs sm:text-sm text-foreground/90 shadow-md">
                   <div className="flex items-start gap-2.5">
-                    <div className="h-1.5 w-1.5 rounded-full bg-red-500 mt-2 shrink-0" />
+                    <div className="h-1.5 w-1.5 rounded-full bg-accent mt-2 shrink-0" />
                     <p className="leading-relaxed">
-                      <strong className="text-red-500 font-semibold">{language === "en" ? "Permanent deletion:" : "Exclusão permanente:"}</strong>{" "}
+                      <strong className="text-accent font-bold">{language === "en" ? "Permanent deletion:" : "Exclusão permanente:"}</strong>{" "}
                       {language === "en"
                         ? "All your account data, history, and preferences will be erased immediately."
                         : "Todos os seus dados, histórico e preferências serão apagados permanentemente."}
                     </p>
                   </div>
                   <div className="flex items-start gap-2.5">
-                    <div className="h-1.5 w-1.5 rounded-full bg-amber-500 mt-2 shrink-0" />
+                    <div className="h-1.5 w-1.5 rounded-full bg-accent/80 mt-2 shrink-0" />
                     <p className="leading-relaxed">
-                      <strong className="text-amber-500 font-semibold">{language === "en" ? "30-day waiting period:" : "Aguarde 30 dias:"}</strong>{" "}
+                      <strong className="text-accent/90 font-bold">{language === "en" ? "30-day waiting period:" : "Aguarde 30 dias:"}</strong>{" "}
                       {language === "en"
                         ? "You must wait 30 days before creating a new account using this same email address."
                         : "Você precisará aguardar 30 dias para poder criar uma nova conta com este mesmo e-mail."}
@@ -1048,7 +1265,7 @@ const AccountPage = () => {
                     type="button"
                     onClick={() => handleDeleteData()}
                     disabled={deleting}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white py-3.5 text-sm font-bold transition-all shadow-lg shadow-red-600/25 active:scale-[0.98] disabled:opacity-50"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground py-3.5 text-sm font-bold transition-all shadow-lg shadow-destructive/25 active:scale-[0.98] disabled:opacity-50 liquid-btn"
                   >
                     <Trash2 className="h-4 w-4 shrink-0" />
                     <span>{deleting ? (language === "en" ? "Deleting..." : "Apagando...") : t("delete_modal_confirm")}</span>
@@ -1057,9 +1274,76 @@ const AccountPage = () => {
                     type="button"
                     onClick={() => setShowDeleteModal(false)}
                     disabled={deleting}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary hover:bg-secondary/80 active:scale-[0.98] text-foreground py-3.5 text-sm font-semibold transition-all border border-border/50"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary/50 hover:bg-secondary/80 active:scale-[0.98] text-foreground py-3.5 text-sm font-semibold transition-all border border-white/10 backdrop-blur-md"
                   >
                     {t("delete_modal_cancel")}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Modal de Confirmação de Saída da Conta */}
+      <AnimatePresence>
+        {showLogoutModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md select-none"
+            onClick={() => setShowLogoutModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 15 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative max-w-sm w-full overflow-hidden rounded-[2rem] border border-white/10 bg-background/95 p-6 sm:p-7 shadow-2xl backdrop-blur-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Efeito de brilho ambiente sutil */}
+              <div className="absolute -top-16 -left-16 h-36 w-36 rounded-full bg-accent/15 blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-16 -right-16 h-36 w-36 rounded-full bg-accent/10 blur-3xl pointer-events-none" />
+
+              {/* Botão Fechar */}
+              <button
+                type="button"
+                onClick={() => setShowLogoutModal(false)}
+                className="absolute top-4 right-4 z-10 rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
+                title="Fechar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+
+              <div className="relative flex flex-col items-center text-center">
+                {/* Ícone */}
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/15 border border-accent/30 text-accent shadow-lg shadow-accent/10">
+                  <LogOut className="h-7 w-7 text-accent" />
+                </div>
+                
+                <h3 className="font-serif text-xl font-bold text-foreground mb-2">Sair da Conta</h3>
+                
+                <p className="mb-6 text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                  Tem certeza que deseja sair da sua conta no Bíblia Online?
+                </p>
+
+                {/* Botões de Ação */}
+                <div className="flex w-full flex-col gap-2.5">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground py-3.5 text-sm font-bold transition-all shadow-lg shadow-destructive/25 active:scale-[0.98] liquid-btn"
+                  >
+                    <LogOut className="h-4 w-4 shrink-0" />
+                    <span>Sair da Conta</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowLogoutModal(false)}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary/50 hover:bg-secondary/80 active:scale-[0.98] text-foreground py-3.5 text-sm font-semibold transition-all border border-white/10 backdrop-blur-md"
+                  >
+                    Cancelar
                   </button>
                 </div>
               </div>

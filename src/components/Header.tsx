@@ -64,7 +64,13 @@ const Header = () => {
   ];
 
   const isActiveRoute = (path: string) => {
-    if (path === "/") return location.pathname === "/";
+    if (path === "/") {
+      return (
+        location.pathname === "/" ||
+        location.pathname.startsWith("/livro") ||
+        location.pathname.startsWith("/ler")
+      );
+    }
     return location.pathname.startsWith(path);
   };
 

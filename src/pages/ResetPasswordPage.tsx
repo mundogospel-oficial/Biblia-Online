@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useSentinel } from "@/hooks/useSentinel";
+import { validatePasswordSecurity } from "@/utils/passwordValidator";
 
 const translateAuthError = (message: string) => {
   if (!message) return "Ocorreu um erro ao atualizar a senha.";
@@ -36,7 +37,16 @@ const ResetPasswordPage = () => {
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password.length < 6) return;
+
+    const passValidation = validatePasswordSecurity(password);
+    if (!passValidation.isValid) {
+      toast({
+        title: "Senha Insegura",
+        description: passValidation.error,
+        variant: "destructive",
+      });
+      return;
+    }
     
     // Sentinel check
     const risk = await checkRisk();

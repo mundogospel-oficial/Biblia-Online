@@ -54,7 +54,7 @@ const ConfigErrorScreen = () => (
 );
 
 const App = () => {
-  useSentinel(); // Global security monitoring
+  const { SentinelOverlay, isBlocked } = useSentinel(); // Global security monitoring
 
   useEffect(() => {
     const initOneSignal = async () => {
@@ -102,6 +102,10 @@ const App = () => {
     return <ConfigErrorScreen />;
   }
 
+  if (isBlocked) {
+    return <SentinelOverlay />;
+  }
+
   return (
     <AuthProvider>
       <LanguageProvider>
@@ -109,6 +113,7 @@ const App = () => {
           <TooltipProvider>
             <Toaster />
             <Sonner />
+            <SentinelOverlay />
             <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
               <Routes>
                 <Route path="/" element={<Index />} />

@@ -804,11 +804,21 @@ class SentinelCore {
    * Chamada internamente, mas pode ser chamada manualmente
    */
   async _evaluate() {
-    if (this.blocked) return;
+    if (this.blocked) return this.lastEvaluation;
 
     const fpResult  = await this.fingerprint.collect();
+    this.lastFingerprint = fpResult.fingerprint;
     const trapResult = this.traps.validateSubmission();
     const attackPatterns = this.validator.detectAttackPatterns(window.location.href);
+    
+    // Verifica presença de extensões suspeitas
+    const extCheck = this._checkExtensionTampering();
+    this.extensionDetected = extCheck.detected;
+    this.extensionReasons = extCheck.reasons;
+
+    if (this.extensionDetected && this.config.onExtensionDetected) {
+      this.config.onExtensionDetected(extCheck);
+    }
 
     const evaluation = this.anomaly.evaluate({
       behaviorScore:       this.behavior.getScore(),
@@ -835,14 +845,50 @@ class SentinelCore {
     if (evaluation.level !== 'safe') {
       this.config.onThreatDetected?.(evaluation);
     }
-    if (evaluation.score >= 70) {
+    if (evaluation.score >= 70 || !trapResult.valid || attackPatterns.length > 0) {
       this.config.onBotConfirmed?.(evaluation);
-      if (this.config.action === 'block') {
-        this._blockRequest(evaluation);
-      }
+      this._blockRequest(evaluation);
     }
 
     return evaluation;
+  }
+
+  _checkExtensionTampering() {
+    try {
+      if (typeof document === 'undefined') return { detected: false, reasons: [] };
+
+      const reasons = [];
+
+      // 1. Injected extension DOM elements / overlays
+      const extensionNodes = document.querySelectorAll(
+        '[src*="chrome-extension://"], [href*="chrome-extension://"], ' +
+        '[src*="moz-extension://"], [href*="moz-extension://"], ' +
+        'iframe[src*="chrome-extension://"], iframe[src*="moz-extension://"], ' +
+        '[data-extension-id], [id*="tampermonkey"], [id*="violentmonkey"]'
+      );
+
+      if (extensionNodes.length > 0) {
+        reasons.push('Elementos de extensão do navegador injetados no aplicativo');
+      }
+
+      // 2. Extension global objects
+      if (
+        (window).__TAMPERMONKEY__ ||
+        (window).__VIOLENTMONKEY__ ||
+        (window).__EXT_MESSENGER__ ||
+        document.documentElement?.hasAttribute('data-extension-installed') ||
+        document.body?.hasAttribute('data-extension-installed')
+      ) {
+        reasons.push('Scripts de extensão ativas monitorando o navegador');
+      }
+
+      return {
+        detected: reasons.length > 0,
+        reasons
+      };
+    } catch (e) {
+      return { detected: false, reasons: [] };
+    }
   }
 
   /**
@@ -853,7 +899,10 @@ class SentinelCore {
     const result = this.rateLimiter.check(action);
     if (!result.allowed) {
       this._log(`🚫 Rate limit excedido para: ${action}`);
-      this.anomaly.evaluate({ rateLimitViolation: true });
+      const evalResult = this.anomaly.evaluate({ rateLimitViolation: true });
+      if (evalResult.score >= 70) {
+        this._blockRequest(evalResult);
+      }
     }
     return result;
   }
@@ -863,9 +912,18 @@ class SentinelCore {
    */
   _blockRequest(evaluation) {
     this.blocked = true;
-    this._log('🚫 Acesso bloqueado:', evaluation.reasons);
-    // Aqui você pode redirecionar, mostrar CAPTCHA, etc.
-    // Exemplo: window.location.href = '/captcha?reason=' + evaluation.level;
+    const errorCode = `ERR_SENTINEL_SECURITY_0x${Math.floor(Math.random() * 0xFFFFFF).toString(16).toUpperCase()}`;
+    const blockInfo = {
+      isBlocked: true,
+      blockReason: evaluation?.reasons?.join(', ') || 'Atividade maliciosa ou violação de segurança detectada pelo Sentinel.',
+      errorCode,
+      score: evaluation?.score || 100,
+      fingerprint: this.lastFingerprint || 'FINGERPRINT_HASH',
+      timestamp: new Date().toISOString()
+    };
+    this.blockInfo = blockInfo;
+    this._log('🚫 Acesso bloqueado (Ativando Tela Azul BSOD):', evaluation.reasons);
+    this.config.onBlocked?.(blockInfo);
   }
 
   /**
