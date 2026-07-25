@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { ShieldAlert, RefreshCw, AlertTriangle, Lock, EyeOff } from "lucide-react";
+import { enableAntiF12Protection } from "@/services/securityService";
 
 export interface SentinelSecurityOverlayProps {
   isBlocked: boolean;
@@ -14,7 +15,7 @@ export interface SentinelSecurityOverlayProps {
 export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = ({
   isBlocked,
   blockReason = "Comportamento violador ou atividade suspeita detectada pelo Sentinel Security.",
-  errorCode = "ERR_SENTINEL_SECURITY_0x800403",
+  errorCode = "BAN_SENTINEL_SECURITY_0x800403",
   fingerprint = "HASH_PROTECTED",
   isExtensionDetected,
   extensionReasons = [],
@@ -22,9 +23,16 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
 }) => {
   const [showExtensionHelp, setShowExtensionHelp] = useState(false);
 
+  // Formata o código do ban garantindo prefixo BAN_ sem a palavra "ERR_"
+  const rawCode = errorCode || fingerprint || "BAN_SENTINEL_SECURITY_0x800403";
+  const displayBanCode = rawCode.replace(/^ERR_/, "BAN_");
+
   // Anti-bypass locks for BSOD
   useEffect(() => {
     if (!isBlocked) return;
+
+    // Ativa proteção anti-F12 e fechamento de abas DevTools
+    enableAntiF12Protection();
 
     // 1. Lock scroll on body
     document.body.style.overflow = "hidden";
@@ -98,12 +106,12 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
               <div>
-                <span className="text-blue-300/70 block text-[11px] mb-1">CÓDIGO DE ERRO</span>
-                <span className="font-bold text-blue-100">{errorCode}</span>
+                <span className="text-blue-300/70 block text-[11px] mb-1">CÓDIGO DO BAN</span>
+                <span className="font-bold text-blue-100">{displayBanCode}</span>
               </div>
               <div>
                 <span className="text-blue-300/70 block text-[11px] mb-1">MOTIVO DO REGISTRO</span>
-                <span className="font-semibold text-blue-200">{blockReason}</span>
+                <span className="font-semibold text-blue-200">{blockReason || "Atividade suspeita ou violadora de segurança detectada"}</span>
               </div>
             </div>
           </div>
@@ -111,7 +119,7 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
           {/* Footer Warning */}
           <div className="text-xs sm:text-sm text-blue-200/80 font-sans space-y-2 border-t border-blue-400/10 pt-4 leading-relaxed">
             <p>
-              Se você acha que este bloqueio foi por engano, envie um pedido de revisão de IA no portal de direitos de dados no portal do app.
+              Se você acha que este bloqueio foi por engano, acesse o portal do site e envie um pedido de revisão no Fórum da Bíblia Online.
             </p>
             <p className="text-[11px] text-blue-300/40 font-mono">
               Sentinel Security Shield v2.4 • Supabase Auto-Ban Enabled

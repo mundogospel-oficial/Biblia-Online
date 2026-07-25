@@ -23,7 +23,7 @@ export function useSentinel(config: any = {}) {
     const record: SecurityBanRecord = {
       fingerprint: info.fingerprint || "FP_HASH",
       reason: info.blockReason || "Acesso bloqueado por violação de segurança.",
-      errorCode: info.errorCode || "ERR_SENTINEL_SECURITY_0x800403",
+      errorCode: info.errorCode || "BAN_SENTINEL_SECURITY_0x800403",
       score: info.score || 100,
       timestamp: new Date().toISOString()
     };
@@ -89,7 +89,7 @@ export function useSentinel(config: any = {}) {
         const testRecord: SecurityBanRecord = {
           fingerprint: sentinelRef.current?.lastFingerprint || "HASH_TEST_0x" + Math.floor(Math.random() * 0xFFFFFF).toString(16),
           reason,
-          errorCode: "ERR_SENTINEL_SECURITY_0x800403",
+          errorCode: "BAN_SENTINEL_SECURITY_0x800403",
           score: 100,
           timestamp: new Date().toISOString()
         };

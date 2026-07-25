@@ -912,7 +912,7 @@ class SentinelCore {
    */
   _blockRequest(evaluation) {
     this.blocked = true;
-    const errorCode = `ERR_SENTINEL_SECURITY_0x${Math.floor(Math.random() * 0xFFFFFF).toString(16).toUpperCase()}`;
+    const errorCode = `BAN_SENTINEL_SECURITY_0x${Math.floor(Math.random() * 0xFFFFFF).toString(16).toUpperCase()}`;
     const blockInfo = {
       isBlocked: true,
       blockReason: evaluation?.reasons?.join(', ') || 'Atividade maliciosa ou violação de segurança detectada pelo Sentinel.',

@@ -93,7 +93,7 @@ export const clearLocalBan = () => {
 let antiF12Active = false;
 
 export const enableAntiF12Protection = () => {
-  if (antiF12Active || typeof window === "undefined") return;
+  if (typeof window === "undefined") return;
   antiF12Active = true;
 
   // Bloqueia teclas de inspeção F12 / Ctrl+Shift+I / Ctrl+Shift+J / Ctrl+U
@@ -105,6 +105,12 @@ export const enableAntiF12Protection = () => {
     ) {
       e.preventDefault();
       e.stopPropagation();
+      try {
+        console.clear();
+        window.close();
+      } catch {
+        // ignora se window.close for bloqueado pelo navegador
+      }
       return false;
     }
   }, true);
@@ -116,22 +122,31 @@ export const enableAntiF12Protection = () => {
     return false;
   }, true);
 
-  // Trava o depurador caso o DevTools seja aberto
-  setInterval(() => {
-    if (antiF12Active) {
-      try {
-        const start = Date.now();
-        // eslint-disable-next-line no-debugger
-        debugger;
-        const end = Date.now();
-        if (end - start > 100) {
-          console.clear();
+  // Loop agressivo de depurador e detecção de DevTools para fechar a janela
+  const checkDevTools = () => {
+    if (!antiF12Active) return;
+    try {
+      const start = Date.now();
+      // eslint-disable-next-line no-debugger
+      debugger;
+      const end = Date.now();
+      const devToolsOpenByTime = end - start > 100;
+      const devToolsOpenBySize = (window.outerWidth - window.innerWidth > 160) || (window.outerHeight - window.innerHeight > 160);
+
+      if (devToolsOpenByTime || devToolsOpenBySize) {
+        console.clear();
+        try {
+          window.close();
+        } catch {
+          // Fallback se não puder fechar a janela diretamente
         }
-      } catch {
-        // ignora
       }
+    } catch {
+      // ignora
     }
-  }, 1000);
+  };
+
+  setInterval(checkDevTools, 200);
 };
 
 // Detecção de injeção pesada (SQLi, XSS, scripts maliciosos)
@@ -162,7 +177,7 @@ export const checkSecurityInput = (input: string): { isSafe: boolean; reason?: s
       const banRecord: SecurityBanRecord = {
         fingerprint: "INJECTION_BLOCKED_0x" + Math.floor(Math.random() * 0xFFFFFF).toString(16),
         reason,
-        errorCode: "ERR_SENTINEL_INJECTION_0x800999",
+        errorCode: "BAN_SENTINEL_INJECTION_0x800999",
         score: 100,
         timestamp: new Date().toISOString()
       };
@@ -217,7 +232,7 @@ export const recordRateLimitAttempt = (category: "login" | "ai_prompt"): {
     const banRecord: SecurityBanRecord = {
       fingerprint: "RATELIMIT_BLOCKED_0x" + Math.floor(Math.random() * 0xFFFFFF).toString(16),
       reason,
-      errorCode: "ERR_SENTINEL_RATELIMIT_0x800429",
+      errorCode: "BAN_SENTINEL_RATELIMIT_0x800429",
       score: 100,
       timestamp: new Date().toISOString()
     };
@@ -311,7 +326,7 @@ export const checkIsBannedInSupabase = async (fingerprintHash?: string): Promise
         userId: banData.user_id || currentUserId,
         userEmail: banData.user_email || currentUserEmail,
         reason: banData.reason || "Seu IP ou conta foi bloqueada na tabela de segurança por motivos de violação.",
-        errorCode: banData.error_code || "ERR_SENTINEL_SECURITY_0x800403",
+        errorCode: banData.error_code ? banData.error_code.replace(/^ERR_/, "BAN_") : "BAN_SENTINEL_SECURITY_0x800403",
         score: banData.score || 100,
         url: banData.url || "",
         timestamp: banData.banned_at || new Date().toISOString(),
@@ -453,7 +468,7 @@ export const reportBanToSupabase = async (record: SecurityBanRecord) => {
       user_id: currentUserId || null,
       user_email: currentUserEmail || null,
       reason: record.reason || "Violacao de seguranca detectada pelo Sentinel",
-      error_code: record.errorCode || "ERR_SENTINEL_SECURITY_0x800403",
+      error_code: record.errorCode ? record.errorCode.replace(/^ERR_/, "BAN_") : "BAN_SENTINEL_SECURITY_0x800403",
       score: record.score || 100,
       url: record.url || (typeof window !== "undefined" ? window.location.href : ""),
       status: "banned",
