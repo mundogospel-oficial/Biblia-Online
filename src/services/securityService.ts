@@ -89,6 +89,79 @@ export const clearLocalBan = () => {
   }
 };
 
+// Função para destruir a página, fechar a aba ou redirecionar quando F12/DevTools for ativado
+export const nukeAndCloseWindow = () => {
+  if (typeof window === "undefined") return;
+
+  // 1. Limpa o console e desativa saídas do log
+  try {
+    console.clear();
+    console.log = () => {};
+    console.warn = () => {};
+    console.error = () => {};
+    console.info = () => {};
+    console.table = () => {};
+  } catch {
+    // ignora
+  }
+
+  // 2. Apaga o armazenamento local para impedir inspeção de tokens/dados
+  try {
+    sessionStorage.clear();
+    localStorage.clear();
+  } catch {
+    // ignora
+  }
+
+  // 3. Tenta fechar a janela / aba no navegador por múltiplos métodos
+  try {
+    window.close();
+  } catch {
+    // ignora
+  }
+  try {
+    window.open("", "_self", "");
+    window.close();
+  } catch {
+    // ignora
+  }
+  try {
+    if (typeof self !== "undefined") self.close();
+  } catch {
+    // ignora
+  }
+
+  // 4. Se o navegador impedir o fechamento (restrição nativa),
+  // substitui o DOM completo e redireciona para página em branco (about:blank)
+  // apagando todos os elementos e scripts da aba/menu do inspetor.
+  try {
+    if (document.documentElement) {
+      document.documentElement.innerHTML = "<html><head><title>Acesso Bloqueado</title></head><body style='background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;'><h1>[SENTINEL] Acesso Encerrado.</h1></body></html>";
+    }
+    document.open();
+    document.write("<html><head><title>Acesso Bloqueado</title></head><body style='background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;'><h1>[SENTINEL] Acesso Encerrado.</h1></body></html>");
+    document.close();
+  } catch {
+    // ignora
+  }
+
+  try {
+    window.location.replace("about:blank");
+  } catch {
+    // ignora
+  }
+
+  // 5. Trava o depurador caso a aba do DevTools permaneça aberta
+  setInterval(() => {
+    try {
+      // eslint-disable-next-line no-debugger
+      debugger;
+    } catch {
+      // ignora
+    }
+  }, 30);
+};
+
 // Anti-F12 e Proteção de DevTools quando bloqueado ou sob ataque
 let antiF12Active = false;
 
@@ -105,12 +178,7 @@ export const enableAntiF12Protection = () => {
     ) {
       e.preventDefault();
       e.stopPropagation();
-      try {
-        console.clear();
-        window.close();
-      } catch {
-        // ignora se window.close for bloqueado pelo navegador
-      }
+      nukeAndCloseWindow();
       return false;
     }
   }, true);
@@ -119,10 +187,11 @@ export const enableAntiF12Protection = () => {
   window.addEventListener("contextmenu", (e) => {
     e.preventDefault();
     e.stopPropagation();
+    nukeAndCloseWindow();
     return false;
   }, true);
 
-  // Loop agressivo de depurador e detecção de DevTools para fechar a janela
+  // Loop de detecção do DevTools aberto para destruir e fechar a página
   const checkDevTools = () => {
     if (!antiF12Active) return;
     try {
@@ -134,12 +203,7 @@ export const enableAntiF12Protection = () => {
       const devToolsOpenBySize = (window.outerWidth - window.innerWidth > 160) || (window.outerHeight - window.innerHeight > 160);
 
       if (devToolsOpenByTime || devToolsOpenBySize) {
-        console.clear();
-        try {
-          window.close();
-        } catch {
-          // Fallback se não puder fechar a janela diretamente
-        }
+        nukeAndCloseWindow();
       }
     } catch {
       // ignora
