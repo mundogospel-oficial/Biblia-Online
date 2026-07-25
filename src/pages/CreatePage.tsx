@@ -437,7 +437,8 @@ const CreatePage = () => {
                   <div className="flex gap-2">
                     <input
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      maxLength={150}
+                      onChange={(e) => setSearchQuery(e.target.value.slice(0, 150))}
                       placeholder={!isOnline ? "Indisponível offline" : "Ex: Filipenses 4:13"}
                       onKeyDown={(e) => e.key === "Enter" && isOnline && handleSearchVerse()}
                       disabled={!isOnline}
@@ -476,11 +477,15 @@ const CreatePage = () => {
                   </span>
 
                   <div>
-                    <label className="text-[10px] text-muted-foreground block mb-1">Texto do Versículo:</label>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="text-[10px] text-muted-foreground">Texto do Versículo:</label>
+                      <span className="text-[10px] text-muted-foreground font-mono">{verseText.length}/1000</span>
+                    </div>
                     <textarea
                       rows={4}
+                      maxLength={1000}
                       value={verseText}
-                      onChange={(e) => setVerseText(e.target.value)}
+                      onChange={(e) => setVerseText(e.target.value.slice(0, 1000))}
                       placeholder="Digite o texto aqui..."
                       className="w-full rounded-xl border border-input bg-secondary/40 p-3 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
                     />
@@ -490,8 +495,9 @@ const CreatePage = () => {
                     <label className="text-[10px] text-muted-foreground block mb-1">Referência Bíblica:</label>
                     <input
                       type="text"
+                      maxLength={100}
                       value={reference}
-                      onChange={(e) => setReference(e.target.value)}
+                      onChange={(e) => setReference(e.target.value.slice(0, 100))}
                       placeholder="Ex: Salmos 23:1"
                       className="w-full rounded-xl border border-input bg-secondary/40 px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
@@ -664,10 +670,11 @@ const CreatePage = () => {
                         </div>
 
                         <div>
-                          <label className="text-[10px] text-muted-foreground block mb-1">Ou descreva em poucas palavras:</label>
+                          <label className="text-[10px] text-muted-foreground block mb-1">Ou descreva em poucas palavras (máx. 200 caracteres):</label>
                           <input
+                            maxLength={200}
                             value={customAiPrompt}
-                            onChange={(e) => setCustomAiPrompt(e.target.value)}
+                            onChange={(e) => setCustomAiPrompt(e.target.value.slice(0, 200))}
                             placeholder="Ex: Cruz ao anoitecer com luz celestial"
                             className="w-full rounded-xl border border-input bg-secondary/40 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                           />

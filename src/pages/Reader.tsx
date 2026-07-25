@@ -794,9 +794,10 @@ const Reader = () => {
                         className="ml-3 py-2"
                       >
                         <textarea
+                          maxLength={1000}
                           value={noteText}
-                          onChange={(e) => setNoteText(e.target.value)}
-                          placeholder="Escreva sua anotação..."
+                          onChange={(e) => setNoteText(e.target.value.slice(0, 1000))}
+                          placeholder="Escreva sua anotação... (máx. 1000 caracteres)"
                           rows={2}
                           className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
                         />

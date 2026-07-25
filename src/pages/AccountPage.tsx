@@ -826,7 +826,7 @@ const AccountPage = () => {
 
                 {editingName ? (
                   <div className="mt-2 flex items-center gap-2 justify-center">
-                    <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Defina um nome"
+                    <input value={displayName} maxLength={60} onChange={(e) => setDisplayName(e.target.value.slice(0, 60))} placeholder="Defina um nome"
                       className="rounded-xl border border-white/10 bg-secondary/40 px-3.5 py-1.5 text-sm text-foreground text-center placeholder:text-muted-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent w-52 backdrop-blur-md"
                       autoFocus onKeyDown={(e) => e.key === "Enter" && saveName()} />
                     <button onClick={saveName} className="rounded-xl bg-accent px-3.5 py-1.5 text-xs font-bold text-accent-foreground shadow-md shadow-accent/20 liquid-btn">OK</button>

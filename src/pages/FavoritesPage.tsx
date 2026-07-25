@@ -220,9 +220,10 @@ const FavoritesPage = () => {
                             {isEditingNote ? (
                               <div className="space-y-2 rounded-md bg-secondary/60 p-2.5">
                                 <textarea
+                                  maxLength={1000}
                                   value={noteInputValue}
-                                  onChange={(e) => setNoteInputValue(e.target.value)}
-                                  placeholder="Escreva sua reflexão, oração ou notas sobre este versículo..."
+                                  onChange={(e) => setNoteInputValue(e.target.value.slice(0, 1000))}
+                                  placeholder="Escreva sua reflexão, oração ou notas sobre este versículo... (máx. 1000 caracteres)"
                                   rows={3}
                                   className="w-full resize-none rounded border border-border/50 bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent"
                                 />

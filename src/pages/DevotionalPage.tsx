@@ -337,9 +337,10 @@ const DevotionalPage = () => {
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <input
                       type="text"
+                      maxLength={200}
                       placeholder="Pesquisar por título, versículo, referência ou reflexão..."
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(e) => setSearchQuery(e.target.value.slice(0, 200))}
                       className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-4 text-xs sm:text-sm focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                     />
                   </div>

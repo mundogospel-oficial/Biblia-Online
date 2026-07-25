@@ -700,11 +700,12 @@ export const ReadingPlansSection = () => {
                     <StickyNote className="h-4 w-4 text-accent" />
                     O que você entendeu desta lição?
                   </span>
-                  <span className="text-[10px] text-muted-foreground font-normal">Sua reflexão pessoal</span>
+                  <span className="text-[10px] text-muted-foreground font-normal">Sua reflexão pessoal ({reflectionInput.length}/1500)</span>
                 </label>
                 <textarea
+                  maxLength={1500}
                   value={reflectionInput}
-                  onChange={(e) => setReflectionInput(e.target.value)}
+                  onChange={(e) => setReflectionInput(e.target.value.slice(0, 1500))}
                   placeholder="Escreva aqui o que você entendeu, aprendeu ou sentiu ao ler este capítulo e lição da Palavra de Deus..."
                   rows={4}
                   className="w-full rounded-xl border border-border bg-background p-3.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/50 leading-relaxed resize-none"
