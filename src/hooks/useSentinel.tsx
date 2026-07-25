@@ -76,24 +76,6 @@ export function useSentinel(config: any = {}) {
 
     window.addEventListener("sentinel-block-change", handleBlockChange);
 
-    // Helpers globais para o usuário testar o bloqueio pelo console
-    if (typeof window !== "undefined") {
-      (window as any).testSentinelBlock = (reason = "Teste de bloqueio de IP/Dispositivo pelo Sentinel Security") => {
-        const testRecord: SecurityBanRecord = {
-          fingerprint: sentinelRef.current?.lastFingerprint || "HASH_TEST_0x" + Math.floor(Math.random() * 0xFFFFFF).toString(16),
-          reason,
-          errorCode: "ERR_SENTINEL_SECURITY_0x800403",
-          score: 100,
-          timestamp: new Date().toISOString()
-        };
-        reportBanToSupabase(testRecord);
-      };
-
-      (window as any).testSentinelUnblock = () => {
-        clearLocalBan();
-      };
-    }
-
     return () => {
       window.removeEventListener("sentinel-block-change", handleBlockChange);
     };

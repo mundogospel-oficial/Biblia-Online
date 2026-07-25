@@ -993,12 +993,3 @@ class SentinelCore {
 // Para uso com módulos ES6 (React, Vue, etc.)
 export { SentinelCore, BehaviorAnalyzer, FingerprintEngine, TrapSystem, RateLimiter, RequestValidator, AnomalyDetector };
 export default SentinelCore;
-
-// Para uso via CDN/tag <script> (vanilla JS)
-if (typeof window !== 'undefined') {
-  window.SentinelCore = SentinelCore;
-  window.Sentinel = {
-    SentinelCore, BehaviorAnalyzer, FingerprintEngine,
-    TrapSystem, RateLimiter, RequestValidator, AnomalyDetector,
-  };
-}

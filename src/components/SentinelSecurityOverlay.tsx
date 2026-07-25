@@ -96,30 +96,22 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
               <span>DETALHES DO REGISTRO DE SEGURANÇA</span>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
               <div>
-                <span className="text-blue-300/70 block text-[11px]">CÓDIGO DE ERRO</span>
+                <span className="text-blue-300/70 block text-[11px] mb-1">CÓDIGO DE ERRO</span>
                 <span className="font-bold text-blue-100">{errorCode}</span>
               </div>
               <div>
-                <span className="text-blue-300/70 block text-[11px]">MOTIVO DO REGISTRO</span>
+                <span className="text-blue-300/70 block text-[11px] mb-1">MOTIVO DO REGISTRO</span>
                 <span className="font-semibold text-blue-200">{blockReason}</span>
-              </div>
-              <div>
-                <span className="text-blue-300/70 block text-[11px]">HASH DO DISPOSITIVO</span>
-                <span className="font-mono text-blue-300">{fingerprint.slice(0, 18)}...</span>
-              </div>
-              <div>
-                <span className="text-blue-300/70 block text-[11px]">REGISTRO ENVIADO AO BANCO</span>
-                <span className="text-emerald-400 font-bold">SUPABASE SECURITY LOGGED</span>
               </div>
             </div>
           </div>
 
           {/* Footer Warning */}
-          <div className="text-xs text-blue-200/60 font-sans space-y-2 border-t border-blue-400/10 pt-4">
+          <div className="text-xs sm:text-sm text-blue-200/80 font-sans space-y-2 border-t border-blue-400/10 pt-4 leading-relaxed">
             <p>
-              Se você acredita que este bloqueio foi efetuado por engano, entre em contato com o suporte do sistema fornecendo o código de erro acima.
+              Se você acha que este bloqueio foi por engano, envie um pedido de revisão de IA no portal de direitos de dados no portal do app.
             </p>
             <p className="text-[11px] text-blue-300/40 font-mono">
               Sentinel Security Shield v2.4 • Supabase Auto-Ban Enabled

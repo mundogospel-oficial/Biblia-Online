@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface SecurityBanRecord {
   fingerprint: string;
+  ipAddress?: string | null;
   userId?: string | null;
   userEmail?: string | null;
   reason: string;
@@ -12,6 +13,38 @@ export interface SecurityBanRecord {
 }
 
 const LOCAL_BAN_KEY = "sentinel_ip_blocked_v1";
+const COOKIE_BAN_KEY = "sentinel_ip_blocked_cookie";
+
+// Helper em Cookie para dificultar que a pessoa limpe apenas o localStorage
+const setBanCookie = (val: string) => {
+  try {
+    if (typeof document !== "undefined") {
+      document.cookie = `${COOKIE_BAN_KEY}=${encodeURIComponent(val)}; max-age=315360000; path=/; SameSite=Strict;`;
+    }
+  } catch (e) {
+    console.warn("Could not set ban cookie:", e);
+  }
+};
+
+const getBanCookie = (): string | null => {
+  try {
+    if (typeof document === "undefined") return null;
+    const match = document.cookie.match(new RegExp("(^| )" + COOKIE_BAN_KEY + "=([^;]+)"));
+    return match ? decodeURIComponent(match[2]) : null;
+  } catch {
+    return null;
+  }
+};
+
+const removeBanCookie = () => {
+  try {
+    if (typeof document !== "undefined") {
+      document.cookie = `${COOKIE_BAN_KEY}=; max-age=0; path=/;`;
+    }
+  } catch (e) {
+    console.warn("Could not remove ban cookie:", e);
+  }
+};
 
 export const saveLocalBan = (banInfo: SecurityBanRecord) => {
   try {
@@ -19,7 +52,10 @@ export const saveLocalBan = (banInfo: SecurityBanRecord) => {
       ...banInfo,
       bannedAt: banInfo.timestamp || new Date().toISOString()
     };
-    localStorage.setItem(LOCAL_BAN_KEY, JSON.stringify(fullRecord));
+    const jsonStr = JSON.stringify(fullRecord);
+    localStorage.setItem(LOCAL_BAN_KEY, jsonStr);
+    setBanCookie(jsonStr);
+
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("sentinel-block-change", { detail: { isBlocked: true, record: fullRecord } }));
     }
@@ -30,7 +66,10 @@ export const saveLocalBan = (banInfo: SecurityBanRecord) => {
 
 export const getLocalBan = (): SecurityBanRecord | null => {
   try {
-    const raw = localStorage.getItem(LOCAL_BAN_KEY);
+    let raw = localStorage.getItem(LOCAL_BAN_KEY);
+    if (!raw) {
+      raw = getBanCookie();
+    }
     if (!raw) return null;
     return JSON.parse(raw);
   } catch {
@@ -41,6 +80,7 @@ export const getLocalBan = (): SecurityBanRecord | null => {
 export const clearLocalBan = () => {
   try {
     localStorage.removeItem(LOCAL_BAN_KEY);
+    removeBanCookie();
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("sentinel-block-change", { detail: { isBlocked: false, record: null } }));
     }
@@ -64,7 +104,7 @@ export const checkIsBannedInSupabase = async (fingerprintHash?: string): Promise
         currentUserEmail = data.session.user.email || null;
       }
     } catch {
-      // Ignora erro de sessão se não autenticado
+      // Ignora erro se não autenticado
     }
 
     // Consulta no Supabase na tabela security_bans
@@ -72,11 +112,14 @@ export const checkIsBannedInSupabase = async (fingerprintHash?: string): Promise
     if (effectiveFp && effectiveFp !== "HASH_PROTECTED" && effectiveFp !== "unknown_fingerprint") {
       queries.push(`ip_hash.eq.${effectiveFp}`);
     }
+    if (localBan?.ipAddress) {
+      queries.push(`ip_address.eq.${localBan.ipAddress}`);
+      queries.push(`client_ip.eq.${localBan.ipAddress}`);
+    }
     if (currentUserId) queries.push(`user_id.eq.${currentUserId}`);
     if (currentUserEmail) queries.push(`user_email.eq.${currentUserEmail}`);
 
     if (queries.length === 0) {
-      // Sem dados suficientes para consultar o Supabase ainda — mantém o estado local sem limpar
       return { isBanned: !!localBan, record: localBan || undefined };
     }
 
@@ -87,12 +130,20 @@ export const checkIsBannedInSupabase = async (fingerprintHash?: string): Promise
       .maybeSingle();
 
     if (error && error.code !== "PGRST116") {
-      console.warn("Aviso na checagem de banimento no Supabase:", error.message);
-      // Em caso de erro na consulta do Supabase (ex: tabela inexistente ou sem permissão), mantemos a proteção local!
+      console.warn("Consulta Supabase security_bans:", error.message);
+      // Se deu erro no Supabase (ex: tabela ainda não criada), mantemos a trava local intacta!
       return { isBanned: !!localBan, record: localBan || undefined };
     }
 
-    if (banData && (banData.status === "banned" || !banData.status)) {
+    // Se encontrou registro no Supabase
+    if (banData) {
+      // Se estiver explicitamente desbanido pelo admin no Supabase (status === 'unbanned' ou status === 'active' === false)
+      if (banData.status === "unbanned" || banData.status === "active_false") {
+        clearLocalBan();
+        return { isBanned: false };
+      }
+
+      // Caso contrário (status === 'banned' ou qualquer outro), está bloqueado!
       const record: SecurityBanRecord = {
         fingerprint: banData.ip_hash || effectiveFp || "HASH_PROTECTED",
         userId: banData.user_id || currentUserId,
@@ -104,17 +155,16 @@ export const checkIsBannedInSupabase = async (fingerprintHash?: string): Promise
         timestamp: banData.banned_at || new Date().toISOString(),
       };
 
-      // Atualiza e confirma no cache local
       saveLocalBan(record);
       return { isBanned: true, record };
     }
 
-    // Se a consulta no Supabase retornou com SUCESSO (sem erro) e NÃO encontrou o registro:
-    // Significa que o IP/Usuário NÃO está mais na tabela de banidos do Supabase (ex: removido pelo administrador).
-    // Nesse caso, limpamos o bloqueio local para permitir o acesso!
+    // Se o usuário já tinha um bloqueio local e no Supabase não retornou nada:
+    // MANTÉM o bloqueio local! Não remove automaticamente para impedir que recarregar a página desfaça o bloqueio!
     if (localBan) {
-      clearLocalBan();
+      return { isBanned: true, record: localBan };
     }
+
     return { isBanned: false };
   } catch (err) {
     console.error("Erro ao verificar status de banimento no Supabase:", err);
@@ -122,9 +172,43 @@ export const checkIsBannedInSupabase = async (fingerprintHash?: string): Promise
   }
 };
 
+export const fetchClientPublicIp = async (): Promise<string | null> => {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch("https://api.ipify.org?format=json", { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.ip) return data.ip;
+    }
+  } catch {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch("https://ipapi.co/json/", { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.ip) return data.ip;
+      }
+    } catch {
+      // Ignora falhas de consulta de IP
+    }
+  }
+  return null;
+};
+
 export const reportBanToSupabase = async (record: SecurityBanRecord) => {
   try {
     saveLocalBan(record);
+
+    // Tenta capturar o IP público real do cliente
+    const publicIp = await fetchClientPublicIp();
+    if (publicIp) {
+      record.ipAddress = publicIp;
+      saveLocalBan(record);
+    }
 
     // Get current auth user if available
     let currentUserId = record.userId;
@@ -144,6 +228,8 @@ export const reportBanToSupabase = async (record: SecurityBanRecord) => {
 
     const payload = {
       ip_hash: record.fingerprint || "unknown_fingerprint",
+      ip_address: publicIp || record.ipAddress || "N/A",
+      client_ip: publicIp || record.ipAddress || "N/A",
       user_id: currentUserId || null,
       user_email: currentUserEmail || null,
       reason: record.reason || "Violacao de seguranca detectada pelo Sentinel",
@@ -155,7 +241,7 @@ export const reportBanToSupabase = async (record: SecurityBanRecord) => {
     };
 
     // Tenta gravar na tabela security_bans
-    const { error: banErr } = await supabase.from("security_bans" as any).upsert(payload as any);
+    const { error: banErr } = await supabase.from("security_bans" as any).upsert(payload as any, { onConflict: "ip_hash" });
 
     if (banErr) {
       console.warn("Notificação Supabase (security_bans):", banErr.message);
@@ -167,7 +253,7 @@ export const reportBanToSupabase = async (record: SecurityBanRecord) => {
       } as any).catch(() => {});
     }
 
-    // Se o usuário estiver logado, marca também no perfil (caso exista coluna status ou flagged)
+    // Se o usuário estiver logado, marca também no perfil
     if (currentUserId) {
       await supabase.from("profiles").upsert({
         id: currentUserId,
