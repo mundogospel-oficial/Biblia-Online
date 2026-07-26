@@ -34,8 +34,9 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
     // Ativa proteção anti-F12 e fechamento de abas DevTools
     enableAntiF12Protection();
 
-    // 1. Lock scroll on body
+    // 1. Lock scroll on body & html
     document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
     document.body.style.userSelect = "none";
 
     // 2. Intercept key combinations (F12, Ctrl+U, Ctrl+Shift+I, Alt+Left, Tab, Esc)
@@ -63,6 +64,7 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
 
     return () => {
       document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
       document.body.style.userSelect = "";
       window.removeEventListener("keydown", handleKeyDown, true);
       window.removeEventListener("contextmenu", handleContextMenu, true);
@@ -74,7 +76,7 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
     return (
       <div 
         id="sentinel-bsod-root"
-        className="fixed inset-0 z-[9999999] flex flex-col items-center justify-center bg-[#001c4d] text-white p-6 sm:p-12 font-mono select-none overflow-y-auto"
+        className="fixed inset-0 z-[9999999] flex flex-col items-center justify-center bg-[#001c4d] text-white p-6 sm:p-12 font-mono select-none overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         style={{
           backgroundColor: "#001e4d",
           backgroundImage: "radial-gradient(circle at 50% 30%, #002b6e 0%, #001233 100%)",
@@ -90,10 +92,10 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
           {/* Main Title */}
           <div className="space-y-3">
             <h1 className="text-2xl sm:text-3xl font-sans font-bold tracking-tight text-white">
-              Seu IP foi bloqueado por motivos de segurança
+              Seu dispositivo foi bloqueado por motivos de segurança
             </h1>
             <p className="text-sm sm:text-base text-blue-100/90 font-sans leading-relaxed">
-              O sistema Sentinel identificou uma atividade altamente suspeita ou violadora de segurança associada a este endereço IP/dispositivo. O acesso a esta aplicação foi suspenso para proteger os dados e o ambiente.
+              O sistema Sentinel identificou uma atividade altamente suspeita ou violadora de segurança associada a este dispositivo. O acesso a esta aplicação foi suspenso para proteger os dados e o ambiente.
             </p>
           </div>
 

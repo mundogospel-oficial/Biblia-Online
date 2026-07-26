@@ -89,82 +89,14 @@ export const clearLocalBan = () => {
   }
 };
 
-// Função para destruir a página, fechar a aba ou redirecionar quando F12/DevTools for ativado
-export const nukeAndCloseWindow = () => {
-  if (typeof window === "undefined") return;
-
-  // 1. Limpa o console e desativa saídas do log
-  try {
-    console.clear();
-    console.log = () => {};
-    console.warn = () => {};
-    console.error = () => {};
-    console.info = () => {};
-    console.table = () => {};
-  } catch {
-    // ignora
-  }
-
-  // 2. Apaga o armazenamento local para impedir inspeção de tokens/dados
-  try {
-    sessionStorage.clear();
-    localStorage.clear();
-  } catch {
-    // ignora
-  }
-
-  // 3. Tenta fechar a janela / aba no navegador por múltiplos métodos
-  try {
-    window.close();
-  } catch {
-    // ignora
-  }
-  try {
-    window.open("", "_self", "");
-    window.close();
-  } catch {
-    // ignora
-  }
-  try {
-    if (typeof self !== "undefined") self.close();
-  } catch {
-    // ignora
-  }
-  try {
-    if (typeof top !== "undefined" && top) top.close();
-  } catch {
-    // ignora
-  }
-
-  // 4. Se o navegador impedir o fechamento (restrição nativa),
-  // substitui o DOM completo e redireciona para página em branco (about:blank)
-  // apagando todos os elementos e scripts da aba/menu do inspetor.
-  try {
-    if (document.documentElement) {
-      document.documentElement.innerHTML = "<html><head><title>Acesso Bloqueado</title></head><body style='background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;'><h1>[SENTINEL] Acesso Encerrado.</h1></body></html>";
-    }
-    document.open();
-    document.write("<html><head><title>Acesso Bloqueado</title></head><body style='background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;'><h1>[SENTINEL] Acesso Encerrado.</h1></body></html>");
-    document.close();
-  } catch {
-    // ignora
-  }
-
-  try {
-    window.location.replace("about:blank");
-  } catch {
-    // ignora
-  }
-};
-
-// Anti-F12 e Proteção de DevTools quando bloqueado ou sob ataque
+// Proteção leve de atalhos F12 / Context Menu para não destruir o DOM da Tela Azul
 let antiF12Active = false;
 
 export const enableAntiF12Protection = () => {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || antiF12Active) return;
   antiF12Active = true;
 
-  // Bloqueia teclas de inspeção F12 / Ctrl+Shift+I / Ctrl+Shift+J / Ctrl+U
+  // Bloqueia atalhos de inspeção
   window.addEventListener("keydown", (e) => {
     if (
       e.key === "F12" ||
@@ -173,35 +105,16 @@ export const enableAntiF12Protection = () => {
     ) {
       e.preventDefault();
       e.stopPropagation();
-      nukeAndCloseWindow();
       return false;
     }
   }, true);
 
-  // Bloqueia botão direito (Menu de contexto/Inspecionar)
+  // Bloqueia botão direito
   window.addEventListener("contextmenu", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    nukeAndCloseWindow();
     return false;
   }, true);
-
-  // Loop de detecção do DevTools aberto via variação dimensional da janela
-  const checkDevTools = () => {
-    if (!antiF12Active) return;
-    try {
-      const widthThreshold = window.outerWidth - window.innerWidth > 160;
-      const heightThreshold = window.outerHeight - window.innerHeight > 160;
-
-      if (widthThreshold || heightThreshold) {
-        nukeAndCloseWindow();
-      }
-    } catch {
-      // ignora
-    }
-  };
-
-  setInterval(checkDevTools, 500);
 };
 
 // Detecção de injeção pesada (SQLi, XSS, scripts maliciosos)
@@ -343,14 +256,11 @@ export const checkIsBannedInSupabase = async (fingerprintHash?: string): Promise
       // Ignora erro se não autenticado
     }
 
-    // Consulta no Supabase na tabela security_bans
+    // Consulta no Supabase na tabela security_bans estritamente por DISPOSITIVO (fingerprint) ou conta de usuário
+    // (Inativada busca por IP para não bloquear subredes/bairros com IPv4 dinâmico ou NAT compartilhado)
     const queries: string[] = [];
     if (effectiveFp && effectiveFp !== "HASH_PROTECTED" && effectiveFp !== "unknown_fingerprint") {
       queries.push(`ip_hash.eq.${effectiveFp}`);
-    }
-    if (localBan?.ipAddress) {
-      queries.push(`ip_address.eq.${localBan.ipAddress}`);
-      queries.push(`client_ip.eq.${localBan.ipAddress}`);
     }
     if (currentUserId) queries.push(`user_id.eq.${currentUserId}`);
     if (currentUserEmail) queries.push(`user_email.eq.${currentUserEmail}`);
@@ -380,7 +290,7 @@ export const checkIsBannedInSupabase = async (fingerprintHash?: string): Promise
         fingerprint: banData.ip_hash || effectiveFp || "HASH_PROTECTED",
         userId: banData.user_id || currentUserId,
         userEmail: banData.user_email || currentUserEmail,
-        reason: banData.reason || "Seu IP ou conta foi bloqueada na tabela de segurança por motivos de violação.",
+        reason: banData.reason || "Seu dispositivo ou conta foi bloqueada na tabela de segurança por motivos de violação.",
         errorCode: banData.error_code ? banData.error_code.replace(/^ERR_/, "BAN_") : "BAN_SENTINEL_SECURITY_0x800403",
         score: banData.score || 100,
         url: banData.url || "",
