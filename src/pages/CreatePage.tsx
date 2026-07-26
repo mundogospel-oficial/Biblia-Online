@@ -437,8 +437,8 @@ const CreatePage = () => {
                   <div className="flex gap-2">
                     <input
                       value={searchQuery}
-                      maxLength={150}
-                      onChange={(e) => setSearchQuery(e.target.value.slice(0, 150))}
+                      maxLength={15}
+                      onChange={(e) => setSearchQuery(e.target.value.slice(0, 15))}
                       placeholder={!isOnline ? "Indisponível offline" : "Ex: Filipenses 4:13"}
                       onKeyDown={(e) => e.key === "Enter" && isOnline && handleSearchVerse()}
                       disabled={!isOnline}
@@ -487,7 +487,7 @@ const CreatePage = () => {
                       value={verseText}
                       onChange={(e) => setVerseText(e.target.value.slice(0, 1000))}
                       placeholder="Digite o texto aqui..."
-                      className="w-full rounded-xl border border-input bg-secondary/40 p-3 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                      className="w-full rounded-xl border border-input bg-secondary/40 p-3 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none custom-scrollbar"
                     />
                   </div>
 

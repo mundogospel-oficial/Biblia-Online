@@ -146,7 +146,7 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
               Seu dispositivo foi bloqueado por motivos de segurança
             </h1>
             <p className="text-sm sm:text-base text-blue-100/90 font-sans leading-relaxed">
-              O sistema Sentinel identificou uma atividade altamente suspeita ou violadora de segurança associada a este dispositivo. O acesso a esta aplicação foi suspenso para proteger os dados e o ambiente.
+              O sistema Sentinel identificou uma atividade suspeita ou violadora de segurança associada a este dispositivo. O acesso a esta aplicação foi suspenso para proteger os dados e o ambiente.
             </p>
           </div>
 

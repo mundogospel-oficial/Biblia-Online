@@ -799,7 +799,7 @@ const Reader = () => {
                           onChange={(e) => setNoteText(e.target.value.slice(0, 1000))}
                           placeholder="Escreva sua anotação... (máx. 1000 caracteres)"
                           rows={2}
-                          className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                          className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none custom-scrollbar"
                         />
                         <div className="mt-1 flex gap-2">
                           <button

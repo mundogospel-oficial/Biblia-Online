@@ -225,7 +225,7 @@ const FavoritesPage = () => {
                                   onChange={(e) => setNoteInputValue(e.target.value.slice(0, 1000))}
                                   placeholder="Escreva sua reflexão, oração ou notas sobre este versículo... (máx. 1000 caracteres)"
                                   rows={3}
-                                  className="w-full resize-none rounded border border-border/50 bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                                  className="w-full resize-none rounded border border-border/50 bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent custom-scrollbar"
                                 />
                                 <div className="flex justify-end gap-2">
                                   <button

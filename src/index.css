@@ -246,27 +246,27 @@ body::-webkit-scrollbar,
     height: 0;
   }
 
-  /* Custom themed scrollbar utility for horizontal options & categories */
-  .themed-scrollbar, .custom-scrollbar {
+  /* Custom themed scrollbar utility for textareas, horizontal options & categories */
+  textarea, .themed-scrollbar, .custom-scrollbar {
     -ms-overflow-style: auto;
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--accent) / 0.65) hsl(var(--secondary) / 0.4);
   }
-  .themed-scrollbar::-webkit-scrollbar, .custom-scrollbar::-webkit-scrollbar {
+  textarea::-webkit-scrollbar, .themed-scrollbar::-webkit-scrollbar, .custom-scrollbar::-webkit-scrollbar {
     display: block !important;
     height: 6px !important;
     width: 6px !important;
   }
-  .themed-scrollbar::-webkit-scrollbar-track, .custom-scrollbar::-webkit-scrollbar-track {
+  textarea::-webkit-scrollbar-track, .themed-scrollbar::-webkit-scrollbar-track, .custom-scrollbar::-webkit-scrollbar-track {
     background: hsl(var(--secondary) / 0.4) !important;
     border-radius: 9999px !important;
   }
-  .themed-scrollbar::-webkit-scrollbar-thumb, .custom-scrollbar::-webkit-scrollbar-thumb {
+  textarea::-webkit-scrollbar-thumb, .themed-scrollbar::-webkit-scrollbar-thumb, .custom-scrollbar::-webkit-scrollbar-thumb {
     background: hsl(var(--accent) / 0.65) !important;
     border-radius: 9999px !important;
     transition: background 0.2s ease !important;
   }
-  .themed-scrollbar::-webkit-scrollbar-thumb:hover, .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  textarea::-webkit-scrollbar-thumb:hover, .themed-scrollbar::-webkit-scrollbar-thumb:hover, .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--accent) / 0.95) !important;
   }
 }

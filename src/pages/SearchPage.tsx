@@ -469,10 +469,10 @@ const SearchPage = () => {
                     type="text"
                     inputMode="search"
                     aria-label="Campo de busca bíblica"
-                    maxLength={300}
+                    maxLength={68}
                     value={query} 
                     onChange={(e) => {
-                      const val = e.target.value.slice(0, 300);
+                      const val = e.target.value.slice(0, 68);
                       setQuery(val);
                       if (!val) {
                         setSearchQuery("");

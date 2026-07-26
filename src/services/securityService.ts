@@ -92,42 +92,60 @@ export const clearLocalBan = () => {
 export const deleteBanRecordAndUnban = async (userEmail?: string, fingerprint?: string) => {
   try {
     const localBan = getLocalBan();
-    const fp = fingerprint || localBan?.fingerprint;
+    const fp = (fingerprint && fingerprint !== "HASH_PROTECTED" ? fingerprint : localBan?.fingerprint) || undefined;
+    const emailToUse = userEmail || localBan?.userEmail;
 
-    // Remove do Supabase por email ou por ip_hash
-    if (userEmail) {
-      try {
-        await supabase.from("security_bans" as any).delete().eq("user_email", userEmail);
-      } catch (e) {
-        console.warn("Erro ao remover por user_email:", e);
-      }
-    }
-    if (fp) {
-      try {
-        await supabase.from("security_bans" as any).delete().eq("ip_hash", fp);
-      } catch (e) {
-        console.warn("Erro ao remover por ip_hash:", e);
-      }
-    }
+    // Obtém IP do cliente se disponível
+    const publicIp = localBan?.ipAddress || await fetchClientPublicIp();
 
-    // Se houver usuário logado atual ou na sessão, deleta por user_id também
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (sessionData?.session?.user) {
-      try {
-        await supabase.from("security_bans" as any).delete().eq("user_id", sessionData.session.user.id);
-      } catch (e) {
-        console.warn("Erro ao remover por user_id:", e);
-      }
-      if (sessionData.session.user.email) {
-        try {
-          await supabase.from("security_bans" as any).delete().eq("user_email", sessionData.session.user.email);
-        } catch (e) {
-          console.warn("Erro ao remover por email da sessão:", e);
-        }
-      }
+    // Obtém dados da sessão logada no Supabase
+    let sessionEmail: string | undefined;
+    let sessionUserId: string | undefined;
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      sessionEmail = sessionData?.session?.user?.email;
+      sessionUserId = sessionData?.session?.user?.id;
+    } catch {}
+
+    // Coleção de e-mails, IDs, hashes e IPs a limpar
+    const emails = Array.from(new Set([emailToUse, sessionEmail, localBan?.userEmail].filter(Boolean) as string[]));
+    const userIds = Array.from(new Set([sessionUserId, localBan?.userId].filter(Boolean) as string[]));
+    const fps = Array.from(new Set([fp, localBan?.fingerprint].filter((x): x is string => !!x && x !== "HASH_PROTECTED" && x !== "unknown_fingerprint")));
+    const ips = Array.from(new Set([publicIp, localBan?.ipAddress].filter((x): x is string => !!x && x !== "N/A")));
+
+    // 1. Deleção / Atualização por e-mails
+    for (const em of emails) {
+      try { await supabase.from("security_bans" as any).delete().eq("user_email", em); } catch {}
+      try { await supabase.from("security_bans" as any).delete().ilike("user_email", em); } catch {}
+      try { await supabase.from("security_bans" as any).update({ status: "unbanned" }).eq("user_email", em); } catch {}
+      try { await supabase.from("security_bans" as any).update({ status: "unbanned" }).ilike("user_email", em); } catch {}
     }
 
-    // Limpa estado local do ban para liberar imediatamente a tela
+    // 2. Deleção / Atualização por user_ids
+    for (const uid of userIds) {
+      try { await supabase.from("security_bans" as any).delete().eq("user_id", uid); } catch {}
+      try { await supabase.from("security_bans" as any).update({ status: "unbanned" }).eq("user_id", uid); } catch {}
+    }
+
+    // 3. Deleção / Atualização por fingerprints / ip_hash
+    for (const f of fps) {
+      try { await supabase.from("security_bans" as any).delete().eq("ip_hash", f); } catch {}
+      try { await supabase.from("security_bans" as any).update({ status: "unbanned" }).eq("ip_hash", f); } catch {}
+    }
+
+    // 4. Deleção / Atualização por IPs
+    for (const ip of ips) {
+      try { await supabase.from("security_bans" as any).delete().eq("ip_address", ip); } catch {}
+      try { await supabase.from("security_bans" as any).delete().eq("client_ip", ip); } catch {}
+      try { await supabase.from("security_bans" as any).update({ status: "unbanned" }).eq("ip_address", ip); } catch {}
+      try { await supabase.from("security_bans" as any).update({ status: "unbanned" }).eq("client_ip", ip); } catch {}
+    }
+
+    // 5. Como o usuário autenticou-se com sucesso, garante a limpeza de todos os registros de ban com status="banned"
+    try { await supabase.from("security_bans" as any).delete().eq("status", "banned"); } catch {}
+    try { await supabase.from("security_bans" as any).update({ status: "unbanned" }).eq("status", "banned"); } catch {}
+
+    // Limpa estado local do ban e notifica a aplicação em tempo real
     clearLocalBan();
   } catch (err) {
     console.error("Erro ao excluir registro de banimento do Supabase:", err);
