@@ -89,6 +89,52 @@ export const clearLocalBan = () => {
   }
 };
 
+export const deleteBanRecordAndUnban = async (userEmail?: string, fingerprint?: string) => {
+  try {
+    const localBan = getLocalBan();
+    const fp = fingerprint || localBan?.fingerprint;
+
+    // Remove do Supabase por email ou por ip_hash
+    if (userEmail) {
+      try {
+        await supabase.from("security_bans" as any).delete().eq("user_email", userEmail);
+      } catch (e) {
+        console.warn("Erro ao remover por user_email:", e);
+      }
+    }
+    if (fp) {
+      try {
+        await supabase.from("security_bans" as any).delete().eq("ip_hash", fp);
+      } catch (e) {
+        console.warn("Erro ao remover por ip_hash:", e);
+      }
+    }
+
+    // Se houver usuário logado atual ou na sessão, deleta por user_id também
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData?.session?.user) {
+      try {
+        await supabase.from("security_bans" as any).delete().eq("user_id", sessionData.session.user.id);
+      } catch (e) {
+        console.warn("Erro ao remover por user_id:", e);
+      }
+      if (sessionData.session.user.email) {
+        try {
+          await supabase.from("security_bans" as any).delete().eq("user_email", sessionData.session.user.email);
+        } catch (e) {
+          console.warn("Erro ao remover por email da sessão:", e);
+        }
+      }
+    }
+
+    // Limpa estado local do ban para liberar imediatamente a tela
+    clearLocalBan();
+  } catch (err) {
+    console.error("Erro ao excluir registro de banimento do Supabase:", err);
+    clearLocalBan();
+  }
+};
+
 // Proteção leve de atalhos F12 / Context Menu para não destruir o DOM da Tela Azul
 let antiF12Active = false;
 

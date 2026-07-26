@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from "react";
-import { ShieldAlert, RefreshCw, AlertTriangle, Lock, EyeOff } from "lucide-react";
-import { enableAntiF12Protection } from "@/services/securityService";
+import React, { useEffect, useState, useRef } from "react";
+import { ShieldAlert, RefreshCw, AlertTriangle, Lock, EyeOff, ShieldCheck, X, CheckCircle2, KeyRound, Loader2 } from "lucide-react";
+import { Turnstile } from '@marsidev/react-turnstile';
+import { enableAntiF12Protection, deleteBanRecordAndUnban } from "@/services/securityService";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface SentinelSecurityOverlayProps {
   isBlocked: boolean;
@@ -19,13 +21,62 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
   fingerprint = "HASH_PROTECTED",
   isExtensionDetected,
   extensionReasons = [],
-  onReload = () => window.location.reload(),
+  onReload = () => {},
 }) => {
   const [showExtensionHelp, setShowExtensionHelp] = useState(false);
+  const [showCloudflareModal, setShowCloudflareModal] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [isCloudflareVerified, setIsCloudflareVerified] = useState(false);
+  const turnstileRef = useRef<any>(null);
 
   // Formata o código do ban garantindo prefixo BAN_ sem a palavra "ERR_"
   const rawCode = errorCode || fingerprint || "BAN_SENTINEL_SECURITY_0x800403";
   const displayBanCode = rawCode.replace(/^ERR_/, "BAN_");
+
+  const handleCloudflareLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isCloudflareVerified && !turnstileToken) {
+      setLoginError("Por favor, conclua a verificação do Cloudflare Turnstile antes de prosseguir.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setLoginError(null);
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+        options: turnstileToken ? { captchaToken: turnstileToken } : undefined,
+      });
+
+      if (error) {
+        setLoginError("Credenciais inválidas: " + (error.message || "Email ou senha incorretos."));
+        setIsSubmitting(false);
+        turnstileRef.current?.reset();
+        setTurnstileToken("");
+        return;
+      }
+
+      if (data.user) {
+        // Exclui o registro de banimento no Supabase e limpa o estado local
+        await deleteBanRecordAndUnban(data.user.email || email, fingerprint);
+        setShowCloudflareModal(false);
+        // Notifica o app sem recarregar a página a todo momento
+        onReload();
+      }
+    } catch {
+      setLoginError("Erro ao validar login no Supabase. Verifique suas credenciais.");
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // Anti-bypass locks for BSOD
   useEffect(() => {
@@ -124,10 +175,143 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
               Se você acha que este bloqueio foi por engano, acesse o portal do site e envie um pedido de revisão no Fórum da Bíblia Online.
             </p>
             <p className="text-[11px] text-blue-300/40 font-mono">
-              Sentinel Security Shield v2.4 • Supabase Auto-Ban Enabled
+              Sistema de Segurança Bíblia Online
             </p>
           </div>
         </div>
+
+        {/* Botão no canto inferior direito para acesso autorizado */}
+        <button
+          type="button"
+          onClick={() => setShowCloudflareModal(true)}
+          className="fixed bottom-4 right-4 z-[99999999] flex items-center gap-2 bg-blue-950/90 border border-blue-400/40 hover:border-blue-400/80 hover:bg-blue-900 text-blue-200 hover:text-white px-3.5 py-2 rounded-xl text-xs font-sans font-medium transition-all shadow-xl backdrop-blur-md cursor-pointer hover:scale-105 active:scale-95"
+        >
+          <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>Entrar para remover bloqueio</span>
+        </button>
+
+        {/* Modal de Login */}
+        {showCloudflareModal && (
+          <div className="fixed inset-0 z-[99999999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in font-sans">
+            <div className="max-w-md w-full bg-[#0a1120] border border-blue-500/30 rounded-2xl p-6 shadow-2xl relative space-y-5 text-white">
+              {/* Botão Fechar */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCloudflareModal(false);
+                  setLoginError(null);
+                }}
+                className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* Cabeçalho no tema do app */}
+              <div className="flex items-center gap-3 border-b border-blue-500/20 pb-4">
+                <div className="h-10 w-10 rounded-xl bg-orange-500/15 border border-orange-500/40 flex items-center justify-center shrink-0 text-orange-400 shadow-md">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-base text-white tracking-tight">Autenticação de Segurança</h3>
+                    <span className="text-[10px] bg-orange-500/20 text-orange-300 font-mono px-2 py-0.5 rounded-full border border-orange-500/30">
+                      PROTECTED
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Entrar para remover bloqueio sem redefinir senha
+                  </p>
+                </div>
+              </div>
+
+              {/* Turnstile Widget Real da Cloudflare */}
+              <div className="bg-[#121c30] border border-slate-700/80 rounded-xl p-3 flex flex-col items-center justify-center min-h-[75px] shadow-inner relative overflow-hidden">
+                <Turnstile
+                  ref={turnstileRef}
+                  siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || "1x00000000000000000000AA"}
+                  onSuccess={(token) => {
+                    setTurnstileToken(token);
+                    setIsCloudflareVerified(true);
+                  }}
+                  onExpire={() => {
+                    setTurnstileToken("");
+                    setIsCloudflareVerified(false);
+                    turnstileRef.current?.reset();
+                  }}
+                  onError={() => {
+                    // Fallback para dev/preview caso a domain key esteja em localhost
+                    setIsCloudflareVerified(true);
+                  }}
+                  options={{ theme: "dark" }}
+                />
+                
+                {/* Indicador visual de verificação */}
+                {isCloudflareVerified && (
+                  <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Navegador Verificado com Sucesso</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Formulário de Login para remoção do Ban */}
+              <form onSubmit={handleCloudflareLoginSubmit} className="space-y-4">
+                <div className="text-xs text-slate-300 bg-blue-950/70 border border-blue-500/25 p-3 rounded-xl leading-relaxed">
+                  Entre com seu e-mail e senha para comprovar sua identidade. Se o login for válido, <b>o registro de banimento do seu dispositivo será permanentemente excluído do Supabase</b> e o acesso será liberado sem reiniciar o app.
+                </div>
+
+                {loginError && (
+                  <div className="p-3 bg-rose-500/15 border border-rose-500/40 rounded-xl text-xs text-rose-300 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+                    <span>{loginError}</span>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-slate-200">E-mail da conta</label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="seu@email.com"
+                    className="w-full bg-[#121c30] border border-slate-700/80 focus:border-blue-400 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none transition-colors placeholder:text-slate-500"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-slate-200">Senha</label>
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-[#121c30] border border-slate-700/80 focus:border-blue-400 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none transition-colors placeholder:text-slate-500"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting || (!isCloudflareVerified && !turnstileToken)}
+                  className="w-full bg-blue-600 hover:bg-blue-500 active:scale-[0.99] disabled:opacity-50 text-white text-xs font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Validando e Excluindo Ban no Supabase...</span>
+                    </>
+                  ) : (
+                    <>
+                      <KeyRound className="w-4 h-4" />
+                      <span>Entrar e Excluir Banimento</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

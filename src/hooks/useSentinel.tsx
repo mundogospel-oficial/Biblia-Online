@@ -58,8 +58,8 @@ export function useSentinel(config: any = {}) {
     };
 
     verifySupabaseBan();
-    // Utiliza intervalo seguro de 30s para evitar erro 429 (Too Many Requests / WAF Challenge)
-    const interval = setInterval(verifySupabaseBan, 30000);
+    // Intervalo de 5 minutos (300.000 ms) para verificar se o banimento foi removido do Supabase sem recarregar a página a todo momento
+    const interval = setInterval(verifySupabaseBan, 300000);
 
     const handleFocus = () => {
       verifySupabaseBan();
