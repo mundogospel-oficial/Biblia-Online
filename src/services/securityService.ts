@@ -130,6 +130,11 @@ export const nukeAndCloseWindow = () => {
   } catch {
     // ignora
   }
+  try {
+    if (typeof top !== "undefined" && top) top.close();
+  } catch {
+    // ignora
+  }
 
   // 4. Se o navegador impedir o fechamento (restrição nativa),
   // substitui o DOM completo e redireciona para página em branco (about:blank)
@@ -150,16 +155,6 @@ export const nukeAndCloseWindow = () => {
   } catch {
     // ignora
   }
-
-  // 5. Trava o depurador caso a aba do DevTools permaneça aberta
-  setInterval(() => {
-    try {
-      // eslint-disable-next-line no-debugger
-      debugger;
-    } catch {
-      // ignora
-    }
-  }, 30);
 };
 
 // Anti-F12 e Proteção de DevTools quando bloqueado ou sob ataque
@@ -191,18 +186,14 @@ export const enableAntiF12Protection = () => {
     return false;
   }, true);
 
-  // Loop de detecção do DevTools aberto para destruir e fechar a página
+  // Loop de detecção do DevTools aberto via variação dimensional da janela
   const checkDevTools = () => {
     if (!antiF12Active) return;
     try {
-      const start = Date.now();
-      // eslint-disable-next-line no-debugger
-      debugger;
-      const end = Date.now();
-      const devToolsOpenByTime = end - start > 100;
-      const devToolsOpenBySize = (window.outerWidth - window.innerWidth > 160) || (window.outerHeight - window.innerHeight > 160);
+      const widthThreshold = window.outerWidth - window.innerWidth > 160;
+      const heightThreshold = window.outerHeight - window.innerHeight > 160;
 
-      if (devToolsOpenByTime || devToolsOpenBySize) {
+      if (widthThreshold || heightThreshold) {
         nukeAndCloseWindow();
       }
     } catch {
@@ -210,7 +201,7 @@ export const enableAntiF12Protection = () => {
     }
   };
 
-  setInterval(checkDevTools, 200);
+  setInterval(checkDevTools, 500);
 };
 
 // Detecção de injeção pesada (SQLi, XSS, scripts maliciosos)
