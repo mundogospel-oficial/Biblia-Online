@@ -19,6 +19,7 @@ import {
 import { devotionals as allDailyDevotionals, Devotional as MainDevotional } from "@/lib/devotionalsData";
 import { readingPlans } from "@/lib/readingPlansData";
 import { shareBibleText } from "@/lib/downloadUtils";
+import { syncKeyToSupabase } from "@/services/userSyncService";
 
 const HISTORY_KEY = "bible-search-history";
 
@@ -225,18 +226,23 @@ const SearchPage = () => {
   const addToHistory = (q: string) => {
     const updated = [q, ...history.filter(h => h !== q)].slice(0, 20);
     setHistory(updated);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+    const jsonStr = JSON.stringify(updated);
+    localStorage.setItem(HISTORY_KEY, jsonStr);
+    syncKeyToSupabase("BIBLE_SEARCH_HISTORY", jsonStr);
   };
 
   const removeFromHistory = (q: string) => {
     const updated = history.filter(h => h !== q);
     setHistory(updated);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+    const jsonStr = JSON.stringify(updated);
+    localStorage.setItem(HISTORY_KEY, jsonStr);
+    syncKeyToSupabase("BIBLE_SEARCH_HISTORY", jsonStr);
   };
 
   const clearHistory = () => {
     setHistory([]);
     localStorage.removeItem(HISTORY_KEY);
+    syncKeyToSupabase("BIBLE_SEARCH_HISTORY", "[]");
   };
 
   const handleSearch = async (searchText?: string) => {

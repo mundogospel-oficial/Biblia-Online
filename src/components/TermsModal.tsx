@@ -150,8 +150,8 @@ const TermsModal = ({ isOpen, onClose }: TermsModalProps) => {
                   </section>
 
                   <section>
-                    <h3 className="font-bold text-foreground mb-1 text-sm">17. Segurança da Informação e Prevenção de Abusos (Sentinel Security)</h3>
-                    <p>Com o objetivo de salvaguardar a integridade do sistema e proteger os usuários contra fraudes e ataques, a plataforma utiliza soluções de segurança e monitoramento contínuo. Coletamos dados técnicos do dispositivo (como fingerprint técnico) e analisamos padrões de navegação de forma anonimizada para identificar automações maliciosas, acessos não autorizados e prevenir ataques à infraestrutura.</p>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">17. Segurança e Proteção (Sentinel Security)</h3>
+                    <p>Para manter um ambiente seguro contra fraudes e acessos indevidos, nossa plataforma realiza um monitoramento contínuo. Se você encontrar uma "tela azul" no aplicativo, entenda que é uma medida automática de segurança para proteger a sua conta. Para normalizar o acesso, basta realizar o login na sua conta pelo botão “entrar e remover bloqueio” ou solicitar uma revisão pelo nosso fórum. Embora possamos restringir o uso em casos de atividades mal-intencionadas, asseguramos que todo usuário tem o direito de solicitar uma revisão do bloqueio a qualquer momento.</p>
                   </section>
 
                   <section>
@@ -168,6 +168,11 @@ const TermsModal = ({ isOpen, onClose }: TermsModalProps) => {
                     <h3 className="font-bold text-foreground mb-1 text-sm">20. Propriedade Intelectual e Legislação Aplicável</h3>
                     <p>Todos os direitos de propriedade intelectual referentes ao software, código-fonte, interface visual, layout, arquitetura de sistema, bases de dados e conteúdos originais do Bíblia Online pertencem exclusivamente aos seus desenvolvedores e mantenedores, sendo protegidos pela legislação brasileira de direitos autorais e de software (Lei nº 9.610/1998 e Lei nº 9.609/1998). O acesso e uso da plataforma não concedem ao usuário qualquer licença, cessão ou direito de cópia, engenharia reversa ou reprodução não autorizada desses elementos.</p>
                     <p className="mt-2 text-xs font-semibold text-accent">Este documento é regido, interpretado e sujeito integralmente às leis vigentes da República Federativa do Brasil.</p>
+                  </section>
+
+                  <section>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">21. Fotos e Arquivos Compartilhados</h3>
+                    <p>Ao enviar imagens ou arquivos para a IA, lembre-se de que eles são processados por sistemas parceiros para gerar as respostas que você busca. Para sua segurança e privacidade, pedimos que não compartilhe fotos pessoais, documentos ou arquivos que não estejam relacionados ao estudo bíblico. Recomendamos usar apenas conteúdos que façam parte da sua pesquisa dentro do aplicativo.</p>
                   </section>
 
                   <div className="pt-4 flex justify-end pb-4 pr-1">

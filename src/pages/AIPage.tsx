@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, Fragment, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
 import {
@@ -17,6 +17,7 @@ import { downloadBibleImage, shareBibleImage } from "@/lib/downloadUtils";
 import { askBibleAI, AIAttachment } from "@/services/aiService";
 import { checkAndIncrementUsage, getUserUsage, refundUsage } from "@/services/usageService";
 import { saveAIHistory } from "@/services/userDataService";
+import { syncKeyToSupabase } from "@/services/userSyncService";
 import { generateBiblicalImage } from "@/services/imageGenerationService";
 import { encryptConversationMessages, decryptConversationMessages } from "@/lib/security/cryptoService";
 import { maskPiiInText } from "@/lib/security/privacyGuard";
@@ -306,6 +307,7 @@ const IMAGE_STYLES: ImageStyleOption[] = [
 ];
 
 const AIPage = () => {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -663,16 +665,85 @@ const AIPage = () => {
 
   if (!user) {
     return (
-      <div className="flex min-h-screen flex-col bg-background pb-16 md:pb-0">
+      <div className="flex min-h-screen flex-col bg-background pb-16 md:pb-0 relative overflow-hidden select-none">
         <Header />
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-          <div className="rounded-full bg-accent/10 p-4">
-            <LogIn className="h-8 w-8 text-accent" />
-          </div>
-          <h2 className="font-serif text-xl font-bold text-foreground">Login Necessário</h2>
-          <p className="max-w-sm text-sm text-muted-foreground">
-            Faça login na aba <strong>Conta</strong> para acessar a IA Bíblica.
-          </p>
+        
+        {/* Ambient Liquid Glows */}
+        <div className="pointer-events-none absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 h-96 w-96 rounded-full bg-accent/20 blur-[130px] animate-pulse" />
+        <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-72 w-72 rounded-full bg-primary/20 blur-[100px]" />
+        <div className="pointer-events-none absolute right-1/4 bottom-1/4 h-64 w-64 rounded-full bg-accent/10 blur-[80px]" />
+
+        <div className="flex flex-1 items-center justify-center px-4 py-8 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 24, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="glass-card w-full max-w-md rounded-3xl border border-accent/30 bg-gradient-to-b from-card/60 via-card/35 to-accent/10 p-6 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_35px_rgba(56,189,248,0.15)] backdrop-blur-3xl backdrop-saturate-200 text-center flex flex-col items-center space-y-6 relative overflow-hidden ring-1 ring-accent/20"
+          >
+            {/* Top Liquid Glass Light Highlights - Blue Accent */}
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-accent to-transparent" />
+            <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-56 h-28 bg-accent/25 blur-2xl rounded-full pointer-events-none" />
+            <div className="absolute -bottom-20 -right-20 w-48 h-48 bg-primary/20 blur-2xl rounded-full pointer-events-none" />
+
+            {/* Liquid Glass Badge Pill */}
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-accent/10 border border-accent/30 text-accent text-xs font-semibold tracking-wider uppercase shadow-[inset_0_1px_1px_rgba(56,189,248,0.3)] backdrop-blur-xl">
+              <Sparkles className="h-3.5 w-3.5 text-accent animate-spin-slow" />
+              <span>IA BÍBLICA ASSISTENTE</span>
+            </div>
+
+            {/* Glowing Liquid Glass Icon Sphere */}
+            <div className="relative group">
+              <div className="absolute -inset-2.5 rounded-2xl bg-gradient-to-tr from-accent via-sky-400 to-accent opacity-70 blur-xl transition-opacity duration-500 group-hover:opacity-90 animate-pulse" />
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-b from-sky-500/30 to-accent/10 border border-sky-400/50 backdrop-blur-2xl shadow-[inset_0_1px_3px_rgba(56,189,248,0.6),0_8px_20px_rgba(0,0,0,0.4)]">
+                <Bot className="h-10 w-10 text-sky-200 drop-shadow-[0_0_18px_rgba(56,189,248,1)]" strokeWidth={2.4} />
+                <div className="absolute -bottom-1 -right-1 rounded-full bg-accent p-1.5 text-accent-foreground shadow-lg border border-accent/40">
+                  <LogIn className="h-3.5 w-3.5" />
+                </div>
+              </div>
+            </div>
+
+            {/* Title & Description */}
+            <div className="space-y-2">
+              <h2 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-foreground drop-shadow-sm">
+                Login Necessário
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto">
+                Faça login para ter acesso completo ao seu assistente bíblico pessoal com inteligência artificial.
+              </p>
+            </div>
+
+            {/* Liquid Glass Feature Perks Box */}
+            <div className="w-full rounded-2xl border border-accent/20 bg-accent/5 backdrop-blur-xl p-4 text-left space-y-3 shadow-[inset_0_1px_1px_rgba(56,189,248,0.2)]">
+              <div className="flex items-center gap-3 text-xs font-medium text-foreground/90">
+                <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-accent/25 border border-accent/30 text-accent shadow-sm">
+                  <Check className="h-3 w-3" />
+                </div>
+                <span>Conversas teológicas e respostas bíblicas</span>
+              </div>
+              <div className="flex items-center gap-3 text-xs font-medium text-foreground/90">
+                <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-accent/25 border border-accent/30 text-accent shadow-sm">
+                  <Check className="h-3 w-3" />
+                </div>
+                <span>Geração de imagens e ilustrações sagradas</span>
+              </div>
+              <div className="flex items-center gap-3 text-xs font-medium text-foreground/90">
+                <div className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-accent/25 border border-accent/30 text-accent shadow-sm">
+                  <Check className="h-3 w-3" />
+                </div>
+                <span>Histórico criptografado e seguro</span>
+              </div>
+            </div>
+
+            {/* Liquid Glass CTA Button */}
+            <button
+              onClick={() => navigate("/conta")}
+              className="w-full group relative flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-accent via-accent/90 to-primary py-3.5 px-6 font-semibold text-accent-foreground shadow-[0_10px_30px_rgba(56,189,248,0.35),inset_0_1px_1px_rgba(255,255,255,0.5)] transition-all duration-300 hover:shadow-[0_15px_40px_rgba(56,189,248,0.5),inset_0_1px_1px_rgba(255,255,255,0.7)] hover:scale-[1.02] active:scale-[0.98] cursor-pointer border border-accent/40 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
+              <LogIn className="h-4.5 w-4.5 transition-transform group-hover:translate-x-0.5" />
+              <span className="tracking-wide">Criar conta / Fazer login</span>
+            </button>
+          </motion.div>
         </div>
       </div>
     );
@@ -700,14 +771,16 @@ const AIPage = () => {
         updated = [conv, ...prev].slice(0, 50);
       }
 
-      // Salva criptografado em background no localStorage
+      // Salva criptografado em background no localStorage e no Supabase
       Promise.all(
         updated.map(async (c) => ({
           ...c,
           messages: await encryptConversationMessages(c.messages, userSecret)
         }))
       ).then(encryptedConversations => {
-        localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(encryptedConversations));
+        const jsonStr = JSON.stringify(encryptedConversations);
+        localStorage.setItem(CONVERSATIONS_KEY, jsonStr);
+        syncKeyToSupabase("AI_CONVERSATIONS", jsonStr);
       }).catch(console.error);
 
       return updated;
@@ -738,7 +811,9 @@ const AIPage = () => {
         messages: await encryptConversationMessages(c.messages, user?.sub)
       }))
     ).then(encryptedConversations => {
-      localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(encryptedConversations));
+      const jsonStr = JSON.stringify(encryptedConversations);
+      localStorage.setItem(CONVERSATIONS_KEY, jsonStr);
+      syncKeyToSupabase("AI_CONVERSATIONS", jsonStr);
     }).catch(console.error);
 
     if (currentChatIdRef.current === id) {

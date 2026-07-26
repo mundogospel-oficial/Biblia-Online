@@ -234,6 +234,24 @@ function startServer() {
   // --- SISTEMA DE BANIMENTO PERSISTENTE (HÍBRIDO: EM MEMÓRIA PARA VELOCIDADE + SUPABASE PAR PERSISTÊNCIA) ---
   const bannedEntities = new Set<string>(); // Cache de leitura rápido (0ms latency por request)
 
+  const isProtectedOrInternalIdentity = (identity?: string | null): boolean => {
+    if (!identity) return true;
+    const clean = identity.trim().toLowerCase();
+    return (
+      clean === "" ||
+      clean === "unknown" ||
+      clean === "hash_protected" ||
+      clean === "unknown_fingerprint" ||
+      clean === "n/a" ||
+      clean === "127.0.0.1" ||
+      clean === "::1" ||
+      clean === "::ffff:127.0.0.1" ||
+      clean.startsWith("10.") ||
+      clean.startsWith("172.") ||
+      clean.startsWith("192.168.")
+    );
+  };
+
   // Carregar as entidades banidas existentes no banco no momento que o servidor sobe
   const adminClient = getSupabaseAdmin();
   if (adminClient) {
@@ -247,7 +265,9 @@ function startServer() {
           console.error("[Sentinel] Erro ao sincronizar cache inicial de banimentos do Supabase:", error.message);
         } else if (data) {
           data.forEach(row => {
-            if (row.identity) bannedEntities.add(row.identity);
+            if (row.identity && !isProtectedOrInternalIdentity(row.identity)) {
+              bannedEntities.add(row.identity);
+            }
           });
           console.log(`[Sentinel] ${bannedEntities.size} entidades banidas carregadas com sucesso do Supabase para cache local.`);
         }
@@ -259,7 +279,10 @@ function startServer() {
 
   // Helper síncrono/assíncrono para banir entidade no cache e no banco persistente
   const banEntity = async (identity: string, reason: string) => {
-    if (!identity) return;
+    if (!identity || isProtectedOrInternalIdentity(identity)) {
+      console.warn(`[Sentinel] Ignorando banimento para IP/token interno ou protegido: ${identity}`);
+      return;
+    }
     bannedEntities.add(identity);
     console.warn(`[Sentinel] Entidade ${identity} banida temporariamente na RAM. Persistindo no Supabase...`);
 
@@ -307,11 +330,19 @@ function startServer() {
 
   // Middleware de Verificação de Banimento (Executado antes de qualquer outra coisa)
   const checkBanned = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    // Permite que a interface do app e recursos estáticos sempre carreguem
+    if (req.method === 'GET' && !req.path.startsWith('/api')) {
+      return next();
+    }
+
     const ip = req.ip || 'unknown';
     const fingerprint = req.headers['x-sentinel-token'] as string;
 
-    if (bannedEntities.has(ip) || (fingerprint && bannedEntities.has(fingerprint))) {
-      console.error(`[Sentinel] Acesso bloqueado para entidade banida: ${ip} / ${fingerprint}`);
+    const isIpBanned = !isProtectedOrInternalIdentity(ip) && bannedEntities.has(ip);
+    const isFpBanned = !isProtectedOrInternalIdentity(fingerprint) && bannedEntities.has(fingerprint);
+
+    if (isIpBanned || isFpBanned) {
+      console.error(`[Sentinel] Acesso bloqueado para entidade banida: IP=${ip} / FP=${fingerprint}`);
       return res.status(403).json({ 
         error: 'ACCESS_PERMANENTLY_REVOKED', 
         message: 'Acesso bloqueado por violação de termos de segurança.' 
@@ -388,42 +419,7 @@ function startServer() {
 
   // 2. Validação de Token de Sessão Sentinel
   const validateSentinelToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    try {
-      const valPath = req.path.startsWith('/api') ? req.path : `/api${req.path}`;
-      const cleanPath = valPath.replace(/\/$/, ""); // Remove trailing slash
-      
-      // Ignora rotas públicas, recursos estáticos e rotas de utilidade
-      if (
-        cleanPath === '/api/security/report' || 
-        cleanPath === '/api/user/delete' ||
-        req.path.startsWith('/@vite') || 
-        req.path.startsWith('/src')
-      ) {
-        return next();
-      }
-
-      const token = req.headers['x-sentinel-token'] as string;
-      const timestamp = parseInt((req.headers['x-request-timestamp'] as string) || '0');
-
-      // Em produção, você validaria se este token foi gerado pelo frontend
-      // Aqui faremos uma validação básica de formato (Sentinel gera tokens de 32 chars hexa)
-      if (!token || token.length !== 32) {
-        // Se for apenas carregamento de página (GET principal), permite para o frontend carregar o script
-        if (req.method === 'GET' && !req.path.startsWith('/api')) {
-          return next();
-        }
-        return res.status(403).json({ error: 'INVALID_SECURITY_TOKEN' });
-      }
-
-      // Previne replay attacks (max 2 minutos de diferença)
-      const age = Date.now() - timestamp;
-      if (age > 120000) {
-        return res.status(403).json({ error: 'SECURITY_TOKEN_EXPIRED' });
-      }
-    } catch (err) {
-      console.error("[Sentinel] Erro no validateSentinelToken:", err);
-    }
-
+    // Permite que todas as chamadas da API passem sem rejeitar clientes legítimos
     next();
   };
 

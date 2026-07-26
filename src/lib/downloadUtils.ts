@@ -36,13 +36,6 @@ export const downloadBibleImage = async (dataUrl: string, fileNamePrefix: string
   const fileName = generateProfessionalFileName(fileNamePrefix);
 
   try {
-    if (isMobile) {
-      toast({
-        title: "Iniciando download",
-        description: "A imagem será salva no seu dispositivo.",
-      });
-    }
-
     let downloadUrl = dataUrl;
     
     // For external URLs, fetch the blob to avoid CORS issues and ensure download attribute works

@@ -21,7 +21,8 @@ import {
   Send,
   StickyNote,
   Copy,
-  LockKeyhole
+  LockKeyhole,
+  Info
 } from "lucide-react";
 import { readingPlans, PlanDay, ReadingPlan } from "@/lib/readingPlansData";
 import { 
@@ -39,17 +40,31 @@ import {
   PlanReflection
 } from "@/services/readingPlanService";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const ReadingPlansSection = () => {
-  const [progress, setProgress] = useState<UserPlanProgress>(getLocalPlanProgress());
+  const { user } = useAuth();
+  const [progress, setProgress] = useState<UserPlanProgress>(() => {
+    return user ? getLocalPlanProgress() : {
+      activePlanId: null,
+      activePlanStartDate: null,
+      completedDaysByPlan: {},
+      streakDays: 0,
+      lastCompletedDate: null
+    };
+  });
   const [selectedPlanId, setSelectedPlanId] = useState<string>("paz-7-dias");
   const [selectedCategory, setSelectedCategory] = useState<string>("Todas");
 
   // Favorites state
-  const [favoritedPlanIds, setFavoritedPlanIds] = useState<string[]>(getFavoritePlanIds());
+  const [favoritedPlanIds, setFavoritedPlanIds] = useState<string[]>(() => {
+    return user ? getFavoritePlanIds() : [];
+  });
 
   // Reflections state
-  const [reflectionsMap, setReflectionsMap] = useState<Record<string, PlanReflection>>(getPlanReflections());
+  const [reflectionsMap, setReflectionsMap] = useState<Record<string, PlanReflection>>(() => {
+    return user ? getPlanReflections() : {};
+  });
 
   // Modal states
   const [showActivationModal, setShowActivationModal] = useState<boolean>(false);
@@ -65,20 +80,35 @@ export const ReadingPlansSection = () => {
 
   useEffect(() => {
     const init = async () => {
+      if (!user) {
+        setProgress({
+          activePlanId: null,
+          activePlanStartDate: null,
+          completedDaysByPlan: {},
+          streakDays: 0,
+          lastCompletedDate: null,
+        });
+        setFavoritedPlanIds([]);
+        setReflectionsMap({});
+        return;
+      }
+
       const synced = await loadPlanProgressWithSync();
       setProgress(synced);
+      setFavoritedPlanIds(getFavoritePlanIds());
+      setReflectionsMap(getPlanReflections());
       if (synced.activePlanId) {
         setSelectedPlanId(synced.activePlanId);
       }
     };
     init();
-  }, []);
+  }, [user]);
 
-  const activePlan = readingPlans.find((p) => p.id === progress.activePlanId) || null;
+  const activePlan = user ? (readingPlans.find((p) => p.id === progress.activePlanId) || null) : null;
   const currentPlanViewed = readingPlans.find((p) => p.id === selectedPlanId) || readingPlans[0];
 
-  const isCurrentPlanActive = activePlan?.id === currentPlanViewed.id;
-  const completedDays = progress.completedDaysByPlan[currentPlanViewed.id] || [];
+  const isCurrentPlanActive = user && activePlan?.id === currentPlanViewed.id;
+  const completedDays = user ? (progress.completedDaysByPlan[currentPlanViewed.id] || []) : [];
   const percentComplete = Math.round((completedDays.length / currentPlanViewed.durationDays) * 100);
 
   const categories = ["Todas", "Geral", "Antigo Testamento", "Novo Testamento", "Sabedoria", "Temático", "Iniciantes"];
@@ -94,7 +124,7 @@ export const ReadingPlansSection = () => {
     
     const plan = readingPlans.find((p) => p.id === planId);
     toast({
-      title: nowFavorited ? "Plano Favoritado ❤️" : "Removido dos Favoritos",
+      title: nowFavorited ? "Plano Favoritado" : "Removido dos Favoritos",
       description: nowFavorited
         ? `"${plan?.title || 'Plano'}" foi adicionado ao menu Meus Favoritos.`
         : `"${plan?.title || 'Plano'}" foi removido dos favoritos.`,
@@ -102,23 +132,35 @@ export const ReadingPlansSection = () => {
   };
 
   // Handle clicking on a day check button or item
-  const handleDayClick = (day: PlanDay) => {
-    if (!isCurrentPlanActive) {
-      setShowActivationModal(true);
+  const handleDayClick = async (day: PlanDay) => {
+    if (!user) {
+      toast({
+        title: "Login Necessário",
+        description: "Você precisa fazer login para ativar planos de leitura e acompanhar seu progresso.",
+        variant: "destructive",
+      });
       return;
     }
 
     const isAlreadyDone = completedDays.includes(day.dayNumber);
 
     if (isAlreadyDone) {
-      // If already done, toggle completion off directly or open saved view
+      // If already done, user can toggle completion off directly or open saved view
       executeToggleDay(day.dayNumber);
-    } else {
-      // Opening completion reflection modal
-      const existingRef = getPlanReflection(currentPlanViewed.id, day.dayNumber);
-      setReflectionInput(existingRef?.reflectionText || "");
-      setCompletingDay(day);
+      return;
     }
+
+    if (!isCurrentPlanActive) {
+      // Automatically activate plan when user clicks on an uncompleted day to mark it
+      const updated = await setActivePlan(currentPlanViewed.id);
+      setProgress(updated);
+      setSelectedPlanId(currentPlanViewed.id);
+    }
+
+    // Opening completion reflection modal
+    const existingRef = getPlanReflection(currentPlanViewed.id, day.dayNumber);
+    setReflectionInput(existingRef?.reflectionText || "");
+    setCompletingDay(day);
   };
 
   const handleSaveReflectionAndComplete = async () => {
@@ -158,7 +200,7 @@ export const ReadingPlansSection = () => {
     setReflectionInput("");
 
     toast({
-      title: `Dia ${dayNumber} Concluído e Salvo! 🎉`,
+      title: `Dia ${dayNumber} Concluído e Salvo!`,
       description: reflectionInput.trim() 
         ? "Sua reflexão foi salva no histórico permanente da lição."
         : "Leitura registrada com sucesso!",
@@ -172,13 +214,8 @@ export const ReadingPlansSection = () => {
 
     if (isNowCompleted) {
       toast({
-        title: `Dia ${dayNumber} Concluído 🎉`,
+        title: `Dia ${dayNumber} Concluído`,
         description: `Seu progresso foi salvo com sucesso!`,
-      });
-    } else {
-      toast({
-        title: `Dia ${dayNumber} desmarcado`,
-        description: `Progresso atualizado.`,
       });
     }
   };
@@ -193,12 +230,21 @@ export const ReadingPlansSection = () => {
   };
 
   const handleSelectPlan = async (planId: string) => {
+    if (!user) {
+      toast({
+        title: "Login Necessário",
+        description: "Você precisa fazer login para ativar planos de leitura e acompanhar seu progresso.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const updated = await setActivePlan(planId);
     setProgress(updated);
     setSelectedPlanId(planId);
     setShowActivationModal(false);
     toast({
-      title: "Plano Ativado! ⚡",
+      title: "Plano Ativado!",
       description: "As leituras estão liberadas! Acompanhe seu progresso diário.",
     });
   };
@@ -327,7 +373,7 @@ export const ReadingPlansSection = () => {
 
               {!isCurrentPlanActive && (
                 <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-500 border border-amber-500/20">
-                  <Lock className="h-3 w-3" /> Bloqueado
+                  <Info className="h-3 w-3" /> Inativo
                 </span>
               )}
             </div>
@@ -358,18 +404,22 @@ export const ReadingPlansSection = () => {
           )}
         </div>
 
-        {/* Notice if locked */}
+        {/* Notice if inactive */}
         {!isCurrentPlanActive && (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-xs text-amber-200/90 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Lock className="h-4 w-4 text-amber-400 shrink-0" />
-              <span>As leituras deste plano estão bloqueadas. Clique em <strong>"Ativar Este Plano Agora"</strong> para marcar seus dias.</span>
+          <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 text-xs text-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <Sparkles className="h-4 w-4 text-accent shrink-0" />
+              <span>
+                {completedDays.length > 0
+                  ? `Seu progresso está salvo! (${completedDays.length} de ${currentPlanViewed.durationDays} dias concluídos). Ative este plano para continuar marcando seus dias.`
+                  : 'Clique em "Ativar Este Plano Agora" para iniciar o acompanhamento diário e registrar suas reflexões.'}
+              </span>
             </div>
             <button
               onClick={() => handleSelectPlan(currentPlanViewed.id)}
-              className="px-3 py-1 bg-amber-500 text-slate-950 font-bold rounded-lg text-[11px] hover:bg-amber-400 transition-colors shrink-0"
+              className="px-3.5 py-1.5 bg-accent text-accent-foreground font-bold rounded-lg text-[11px] hover:opacity-90 transition-colors shrink-0 shadow-sm"
             >
-              Ativar
+              Ativar Este Plano Agora
             </button>
           </div>
         )}
@@ -398,25 +448,17 @@ export const ReadingPlansSection = () => {
                     <button
                       onClick={() => handleDayClick(day)}
                       className={`mt-0.5 shrink-0 rounded-full p-1 transition-transform active:scale-90 ${
-                        !isCurrentPlanActive
-                          ? "text-muted-foreground/50 cursor-not-allowed"
-                          : isDone
+                        isDone
                           ? "text-emerald-500"
                           : "text-muted-foreground hover:text-accent"
                       }`}
                       title={
-                        !isCurrentPlanActive
-                          ? "Plano bloqueado. Ative este plano para marcar."
-                          : isDone
+                        isDone
                           ? "Clique para desmarcar ou ver lição salva"
                           : "Concluir e responder reflexão da lição"
                       }
                     >
-                      {!isCurrentPlanActive ? (
-                        <div className="h-6 w-6 rounded-full border border-border flex items-center justify-center bg-secondary/50">
-                          <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-                        </div>
-                      ) : isDone ? (
+                      {isDone ? (
                         <CheckCircle2 className="h-6 w-6 fill-emerald-500/20 text-emerald-500" />
                       ) : (
                         <Circle className="h-6 w-6" />
@@ -490,20 +532,20 @@ export const ReadingPlansSection = () => {
                     <button
                       onClick={() => handleDayClick(day)}
                       className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
-                        !isCurrentPlanActive
-                          ? "bg-secondary text-muted-foreground border border-border hover:bg-secondary/80"
-                          : isDone
+                        isDone
                           ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30"
+                          : !isCurrentPlanActive
+                          ? "bg-accent/15 text-accent border border-accent/30 hover:bg-accent/25"
                           : "bg-accent text-accent-foreground hover:opacity-90 shadow-sm"
                       }`}
                     >
-                      {!isCurrentPlanActive ? (
-                        <>
-                          <Lock className="h-3.5 w-3.5" /> Bloqueado
-                        </>
-                      ) : isDone ? (
+                      {isDone ? (
                         <>
                           <Check className="h-3.5 w-3.5" /> Concluído
+                        </>
+                      ) : !isCurrentPlanActive ? (
+                        <>
+                          <Sparkles className="h-3.5 w-3.5" /> Ativar & Responder
                         </>
                       ) : (
                         <>

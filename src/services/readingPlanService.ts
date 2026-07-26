@@ -1,5 +1,26 @@
 import { supabase } from "@/integrations/supabase/client";
 
+const syncKeyToSupabaseAsync = async (key: string, value: string) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: existing } = await supabase
+      .from("user_notes")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("verse_reference", key)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase.from("user_notes").update({ note_text: value }).eq("id", existing.id);
+    } else {
+      await supabase.from("user_notes").insert({ user_id: user.id, verse_reference: key, note_text: value });
+    }
+  } catch (e) {
+    console.warn(`Sync warning for ${key}`, e);
+  }
+};
+
 export interface UserPlanProgress {
   activePlanId: string | null;
   activePlanStartDate: string | null;
@@ -46,7 +67,9 @@ export const toggleFavoritePlan = (planId: string): boolean => {
   } else {
     updated = [...current, planId];
   }
-  localStorage.setItem(PLAN_FAVORITES_KEY, JSON.stringify(updated));
+  const jsonStr = JSON.stringify(updated);
+  localStorage.setItem(PLAN_FAVORITES_KEY, jsonStr);
+  syncKeyToSupabaseAsync("READING_PLAN_FAVORITES", jsonStr);
   return !isFav;
 };
 
@@ -72,7 +95,9 @@ export const savePlanReflection = (reflection: PlanReflection): Record<string, P
     ...current,
     [key]: reflection
   };
-  localStorage.setItem(PLAN_REFLECTIONS_KEY, JSON.stringify(updated));
+  const jsonStr = JSON.stringify(updated);
+  localStorage.setItem(PLAN_REFLECTIONS_KEY, jsonStr);
+  syncKeyToSupabaseAsync("READING_PLAN_REFLECTIONS", jsonStr);
   return updated;
 };
 
@@ -80,7 +105,9 @@ export const deletePlanReflection = (planId: string, dayNumber: number): Record<
   const current = getPlanReflections();
   const key = `${planId}_${dayNumber}`;
   delete current[key];
-  localStorage.setItem(PLAN_REFLECTIONS_KEY, JSON.stringify(current));
+  const jsonStr = JSON.stringify(current);
+  localStorage.setItem(PLAN_REFLECTIONS_KEY, jsonStr);
+  syncKeyToSupabaseAsync("READING_PLAN_REFLECTIONS", jsonStr);
   return current;
 };
 
@@ -173,40 +200,50 @@ export const savePlanProgress = async (progress: UserPlanProgress): Promise<void
 
 // Load progress with Supabase Sync on login
 export const loadPlanProgressWithSync = async (): Promise<UserPlanProgress> => {
-  const local = getLocalPlanProgress();
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: existingNote } = await supabase
-        .from("user_notes")
-        .select("note_text")
-        .eq("user_id", user.id)
-        .eq("verse_reference", "READING_PLAN_PROGRESS")
-        .maybeSingle();
+    if (!user) {
+      return getDefaultProgress();
+    }
+    const local = getLocalPlanProgress();
+    const { data: existingNote } = await supabase
+      .from("user_notes")
+      .select("note_text")
+      .eq("user_id", user.id)
+      .eq("verse_reference", "READING_PLAN_PROGRESS")
+      .maybeSingle();
 
-      if (existingNote?.note_text) {
-        try {
-          const remote: UserPlanProgress = JSON.parse(existingNote.note_text);
-          // Merge: use remote if it exists or has more completed days
-          const localCount = Object.values(local.completedDaysByPlan).flat().length;
-          const remoteCount = Object.values(remote.completedDaysByPlan || {}).flat().length;
-          
-          if (remoteCount >= localCount) {
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(remote));
-            return remote;
-          } else {
-            // Push local to remote
-            savePlanProgress(local);
-          }
-        } catch (e) {
-          console.error("Error parsing remote plan progress", e);
+    if (existingNote?.note_text) {
+      try {
+        const remote: UserPlanProgress = JSON.parse(existingNote.note_text);
+        // Merge completed days across all plans
+        const mergedCompletedDays: Record<string, number[]> = { ...(local.completedDaysByPlan || {}) };
+        for (const [planId, remoteDays] of Object.entries(remote.completedDaysByPlan || {})) {
+          const localDays = mergedCompletedDays[planId] || [];
+          const combined = Array.from(new Set([...localDays, ...(remoteDays as number[])])).sort((a, b) => a - b);
+          mergedCompletedDays[planId] = combined;
         }
+
+        const mergedProgress: UserPlanProgress = {
+          activePlanId: remote.activePlanId || local.activePlanId || null,
+          activePlanStartDate: remote.activePlanStartDate || local.activePlanStartDate || null,
+          completedDaysByPlan: mergedCompletedDays,
+          streakDays: Math.max(local.streakDays || 0, remote.streakDays || 0),
+          lastCompletedDate: remote.lastCompletedDate || local.lastCompletedDate || null,
+        };
+
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(mergedProgress));
+        savePlanProgress(mergedProgress);
+        return mergedProgress;
+      } catch (e) {
+        console.error("Error parsing remote plan progress", e);
       }
     }
+    return local;
   } catch (err) {
     console.warn("Could not load reading plan progress from Supabase", err);
+    return getLocalPlanProgress();
   }
-  return local;
 };
 
 // Toggle a day completion

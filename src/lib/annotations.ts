@@ -1,3 +1,5 @@
+import { syncKeyToSupabase } from "@/services/userSyncService";
+
 // Highlight & Notes system stored in localStorage
 
 export type HighlightColor = 'yellow' | 'blue' | 'green' | 'pink';
@@ -30,12 +32,16 @@ export function getHighlight(verseId: string): VerseHighlight | undefined {
 export function setHighlight(verseId: string, color: HighlightColor): void {
   const list = getHighlights().filter(h => h.verseId !== verseId);
   list.push({ verseId, color });
-  localStorage.setItem(HIGHLIGHTS_KEY, JSON.stringify(list));
+  const jsonStr = JSON.stringify(list);
+  localStorage.setItem(HIGHLIGHTS_KEY, jsonStr);
+  syncKeyToSupabase("BIBLE_HIGHLIGHTS", jsonStr);
 }
 
 export function removeHighlight(verseId: string): void {
   const list = getHighlights().filter(h => h.verseId !== verseId);
-  localStorage.setItem(HIGHLIGHTS_KEY, JSON.stringify(list));
+  const jsonStr = JSON.stringify(list);
+  localStorage.setItem(HIGHLIGHTS_KEY, jsonStr);
+  syncKeyToSupabase("BIBLE_HIGHLIGHTS", jsonStr);
 }
 
 // --- Notes ---
@@ -54,12 +60,16 @@ export function setNote(verseId: string, text: string): void {
   if (text.trim()) {
     list.push({ verseId, text: text.trim(), createdAt: Date.now() });
   }
-  localStorage.setItem(NOTES_KEY, JSON.stringify(list));
+  const jsonStr = JSON.stringify(list);
+  localStorage.setItem(NOTES_KEY, jsonStr);
+  syncKeyToSupabase("BIBLE_NOTES", jsonStr);
 }
 
 export function removeNote(verseId: string): void {
   const list = getNotes().filter(n => n.verseId !== verseId);
-  localStorage.setItem(NOTES_KEY, JSON.stringify(list));
+  const jsonStr = JSON.stringify(list);
+  localStorage.setItem(NOTES_KEY, jsonStr);
+  syncKeyToSupabase("BIBLE_NOTES", jsonStr);
 }
 
 export const highlightColors: { key: HighlightColor; label: string; hsl: string }[] = [

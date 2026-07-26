@@ -1,3 +1,5 @@
+import { syncKeyToSupabase } from "@/services/userSyncService";
+
 const STORAGE_KEYS = {
   favorites: "bible-favorites",
   markings: "bible-markings",
@@ -30,7 +32,11 @@ export function addFavorite(verse: Omit<FavoriteVerse, "addedAt">, type: Reactio
   } else {
     list.unshift({ ...verse, addedAt: Date.now() });
   }
-  localStorage.setItem(STORAGE_KEYS[type], JSON.stringify(list));
+  const jsonStr = JSON.stringify(list);
+  localStorage.setItem(STORAGE_KEYS[type], jsonStr);
+  if (type === "favorites") {
+    syncKeyToSupabase("BIBLE_FAVORITES", jsonStr);
+  }
 }
 
 export function updateNote(id: string, noteText: string, type: ReactionType = "notes"): void {
@@ -38,13 +44,21 @@ export function updateNote(id: string, noteText: string, type: ReactionType = "n
   const item = list.find((f) => f.id === id);
   if (item) {
     item.note = noteText;
-    localStorage.setItem(STORAGE_KEYS[type], JSON.stringify(list));
+    const jsonStr = JSON.stringify(list);
+    localStorage.setItem(STORAGE_KEYS[type], jsonStr);
+    if (type === "favorites") {
+      syncKeyToSupabase("BIBLE_FAVORITES", jsonStr);
+    }
   }
 }
 
 export function removeFavorite(id: string, type: ReactionType = "favorites"): void {
   const list = getFavorites(type).filter((f) => f.id !== id);
-  localStorage.setItem(STORAGE_KEYS[type], JSON.stringify(list));
+  const jsonStr = JSON.stringify(list);
+  localStorage.setItem(STORAGE_KEYS[type], jsonStr);
+  if (type === "favorites") {
+    syncKeyToSupabase("BIBLE_FAVORITES", jsonStr);
+  }
 }
 
 export function isFavorite(id: string, type: ReactionType = "favorites"): boolean {

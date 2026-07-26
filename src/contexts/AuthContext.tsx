@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { supabase, isAuthRefreshError } from "@/integrations/supabase/client";
 import type { User as SupaUser } from "@supabase/supabase-js";
 import { setupPushNotifications } from "@/services/pushService";
+import { syncAllUserDataFromSupabaseOnLogin, deactivatePlansAndSyncOnLogout } from "@/services/userSyncService";
 
 export interface GoogleUser {
   name: string;
@@ -118,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (isSubscribed && session?.user) {
           setUser(mapSupabaseUser(session.user));
           setupPushNotifications(session.user.id);
+          syncAllUserDataFromSupabaseOnLogin().catch(console.error);
         }
       } catch (err) {
         await handleAuthError(err);
@@ -133,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (session?.user) {
         setUser(mapSupabaseUser(session.user));
+        syncAllUserDataFromSupabaseOnLogin().catch(console.error);
       } else {
         // Se houve erro no refresh silencioso disparado pelo Supabase, o session virá nulo
         // e o evento pode não ser SIGNED_OUT se for um erro de rede/token
@@ -154,6 +157,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = (_userData: GoogleUser) => {};
 
   const logout = async () => {
+    // Desativa planos de leitura e sincroniza dados antes de deslogar
+    await deactivatePlansAndSyncOnLogout().catch(console.error);
     setUser(null);
     await forceSignOut();
   };
