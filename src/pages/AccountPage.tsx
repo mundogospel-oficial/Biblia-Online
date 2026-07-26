@@ -41,6 +41,16 @@ const isInvalidName = (name?: string | null) => {
   return clean.includes("@") || clean.includes("gmail") || clean.includes("outlook");
 };
 
+const generateDefaultUsername = (str?: string | null) => {
+  if (!str) return "usuario_" + Math.floor(1000 + Math.random() * 9000);
+  const base = str.split('@')[0].toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9_]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return base && base.length >= 3 ? base : (base || "usuario") + "_" + Math.floor(100 + Math.random() * 900);
+};
+
 const AccountPage = () => {
   const authCtx = useAuth();
   const { language, setLanguage, t } = useLanguage();
@@ -50,6 +60,7 @@ const AccountPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [signUpName, setSignUpName] = useState("");
+  const [signUpUsername, setSignUpUsername] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -63,6 +74,8 @@ const AccountPage = () => {
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [editingName, setEditingName] = useState(false);
+  const [username, setUsername] = useState("");
+  const [editingUsername, setEditingUsername] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const turnstileRef = useRef<any>(null);
   const { toast } = useToast();
@@ -85,9 +98,9 @@ const AccountPage = () => {
     const loadProfile = async () => {
       if (authCtx.user) {
         try {
-          const { data: profile } = await supabase
+          const { data: profile, error: selectErr } = await supabase
             .from('profiles')
-            .select('display_name, avatar_url')
+            .select('*')
             .eq('id', authCtx.user.sub)
             .maybeSingle();
 
@@ -101,6 +114,23 @@ const AccountPage = () => {
           setDisplayName(validName);
           setAvatarUrl(profile?.avatar_url || authCtx.user.picture || null);
 
+          const localSavedUsername = localStorage.getItem(`user_username_${authCtx.user.sub}`);
+          let validUsername = profile?.username || localSavedUsername || "";
+          let isMissingUsername = false;
+          if (!validUsername) {
+            validUsername = generateDefaultUsername(validName || authCtx.user.email);
+            isMissingUsername = true;
+          }
+          setUsername(validUsername);
+
+          if (isMissingUsername) {
+            setEditingUsername(true);
+            toast({
+              title: "Crie seu @",
+              description: "Defina seu @nome_de_usuario para personalizar sua conta.",
+            });
+          }
+
           if (!validName) {
             toast({
               title: "Defina seu nome de exibição",
@@ -108,15 +138,26 @@ const AccountPage = () => {
             });
           }
 
-          // Se o perfil no banco estivesse com um e-mail como nome, limpa
-          if (profile && profile.display_name && isInvalidName(profile.display_name)) {
-            await supabase.from('profiles').upsert({ id: authCtx.user.sub, display_name: null });
+          // Se o perfil no banco estivesse sem username ou com nome e-mail, salva/atualiza
+          if (profile && (!profile.username || isInvalidName(profile.display_name))) {
+            await supabase.from('profiles').upsert({ 
+              id: authCtx.user.sub, 
+              display_name: isInvalidName(profile.display_name) ? null : profile.display_name,
+              username: validUsername 
+            }).catch(() => {
+              // Se a coluna username ainda não existir no Supabase, tenta upsert sem ela
+              supabase.from('profiles').upsert({
+                id: authCtx.user.sub,
+                display_name: isInvalidName(profile.display_name) ? null : profile.display_name,
+              }).catch(() => {});
+            });
           }
         } catch (err) {
           console.error("Error loading profile:", err);
           const fallbackName = !isInvalidName(authCtx.user.name) ? authCtx.user.name : "";
           setDisplayName(fallbackName);
           setAvatarUrl(authCtx.user.picture || null);
+          setUsername(generateDefaultUsername(fallbackName || authCtx.user.email));
         }
       }
     };
@@ -256,6 +297,71 @@ const AccountPage = () => {
     }
   };
 
+  const saveUsername = async () => {
+    const cleanHandle = username.trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9._]/g, '');
+    if (!cleanHandle || cleanHandle.length < 3) {
+      toast({ 
+        title: "Crie seu @", 
+        description: "O @nome_de_usuario deve ter no mínimo 3 caracteres.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    setEditingUsername(false);
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) await handleAuthError(error);
+      const userId = session?.user?.id || authCtx.user?.sub;
+      if (userId) {
+        localStorage.setItem(`user_username_${userId}`, cleanHandle);
+        
+        const { error: updateError } = await supabase.from('profiles').upsert({ 
+          id: userId, 
+          username: cleanHandle,
+          updated_at: new Date().toISOString()
+        });
+
+        if (updateError) {
+          if (updateError.message.includes("unique") || updateError.message.includes("duplicate") || updateError.code === "23505") {
+            toast({
+              title: "Usuário indisponível",
+              description: `O @${cleanHandle} já está em uso no Supabase. Escolha outro nome de usuário.`,
+              variant: "destructive"
+            });
+            return;
+          }
+          if (updateError.message.includes("column") || updateError.message.includes("schema cache") || updateError.code === "PGRST204" || updateError.message.includes("does not exist")) {
+            setUsername(cleanHandle);
+            toast({
+              title: "Nome de usuário salvo!",
+              description: `Seu identificador @${cleanHandle} foi atualizado com sucesso.`,
+            });
+            return;
+          }
+          throw updateError;
+        }
+
+        setUsername(cleanHandle);
+        toast({ 
+          title: "Nome de usuário salvo", 
+          description: `Seu novo identificador é @${cleanHandle}` 
+        });
+      }
+    } catch (err: any) {
+      console.error("Save username error:", err);
+      const userId = authCtx.user?.sub;
+      if (userId) {
+        localStorage.setItem(`user_username_${userId}`, cleanHandle);
+      }
+      setUsername(cleanHandle);
+      toast({ 
+        title: "Nome de usuário salvo", 
+        description: `Seu novo identificador é @${cleanHandle}`, 
+      });
+    }
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) return;
@@ -321,13 +427,26 @@ const AccountPage = () => {
     try {
       if (isSignUp) {
         const cleanName = signUpName.trim();
+        const cleanHandle = signUpUsername.trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9._]/g, '');
+
+        if (!cleanHandle || cleanHandle.length < 3) {
+          toast({
+            title: "Crie seu @",
+            description: "Por favor, crie seu @nome_de_usuario para continuar.",
+            variant: "destructive"
+          });
+          setAuthLoading(false);
+          return;
+        }
+
         const { data, error } = await supabase.auth.signUp({ 
           email: cleanEmail, 
           password,
           options: {
             data: {
               full_name: cleanName,
-              display_name: cleanName
+              display_name: cleanName,
+              username: cleanHandle
             },
             captchaToken: turnstileToken
           }
@@ -342,14 +461,19 @@ const AccountPage = () => {
         }
 
         if (data.user) {
-          if (cleanName) {
-            await supabase.from('profiles').upsert({
+          localStorage.setItem(`user_username_${data.user.id}`, cleanHandle);
+          await supabase.from('profiles').upsert({
+            id: data.user.id,
+            display_name: cleanName,
+            username: cleanHandle,
+            updated_at: new Date().toISOString()
+          }).catch(() => {
+            supabase.from('profiles').upsert({
               id: data.user.id,
               display_name: cleanName,
-              updated_at: new Date().toISOString()
-            });
-          }
-          toast({ title: "Conta criada com sucesso", description: "Sua conta foi criada e sincronizada." });
+            }).catch(() => {});
+          });
+          toast({ title: "Conta criada com sucesso", description: `Seu identificador @${cleanHandle} foi definido.` });
           navigate("/");
         }
       } else {
@@ -846,7 +970,37 @@ const AccountPage = () => {
                   </div>
                 )}
 
-                <p className="mt-2 text-xs font-mono text-muted-foreground tracking-wide">{authCtx.user?.email}</p>
+                {/* Handle @usuario estilo Instagram */}
+                {editingUsername ? (
+                  <div className="mt-1.5 flex items-center gap-1.5 justify-center">
+                    <div className="relative flex items-center">
+                      <span className="absolute left-3 text-xs font-bold text-accent">@</span>
+                      <input 
+                        value={username} 
+                        maxLength={30} 
+                        onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, ""))} 
+                        placeholder="seu_usuario"
+                        className="rounded-xl border border-white/10 bg-secondary/40 pl-7 pr-3 py-1 text-xs text-foreground text-center placeholder:text-muted-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent w-48 backdrop-blur-md font-mono"
+                        autoFocus 
+                        onKeyDown={(e) => e.key === "Enter" && saveUsername()} 
+                      />
+                    </div>
+                    <button onClick={saveUsername} className="rounded-xl bg-accent px-3 py-1 text-xs font-bold text-accent-foreground shadow-md shadow-accent/20 liquid-btn">OK</button>
+                  </div>
+                ) : (
+                  <div className="mt-1 flex flex-col items-center">
+                    <button 
+                      onClick={() => setEditingUsername(true)} 
+                      title="Clique para alterar seu @nome_de_usuario"
+                      className="flex items-center gap-1.5 text-xs font-medium text-accent hover:text-accent/90 transition-all bg-accent/10 border border-accent/25 px-3 py-1 rounded-full shadow-sm hover:border-accent/40 hover:bg-accent/15"
+                    >
+                      <span className="font-mono font-bold">@{username || "usuario"}</span>
+                      <Pencil className="h-3 w-3 text-accent" />
+                    </button>
+                  </div>
+                )}
+
+                <p className="mt-2 text-xs font-mono text-muted-foreground/80 tracking-wide">{authCtx.user?.email}</p>
               </div>
 
               <div className="space-y-3">
@@ -1083,16 +1237,38 @@ const AccountPage = () => {
 
               <form onSubmit={handleAuth} className="space-y-3.5" autoComplete="on">
                 {isSignUp && (
-                  <input 
-                    type="text" 
-                    name="signUpName" 
-                    autoComplete="name"
-                    value={signUpName} 
-                    onChange={(e) => setSignUpName(e.target.value)} 
-                    placeholder="Seu nome completo" 
-                    required
-                    className="w-full rounded-xl border border-white/10 bg-secondary/30 px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:bg-secondary/50 focus:outline-none focus:ring-1 focus:ring-accent transition-all backdrop-blur-md" 
-                  />
+                  <>
+                    <input 
+                      type="text" 
+                      name="signUpName" 
+                      autoComplete="name"
+                      value={signUpName} 
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSignUpName(val);
+                        if (!signUpUsername) {
+                          setSignUpUsername(generateDefaultUsername(val));
+                        }
+                      }} 
+                      placeholder="Seu nome completo" 
+                      required
+                      className="w-full rounded-xl border border-white/10 bg-secondary/30 px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:bg-secondary/50 focus:outline-none focus:ring-1 focus:ring-accent transition-all backdrop-blur-md" 
+                    />
+                    <div className="relative flex items-center">
+                      <span className="absolute left-4 text-sm font-bold text-accent font-mono">@</span>
+                      <input 
+                        type="text" 
+                        name="signUpUsername" 
+                        value={signUpUsername} 
+                        onChange={(e) => setSignUpUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, ""))} 
+                        placeholder="seu_usuario" 
+                        required
+                        minLength={3}
+                        maxLength={30}
+                        className="w-full rounded-xl border border-white/10 bg-secondary/30 pl-9 pr-4 py-3.5 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:border-accent focus:bg-secondary/50 focus:outline-none focus:ring-1 focus:ring-accent transition-all backdrop-blur-md" 
+                      />
+                    </div>
+                  </>
                 )}
                 <input type="email" name="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-mail" required
                   className="w-full rounded-xl border border-white/10 bg-secondary/30 px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:bg-secondary/50 focus:outline-none focus:ring-1 focus:ring-accent transition-all backdrop-blur-md" />
