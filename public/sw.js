@@ -1,4 +1,4 @@
-const CACHE_NAME = 'biblia-online-v12';
+const CACHE_NAME = 'biblia-online-v13';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -32,6 +32,7 @@ const STATIC_ASSETS = [
   '/icons/icon-512.png',
   '/icons/logo2.png',
   '/icons/logo3.png',
+  '/icons/logo4.png',
   '/placeholder.svg'
 ];
 
@@ -164,7 +165,7 @@ self.addEventListener('fetch', (event) => {
       }).catch(() => {
         // Fallback for offline images
         if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('image')) {
-          return caches.match('/icons/logo2.png').then((imgRes) => {
+          return caches.match('/icons/logo4.png').then((imgRes) => {
             if (imgRes) return imgRes;
             return caches.match('/placeholder.svg').then((plRes) => {
               if (plRes) return plRes;
