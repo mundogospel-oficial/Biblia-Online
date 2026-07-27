@@ -43,27 +43,24 @@ export const generateBiblicalImage = async (
         signal
       });
 
-      if (response.status === 405 || response.status === 404 || response.status === 502 || response.status === 504) {
-        console.warn(`[Proxy] Servidor retornou código ${response.status}. Ativando fallback de geração do cliente.`);
-        isVercelOrFallbackNeeded = true;
-      } else if (!response.ok) {
+      if (!response.ok) {
         const errData = await response.json().catch(() => null);
-        const errMessage = errData?.error || `Status: ${response.status} ${response.statusText}`;
-        const serverError = new Error(errMessage);
-        (serverError as any).isServerError = true;
-        throw serverError;
+        const errMessage = errData?.error || errData?.message;
+
+        // Se for erro de validação/moderação (400) ou limite de cota (429), propaga a mensagem específica para o usuário
+        if (response.status === 400 || response.status === 429) {
+          const serverError = new Error(errMessage || "A solicitação de imagem foi recusada.");
+          (serverError as any).isServerError = true;
+          throw serverError;
+        }
+
+        // Para outros status (403, 401, 404, 405, 500, 502, 503, 504), ativa o fallback de geração direta no cliente
+        console.warn(`[Proxy] Servidor retornou código de status HTTP ${response.status}. Ativando fallback de geração no navegador.`);
+        isVercelOrFallbackNeeded = true;
       }
     } catch (fetchErr: any) {
-      // Se for erro específico do servidor (quota, bloqueio, autenticação, moderação), propaga direto sem ativar fallback
-      if (fetchErr.isServerError || (fetchErr.message && (
-        fetchErr.message.includes("atingiu") || 
-        fetchErr.message.includes("limite") || 
-        fetchErr.message.includes("cota") || 
-        fetchErr.message.includes("Sessão") || 
-        fetchErr.message.includes("permitida") || 
-        fetchErr.message.includes("impróprio") ||
-        fetchErr.message.includes("bloqueado")
-      ))) {
+      // Se for erro específico do servidor (quota, bloqueio, moderação), propaga direto sem ativar fallback
+      if (fetchErr.isServerError) {
         throw fetchErr;
       }
       console.warn("[Proxy] Falha de comunicação de rede com o servidor, ativando fallback do cliente:", fetchErr);
@@ -214,11 +211,12 @@ ${isCreateMode ? `REGRA 3 (MODO CRIAR COM VERSÍCULOS - PAISAGENS NATURAIS SEM H
 ATENÇÃO OBRIGATÓRIA: Este pedido é do Modo Criar com Versículos (fundo de imagem para texto/post). A imagem DEVE SER EXCLUSIVAMENTE UMA PAISAGEM NATURAL BÍBLICA, SEM NENHUMA PESSOA, SEM SERES HUMANOS, SEM ROSTOS, SEM CORPOS E SEM FIGURAS HUMANAS.
 Gere um prompt em inglês focado 100% em elementos de natureza inspiradora (céu, montanhas, vales, desertos, rios, mares, árvores, flores, luz solar divina, névoa, nascer do sol) e adicione OBRIGATORIAMENTE ao final do prompt: "serene scenic natural landscape, no people, no humans, empty nature background, peaceful biblical environment, 8k resolution".` : `REGRA 3 (ANATOMIA, PERSONAGENS BÍBLICOS E ADÃO E EVA):
 Ao traduzir e enriquecer o pedido para o INGLÊS, crie uma descrição natural, fluida e de altíssima fidelidade.
-- PERSONAGENS BÍBLICOS E ADÃO E EVA (OBRIGATÓRIO):
-  * Para Adão e Eva ("Adão e Eva" / "Adam and Eve"): Descreva obrigatoriamente "Adam and Eve wearing modest classical biblical linen garments in the lush Garden of Eden paradise, surrounded by vibrant fruit trees, crystal clear rivers, serene animals, and divine sunlight rays. Respectful, sacred, classical fine art style, no nudity, natural human faces".
+- PERSONAGENS BÍBLICOS, CASAIS E ADÃO E EVA (OBRIGATÓRIO):
+  * Para Adão e Eva ("Adão e Eva" / "Adam and Eve"): Descreva obrigatoriamente e com máxima clareza: "one adult male (Adam) with distinct masculine facial structure and short hair, and one adult female (Eve) with distinct feminine facial structure and long flowing hair, a man and a woman couple standing together, wearing modest classical biblical linen garments in the lush Garden of Eden paradise, surrounded by vibrant fruit trees, crystal clear rivers, serene animals, and divine sunlight rays. Respectful, sacred, classical fine art style, no nudity, natural human faces".
+  * Para Casais / Homem e Mulher: Sempre diferencie explicitamente "one adult male with masculine features and one adult female with feminine features" para garantir a diferenciação correta dos gêneros sem confundir o gerador de imagem.
   * Para outros personagens bíblicos (Jesus, Moisés, Davi, Abraão, etc.): Descreva feições humanas realistas e serenas, vestes históricas detalhadas e contexto bíblico fiel.
-- ANATOMIA E OLHOS NATURAIS (CRÍTICO): Os olhos e rostos devem ser humanos, anatômicos e totalmente naturais ("natural realistic human eyes, crystal-clear iris, anatomically accurate round pupils, natural realistic eye gaze, sharp eye focus"). NUNCA gere rostos rachados, vitrais quebrados, mosaicos disformes, olhos vesgos ou deformações faciais, a menos que o usuário peça explicitamente "vitral" ou "mosaico". Se duas pessoas estiverem na cena, especifique o olhar natural entre elas ("looking at each other with natural emotional connection, natural eye contact") ou olhando naturalmente para o cenário/câmera.
-- COMPOSIÇÃO E ENQUADRAMENTO: Mantenha um enquadramento equilibrado de retrato (medium shot portrait or standard portrait composition, balanced facial proportions) para evitar deformação facial de lente super próxima.
+- ANATOMIA E OLHOS NATURAIS (CRÍTICO): Os olhos e rostos devem ser humanos, anatômicos e totalmente naturais ("natural realistic human eyes, crystal-clear iris, anatomically accurate round pupils, natural realistic eye gaze, sharp eye focus"). NUNCA gere rostos rachados, vitrais quebrados, mosaicos disformes, olhos vesgos, heterocromia estranha ou deformações faciais. Se duas pessoas estiverem na cena, especifique a diferenciação anatômica e o olhar natural entre elas.
+- COMPOSIÇÃO E ENQUADRAMENTO: Mantenha um enquadramento equilibrado de retrato ou cena (medium portrait or scenic historical composition, balanced facial proportions) para evitar deformação facial de lente super próxima.
 - ILUMINAÇÃO E PELE: Iluminação natural e cristalina (bright soft natural daylight), cores vivas e pele limpa e realista.
 - ESTILOS ESPECÍFICOS ([Estilo: ...]):
   * CINEMATOGRÁFICO: "A high-end cinematic movie still, medium shot portrait, crisp focal clarity on face, natural realistic human eyes, clear detailed iris and pupils, soft golden sunlight, anamorphic lens, shallow depth of field, vivid natural colors, 8k resolution."
@@ -228,7 +226,7 @@ Ao traduzir e enriquecer o pedido para o INGLÊS, crie uma descrição natural, 
   * PINTURA A ÓLEO: "Master classical oil painting on canvas, refined elegant brushwork, luminous lighting, clear detailed facial features and expressive natural eyes, museum fine art quality."
   * AQUARELA: "Delicate watercolor painting on textured paper, soft fluid pastel colors, clean artistic outlines, graceful watercolor washes."
   * ANIME: "High quality Studio Ghibli inspired anime illustration, clean line art, luminous soft lighting, vibrant colors, expressive clear eyes."
-  * ILUSTRAÇÃO BÍBLICA SACRA: "Sacred illuminated manuscript artwork, royal gold leaf accents, stained glass radiance, reverent biblical classical art."`}
+  * ILUSTRAÇÃO BÍBLICA SACRA: "Sacred illuminated manuscript artwork, royal gold leaf accents in decorative background frame, stained glass window cathedral architecture background, reverent biblical fresco style with smooth realistic human face and clean skin in foreground, natural realistic human eyes, no stained glass on face, no cracked skin."`}
 
 REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS em um único parágrafo fluido. Não inclua aspas, preâmbulos, avisos ou explicações. Se for inadequado, responda APENAS: "BLOQUEADO".`;
 
@@ -282,16 +280,25 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
       let finalPrompt = enhancedPrompt;
 
       const isAdamAndEve = /(?:adão|adao|adam).*(?:eva|eve)|(?:eva|eve).*(?:adão|adao|adam)|jardim do [ée]den|garden of eden/i.test(cleanPrompt + " " + enhancedPrompt);
-      if (isAdamAndEve && !finalPrompt.toLowerCase().includes("garments")) {
-        finalPrompt = `${finalPrompt}, Adam and Eve wearing modest classical biblical linen garments in the lush Garden of Eden paradise, surrounded by vibrant fruit trees, crystal clear rivers, serene animals, and divine sunlight, respectful sacred classical fine art`;
+      if (isAdamAndEve) {
+        finalPrompt = `Biblical artwork of Adam and Eve: one adult male (Adam) with distinct masculine facial structure and short hair, and one adult female (Eve) with distinct feminine facial structure and long flowing hair, a man and a woman couple standing together, wearing modest classical biblical linen garments in the lush Garden of Eden paradise, surrounded by vibrant fruit trees, crystal clear rivers, serene animals, and divine sunlight, respectful sacred classical fine art, natural realistic human eyes with matching iris color, distinct male and female faces, high resolution 8k`;
       }
 
       if (source === 'create') {
         if (!enhancedPrompt.toLowerCase().includes("no people") && !enhancedPrompt.toLowerCase().includes("no humans")) {
           finalPrompt = `${enhancedPrompt}, serene scenic natural landscape, no people, no humans, empty nature background, peaceful biblical environment, bright soft natural daylight, high resolution 8k`;
         }
-      } else if (!enhancedPrompt.toLowerCase().includes("natural human eyes") && !/pixel art|watercolor|anime|3d animated/i.test(enhancedPrompt)) {
-        finalPrompt = `${enhancedPrompt}, natural realistic human eyes, crystal clear iris and pupils, anatomically correct natural gaze, medium portrait framing, clean skin, bright soft natural daylight, high resolution`;
+      } else {
+        // ARMONIZADOR FACIAL E OCULAR IA
+        if (/stained glass|vitral|mosaico|mosaic|cracked/i.test(finalPrompt)) {
+          finalPrompt += `, stained glass window pattern restricted strictly to background frame architecture, smooth clean realistic human face and pristine skin in foreground, no stained glass on face, no cracked skin`;
+        }
+
+        const facialHarmonizerAddon = `symmetrical realistic human faces, realistic detailed eyes, crystal clear pupils and iris with matching eye colors, natural anatomical eye gaze, anatomically correct facial structure, smooth natural skin texture, clean realistic facial features, high quality portrait lighting, no cross eyes, no misaligned eyes, no distorted pupils, no facial cracks, no extra limbs, no deformed face, no bad facial anatomy`;
+
+        if (!finalPrompt.toLowerCase().includes("symmetrical realistic human faces") && !isAdamAndEve) {
+          finalPrompt = `${finalPrompt}, ${facialHarmonizerAddon}`;
+        }
       }
 
       let width = 1024;
@@ -446,6 +453,13 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
     }
   } catch (error: any) {
     console.error("Falha ao gerar imagem:", error);
-    throw new Error(error.message || "Erro de comunicação ao acionar o serviço de imagens.");
+    const msg = error.message || "Erro de comunicação ao acionar o serviço de imagens.";
+    if (msg.includes("Failed to fetch")) {
+      throw new Error("Erro de conexão de rede. Verifique sua internet e tente novamente em instantes.");
+    }
+    if (msg.includes("Status:") || msg.includes("403") || msg.includes("401") || msg.includes("Forbidden")) {
+      throw new Error("Não foi possível gerar a imagem no momento. Tente novamente mais tarde.");
+    }
+    throw new Error(msg);
   }
 };

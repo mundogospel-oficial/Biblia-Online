@@ -287,7 +287,10 @@ const CreatePage = () => {
       ) {
         toast({ title: "Conteúdo Bloqueado", description: "A descrição fornecida contém termos que violam as diretrizes de conteúdo visual.", variant: "destructive" });
       } else {
-        toast({ title: "Erro na IA", description: errMsg || "Tente novamente mais tarde.", variant: "destructive" });
+        const formattedMsg = errMsg.includes("Failed to fetch") 
+          ? "Erro de conexão com o servidor. Verifique sua internet e tente novamente." 
+          : (errMsg || "Tente novamente mais tarde.");
+        toast({ title: "Erro na IA", description: formattedMsg, variant: "destructive" });
       }
     } finally {
       await checkCreateUsage();
