@@ -12,40 +12,16 @@
   "categories": ["books", "reference", "lifestyle"],
   "icons": [
     {
-      "src": "/icons/logo2.png",
+      "src": "/icons/logo4.png?v=3",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
-      "src": "/icons/logo3.png",
+      "src": "/icons/logo4.png?v=3",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/icon-maskable-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/icons/icon-maskable-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
   ],
   "shortcuts": [
@@ -56,7 +32,7 @@
       "url": "/",
       "icons": [
         {
-          "src": "/icons/logo2.png",
+          "src": "/icons/logo4.png?v=3",
           "sizes": "192x192",
           "type": "image/png"
         }
