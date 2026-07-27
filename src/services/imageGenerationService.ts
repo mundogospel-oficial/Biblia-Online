@@ -134,12 +134,36 @@ export const generateBiblicalImage = async (
         'bypass restrictions', 'desative os filtros'
       ];
       const lowercasePrompt = cleanPrompt.toLowerCase();
-      const hasForbiddenTerm = forbiddenTerms.some(term => {
+
+      const biblicalKeywords = [
+        'salmo', 'salmos', 'moises', 'moisés', 'bíblia', 'biblia', 'jesus', 'cristo', 'davi', 'abraão', 'abraao', 
+        'versículo', 'versiculo', 'evangelho', 'deus', 'senhor', 'oração', 'oracao', 'fé', 'fe', 'profeta', 
+        'apóstolo', 'apostolo', 'genesis', 'gênesis', 'exodo', 'êxodo', 'paulo', 'pedro', 'joão', 'joao'
+      ];
+      const hasBiblicalContext = biblicalKeywords.some(kw => lowercasePrompt.includes(kw));
+
+      const strictlyHarmfulTerms = [
+        'nude', 'nudity', 'pelad', 'nuas', 'nus', 'nua', 'sexy', 'porn', 'porno', 'sexo', 'erotic', 'erotico', 
+        'drogas', 'cocaina', 'crack', 'mutilacao', 'gore', 'prostituicao', 'prostituta', 'estupro'
+      ];
+      const hasStrictlyHarmful = strictlyHarmfulTerms.some(term => {
         const regex = new RegExp(`(?:^|[^a-z0-9_])${term}(?:$|[^a-z0-9_])`, 'i');
         return regex.test(lowercasePrompt);
       });
-      if (hasForbiddenTerm) {
-        throw new Error("Imagem não pode ser gerada pois contém conteúdo fora do contexto bíblico ou impróprio.");
+
+      if (hasStrictlyHarmful) {
+        throw new Error("Imagem não pode ser gerada pois contém conteúdo impróprio.");
+      }
+
+      // Se não tiver contexto bíblico explícito, verifica termos seculares
+      if (!hasBiblicalContext) {
+        const hasForbiddenTerm = forbiddenTerms.some(term => {
+          const regex = new RegExp(`(?:^|[^a-z0-9_])${term}(?:$|[^a-z0-9_])`, 'i');
+          return regex.test(lowercasePrompt);
+        });
+        if (hasForbiddenTerm) {
+          throw new Error("Imagem não pode ser gerada pois contém conteúdo fora do contexto bíblico ou impróprio.");
+        }
       }
 
       // 3. Obter chaves do Gemini do Supabase para tradução/refinamento local

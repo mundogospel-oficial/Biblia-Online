@@ -519,6 +519,19 @@ function startServer() {
 
   function isPromptForbiddenByTerms(text: string): boolean {
     const lower = text.toLowerCase();
+    
+    // Explicit harmful terms
+    const strictlyHarmful = ['nudez', 'pelado', 'pelada', 'sexo', 'pornografia', 'erótico', 'erotico', 'drogas', 'cocaina', 'crack', 'mutilacao', 'gore', 'prostituicao'];
+    if (strictlyHarmful.some(term => new RegExp(`(?:^|[^a-z0-9_])${term}(?:$|[^a-z0-9_])`, 'i').test(lower))) {
+      return true;
+    }
+
+    // Biblical keywords bypass secular term blocking
+    const biblicalKeywords = ['salmo', 'salmos', 'moises', 'moisés', 'bíblia', 'biblia', 'jesus', 'cristo', 'davi', 'abraão', 'abraao', 'versículo', 'versiculo', 'evangelho', 'deus', 'senhor', 'oração', 'oracao', 'fé', 'fe', 'profeta', 'apóstolo', 'apostolo'];
+    if (biblicalKeywords.some(kw => lower.includes(kw))) {
+      return false;
+    }
+
     return EXPANDED_FORBIDDEN_TERMS.some(term => {
       const regex = new RegExp(`(?:^|[^a-z0-9_])${term}(?:$|[^a-z0-9_])`, 'i');
       return regex.test(lower);
