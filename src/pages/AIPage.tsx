@@ -598,7 +598,7 @@ const AIPage = () => {
 
       if (!session || !session.access_token) {
         toast({ title: "Sessão expirada ou inválida. Faça login novamente.", variant: "destructive" });
-        await supabase.auth.signOut().catch(() => {});
+        await forceSignOut();
         return null;
       }
       return session.access_token;

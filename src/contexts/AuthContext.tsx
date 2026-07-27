@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { supabase, isAuthRefreshError } from "@/integrations/supabase/client";
 import type { User as SupaUser } from "@supabase/supabase-js";
 import { setupPushNotifications } from "@/services/pushService";
-import { syncAllUserDataFromSupabaseOnLogin, deactivatePlansAndSyncOnLogout } from "@/services/userSyncService";
+import { syncAllUserDataFromSupabaseOnLogin, deactivatePlansAndSyncOnLogout, clearAllLocalUserData } from "@/services/userSyncService";
 
 export interface GoogleUser {
   name: string;
@@ -14,23 +14,38 @@ export interface GoogleUser {
 interface AuthContextType {
   user: GoogleUser | null;
   login: (userData: GoogleUser) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   login: () => {},
-  logout: () => {},
+  logout: async () => {},
   loading: true,
 });
 
 export const useAuth = () => useContext(AuthContext);
 
+const isInvalidName = (name?: string | null) => {
+  if (!name || !name.trim()) return true;
+  const clean = name.trim().toLowerCase();
+  return clean.includes("@") || clean.includes("gmail") || clean.includes("outlook");
+};
+
 function mapSupabaseUser(su: SupaUser): GoogleUser {
   const meta = su.user_metadata || {};
+  
+  const candidates = [
+    meta.display_name,
+    meta.full_name,
+    meta.name,
+  ];
+
+  const validName = candidates.find(n => typeof n === "string" && !isInvalidName(n)) || "";
+
   return {
-    name: meta.full_name || meta.name || meta.display_name || su.email || "",
+    name: validName,
     email: su.email || meta.email || "",
     picture: meta.avatar_url || meta.picture || "",
     sub: su.id,
@@ -39,25 +54,42 @@ function mapSupabaseUser(su: SupaUser): GoogleUser {
 
 export const forceSignOut = async () => {
   try {
-    localStorage.removeItem("bible-google-user");
+    // 1. Previne reautenticação automática do navegador (Credential Manager API)
+    if (typeof window !== "undefined" && (navigator as any).credentials?.preventSilentAccess) {
+      await (navigator as any).credentials.preventSilentAccess().catch(() => {});
+    }
 
-    // 1. Tenta signOut suave
-    await supabase.auth.signOut().catch(() => {});
+    // 2. Limpeza completa dos dados do usuário do localStorage
+    clearAllLocalUserData();
 
-    // 2. Limpeza manual agressiva de TODOS os tokens do Supabase
+    // 3. Encerra a sessão no Supabase globalmente
+    await supabase.auth.signOut({ scope: "global" }).catch(() => {
+      return supabase.auth.signOut().catch(() => {});
+    });
+
+    // 4. Limpeza manual agressiva de TODOS os tokens e chaves do Supabase no localStorage
     const keysToRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && (key.startsWith('sb-') || key.includes('supabase.auth.token'))) {
+      if (key && (
+        key.startsWith('sb-') || 
+        key.includes('supabase.auth') || 
+        key.includes('user_') ||
+        key === 'bible-google-user'
+      )) {
         keysToRemove.push(key);
       }
     }
     keysToRemove.forEach(k => localStorage.removeItem(k));
 
-    // 3. Notifica outras abas sobre a limpeza
-    localStorage.setItem('auth-sync-logout', Date.now().toString());
+    // 5. Limpa sessionStorage
+    try { sessionStorage.clear(); } catch {}
 
-    console.log("Limpeza profunda de sessão concluída.");
+    // 6. Notifica outras abas e componentes locais sobre o deslogamento
+    localStorage.setItem('auth-sync-logout', Date.now().toString());
+    window.dispatchEvent(new Event('auth-sync-logout-local'));
+
+    console.log("Limpeza profunda e completa de sessão realizada.");
   } catch (err) {
     console.error("Erro durante a limpeza de sessão:", err);
   }

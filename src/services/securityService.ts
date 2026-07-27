@@ -520,19 +520,25 @@ export const reportBanToSupabase = async (record: SecurityBanRecord) => {
 
     if (banErr) {
       // Fallback 2: Tenta gravar como log alternativo na tabela security_logs
-      await supabase.from("security_logs" as any).insert({
-        event: "IP_BLOCKED",
-        details: payload,
-        created_at: new Date().toISOString(),
-      } as any).catch((e) => console.warn("Erro ao salvar security_logs:", e));
+      try {
+        await supabase.from("security_logs" as any).insert({
+          event: "IP_BLOCKED",
+          details: payload,
+          created_at: new Date().toISOString(),
+        } as any);
+      } catch (e) {
+        console.warn("Erro ao salvar security_logs:", e);
+      }
     }
 
     // Se o usuário estiver logado, marca também no perfil
     if (currentUserId) {
-      await supabase.from("profiles").upsert({
-        id: currentUserId,
-        updated_at: new Date().toISOString(),
-      }).catch(() => {});
+      try {
+        await supabase.from("profiles").upsert({
+          id: currentUserId,
+          updated_at: new Date().toISOString(),
+        });
+      } catch {}
     }
   } catch (err) {
     console.error("Erro ao reportar banimento ao Supabase:", err);

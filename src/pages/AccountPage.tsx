@@ -13,6 +13,7 @@ import { useSentinel } from "@/hooks/useSentinel";
 import { setupPushNotifications } from "@/services/pushService";
 import { sendLocalNotification, getNotificationSettings, saveNotificationSettings } from "@/services/notificationService";
 import { validatePasswordSecurity } from "@/utils/passwordValidator";
+import { syncKeyToSupabase } from "@/services/userSyncService";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
 const OFFLINE_KEY = "bible-offline-enabled";
@@ -96,26 +97,35 @@ const AccountPage = () => {
       .catch(() => setAppVersion("2.5"));
 
     const loadProfile = async () => {
-      if (authCtx.user) {
+      if (authCtx.user?.sub) {
+        const userId = authCtx.user.sub;
         try {
-          const { data: profile, error: selectErr } = await supabase
+          const { data: { session } } = await supabase.auth.getSession();
+          const meta = session?.user?.user_metadata || {};
+
+          const { data: profile } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', authCtx.user.sub)
+            .eq('id', userId)
             .maybeSingle();
 
           let validName = "";
           if (profile && profile.display_name && !isInvalidName(profile.display_name)) {
             validName = profile.display_name;
+          } else if (meta.display_name && !isInvalidName(meta.display_name)) {
+            validName = meta.display_name;
+          } else if (meta.full_name && !isInvalidName(meta.full_name)) {
+            validName = meta.full_name;
+          } else if (meta.name && !isInvalidName(meta.name)) {
+            validName = meta.name;
           } else if (authCtx.user.name && !isInvalidName(authCtx.user.name)) {
             validName = authCtx.user.name;
           }
 
           setDisplayName(validName);
-          setAvatarUrl(profile?.avatar_url || authCtx.user.picture || null);
+          setAvatarUrl(profile?.avatar_url || meta.avatar_url || meta.picture || authCtx.user.picture || null);
 
-          const localSavedUsername = localStorage.getItem(`user_username_${authCtx.user.sub}`);
-          let validUsername = profile?.username || localSavedUsername || "";
+          let validUsername = (profile as any)?.username || meta.username || meta.user_name || meta.preferred_username || "";
           let isMissingUsername = false;
           if (!validUsername) {
             validUsername = generateDefaultUsername(validName || authCtx.user.email);
@@ -138,19 +148,25 @@ const AccountPage = () => {
             });
           }
 
-          // Se o perfil no banco estivesse sem username ou com nome e-mail, salva/atualiza
-          if (profile && (!profile.username || isInvalidName(profile.display_name))) {
-            await supabase.from('profiles').upsert({ 
-              id: authCtx.user.sub, 
-              display_name: isInvalidName(profile.display_name) ? null : profile.display_name,
-              username: validUsername 
-            }).catch(() => {
-              // Se a coluna username ainda não existir no Supabase, tenta upsert sem ela
-              supabase.from('profiles').upsert({
-                id: authCtx.user.sub,
-                display_name: isInvalidName(profile.display_name) ? null : profile.display_name,
-              }).catch(() => {});
-            });
+          // Se o perfil no Supabase ainda não tem o nome ou username salvo, grava no banco agora
+          if (userId && (validName || validUsername) && (!profile?.display_name || !(profile as any)?.username)) {
+            try {
+              const { error: upsertErr } = await supabase.from('profiles').upsert({ 
+                id: userId, 
+                display_name: validName || null,
+                username: validUsername || null,
+                updated_at: new Date().toISOString()
+              });
+              if (upsertErr) {
+                await supabase.from('profiles').upsert({
+                  id: userId,
+                  display_name: validName || null,
+                  updated_at: new Date().toISOString()
+                });
+              }
+            } catch (err) {
+              console.warn("Notice saving initial profile to Supabase:", err);
+            }
           }
         } catch (err) {
           console.error("Error loading profile:", err);
@@ -264,29 +280,56 @@ const AccountPage = () => {
 
     setEditingName(false);
     try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) await handleAuthError(error);
-      if (session?.user) {
-        // 1. Atualiza na tabela profiles
-        await supabase.from('profiles').upsert({ 
-          id: session.user.id, 
-          display_name: cleanName,
-          updated_at: new Date().toISOString()
-        });
+      const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
+      if (sessionErr) await handleAuthError(sessionErr);
+      const userId = session?.user?.id || authCtx.user?.sub;
+      if (!userId) throw new Error("Usuário não autenticado");
 
-        // 2. Sincroniza com Supabase Auth User Metadata
+      // 1. Salva diretamente na tabela profiles do Supabase
+      let { error: profileErr } = await supabase.from('profiles').upsert({ 
+        id: userId, 
+        display_name: cleanName,
+        username: username || null,
+        updated_at: new Date().toISOString()
+      });
+
+      if (profileErr && profileErr.message?.includes("updated_at")) {
+        const { error: retryErr } = await supabase.from('profiles').upsert({
+          id: userId, 
+          display_name: cleanName,
+          username: username || null
+        });
+        profileErr = retryErr;
+      }
+
+      if (profileErr) {
+        console.warn("Aviso na tabela profiles:", profileErr);
+      }
+
+      // 2. Atualiza os metadados do usuário no Supabase Auth
+      try {
         await supabase.auth.updateUser({
           data: {
+            name: cleanName,
             display_name: cleanName,
-            full_name: cleanName
+            full_name: cleanName,
+            username: username || null
           }
         });
-
-        toast({ 
-          title: "Nome salvo", 
-          description: "Seu nome foi atualizado e sincronizado no Supabase." 
-        });
+      } catch (err) {
+        console.warn("Aviso ao atualizar metadata do usuário:", err);
       }
+
+      // 3. Atualiza os estados locais
+      setDisplayName(cleanName);
+      if (authCtx.user) {
+        authCtx.user.name = cleanName;
+      }
+
+      toast({ 
+        title: "Nome salvo com sucesso!", 
+        description: `Seu nome foi alterado no Supabase para "${cleanName}".` 
+      });
     } catch (err: any) {
       console.error("Save name error:", err);
       toast({ 
@@ -310,54 +353,67 @@ const AccountPage = () => {
 
     setEditingUsername(false);
     try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) await handleAuthError(error);
+      const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
+      if (sessionErr) await handleAuthError(sessionErr);
       const userId = session?.user?.id || authCtx.user?.sub;
-      if (userId) {
-        localStorage.setItem(`user_username_${userId}`, cleanHandle);
-        
-        const { error: updateError } = await supabase.from('profiles').upsert({ 
+      if (!userId) throw new Error("Usuário não autenticado");
+
+      // 1. Salva obrigatoriamente na tabela profiles do Supabase
+      let { error: profileErr } = await supabase.from('profiles').upsert({ 
+        id: userId, 
+        display_name: displayName || null,
+        username: cleanHandle,
+        updated_at: new Date().toISOString()
+      });
+
+      if (profileErr && profileErr.message?.includes("updated_at")) {
+        const { error: retryErr } = await supabase.from('profiles').upsert({
           id: userId, 
-          username: cleanHandle,
-          updated_at: new Date().toISOString()
+          display_name: displayName || null,
+          username: cleanHandle
         });
-
-        if (updateError) {
-          if (updateError.message.includes("unique") || updateError.message.includes("duplicate") || updateError.code === "23505") {
-            toast({
-              title: "Usuário indisponível",
-              description: `O @${cleanHandle} já está em uso no Supabase. Escolha outro nome de usuário.`,
-              variant: "destructive"
-            });
-            return;
-          }
-          if (updateError.message.includes("column") || updateError.message.includes("schema cache") || updateError.code === "PGRST204" || updateError.message.includes("does not exist")) {
-            setUsername(cleanHandle);
-            toast({
-              title: "Nome de usuário salvo!",
-              description: `Seu identificador @${cleanHandle} foi atualizado com sucesso.`,
-            });
-            return;
-          }
-          throw updateError;
-        }
-
-        setUsername(cleanHandle);
-        toast({ 
-          title: "Nome de usuário salvo", 
-          description: `Seu novo identificador é @${cleanHandle}` 
-        });
+        profileErr = retryErr;
       }
+
+      if (profileErr) {
+        if (profileErr.message?.includes("unique") || profileErr.message?.includes("duplicate") || profileErr.code === "23505") {
+          toast({
+            title: "Usuário indisponível",
+            description: `O @${cleanHandle} já está em uso por outra conta. Escolha outro nome de usuário.`,
+            variant: "destructive"
+          });
+          return;
+        }
+        console.warn("Aviso na tabela profiles ao salvar username:", profileErr);
+      }
+
+      // 2. Atualiza metadados do Supabase Auth
+      try {
+        await supabase.auth.updateUser({
+          data: {
+            username: cleanHandle,
+            user_name: cleanHandle,
+            preferred_username: cleanHandle,
+            display_name: displayName || null
+          }
+        });
+      } catch (err) {
+        console.warn("Aviso ao atualizar metadata do username:", err);
+      }
+
+      // 3. Atualiza estado local imediatamente substituindo o antigo @
+      setUsername(cleanHandle);
+
+      toast({ 
+        title: "Nome de usuário salvo!", 
+        description: `Seu novo identificador @${cleanHandle} foi salvo com sucesso.` 
+      });
     } catch (err: any) {
       console.error("Save username error:", err);
-      const userId = authCtx.user?.sub;
-      if (userId) {
-        localStorage.setItem(`user_username_${userId}`, cleanHandle);
-      }
       setUsername(cleanHandle);
       toast({ 
-        title: "Nome de usuário salvo", 
-        description: `Seu novo identificador é @${cleanHandle}`, 
+        title: "Nome de usuário salvo!", 
+        description: `Seu novo identificador @${cleanHandle} foi salvo.` 
       });
     }
   };
@@ -461,18 +517,18 @@ const AccountPage = () => {
         }
 
         if (data.user) {
-          localStorage.setItem(`user_username_${data.user.id}`, cleanHandle);
-          await supabase.from('profiles').upsert({
+          const { error: upsertErr } = await supabase.from('profiles').upsert({
             id: data.user.id,
             display_name: cleanName,
             username: cleanHandle,
             updated_at: new Date().toISOString()
-          }).catch(() => {
-            supabase.from('profiles').upsert({
+          });
+          if (upsertErr) {
+            await supabase.from('profiles').upsert({
               id: data.user.id,
               display_name: cleanName,
-            }).catch(() => {});
-          });
+            });
+          }
           toast({ title: "Conta criada com sucesso", description: `Seu identificador @${cleanHandle} foi definido.` });
           navigate("/");
         }
@@ -598,12 +654,9 @@ const AccountPage = () => {
 
   const handleLogout = async () => {
     setShowLogoutModal(false);
-    try {
-      await supabase.auth.signOut();
-    } catch (e) {}
-    authCtx.logout();
+    await authCtx.logout();
     toast({ title: "Logout realizado" });
-    navigate("/");
+    navigate("/", { replace: true });
   };
 
   const handleDeleteData = async () => {

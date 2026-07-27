@@ -9,6 +9,39 @@ const FAVORITES_KEY = "bible-favorites";
 const SEARCH_HISTORY_KEY = "biblia_historico_buscas";
 const AI_CONVERSATIONS_KEY = "ia-biblica-conversations";
 
+export const USER_DATA_KEYS = [
+  "biblia_planos_leitura_progresso_v1",
+  PLAN_FAVORITES_KEY,
+  PLAN_REFLECTIONS_KEY,
+  HIGHLIGHTS_KEY,
+  NOTES_KEY,
+  FAVORITES_KEY,
+  "bible-markings",
+  SEARCH_HISTORY_KEY,
+  AI_CONVERSATIONS_KEY,
+  "biblia-devocionais-favoritos",
+  "bible-google-user",
+];
+
+/**
+ * Limpa completamente todos os dados de usuário do localStorage
+ */
+export const clearAllLocalUserData = () => {
+  USER_DATA_KEYS.forEach((key) => {
+    localStorage.removeItem(key);
+  });
+
+  // Remove também chaves dinâmicas como user_username_* e user_profile_*
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && (key.startsWith('user_username_') || key.startsWith('user_profile_'))) {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach(k => localStorage.removeItem(k));
+};
+
 /**
  * Salva uma chave de dados no Supabase (tabela user_notes)
  */
@@ -60,6 +93,9 @@ export const loadKeyFromSupabase = async (referenceKey: string, localStorageKey:
 
     if (existing?.note_text) {
       localStorage.setItem(localStorageKey, existing.note_text);
+    } else {
+      // Se a conta atual não possui dados gravados no banco para esta chave, garante a limpeza
+      localStorage.removeItem(localStorageKey);
     }
   } catch (err) {
     console.warn(`Erro ao carregar ${referenceKey} do Supabase:`, err);
@@ -101,6 +137,9 @@ export const syncAllUserDataToSupabase = async () => {
  */
 export const syncAllUserDataFromSupabaseOnLogin = async () => {
   try {
+    // 1. Limpa o localStorage de dados anteriores para não haver contaminação entre contas
+    clearAllLocalUserData();
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -130,21 +169,11 @@ export const syncAllUserDataFromSupabaseOnLogin = async () => {
 export const deactivatePlansAndSyncOnLogout = async () => {
   try {
     // Sincroniza todo o histórico, progresso de planos, reflexões e marcadores na conta antes de sair
-    await syncAllUserDataToSupabase();
-
-    // Limpa do localStorage os dados do usuário para que a navegação sem login não apresente progresso ou histórico
-    const userKeys = [
-      "biblia_planos_leitura_progresso_v1",
-      PLAN_FAVORITES_KEY,
-      PLAN_REFLECTIONS_KEY,
-      HIGHLIGHTS_KEY,
-      NOTES_KEY,
-      FAVORITES_KEY,
-      SEARCH_HISTORY_KEY,
-      AI_CONVERSATIONS_KEY,
-    ];
-    userKeys.forEach((key) => localStorage.removeItem(key));
+    await syncAllUserDataToSupabase().catch(() => {});
   } catch (err) {
     console.error("Erro na sincronização de logout:", err);
+  } finally {
+    // OBRIGATORIAMENTE limpa os dados do localStorage mesmo se a sincronização falhar
+    clearAllLocalUserData();
   }
 };
