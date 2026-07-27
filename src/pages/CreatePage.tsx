@@ -276,10 +276,18 @@ const CreatePage = () => {
     } catch (e: any) {
       console.error("AI Image Error:", e);
       const errMsg = e.message || "";
-      if (errMsg.toLowerCase().includes("improprio") || errMsg.toLowerCase().includes("bloqueado") || errMsg.toLowerCase().includes("inapropriad")) {
-        toast({ title: "Geração Cancelada", description: "Imagem não pode ser gerada pois contem conteudo improprio", variant: "destructive" });
+      if (
+        errMsg.toLowerCase().includes("improprio") || 
+        errMsg.toLowerCase().includes("impróprio") || 
+        errMsg.toLowerCase().includes("bloqueado") || 
+        errMsg.toLowerCase().includes("inapropriad") ||
+        errMsg.toLowerCase().includes("diretrizes") ||
+        errMsg.toLowerCase().includes("termos") ||
+        errMsg.toLowerCase().includes("conteúdo visual")
+      ) {
+        toast({ title: "Conteúdo Bloqueado", description: "A descrição fornecida contém termos que violam as diretrizes de conteúdo visual.", variant: "destructive" });
       } else {
-        toast({ title: "Erro na IA", description: "Tente novamente mais tarde.", variant: "destructive" });
+        toast({ title: "Erro na IA", description: errMsg || "Tente novamente mais tarde.", variant: "destructive" });
       }
     } finally {
       await checkCreateUsage();

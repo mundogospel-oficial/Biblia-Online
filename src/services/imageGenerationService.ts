@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { refundUsage } from './usageService';
 
 export const generateBiblicalImage = async (
   userPrompt: string, 
@@ -138,7 +139,9 @@ export const generateBiblicalImage = async (
       const biblicalKeywords = [
         'salmo', 'salmos', 'moises', 'moisés', 'bíblia', 'biblia', 'jesus', 'cristo', 'davi', 'abraão', 'abraao', 
         'versículo', 'versiculo', 'evangelho', 'deus', 'senhor', 'oração', 'oracao', 'fé', 'fe', 'profeta', 
-        'apóstolo', 'apostolo', 'genesis', 'gênesis', 'exodo', 'êxodo', 'paulo', 'pedro', 'joão', 'joao'
+        'apóstolo', 'apostolo', 'genesis', 'gênesis', 'exodo', 'êxodo', 'paulo', 'pedro', 'joão', 'joao',
+        'adão', 'adao', 'eva', 'adam', 'eve', 'éden', 'eden', 'arca', 'noé', 'noe', 'jó', 'jo', 'samuel',
+        'salomão', 'solomão', 'elias', 'eliseu', 'daniel', 'paraiso', 'paraíso'
       ];
       const hasBiblicalContext = biblicalKeywords.some(kw => lowercasePrompt.includes(kw));
 
@@ -152,7 +155,7 @@ export const generateBiblicalImage = async (
       });
 
       if (hasStrictlyHarmful) {
-        throw new Error("Imagem não pode ser gerada pois contém conteúdo impróprio.");
+        throw new Error("A descrição fornecida contém termos que violam as diretrizes de conteúdo visual.");
       }
 
       // Se não tiver contexto bíblico explícito, verifica termos seculares
@@ -162,7 +165,7 @@ export const generateBiblicalImage = async (
           return regex.test(lowercasePrompt);
         });
         if (hasForbiddenTerm) {
-          throw new Error("Imagem não pode ser gerada pois contém conteúdo fora do contexto bíblico ou impróprio.");
+          throw new Error("A descrição fornecida contém termos que violam as diretrizes de conteúdo visual.");
         }
       }
 
@@ -203,14 +206,18 @@ export const generateBiblicalImage = async (
 Você é um Diretor de Arte de Imagens Bíblicas e Moderador de Conteúdo Mestre, especialista em Engenharia de Prompts para geradores de imagem avançados.
 
 REGRA 1 (Nudez e Conteúdo Impróprio/Sensual): Verifique se o pedido contém qualquer menção direta ou indireta a nudez, sensualidade, erotismo, trajes sumários/íntimos ou conteúdo adulto. Se violar esta regra, responda EXATAMENTE: "BLOQUEADO".
+EXCEÇÃO SAGRADA OBRIGATÓRIA PARA ADÃO E EVA / JARDIM DO ÉDEN: Se o pedido for sobre "Adão e Eva", "Adam and Eve" ou o "Jardim do Éden", NÃO BLOQUEIE. Em vez disso, transforme o pedido em uma cena bíblica sagrada e highly respeitosa de Adão e Eva vestindo vestes/túnicas modestas e elegantes de linho bíblico no Jardim do Éden paradisíaco, cercados por natureza exuberante, rios e luz divina.
 
 REGRA 2 (Filtro Bíblico e Cristão Estrito): Verifique se o pedido é EXCLUSIVAMENTE sobre temas, passagens, cenários, profecias, virtudes ou personagens descritos na Bíblia Sagrada ou relacionados à fé e história cristã. Se contiver QUALQUER assunto de outras religiões (Budismo, Hinduísmo, Mitologia, Entidades de Matriz Africana, etc.), feitiçaria, bruxaria, ocultismo, satanismo, horóscopo, tarô, astrologia, deuses pagãos ou temas seculares/mundanos (tecnologia moderna, carros, super-heróis, anime, esportes seculares), responda EXATAMENTE: "BLOQUEADO".
 
 ${isCreateMode ? `REGRA 3 (MODO CRIAR COM VERSÍCULOS - PAISAGENS NATURAIS SEM HUMANOS):
 ATENÇÃO OBRIGATÓRIA: Este pedido é do Modo Criar com Versículos (fundo de imagem para texto/post). A imagem DEVE SER EXCLUSIVAMENTE UMA PAISAGEM NATURAL BÍBLICA, SEM NENHUMA PESSOA, SEM SERES HUMANOS, SEM ROSTOS, SEM CORPOS E SEM FIGURAS HUMANAS.
-Gere um prompt em inglês focado 100% em elementos de natureza inspiradora (céu, montanhas, vales, desertos, rios, mares, árvores, flores, luz solar divina, névoa, nascer do sol) e adicione OBRIGATORIAMENTE ao final do prompt: "serene scenic natural landscape, no people, no humans, empty nature background, peaceful biblical environment, 8k resolution".` : `REGRA 3 (ANATOMIA E OLHOS NATURAIS PERFEITOS):
-Ao traduzir e enriquecer o pedido para o INGLÊS, crie uma descrição natural, fluida e de altísima fidelidade.
-- ANATOMIA E OLHOS NATURAIS (CRÍTICO): Os olhos devem ser humanos, anatômicos e totalmente naturais ("natural realistic human eyes, crystal-clear iris, anatomically accurate round pupils, natural realistic eye gaze, sharp eye focus"). NUNCA use olhos desalinhados, vesgos, pupilas deformadas ou íris borradas. Se duas pessoas estiverem na cena, especifique o olhar natural entre elas ("looking at each other with natural emotional connection, natural eye contact") ou olhando naturalmente para o cenário/câmera.
+Gere um prompt em inglês focado 100% em elementos de natureza inspiradora (céu, montanhas, vales, desertos, rios, mares, árvores, flores, luz solar divina, névoa, nascer do sol) e adicione OBRIGATORIAMENTE ao final do prompt: "serene scenic natural landscape, no people, no humans, empty nature background, peaceful biblical environment, 8k resolution".` : `REGRA 3 (ANATOMIA, PERSONAGENS BÍBLICOS E ADÃO E EVA):
+Ao traduzir e enriquecer o pedido para o INGLÊS, crie uma descrição natural, fluida e de altíssima fidelidade.
+- PERSONAGENS BÍBLICOS E ADÃO E EVA (OBRIGATÓRIO):
+  * Para Adão e Eva ("Adão e Eva" / "Adam and Eve"): Descreva obrigatoriamente "Adam and Eve wearing modest classical biblical linen garments in the lush Garden of Eden paradise, surrounded by vibrant fruit trees, crystal clear rivers, serene animals, and divine sunlight rays. Respectful, sacred, classical fine art style, no nudity, natural human faces".
+  * Para outros personagens bíblicos (Jesus, Moisés, Davi, Abraão, etc.): Descreva feições humanas realistas e serenas, vestes históricas detalhadas e contexto bíblico fiel.
+- ANATOMIA E OLHOS NATURAIS (CRÍTICO): Os olhos e rostos devem ser humanos, anatômicos e totalmente naturais ("natural realistic human eyes, crystal-clear iris, anatomically accurate round pupils, natural realistic eye gaze, sharp eye focus"). NUNCA gere rostos rachados, vitrais quebrados, mosaicos disformes, olhos vesgos ou deformações faciais, a menos que o usuário peça explicitamente "vitral" ou "mosaico". Se duas pessoas estiverem na cena, especifique o olhar natural entre elas ("looking at each other with natural emotional connection, natural eye contact") ou olhando naturalmente para o cenário/câmera.
 - COMPOSIÇÃO E ENQUADRAMENTO: Mantenha um enquadramento equilibrado de retrato (medium shot portrait or standard portrait composition, balanced facial proportions) para evitar deformação facial de lente super próxima.
 - ILUMINAÇÃO E PELE: Iluminação natural e cristalina (bright soft natural daylight), cores vivas e pele limpa e realista.
 - ESTILOS ESPECÍFICOS ([Estilo: ...]):
@@ -269,10 +276,16 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
       }
 
       if (isBlocked) {
-        throw new Error("Imagem não pode ser gerada pois contém conteúdo fora do contexto bíblico ou impróprio.");
+        throw new Error("A descrição fornecida contém termos que violam as diretrizes de conteúdo visual.");
       }
 
       let finalPrompt = enhancedPrompt;
+
+      const isAdamAndEve = /(?:adão|adao|adam).*(?:eva|eve)|(?:eva|eve).*(?:adão|adao|adam)|jardim do [ée]den|garden of eden/i.test(cleanPrompt + " " + enhancedPrompt);
+      if (isAdamAndEve && !finalPrompt.toLowerCase().includes("garments")) {
+        finalPrompt = `${finalPrompt}, Adam and Eve wearing modest classical biblical linen garments in the lush Garden of Eden paradise, surrounded by vibrant fruit trees, crystal clear rivers, serene animals, and divine sunlight, respectful sacred classical fine art`;
+      }
+
       if (source === 'create') {
         if (!enhancedPrompt.toLowerCase().includes("no people") && !enhancedPrompt.toLowerCase().includes("no humans")) {
           finalPrompt = `${enhancedPrompt}, serene scenic natural landscape, no people, no humans, empty nature background, peaceful biblical environment, bright soft natural daylight, high resolution 8k`;
