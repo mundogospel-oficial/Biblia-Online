@@ -90,7 +90,7 @@ export function sanitizeUserPrompt(rawPrompt: string): SanitizedPromptResult {
   if (maskedText.includes("[CNPJ OCULTO]")) detectedTypes.push("CNPJ");
 
   // Strip potential Jailbreak / System Prompt Exfiltration attempts
-  const injectionRegex = /(?:ignore\s+previous\s+instructions|system\s+prompt|revelar\s+instruç[õo]es|exibir\s+chave|mostre\s+seu\s+prompt\s+mestre|ignore\s+todas\s+as\s+regras)/gi;
+  const injectionRegex = /(?:ignore\s+(?:previous|all|system)?\s*(?:instructions|rules|guidelines)|system\s+prompt|revelar\s+instruç[õo]es|exibir\s+chave|mostre\s+seu\s+prompt|ignore\s+todas\s+as\s+regras|modo\s+desenvolvedor|developer_mode|jailbreak|modo\s+dan|act\s+as|finja\s+ser|mude\s+sua\s+personalidade|esque[çc]a\s+as\s+regras|desative\s+(?:os\s+)?filtros|pretend\s+to\s+be|bypass\s+restrictions|habilidade\s+especial)/gi;
   let text = maskedText;
   if (injectionRegex.test(text)) {
     detectedTypes.push("Tentativa_Injecao");

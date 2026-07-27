@@ -125,18 +125,21 @@ export const generateBiblicalImage = async (
         'sangue', 'violencia', 'mutilacao', 'morte sangrenta', 'assassino', 'crime', 'cerveja', 'vodka', 
         'uísque', 'whisky', 'vinho com bebedeira', 'balada', 'boate', 'danceteria', 'prostituta', 'prostituição', 
         'cassino', 'apostas', 'tigrinho', 'poker',
-        // Secular non-Christian themes / Modern pop culture
+        // Secular non-Christian themes / Modern pop culture / Sports / Technology
         'carro', 'celular', 'computador', 'smartphone', 'videogame', 'video game', 'goku', 'naruto', 
         'futebol', 'soccer', 'marvel', 'dc comics', 'batman', 'superman', 'rockstar', 'funk', 'ostentação', 
-        'anime', 'otaku', 'alienígena', 'disco voador'
+        'anime', 'otaku', 'alienígena', 'disco voador', 'robô', 'robot', 'politica', 'fofoca', 'memes', 'meme',
+        // Jailbreak / Prompt Injection Attempts
+        'ignore instructions', 'jailbreak', 'system prompt', 'modo desenvolvedor', 'developer mode', 'modo dan',
+        'bypass restrictions', 'desative os filtros'
       ];
       const lowercasePrompt = cleanPrompt.toLowerCase();
       const hasForbiddenTerm = forbiddenTerms.some(term => {
-        const regex = new RegExp(`\\b${term}`, 'i');
+        const regex = new RegExp(`(?:^|[^a-z0-9_])${term}(?:$|[^a-z0-9_])`, 'i');
         return regex.test(lowercasePrompt);
       });
       if (hasForbiddenTerm) {
-        throw new Error("Imagem não pode ser gerada pois contem conteudo improprio");
+        throw new Error("Imagem não pode ser gerada pois contém conteúdo fora do contexto bíblico ou impróprio.");
       }
 
       // 3. Obter chaves do Gemini do Supabase para tradução/refinamento local
@@ -242,7 +245,7 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
       }
 
       if (isBlocked) {
-        throw new Error("Imagem não pode ser gerada pois contem conteudo improprio");
+        throw new Error("Imagem não pode ser gerada pois contém conteúdo fora do contexto bíblico ou impróprio.");
       }
 
       let finalPrompt = enhancedPrompt;
