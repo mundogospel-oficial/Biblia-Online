@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { downloadBibleImage, shareBibleImage } from "@/lib/downloadUtils";
 import { generateBiblicalImage } from "@/services/imageGenerationService";
+import { APP_WHITE_LOGO_DATA_URL } from "@/assets/appLogoWhite";
 
 const formats: { key: CardFormat; label: string; dim: string; icon: React.ReactNode }[] = [
   { key: "square", label: "Quadrado", dim: "1080 × 1080 (1:1)", icon: <Square className="h-4 w-4" /> },
@@ -1065,15 +1066,15 @@ const CreatePage = () => {
                       )}
                     </div>
 
-                    {/* Marca d'água permanente no canto direito */}
+                    {/* Marca d'água permanente no canto direito - ícone do app em branco com transparência */}
                     <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-20 pointer-events-none select-none">
                       <img 
-                        src="/logo-white.png" 
-                        alt="" 
+                        src={APP_WHITE_LOGO_DATA_URL} 
+                        alt="Bíblia Online" 
                         draggable={false}
                         onContextMenu={(e) => e.preventDefault()}
                         onDragStart={(e) => e.preventDefault()}
-                        className="h-6 sm:h-8 w-auto object-contain opacity-40 drop-shadow-sm pointer-events-none select-none no-copy-logo"
+                        className="h-6 sm:h-8 w-auto object-contain opacity-50 drop-shadow-sm pointer-events-none select-none no-copy-logo"
                       />
                     </div>
                   </div>
@@ -1114,15 +1115,15 @@ const CreatePage = () => {
                       )}
                     </div>
 
-                    {/* Marca d'água permanente no canto direito */}
+                    {/* Marca d'água permanente no canto direito - ícone do app em branco com transparência */}
                     <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-20 pointer-events-none select-none">
                       <img 
-                        src="/logo-white.png" 
-                        alt="" 
+                        src={APP_WHITE_LOGO_DATA_URL} 
+                        alt="Bíblia Online" 
                         draggable={false}
                         onContextMenu={(e) => e.preventDefault()}
                         onDragStart={(e) => e.preventDefault()}
-                        className="h-6 sm:h-8 w-auto object-contain opacity-40 drop-shadow-sm pointer-events-none select-none no-copy-logo"
+                        className="h-6 sm:h-8 w-auto object-contain opacity-50 drop-shadow-sm pointer-events-none select-none no-copy-logo"
                       />
                     </div>
                   </div>

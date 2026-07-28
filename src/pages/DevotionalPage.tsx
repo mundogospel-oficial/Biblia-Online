@@ -155,7 +155,7 @@ const DevotionalPage = () => {
           </div>
 
           {/* Tab Navigation */}
-          <div className="mb-6 flex gap-1.5 overflow-x-auto pb-2.5 border-b border-border/30 relative scroll-smooth themed-scrollbar select-none">
+          <div className="mb-6 flex gap-1.5 overflow-x-auto pb-2.5 border-b border-border/30 relative scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden select-none">
             {[
               { id: "hoje", label: "Devocional de Hoje", icon: Sparkles },
               { id: "planos", label: "Planos de Leitura", icon: BookOpen },
@@ -233,7 +233,7 @@ const DevotionalPage = () => {
                       onClick={() => toggleFavorite(todayDevotional.id)}
                       className={`rounded-full p-2.5 border transition-all ${
                         favoritedIds.includes(todayDevotional.id)
-                          ? "bg-red-500/10 border-red-500/30 text-red-500 hover:bg-red-500/20"
+                          ? "bg-accent/10 border-accent/30 text-accent hover:bg-accent/20"
                           : "bg-secondary/50 border-border text-muted-foreground hover:text-foreground"
                       }`}
                       title={favoritedIds.includes(todayDevotional.id) ? "Remover dos favoritos" : "Salvar nos favoritos"}
@@ -351,7 +351,7 @@ const DevotionalPage = () => {
                       <Filter className="h-3 w-3" />
                       Filtrar por Tema
                     </label>
-                    <div className="flex gap-1.5 overflow-x-auto pb-2.5 scroll-smooth themed-scrollbar select-none">
+                    <div className="flex gap-1.5 overflow-x-auto pb-2.5 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden select-none">
                       {categories.map((cat) => {
                         const isActive = selectedCategory === cat;
                         return (
@@ -425,7 +425,7 @@ const DevotionalPage = () => {
                                 onClick={() => toggleFavorite(d.id)}
                                 className={`rounded-full p-1.5 border transition-all ${
                                   isFavorited
-                                    ? "bg-red-500/10 border-red-500/30 text-red-500"
+                                    ? "bg-accent/10 border-accent/30 text-accent"
                                     : "bg-background border-border text-muted-foreground hover:text-foreground"
                                 }`}
                               >
@@ -531,7 +531,7 @@ const DevotionalPage = () => {
                 {/* Devocionais Favoritos */}
                 <div className="space-y-3">
                   <h2 className="text-sm font-bold text-foreground flex items-center gap-2 font-serif">
-                    <Heart className="h-4 w-4 text-red-500 fill-red-500" />
+                    <Heart className="h-4 w-4 text-accent fill-accent" />
                     Devocionais Favoritados ({favoritedDevotionals.length})
                   </h2>
 
@@ -568,7 +568,7 @@ const DevotionalPage = () => {
                                   e.stopPropagation();
                                   toggleFavorite(d.id);
                                 }}
-                                className="rounded-full p-1.5 bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20"
+                                className="rounded-full p-1.5 bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20"
                                 title="Remover dos favoritos"
                               >
                                 <Heart className="h-3.5 w-3.5" fill="currentColor" />
@@ -678,10 +678,10 @@ const DevotionalPage = () => {
                                     toggleFavoritePlan(plan.id);
                                     setFavoritedPlanIds(getFavoritePlanIds());
                                   }}
-                                  className="p-1 rounded-full text-red-500 hover:bg-red-500/10 transition-colors"
+                                  className="p-1 rounded-full text-accent hover:bg-accent/10 transition-colors"
                                   title="Remover dos favoritos"
                                 >
-                                  <Heart className="h-4 w-4 fill-red-500" />
+                                  <Heart className="h-4 w-4 fill-accent" />
                                 </button>
                               </div>
 

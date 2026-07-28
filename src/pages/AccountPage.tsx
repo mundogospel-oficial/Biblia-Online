@@ -1190,8 +1190,8 @@ const AccountPage = () => {
                           <p className="text-[10px] text-muted-foreground">{notificationsEnabled ? t("notifications_desc_active") : t("notifications_desc_inactive")}</p>
                         </div>
                       </div>
-                      <div className={`h-5 w-9 rounded-full transition-colors ${notificationsEnabled ? "bg-accent" : "bg-muted/60"} flex items-center px-0.5`}>
-                        <div className={`h-4 w-4 rounded-full bg-white transition-transform ${notificationsEnabled ? "translate-x-4" : "translate-x-0"}`} />
+                      <div className={`h-5 w-9 rounded-full transition-colors duration-300 ease-in-out ${notificationsEnabled ? "bg-accent" : "bg-muted/60"} flex items-center px-0.5`}>
+                        <div className={`h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300 ease-in-out ${notificationsEnabled ? "translate-x-4" : "translate-x-0"}`} />
                       </div>
                     </button>
 
@@ -1273,8 +1273,8 @@ const AccountPage = () => {
                           )}
                         </div>
                       </div>
-                      <div className={`h-5 w-9 rounded-full transition-colors ${offlineEnabled ? "bg-accent" : "bg-muted/60"} flex items-center px-0.5`}>
-                        <div className={`h-4 w-4 rounded-full bg-white transition-transform ${offlineEnabled ? "translate-x-4" : "translate-x-0"}`} />
+                      <div className={`h-5 w-9 rounded-full transition-colors duration-300 ease-in-out ${offlineEnabled ? "bg-accent" : "bg-muted/60"} flex items-center px-0.5`}>
+                        <div className={`h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300 ease-in-out ${offlineEnabled ? "translate-x-4" : "translate-x-0"}`} />
                       </div>
                     </button>
 
@@ -1393,9 +1393,9 @@ const AccountPage = () => {
                   className="w-full rounded-xl border border-white/10 bg-secondary/30 px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:bg-secondary/50 focus:outline-none focus:ring-1 focus:ring-accent transition-all backdrop-blur-md" />
                 <div className="relative">
                   <input type={showPassword ? 'text' : 'password'} name="password" autoComplete={isSignUp ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Senha" required minLength={6}
-                    className="w-full rounded-xl border border-white/10 bg-secondary/30 px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:bg-secondary/50 focus:outline-none focus:ring-1 focus:ring-accent transition-all backdrop-blur-md" />
+                    className="w-full rounded-xl border border-white/10 bg-secondary/30 pl-4 pr-10 py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:bg-secondary/50 focus:outline-none focus:ring-1 focus:ring-accent transition-all backdrop-blur-md" />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
-                    {showPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                    {showPassword ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
                   </button>
                 </div>
                 

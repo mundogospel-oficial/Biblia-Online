@@ -93,6 +93,8 @@ function startServer() {
           "https://onesignal.com",
           "https://img.os-content.com",
           "https://*.os-content.com",
+          "https://api.pwnedpasswords.com",
+          "https://*.pwnedpasswords.com",
           "wss:",
           "ws:"
         ],
@@ -487,6 +489,36 @@ function startServer() {
   // API Health check
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // --- PROXY DE VERIFICAÇÃO DE SENHAS VAZADAS (HAVEIBEENPWNED k-ANONYMITY) ---
+  app.get("/api/pwned-check/:prefix", async (req, res) => {
+    try {
+      const prefix = (req.params.prefix || "").toUpperCase().trim();
+      if (!prefix || prefix.length !== 5 || !/^[0-9A-F]{5}$/i.test(prefix)) {
+        return res.status(400).json({ error: "O prefixo deve possuir exatamente 5 caracteres hexadecimais." });
+      }
+
+      const hbpRes = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+        method: "GET",
+        headers: {
+          "User-Agent": "Online-Biblia-Security-Check"
+        }
+      });
+
+      if (!hbpRes.ok) {
+        console.warn("[PwnedCheck Proxy] Status de erro na API HIBP:", hbpRes.status);
+        return res.status(502).json({ error: "Erro na resposta da API externa." });
+      }
+
+      const text = await hbpRes.text();
+      res.setHeader("Content-Type", "text/plain");
+      res.setHeader("Cache-Control", "public, max-age=86400"); // Cache de 24h para buscas repetidas
+      return res.send(text);
+    } catch (err: any) {
+      console.error("[PwnedCheck Proxy Error]:", err);
+      return res.status(500).json({ error: "Erro ao consultar o serviço de senhas." });
+    }
   });
 
   // Lista expandida de termos proibidos para moderação e auditoria rígida (Étnica/Cristã/Segurança)

@@ -140,12 +140,12 @@ export const MandatoryPwnedPasswordModal: React.FC<MandatoryPwnedPasswordModalPr
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Nova senha (mínimo 8 caracteres)"
-                className="w-full bg-[#131f37] border border-slate-700/80 focus:border-amber-400 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none transition-colors placeholder:text-slate-500"
+                className="w-full bg-[#131f37] border border-slate-700/80 focus:border-amber-400 rounded-xl pl-3.5 pr-10 py-2.5 text-xs text-white outline-none transition-colors placeholder:text-slate-500"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
               >
                 {showPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
               </button>

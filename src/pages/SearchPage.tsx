@@ -544,7 +544,7 @@ const SearchPage = () => {
           </div>
 
           {/* Quick Category Tabs with Counts */}
-          <div className="flex gap-1.5 overflow-x-auto pb-2.5 scroll-smooth themed-scrollbar border-b border-border/30 relative">
+          <div className="flex gap-1.5 overflow-x-auto pb-2.5 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden border-b border-border/30 relative">
             {[
               { id: "todos", label: "Todos e Destaques", icon: Compass },
               { id: "planos", label: `Planos Diários (${filteredReadingPlans.length})`, icon: Calendar },

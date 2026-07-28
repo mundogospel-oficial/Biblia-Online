@@ -283,12 +283,12 @@ export const ReadingPlansSection = () => {
                   onClick={(e) => handleToggleFavorite(activePlan.id, e)}
                   className={`p-2 rounded-full transition-colors ${
                     favoritedPlanIds.includes(activePlan.id)
-                      ? "text-red-500 bg-red-500/10 hover:bg-red-500/20"
-                      : "text-muted-foreground hover:text-red-500 hover:bg-secondary"
+                      ? "text-accent bg-accent/10 hover:bg-accent/20"
+                      : "text-muted-foreground hover:text-accent hover:bg-secondary"
                   }`}
                   title={favoritedPlanIds.includes(activePlan.id) ? "Remover dos Favoritos" : "Favoritar este Plano"}
                 >
-                  <Heart className={`h-5 w-5 ${favoritedPlanIds.includes(activePlan.id) ? "fill-red-500" : ""}`} />
+                  <Heart className={`h-5 w-5 ${favoritedPlanIds.includes(activePlan.id) ? "fill-accent" : ""}`} />
                 </button>
               </div>
               <p className="text-xs sm:text-sm text-muted-foreground">
@@ -363,12 +363,12 @@ export const ReadingPlansSection = () => {
                 onClick={(e) => handleToggleFavorite(currentPlanViewed.id, e)}
                 className={`p-1.5 rounded-full transition-colors ${
                   favoritedPlanIds.includes(currentPlanViewed.id)
-                    ? "text-red-500 bg-red-500/10"
-                    : "text-muted-foreground hover:text-red-500 hover:bg-secondary"
+                    ? "text-accent bg-accent/10"
+                    : "text-muted-foreground hover:text-accent hover:bg-secondary"
                 }`}
                 title={favoritedPlanIds.includes(currentPlanViewed.id) ? "Favoritado" : "Favoritar Plano"}
               >
-                <Heart className={`h-4 w-4 ${favoritedPlanIds.includes(currentPlanViewed.id) ? "fill-red-500" : ""}`} />
+                <Heart className={`h-4 w-4 ${favoritedPlanIds.includes(currentPlanViewed.id) ? "fill-accent" : ""}`} />
               </button>
 
               {!isCurrentPlanActive && (
@@ -623,12 +623,12 @@ export const ReadingPlansSection = () => {
                         onClick={(e) => handleToggleFavorite(plan.id, e)}
                         className={`p-1.5 rounded-full transition-colors ${
                           isFav
-                            ? "text-red-500 bg-red-500/10"
-                            : "text-muted-foreground hover:text-red-500 hover:bg-secondary"
+                            ? "text-accent bg-accent/10"
+                            : "text-muted-foreground hover:text-accent hover:bg-secondary"
                         }`}
                         title={isFav ? "Remover dos Favoritos" : "Favoritar Plano"}
                       >
-                        <Heart className={`h-4 w-4 ${isFav ? "fill-red-500" : ""}`} />
+                        <Heart className={`h-4 w-4 ${isFav ? "fill-accent" : ""}`} />
                       </button>
                     </div>
                   </div>

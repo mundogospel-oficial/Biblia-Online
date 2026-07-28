@@ -129,7 +129,7 @@ const FavoritesPage = () => {
       <Header />
       <section className="container mx-auto px-4 py-5 sm:py-8">
         <div className="mx-auto max-w-4xl">
-          <div className="mb-6 flex p-1 gap-1 rounded-full bg-secondary/40 border border-border/60 backdrop-blur-xl shadow-inner relative select-none max-w-md mx-auto overflow-x-auto themed-scrollbar">
+          <div className="mb-6 flex p-1 gap-1 rounded-full bg-secondary/40 border border-border/60 backdrop-blur-xl shadow-inner relative select-none max-w-md mx-auto overflow-hidden">
             {[
               { id: "favorites", label: "Favoritos", icon: Heart },
               { id: "markings", label: "Marcações", icon: Highlighter },

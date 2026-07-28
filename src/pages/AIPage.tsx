@@ -3,8 +3,8 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
 import {
-  Send, Trash2, Sparkles, GraduationCap, X,
-  Plus, Image, Video, Music, Download, LogIn,
+  Send, ArrowUp, Trash2, Sparkles, GraduationCap, X,
+  Plus, Image, ImagePlus, Upload, Video, Music, Download, LogIn,
   History, ChevronLeft, Zap, Bot, Paperclip, AlertCircle, MessageSquarePlus, Square, Share2,
   Loader2, ImageOff, FileText, ZoomIn, ZoomOut, WifiOff, Palette, ChevronDown, Check,
   Search, Edit3, Clock, ArrowRight, ShieldAlert
@@ -767,19 +767,43 @@ const AIPage = () => {
 
   useEffect(() => {
     async function loadSavedConversations() {
-      if (!user?.sub) {
-        setConversations([]);
-        return;
+      const userSecret = user?.sub;
+      const userKey = getConversationsKey(userSecret);
+
+      // Se o usuário está logado, mescla conversas criadas no modo visitante se existirem
+      if (userSecret) {
+        const guestKey = "ia-biblica-conversations_guest";
+        const guestData = localStorage.getItem(guestKey);
+        if (guestData) {
+          try {
+            const guestConvs: Conversation[] = JSON.parse(guestData);
+            if (guestConvs.length > 0) {
+              const localData = localStorage.getItem(userKey);
+              let localConvs: Conversation[] = localData ? JSON.parse(localData) : [];
+              const existingIds = new Set(localConvs.map(c => c.id));
+              const merged = [...guestConvs.filter(c => !existingIds.has(c.id)), ...localConvs];
+              localStorage.setItem(userKey, JSON.stringify(merged));
+              localStorage.removeItem(guestKey);
+            }
+          } catch (e) {
+            console.error("Erro ao mesclar conversas de visitante:", e);
+          }
+        }
+
+        try {
+          await loadKeyFromSupabase("AI_CONVERSATIONS", userKey);
+        } catch (e) {
+          console.warn("Não foi possível buscar do Supabase, mantendo dados locais:", e);
+        }
       }
-      const userKey = getConversationsKey(user.sub);
+
       try {
-        await loadKeyFromSupabase("AI_CONVERSATIONS", userKey);
         const saved = localStorage.getItem(userKey);
         if (saved) {
           const parsed: Conversation[] = JSON.parse(saved);
           const decryptedConversations = await Promise.all(
             parsed.map(async (c) => {
-              const msgs = await decryptConversationMessages(c.messages, user.sub);
+              const msgs = userSecret ? await decryptConversationMessages(c.messages, userSecret) : c.messages;
               const assistantMsg = msgs.find(m => m.role === 'assistant');
               const firstUserMsg = msgs.find(m => m.role === 'user')?.content || "";
 
@@ -800,7 +824,7 @@ const AIPage = () => {
           setConversations([]);
         }
       } catch (err) {
-        console.warn("Erro ao carregar histórico criptografado do usuário:", err);
+        console.warn("Erro ao carregar histórico de conversas:", err);
         setConversations([]);
       }
     }
@@ -927,10 +951,11 @@ const AIPage = () => {
     );
   }
 
-  // NOVO: Lógica criptografada de persistência com título gerado pela IA
+  // Lógica criptografada de persistência com título gerado pela IA
   const saveConversation = (msgs: Msg[], explicitTitle?: string) => {
     if (msgs.length < 2) return;
     const userSecret = user?.sub;
+    const userKey = getConversationsKey(userSecret);
     
     setConversations(prev => {
       const aiTitle = generateTitleFromAI(msgs);
@@ -958,18 +983,26 @@ const AIPage = () => {
         updated = [conv, ...prev];
       }
 
-      // Salva criptografado em background no localStorage e no Supabase
-      Promise.all(
-        updated.map(async (c) => ({
-          ...c,
-          messages: await encryptConversationMessages(c.messages, userSecret)
-        }))
-      ).then(encryptedConversations => {
-        const jsonStr = JSON.stringify(encryptedConversations);
-        const userKey = getConversationsKey(userSecret);
-        localStorage.setItem(userKey, jsonStr);
-        syncKeyToSupabase("AI_CONVERSATIONS", jsonStr);
-      }).catch(console.error);
+      // 1. Salva imediatamente o estado no localStorage (funciona logado ou visitante)
+      try {
+        localStorage.setItem(userKey, JSON.stringify(updated));
+      } catch (e) {
+        console.error("Erro ao salvar localmente:", e);
+      }
+
+      // 2. Se o usuário estiver logado, criptografa e sincroniza com o Supabase em segundo plano
+      if (userSecret) {
+        Promise.all(
+          updated.map(async (c) => ({
+            ...c,
+            messages: await encryptConversationMessages(c.messages, userSecret)
+          }))
+        ).then(async (encryptedConversations) => {
+          const jsonStr = JSON.stringify(encryptedConversations);
+          localStorage.setItem(userKey, jsonStr);
+          await syncKeyToSupabase("AI_CONVERSATIONS", jsonStr);
+        }).catch(console.error);
+      }
 
       return updated;
     });
@@ -993,17 +1026,27 @@ const AIPage = () => {
     const updated = conversations.filter(c => c.id !== id);
     setConversations(updated);
     
-    Promise.all(
-      updated.map(async (c) => ({
-        ...c,
-        messages: await encryptConversationMessages(c.messages, user?.sub)
-      }))
-    ).then(encryptedConversations => {
-      const jsonStr = JSON.stringify(encryptedConversations);
-      const userKey = getConversationsKey(user?.sub);
-      localStorage.setItem(userKey, jsonStr);
-      syncKeyToSupabase("AI_CONVERSATIONS", jsonStr);
-    }).catch(console.error);
+    const userSecret = user?.sub;
+    const userKey = getConversationsKey(userSecret);
+
+    try {
+      localStorage.setItem(userKey, JSON.stringify(updated));
+    } catch (e) {
+      console.error("Erro ao remover no localStorage:", e);
+    }
+
+    if (userSecret) {
+      Promise.all(
+        updated.map(async (c) => ({
+          ...c,
+          messages: await encryptConversationMessages(c.messages, userSecret)
+        }))
+      ).then(async (encryptedConversations) => {
+        const jsonStr = JSON.stringify(encryptedConversations);
+        localStorage.setItem(userKey, jsonStr);
+        await syncKeyToSupabase("AI_CONVERSATIONS", jsonStr);
+      }).catch(console.error);
+    }
 
     if (currentChatIdRef.current === id) {
       startNewChat(); // Se apagar o chat atual, limpa a tela
@@ -1624,30 +1667,30 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
             </div>
           </div>
 
-          {/* Barra de Pesquisa e Filtros */}
+          {/* Barra de Pesquisa e Filtros com Efeito Liquid Glass */}
           <div className="mt-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
-            {/* Input de Busca */}
+            {/* Input de Busca Liquid Glass */}
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground z-10 pointer-events-none" />
               <input
                 type="text"
                 value={historySearchQuery}
                 onChange={(e) => setHistorySearchQuery(e.target.value)}
                 placeholder="Buscar no histórico de conversas..."
-                className="w-full bg-secondary/50 border border-border/80 rounded-xl pl-9 pr-8 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent transition-colors"
+                className="w-full liquid-glass-input rounded-xl pl-9 pr-8 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none transition-all"
               />
               {historySearchQuery && (
                 <button
                   onClick={() => setHistorySearchQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground rounded-full"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground rounded-full z-10 transition-colors"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
 
-            {/* Categorias de Filtro */}
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 [scrollbar-width:none]">
+            {/* Categorias de Filtro Liquid Glass */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 [scrollbar-width:none]">
               {[
                 { key: "all", label: "Todos" },
                 { key: "simple", label: "IA Simples" },
@@ -1657,10 +1700,10 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                 <button
                   key={cat.key}
                   onClick={() => setHistoryFilterCategory(cat.key as any)}
-                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap ${
+                  className={`px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all whitespace-nowrap liquid-btn ${
                     historyFilterCategory === cat.key
-                      ? "bg-accent text-accent-foreground font-semibold shadow-xs"
-                      : "bg-secondary/40 text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+                      ? "liquid-glass-pill-active font-semibold shadow-md"
+                      : "liquid-glass-pill text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {cat.label}
@@ -2290,9 +2333,10 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                   )}
                   <button type="button" onClick={() => fileInputRef.current?.click()}
                     disabled={limitReached}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors liquid-btn disabled:opacity-50"
+                    title="Anexar arquivos ou imagens"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground active:scale-95 transition-all shadow-xs disabled:opacity-50"
                   >
-                    <Paperclip className="h-4 w-4" />
+                    <Upload size={17} className="stroke-[2.2]" />
                   </button>
                   <input ref={fileInputRef} type="file" className="hidden" accept="image/*,.pdf,.doc,.docx" multiple onChange={handleFileAttach} />
 
@@ -2428,10 +2472,10 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                   <button
                     type="submit"
                     disabled={!input.trim() || limitReached || !isOnline}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground transition-colors liquid-btn disabled:opacity-50 disabled:cursor-not-allowed mr-0.5"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground transition-colors liquid-btn disabled:opacity-50 disabled:cursor-not-allowed mr-0.5 shadow-sm"
                     title="Enviar"
                   >
-                    <Send size={16} />
+                    <ArrowUp size={18} className="stroke-[2.5]" />
                   </button>
                 )}
               </div>

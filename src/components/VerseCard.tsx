@@ -1,6 +1,7 @@
 import { forwardRef } from "react";
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
+import { APP_WHITE_LOGO_DATA_URL } from "@/assets/appLogoWhite";
 
 export type CardFormat = "square" | "story" | "landscape";
 
@@ -104,12 +105,12 @@ const VerseCard = forwardRef<HTMLDivElement, VerseCardProps>(
         {/* Marca d'água permanente no canto direito */}
         <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-20 pointer-events-none select-none">
           <img 
-            src="/logo-white.png" 
-            alt="" 
+            src={APP_WHITE_LOGO_DATA_URL} 
+            alt="Bíblia Online" 
             draggable={false}
             onContextMenu={(e) => e.preventDefault()}
             onDragStart={(e) => e.preventDefault()}
-            className="h-6 sm:h-8 w-auto object-contain opacity-40 drop-shadow-sm pointer-events-none select-none no-copy-logo"
+            className="h-6 sm:h-8 w-auto object-contain opacity-50 drop-shadow-sm pointer-events-none select-none no-copy-logo"
           />
         </div>
       </Wrapper>

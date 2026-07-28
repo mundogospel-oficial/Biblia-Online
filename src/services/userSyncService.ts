@@ -77,25 +77,29 @@ export const syncKeyToSupabase = async (referenceKey: string, localValueStr: str
 };
 
 /**
- * Carrega dados do Supabase e salva no localStorage
+ * Carrega dados do Supabase e salva no localStorage de forma segura
  */
 export const loadKeyFromSupabase = async (referenceKey: string, localStorageKey: string) => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data: existing } = await supabase
+    const { data: existing, error } = await supabase
       .from("user_notes")
       .select("note_text")
       .eq("user_id", user.id)
       .eq("verse_reference", referenceKey)
       .maybeSingle();
 
-    if (existing?.note_text) {
+    if (!error && existing?.note_text) {
       localStorage.setItem(localStorageKey, existing.note_text);
     } else {
-      // Se a conta atual não possui dados gravados no banco para esta chave, garante a limpeza
-      localStorage.removeItem(localStorageKey);
+      // Se a conta no banco ainda não possui dados gravados, mas temos dados no localStorage do usuário,
+      // sincroniza do local para o Supabase para nunca perder o histórico
+      const localVal = localStorage.getItem(localStorageKey);
+      if (localVal && localVal.trim() !== "" && localVal !== "[]") {
+        await syncKeyToSupabase(referenceKey, localVal);
+      }
     }
   } catch (err) {
     console.warn(`Erro ao carregar ${referenceKey} do Supabase:`, err);
@@ -138,11 +142,11 @@ export const syncAllUserDataToSupabase = async () => {
  */
 export const syncAllUserDataFromSupabaseOnLogin = async () => {
   try {
-    // 1. Limpa o localStorage de dados anteriores para não haver contaminação entre contas
-    clearAllLocalUserData();
-
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
+    // Remove chaves de convidados apenas
+    localStorage.removeItem("ia-biblica-conversations_guest");
 
     const aiKey = `ia-biblica-conversations_${user.id}`;
     const keysToLoad = [

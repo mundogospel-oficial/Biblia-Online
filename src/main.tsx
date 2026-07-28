@@ -4,12 +4,19 @@ import "./index.css";
 
 // Global error handler to catch network/fetch glitches gracefully without breaking app UI
 window.addEventListener("unhandledrejection", (event) => {
+  const reasonStr = event.reason
+    ? (typeof event.reason === "string"
+        ? event.reason
+        : event.reason.message || String(event.reason) || "")
+    : "";
+
   if (
-    event.reason &&
-    (event.reason.message === "Failed to fetch" ||
-      (typeof event.reason.message === "string" && event.reason.message.includes("Failed to fetch")))
+    reasonStr.includes("Failed to fetch") ||
+    reasonStr.includes("NetworkError") ||
+    reasonStr.includes("Load failed") ||
+    reasonStr.includes("fetch failed")
   ) {
-    console.warn("[Rede] Conexão temporariamente indisponível (Failed to fetch). As ações serão reexecutadas automaticamente.");
+    console.warn("[Rede] Conexão temporariamente indisponível (Failed to fetch). As ações serão reexecutadas ou salvas localmente.");
     event.preventDefault(); // Prevents runtime error overlay for network blips
   }
 });
