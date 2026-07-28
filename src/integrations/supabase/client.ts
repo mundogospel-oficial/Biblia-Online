@@ -66,6 +66,8 @@ export const isAuthRefreshError = (error: any) => {
     lowered.includes("token not found") ||
     lowered.includes("user_not_found") ||
     lowered.includes("jwt expired") ||
+    lowered.includes("failed to fetch") ||
+    lowered.includes("networkerror") ||
     error?.status === 400 ||
     error?.status === 401
   );
@@ -125,17 +127,23 @@ supabase.auth.getUser = async (jwt?: string) => {
 
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (event) => {
-    if (event.reason && isAuthRefreshError(event.reason)) {
-      console.warn("Intercepted unhandled auth refresh rejection. Clearing stale session.");
-      clearStaleSession();
+    const reasonStr = String(event.reason?.message || event.reason || '').toLowerCase();
+    if (isAuthRefreshError(event.reason) || reasonStr.includes('failed to fetch') || reasonStr.includes('networkerror')) {
+      console.warn("Intercepted unhandled network/auth rejection:", event.reason);
+      if (isAuthRefreshError(event.reason) && !reasonStr.includes('failed to fetch')) {
+        clearStaleSession();
+      }
       event.preventDefault();
     }
   });
 
   window.addEventListener('error', (event) => {
-    if (event.error && isAuthRefreshError(event.error)) {
-      console.warn("Intercepted auth refresh error. Clearing stale session.");
-      clearStaleSession();
+    const errStr = String(event.error?.message || event.message || '').toLowerCase();
+    if (isAuthRefreshError(event.error) || errStr.includes('failed to fetch') || errStr.includes('networkerror')) {
+      console.warn("Intercepted global network/auth error:", event.error || event.message);
+      if (isAuthRefreshError(event.error) && !errStr.includes('failed to fetch')) {
+        clearStaleSession();
+      }
       event.preventDefault();
     }
   });
