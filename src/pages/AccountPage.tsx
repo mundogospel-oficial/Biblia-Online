@@ -13,6 +13,7 @@ import { useSentinel } from "@/hooks/useSentinel";
 import { setupPushNotifications } from "@/services/pushService";
 import { sendLocalNotification, getNotificationSettings, saveNotificationSettings } from "@/services/notificationService";
 import { validatePasswordSecurity } from "@/utils/passwordValidator";
+import { checkPwnedPassword } from "@/utils/pwnedPasswordValidator";
 import { syncKeyToSupabase } from "@/services/userSyncService";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
@@ -456,6 +457,19 @@ const AccountPage = () => {
         toast({
           title: "Senha Insegura",
           description: passValidation.error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Verificação em tempo de submissão na API HaveIBeenPwned (k-Anonymity)
+      setAuthLoading(true);
+      const pwnedResult = await checkPwnedPassword(password);
+      if (pwnedResult.isPwned) {
+        setAuthLoading(false);
+        toast({
+          title: "Senha Vazada / Insegura",
+          description: pwnedResult.error,
           variant: "destructive",
         });
         return;

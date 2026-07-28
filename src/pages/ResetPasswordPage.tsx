@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useSentinel } from "@/hooks/useSentinel";
 import { validatePasswordSecurity } from "@/utils/passwordValidator";
+import { checkPwnedPassword } from "@/utils/pwnedPasswordValidator";
 
 const translateAuthError = (message: string) => {
   if (!message) return "Ocorreu um erro ao atualizar a senha.";
@@ -43,6 +44,16 @@ const ResetPasswordPage = () => {
       toast({
         title: "Senha Insegura",
         description: passValidation.error,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const pwnedResult = await checkPwnedPassword(password);
+    if (pwnedResult.isPwned) {
+      toast({
+        title: "Senha Vazada / Insegura",
+        description: pwnedResult.error,
         variant: "destructive",
       });
       return;
