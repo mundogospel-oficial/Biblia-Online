@@ -1,6 +1,6 @@
 /**
  * Utilitário de segurança para verificação de senhas vazadas usando HaveIBeenPwned (k-Anonymity)
- * e Web Crypto API nativa (crypto.subtle).
+ * e Web Crypto API nativa do navegador (crypto.subtle).
  */
 
 /**
@@ -30,48 +30,53 @@ export interface PwnedCheckResult {
  * @returns Promessa com PwnedCheckResult
  */
 export async function checkPwnedPassword(password: string): Promise<PwnedCheckResult> {
-  // Se a senha for muito curta ou vazia, não faz a requisição
-  if (!password || password.length < 8) {
+  if (!password || !password.trim()) {
     return { isPwned: false, count: 0 };
   }
 
   try {
-    // 1. Gera o hash SHA-1 da senha em maiúsculas usando a Web Crypto API nativa
+    // 1. Gera o hash SHA-1 completo em maiúsculas usando a Web Crypto API nativa
     const fullHash = await sha1Hex(password);
 
     // 2. Separa os 5 primeiros caracteres (prefixo de k-Anonymity) e os 35 restantes (sufixo)
     const prefix = fullHash.substring(0, 5);
     const suffix = fullHash.substring(5);
 
-    // 3. Executa a requisição HTTP com timeout de 3.5 segundos para não travar o formulário caso a API oscile
+    // 3. Executa a requisição HTTP pura sem cabeçalhos customizados para evitar preflight CORS
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
     const response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
       method: "GET",
-      headers: {
-        "Add-Padding": "true" // Técnica de preenchimento para segurança k-Anonymity
-      },
       signal: controller.signal
     });
 
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      console.warn("[PwnedCheck] Resposta diferente de OK da API HaveIBeenPwned:", response.status);
+      console.warn("[PwnedCheck] Resposta de erro da API HIBP:", response.status);
       return { isPwned: false, count: 0 };
     }
 
     const responseText = await response.text();
 
-    // 4. Analisa a lista de sufixos retornados
+    // 4. Analisa a lista de sufixos retornados pela API
     const lines = responseText.split("\n");
-    for (const line of lines) {
-      const [lineSuffix, countStr] = line.trim().split(":");
-      if (lineSuffix && lineSuffix.toUpperCase() === suffix) {
-        const count = parseInt(countStr || "0", 10);
-        if (count > 0) {
+    for (const rawLine of lines) {
+      const line = rawLine.replace(/\r/g, "").trim();
+      if (!line) continue;
+
+      const colonIdx = line.indexOf(":");
+      if (colonIdx === -1) continue;
+
+      const lineSuffix = line.substring(0, colonIdx).trim().toUpperCase();
+      const countStr = line.substring(colonIdx + 1).trim();
+
+      if (lineSuffix === suffix) {
+        const count = parseInt(countStr, 10);
+        if (!isNaN(count) && count > 0) {
           const formattedCount = count.toLocaleString("pt-BR");
+          console.warn(`[PwnedCheck] Senha encontrada em ${formattedCount} vazamentos.`);
           return {
             isPwned: true,
             count,
@@ -83,8 +88,7 @@ export async function checkPwnedPassword(password: string): Promise<PwnedCheckRe
 
     return { isPwned: false, count: 0 };
   } catch (err) {
-    // Caso a API esteja fora do ar, offline ou ocorra timeout, loga um aviso e libera a criação
-    console.warn("[PwnedCheck] Falha na verificação de vazamento de senha (fallback gracioso):", err);
+    console.warn("[PwnedCheck] Falha/Timeout ao consultar API HaveIBeenPwned (fallback seguro):", err);
     return { isPwned: false, count: 0 };
   }
 }

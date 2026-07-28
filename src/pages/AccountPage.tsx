@@ -14,6 +14,7 @@ import { setupPushNotifications } from "@/services/pushService";
 import { sendLocalNotification, getNotificationSettings, saveNotificationSettings } from "@/services/notificationService";
 import { validatePasswordSecurity } from "@/utils/passwordValidator";
 import { checkPwnedPassword } from "@/utils/pwnedPasswordValidator";
+import { MandatoryPwnedPasswordModal } from "@/components/MandatoryPwnedPasswordModal";
 import { syncKeyToSupabase } from "@/services/userSyncService";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
@@ -23,7 +24,10 @@ const OFFLINE_KEY = "bible-offline-enabled";
 const translateAuthError = (message: string) => {
   if (!message) return "Ocorreu um erro ao processar. Tente novamente.";
   const lowered = message.toLowerCase();
-  if (lowered.includes("database error") || lowered.includes("user already registered") || lowered.includes("user_already_exists") || lowered.includes("already registered")) {
+  if (lowered.includes("database error saving new user") || lowered.includes("database error")) {
+    return "Erro ao salvar novo usuário. O e-mail ou nome de usuário pode já estar em uso. Tente fazer login ou escolha outro @username.";
+  }
+  if (lowered.includes("user already registered") || lowered.includes("user_already_exists") || lowered.includes("already registered")) {
     return "E-mail já cadastrado. Tente fazer login ou recuperar senha.";
   }
   if (lowered.includes("timeout-or-duplicate")) return "A verificação de segurança expirou. Tente novamente.";
@@ -84,6 +88,8 @@ const AccountPage = () => {
   const { checkRisk } = useSentinel();
 
   const [turnstileToken, setTurnstileToken] = useState("");
+  const [showPwnedModal, setShowPwnedModal] = useState(false);
+  const [pwnedLeakCount, setPwnedLeakCount] = useState(0);
   const [appVersion, setAppVersion] = useState("2.5");
   const [notificationTestError, setNotificationTestError] = useState<string | null>(null);
 
@@ -509,7 +515,24 @@ const AccountPage = () => {
           return;
         }
 
-        const { data, error } = await supabase.auth.signUp({ 
+        // Pre-checagem se o identificador @username já está em uso na tabela profiles
+        const { data: existingHandle } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('username', cleanHandle)
+          .maybeSingle();
+
+        if (existingHandle) {
+          toast({
+            title: "Nome de usuário em uso",
+            description: `O identificador @${cleanHandle} já está em uso por outro usuário. Por favor, escolha outro @username.`,
+            variant: "destructive"
+          });
+          setAuthLoading(false);
+          return;
+        }
+
+        let { data, error } = await supabase.auth.signUp({ 
           email: cleanEmail, 
           password,
           options: {
@@ -522,9 +545,23 @@ const AccountPage = () => {
           }
         });
 
+        // Se houver erro de gatilho de banco (ex: Database error saving new user), tenta fallback sem os metadados pesados
+        if (error && error.message.toLowerCase().includes("database error")) {
+          console.warn("[SignUp Fallback] Erro no gatilho do Supabase. Tentando cadastro simplificado...");
+          const fallbackRes = await supabase.auth.signUp({ 
+            email: cleanEmail, 
+            password,
+            options: {
+              captchaToken: turnstileToken
+            }
+          });
+          data = fallbackRes.data;
+          error = fallbackRes.error;
+        }
+
         if (error) {
           console.error("Erro Supabase:", error);
-          toast({ title: "Erro", description: translateAuthError(error.message), variant: "destructive" });
+          toast({ title: "Erro no Cadastro", description: translateAuthError(error.message), variant: "destructive" });
           turnstileRef.current?.reset();
           setTurnstileToken("");
           return;
@@ -547,8 +584,11 @@ const AccountPage = () => {
           navigate("/");
         }
       } else {
+        // Verifica se a senha do usuário existente apareceu em vazamentos de dados
+        const pwnedResult = await checkPwnedPassword(password);
+
         const { data, error } = await supabase.auth.signInWithPassword({ 
-          email, 
+          email: cleanEmail, 
           password,
           options: {
             captchaToken: turnstileToken
@@ -564,6 +604,18 @@ const AccountPage = () => {
         }
 
         if (data.user) {
+          // Se a senha do usuário existente estiver na lista de vazadas, exige a troca OBRIGATÓRIA
+          if (pwnedResult.isPwned) {
+            setPwnedLeakCount(pwnedResult.count);
+            setShowPwnedModal(true);
+            toast({
+              title: "🚨 Senha Vazada Detectada!",
+              description: `Sua senha atual apareceu em ${pwnedResult.count.toLocaleString("pt-BR")} vazamentos de dados na internet. É OBRIGATÓRIO cadastrar uma nova senha!`,
+              variant: "destructive",
+            });
+            return;
+          }
+
           toast({ title: "Login realizado com sucesso" });
           if ((window as any).PasswordCredential) {
             try {
@@ -1594,6 +1646,17 @@ const AccountPage = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <MandatoryPwnedPasswordModal
+        isOpen={showPwnedModal}
+        pwnedCount={pwnedLeakCount}
+        userEmail={email}
+        onSuccess={() => {
+          setShowPwnedModal(false);
+          toast({ title: "Login realizado com sucesso!" });
+          navigate("/");
+        }}
+      />
     </div>
   );
 };
