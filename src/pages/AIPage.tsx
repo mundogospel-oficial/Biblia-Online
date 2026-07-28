@@ -6,7 +6,8 @@ import {
   Send, Trash2, Sparkles, GraduationCap, X,
   Plus, Image, Video, Music, Download, LogIn,
   History, ChevronLeft, Zap, Bot, Paperclip, AlertCircle, MessageSquarePlus, Square, Share2,
-  Loader2, ImageOff, FileText, ZoomIn, ZoomOut, WifiOff, Palette, ChevronDown, Check
+  Loader2, ImageOff, FileText, ZoomIn, ZoomOut, WifiOff, Palette, ChevronDown, Check,
+  Search, Edit3, Clock, ArrowRight, ShieldAlert
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +28,153 @@ const formatMessageForDisplay = (text: string): string => {
   if (!text) return "";
   // Limpa as tags completas e também qualquer tag que possivelmente foi cortada no final
   return text.replace(/\[.*?\]/g, '').replace(/\[[^\]]*$/, '').trim();
+};
+
+const cleanImageLinksFromText = (text: string): string => {
+  if (!text) return "";
+  return text
+    .replace(/!\[.*?\]\(.*?\)/g, '')
+    .replace(/!\[.*?\]/g, '')
+    .replace(/!\(data:image.*?\)/g, '')
+    .replace(/!\(https?:\/\/.*?\)/g, '')
+    .replace(/\[data:image.*?\]/g, '')
+    .replace(/\(data:image.*?\)/g, '')
+    .replace(/data:image\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=]+/g, '')
+    .replace(/https?:\/\/[^\s)]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const generateTitleFromAI = (msgs: Msg[]): string => {
+  if (!msgs || msgs.length === 0) return "Conversa Bíblica";
+
+  const assistantMsg = msgs.find(m => m.role === "assistant");
+  const userMsg = msgs.find(m => m.role === "user");
+
+  if (!assistantMsg || !assistantMsg.content) {
+    if (userMsg?.content) {
+      const cleanUser = cleanImageLinksFromText(formatMessageForDisplay(userMsg.content)).replace(/\[.*?\]/g, '').trim();
+      return cleanUser ? `Pergunta: ${cleanUser.slice(0, 32)}...` : "Nova Conversa";
+    }
+    return "Conversa Bíblica";
+  }
+
+  const rawContent = assistantMsg.content.trim();
+
+  // Se a resposta for estritamente uma imagem gerada pela IA
+  if (rawContent.startsWith("http") || rawContent.startsWith("data:image") || rawContent.includes("generate-chat-image")) {
+    if (userMsg?.content) {
+      const cleanUser = cleanImageLinksFromText(formatMessageForDisplay(userMsg.content)).replace(/\[.*?\]/g, '').trim();
+      return `Arte Bíblica: ${cleanUser.slice(0, 32) || "Ilustração"}`;
+    }
+    return "Ilustração Bíblica Sagrada";
+  }
+
+  const content = cleanImageLinksFromText(rawContent);
+
+  // Tenta extrair o primeiro título em negrito gerado pela IA (**Título**)
+  const boldMatches = Array.from(content.matchAll(/\*\*(.*?)\*\*/g));
+  for (const match of boldMatches) {
+    if (match[1]) {
+      const rawBold = match[1].trim();
+      const cleanBold = rawBold
+        .replace(/^(título|tema|assunto|estudo|reflexão|música|vídeo|aula|resposta):\s*/i, '')
+        .replace(/\[.*?\]/g, '')
+        .trim();
+
+      if (
+        cleanBold.length >= 3 && 
+        cleanBold.length <= 60 && 
+        !cleanBold.toLowerCase().startsWith("regras") && 
+        !cleanBold.toLowerCase().startsWith("limite")
+      ) {
+        return cleanBold.charAt(0).toUpperCase() + cleanBold.slice(1);
+      }
+    }
+  }
+
+  // Se não encontrar negrito, pega a primeira frase significativa da resposta da IA
+  const cleanContent = formatMessageForDisplay(content)
+    .replace(/^(\d+\.|-|•|\*)\s*/, '')
+    .replace(/^(com certeza|olá|paz do senhor|graça e paz|com prazer|excelente pergunta|que bênção)[!,.\s]*/i, '')
+    .trim();
+
+  const lines = cleanContent.split('\n').map(l => l.trim()).filter(l => l.length > 5);
+  if (lines.length > 0) {
+    const firstLine = lines[0].replace(/\*\*/g, '').replace(/\[.*?\]/g, '').trim();
+    if (firstLine) {
+      const shortTitle = firstLine.slice(0, 42).trim();
+      return shortTitle.length < firstLine.length ? `${shortTitle}...` : shortTitle;
+    }
+  }
+
+  return "Resposta Bíblica com IA";
+};
+
+const formatRelativeDate = (timestamp: number): string => {
+  if (!timestamp) return "";
+  const date = new Date(timestamp);
+  const now = new Date();
+  
+  const isToday = date.toDateString() === now.toDateString();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday = date.toDateString() === yesterday.toDateString();
+
+  const timeStr = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+  if (isToday) return `Hoje às ${timeStr}`;
+  if (isYesterday) return `Ontem às ${timeStr}`;
+
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ` às ${timeStr}`;
+};
+
+const getConversationCategoryInfo = (conv: Conversation) => {
+  const lastMsg = conv.messages[conv.messages.length - 1];
+  const firstUserMsg = conv.messages.find(m => m.role === 'user')?.content || "";
+  const content = lastMsg?.content || "";
+
+  if (content.startsWith("http") || content.startsWith("data:image") || firstUserMsg.includes("[Modo: Imagem]") || firstUserMsg.includes("[Modo: Gerar Imagem]")) {
+    return { label: "Imagem", category: "image", icon: Image, badgeBg: "bg-purple-500/15 text-purple-400 border-purple-500/30" };
+  }
+
+  if (
+    conv.engine === "complexo" ||
+    firstUserMsg.includes("[Modo: Aprendizado]") ||
+    firstUserMsg.includes("[Modo: Gerar Vídeo]") ||
+    firstUserMsg.includes("[Modo: Criar Música]") ||
+    firstUserMsg.includes("[Modo: Vídeo]") ||
+    firstUserMsg.includes("[Modo: Música]")
+  ) {
+    return { label: "IA Complexa", category: "complex", icon: Bot, badgeBg: "bg-sky-500/15 text-sky-400 border-sky-500/30" };
+  }
+
+  return { label: "IA Simples", category: "simple", icon: Zap, badgeBg: "bg-amber-500/15 text-amber-400 border-amber-500/30" };
+};
+
+const getConversationPreview = (conv: Conversation): string => {
+  const assistantMsgs = conv.messages.filter(m => m.role === "assistant");
+  if (assistantMsgs.length === 0) return "Aguardando resposta da IA...";
+
+  const lastAssistant = assistantMsgs[assistantMsgs.length - 1];
+  const text = lastAssistant.content || "";
+
+  if (text.startsWith("http") || text.startsWith("data:image")) {
+    return "🎨 Imagem bíblica gerada pela IA";
+  }
+
+  const textWithoutImages = cleanImageLinksFromText(text);
+
+  const cleanText = formatMessageForDisplay(textWithoutImages)
+    .replace(/^(\d+\.|-|•|\*)\s*/, '')
+    .replace(/\*\*/g, '')
+    .trim();
+
+  if (!cleanText) {
+    return "🎨 Imagem bíblica gerada pela IA";
+  }
+
+  return cleanText.slice(0, 110) + (cleanText.length > 110 ? "..." : "");
 };
 
 const getFilesForMessage = (m: Msg) => {
@@ -60,7 +208,10 @@ const suggestions = [
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bible-chat`;
 const GEMINI_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gemini-chat`;
 const GEN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-chat-image`;
-const CONVERSATIONS_KEY = "ia-biblica-conversations";
+
+const getConversationsKey = (userSub?: string) => {
+  return userSub ? `ia-biblica-conversations_${userSub}` : "ia-biblica-conversations_guest";
+};
 
 // Daily limits - Sincronizado com usageService.ts
 const LIMIT_COMPLEX = 5;
@@ -72,6 +223,7 @@ interface Conversation {
   title: string;
   messages: Msg[];
   timestamp: number;
+  engine?: "simples" | "complexo";
 }
 
 interface ThinkingSpinnerProps {
@@ -325,6 +477,11 @@ const AIPage = () => {
   const [selectedImageStyle, setSelectedImageStyle] = useState<ImageStyleOption | null>(null);
   const [showStylePicker, setShowStylePicker] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [historySearchQuery, setHistorySearchQuery] = useState("");
+  const [historyFilterCategory, setHistoryFilterCategory] = useState<"all" | "simple" | "complex" | "image">("all");
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
+  const [editingTitleInput, setEditingTitleInput] = useState("");
+  const [showClearAllModal, setShowClearAllModal] = useState(false);
   const [activeMode, setActiveMode] = useState<ModeKey | null>(null);
   const [aiEngine, setAiEngine] = useState<AIEngine>("simples");
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
@@ -610,20 +767,41 @@ const AIPage = () => {
 
   useEffect(() => {
     async function loadSavedConversations() {
+      if (!user?.sub) {
+        setConversations([]);
+        return;
+      }
+      const userKey = getConversationsKey(user.sub);
       try {
-        const saved = localStorage.getItem(CONVERSATIONS_KEY);
+        await loadKeyFromSupabase("AI_CONVERSATIONS", userKey);
+        const saved = localStorage.getItem(userKey);
         if (saved) {
           const parsed: Conversation[] = JSON.parse(saved);
           const decryptedConversations = await Promise.all(
-            parsed.map(async (c) => ({
-              ...c,
-              messages: await decryptConversationMessages(c.messages, user?.sub)
-            }))
+            parsed.map(async (c) => {
+              const msgs = await decryptConversationMessages(c.messages, user.sub);
+              const assistantMsg = msgs.find(m => m.role === 'assistant');
+              const firstUserMsg = msgs.find(m => m.role === 'user')?.content || "";
+
+              let finalTitle = c.title;
+              if (assistantMsg && (!c.title || c.title === "Conversa" || c.title === firstUserMsg || c.title === formatMessageForDisplay(firstUserMsg).slice(0, 50))) {
+                finalTitle = generateTitleFromAI(msgs);
+              }
+
+              return {
+                ...c,
+                title: finalTitle || "Conversa Bíblica",
+                messages: msgs
+              };
+            })
           );
           setConversations(decryptedConversations);
+        } else {
+          setConversations([]);
         }
       } catch (err) {
-        console.warn("Erro ao carregar histórico criptografado:", err);
+        console.warn("Erro ao carregar histórico criptografado do usuário:", err);
+        setConversations([]);
       }
     }
     loadSavedConversations();
@@ -749,26 +927,35 @@ const AIPage = () => {
     );
   }
 
-  // NOVO: Lógica criptografada de persistência para proibir vazamentos
-  const saveConversation = (msgs: Msg[]) => {
+  // NOVO: Lógica criptografada de persistência com título gerado pela IA
+  const saveConversation = (msgs: Msg[], explicitTitle?: string) => {
     if (msgs.length < 2) return;
     const userSecret = user?.sub;
     
     setConversations(prev => {
-      const title = formatMessageForDisplay(msgs[0]?.content).slice(0, 50) || "Conversa";
+      const aiTitle = generateTitleFromAI(msgs);
       let updated: Conversation[];
 
       if (currentChatIdRef.current) {
-        // Se já existe um ID atual, atualiza a conversa existente
-        updated = prev.map(c => 
-          c.id === currentChatIdRef.current ? { ...c, messages: msgs, timestamp: Date.now() } : c
-        );
+        const exists = prev.some(c => c.id === currentChatIdRef.current);
+        if (exists) {
+          // Se já existe no histórico, atualiza mantendo/gerando o título da IA
+          updated = prev.map(c => 
+            c.id === currentChatIdRef.current 
+              ? { ...c, title: explicitTitle || (c.title && c.title !== msgs[0]?.content ? c.title : aiTitle), messages: msgs, timestamp: Date.now(), engine: c.engine || aiEngine } 
+              : c
+          );
+        } else {
+          // Se o ID atual foi definido mas ainda não estava na lista
+          const conv: Conversation = { id: currentChatIdRef.current, title: explicitTitle || aiTitle, messages: msgs, timestamp: Date.now(), engine: aiEngine };
+          updated = [conv, ...prev];
+        }
       } else {
-        // Se for a primeira mensagem, cria um ID novo
+        // Se for a primeira resposta, cria um ID novo com o título gerado pela IA
         const newId = Date.now().toString();
         currentChatIdRef.current = newId;
-        const conv: Conversation = { id: newId, title, messages: msgs, timestamp: Date.now() };
-        updated = [conv, ...prev].slice(0, 50);
+        const conv: Conversation = { id: newId, title: explicitTitle || aiTitle, messages: msgs, timestamp: Date.now(), engine: aiEngine };
+        updated = [conv, ...prev];
       }
 
       // Salva criptografado em background no localStorage e no Supabase
@@ -779,7 +966,8 @@ const AIPage = () => {
         }))
       ).then(encryptedConversations => {
         const jsonStr = JSON.stringify(encryptedConversations);
-        localStorage.setItem(CONVERSATIONS_KEY, jsonStr);
+        const userKey = getConversationsKey(userSecret);
+        localStorage.setItem(userKey, jsonStr);
         syncKeyToSupabase("AI_CONVERSATIONS", jsonStr);
       }).catch(console.error);
 
@@ -812,7 +1000,8 @@ const AIPage = () => {
       }))
     ).then(encryptedConversations => {
       const jsonStr = JSON.stringify(encryptedConversations);
-      localStorage.setItem(CONVERSATIONS_KEY, jsonStr);
+      const userKey = getConversationsKey(user?.sub);
+      localStorage.setItem(userKey, jsonStr);
       syncKeyToSupabase("AI_CONVERSATIONS", jsonStr);
     }).catch(console.error);
 
@@ -1307,57 +1496,375 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
   const geminiRemaining = LIMIT_SIMPLE - usageStats.simple;
 
   if (showHistory) {
+    const filteredConversations = conversations.filter(conv => {
+      const categoryInfo = getConversationCategoryInfo(conv);
+      if (historyFilterCategory !== "all" && categoryInfo.category !== historyFilterCategory) {
+        return false;
+      }
+
+      if (!historySearchQuery.trim()) return true;
+
+      const q = historySearchQuery.toLowerCase();
+      const titleMatches = (conv.title || "").toLowerCase().includes(q);
+      const msgMatches = conv.messages.some(m => (m.content || "").toLowerCase().includes(q));
+
+      return titleMatches || msgMatches;
+    });
+
+    const handleSaveTitle = (id: string) => {
+      if (!editingTitleInput.trim()) {
+        setEditingTitleId(null);
+        return;
+      }
+      const updated = conversations.map(c => 
+        c.id === id ? { ...c, title: editingTitleInput.trim() } : c
+      );
+      setConversations(updated);
+      setEditingTitleId(null);
+
+      Promise.all(
+        updated.map(async (c) => ({
+          ...c,
+          messages: await encryptConversationMessages(c.messages, user?.sub)
+        }))
+      ).then(encryptedConversations => {
+        const jsonStr = JSON.stringify(encryptedConversations);
+        const userKey = getConversationsKey(user?.sub);
+        localStorage.setItem(userKey, jsonStr);
+        syncKeyToSupabase("AI_CONVERSATIONS", jsonStr);
+      }).catch(console.error);
+    };
+
+    const handleClearAllHistory = () => {
+      setConversations([]);
+      const userKey = getConversationsKey(user?.sub);
+      localStorage.removeItem(userKey);
+      syncKeyToSupabase("AI_CONVERSATIONS", "[]");
+      setShowClearAllModal(false);
+      startNewChat();
+      toast({ title: "Histórico Limpo", description: "Todas as conversas foram apagadas com sucesso." });
+    };
+
     return (
-      <div className="flex h-[100dvh] flex-col bg-background">
+      <div className="flex h-[100dvh] flex-col bg-background relative overflow-hidden">
         <Header />
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden container mx-auto max-w-4xl px-3 pb-4">
-          <div className="flex items-center gap-3 py-3 border-b border-border shrink-0">
-            <button onClick={() => setShowHistory(false)} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors liquid-btn">
-              <ChevronLeft className="h-4 w-4" /> Voltar
-            </button>
-            <h2 className="font-serif text-base font-bold text-foreground">Histórico</h2>
+
+        <div className="flex-1 flex flex-col min-h-0 container mx-auto max-w-4xl px-3 sm:px-4 pb-4">
+          
+          {/* Header Superior do Histórico */}
+          <div className="flex items-center justify-between py-3 border-b border-border/60 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <button 
+                onClick={() => setShowHistory(false)} 
+                className="flex items-center justify-center p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/60 rounded-xl transition-all liquid-btn"
+                title="Voltar ao Chat"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-accent/15 text-accent border border-accent/20">
+                  <History className="h-4 w-4" />
+                </div>
+                <div>
+                  <h2 className="font-serif text-base font-bold text-foreground leading-tight">Histórico de Conversas</h2>
+                  <p className="text-[10px] text-muted-foreground">{conversations.length} {conversations.length === 1 ? 'conversa salva' : 'conversas salvas'}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => {
+                  setShowHistory(false);
+                  startNewChat();
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground text-xs font-semibold transition-all shadow-xs active:scale-95 liquid-btn"
+              >
+                <MessageSquarePlus className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Nova Conversa</span>
+              </button>
+
+              {conversations.length > 0 && (
+                <button
+                  onClick={() => setShowClearAllModal(true)}
+                  className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl transition-all"
+                  title="Apagar todo o histórico"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className="glass-card rounded-xl p-3 mt-3 shrink-0">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-accent mb-2">Uso diário restante</p>
+          {/* Cards de Uso Diário / Cota */}
+          <div className="glass-card rounded-2xl p-3.5 mt-3 shrink-0 border border-accent/20 bg-gradient-to-r from-secondary/40 via-background/60 to-secondary/40 shadow-xs">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-accent flex items-center gap-1">
+                <Zap className="h-3 w-3" /> Cota Diária de Uso
+              </span>
+              <span className="text-[10px] text-muted-foreground">Recarrega a cada 12h</span>
+            </div>
+
             <div className="grid grid-cols-3 gap-2">
-              <div className="text-center rounded-lg bg-secondary/50 p-2">
-                <p className="text-lg font-bold text-foreground">{Math.max(0, chatRemaining)}</p>
-                <p className="text-[9px] text-muted-foreground">Complexo</p>
+              <div className="flex flex-col items-center justify-center rounded-xl bg-background/80 border border-border/50 p-2 text-center transition-all hover:border-accent/30">
+                <p className="text-base sm:text-lg font-bold text-foreground leading-none mb-0.5">{Math.max(0, chatRemaining)}</p>
+                <p className="text-[9px] font-medium text-muted-foreground">IA Complexa</p>
               </div>
-              <div className="text-center rounded-lg bg-secondary/50 p-2">
-                <p className="text-lg font-bold text-foreground">{Math.max(0, geminiRemaining)}</p>
-                <p className="text-[9px] text-muted-foreground">Simples</p>
+
+              <div className="flex flex-col items-center justify-center rounded-xl bg-background/80 border border-border/50 p-2 text-center transition-all hover:border-accent/30">
+                <p className="text-base sm:text-lg font-bold text-foreground leading-none mb-0.5">{Math.max(0, geminiRemaining)}</p>
+                <p className="text-[9px] font-medium text-muted-foreground">IA Simples</p>
               </div>
-              <div className="text-center rounded-lg bg-secondary/50 p-2">
-                <p className="text-lg font-bold text-foreground">{Math.max(0, imageRemaining)}</p>
-                <p className="text-[9px] text-muted-foreground">Imagens</p>
+
+              <div className="flex flex-col items-center justify-center rounded-xl bg-background/80 border border-border/50 p-2 text-center transition-all hover:border-accent/30">
+                <p className="text-base sm:text-lg font-bold text-foreground leading-none mb-0.5">{Math.max(0, imageRemaining)}</p>
+                <p className="text-[9px] font-medium text-muted-foreground">Imagens</p>
               </div>
             </div>
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto py-3 my-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            {conversations.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma conversa salva</p>
-            ) : (
-              <div className="space-y-2">
-                {conversations.map((conv) => (
-                  <div key={conv.id} className="glass-card flex items-center justify-between rounded-xl px-4 py-3">
-                    <button onClick={() => loadConversation(conv)} className="flex-1 text-left liquid-btn min-w-0">
-                      <h3 className="text-sm font-normal not-italic truncate w-full text-left text-white">
-                        { formatMessageForDisplay(conv.title || conv.messages?.[0]?.content || "") || "Conversa Bíblica" }
-                      </h3>
-                      <p className="text-[10px] text-muted-foreground">{new Date(conv.timestamp).toLocaleDateString('pt-BR')} · {conv.messages.length} msgs</p>
-                    </button>
-                    <button onClick={() => deleteConversation(conv.id)} className="ml-3 p-2 text-muted-foreground hover:text-destructive rounded-lg hover:bg-destructive/10 transition-colors">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
+          {/* Barra de Pesquisa e Filtros */}
+          <div className="mt-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+            {/* Input de Busca */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <input
+                type="text"
+                value={historySearchQuery}
+                onChange={(e) => setHistorySearchQuery(e.target.value)}
+                placeholder="Buscar no histórico de conversas..."
+                className="w-full bg-secondary/50 border border-border/80 rounded-xl pl-9 pr-8 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent transition-colors"
+              />
+              {historySearchQuery && (
+                <button
+                  onClick={() => setHistorySearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground rounded-full"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Categorias de Filtro */}
+            <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 [scrollbar-width:none]">
+              {[
+                { key: "all", label: "Todos" },
+                { key: "simple", label: "IA Simples" },
+                { key: "complex", label: "IA Complexa" },
+                { key: "image", label: "Imagens" },
+              ].map((cat) => (
+                <button
+                  key={cat.key}
+                  onClick={() => setHistoryFilterCategory(cat.key as any)}
+                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap ${
+                    historyFilterCategory === cat.key
+                      ? "bg-accent text-accent-foreground font-semibold shadow-xs"
+                      : "bg-secondary/40 text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Lista de Conversas do Histórico */}
+          <div className="flex-1 min-h-0 overflow-y-auto py-3 space-y-2.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            {filteredConversations.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                <div className="h-14 w-14 rounded-2xl bg-secondary/60 flex items-center justify-center text-muted-foreground mb-3 border border-border/60">
+                  <Bot className="h-7 w-7" />
+                </div>
+                <p className="text-sm font-bold text-foreground mb-1">
+                  {historySearchQuery ? "Nenhuma conversa encontrada" : "Nenhuma conversa salva"}
+                </p>
+                <p className="text-xs text-muted-foreground max-w-xs mb-4">
+                  {historySearchQuery
+                    ? `Não encontramos resultados para "${historySearchQuery}". Tente outro termo.`
+                    : "Suas mensagens e ensinamentos da IA ficam salvos aqui de forma privada e criptografada."}
+                </p>
+                {!historySearchQuery ? (
+                  <button
+                    onClick={() => {
+                      setShowHistory(false);
+                      startNewChat();
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-accent-foreground text-xs font-bold transition-all shadow-xs active:scale-95"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" /> Iniciar conversa com IA
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setHistorySearchQuery("")}
+                    className="px-3 py-1.5 rounded-xl bg-secondary text-xs font-medium text-foreground hover:bg-secondary/80 transition-colors"
+                  >
+                    Limpar filtro de pesquisa
+                  </button>
+                )}
               </div>
+            ) : (
+              <AnimatePresence mode="popLayout">
+                {filteredConversations.map((conv) => {
+                  const categoryInfo = getConversationCategoryInfo(conv);
+                  const CategoryIcon = categoryInfo.icon;
+                  const previewText = getConversationPreview(conv);
+                  const isEditing = editingTitleId === conv.id;
+
+                  return (
+                    <motion.div
+                      key={conv.id}
+                      layout
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      className="glass-card group relative flex flex-col rounded-2xl p-3.5 border border-border/70 hover:border-accent/40 bg-card/80 hover:bg-card transition-all shadow-xs hover:shadow-md"
+                    >
+                      {/* Top Bar Card */}
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${categoryInfo.badgeBg}`}>
+                            <CategoryIcon className="h-3 w-3" />
+                            {categoryInfo.label}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                            <Clock className="h-3 w-3 text-muted-foreground/70" />
+                            {formatRelativeDate(conv.timestamp)}
+                          </span>
+                        </div>
+
+                        {/* Ações */}
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingTitleId(conv.id);
+                              setEditingTitleInput(conv.title || "");
+                            }}
+                            className="p-1.5 text-muted-foreground hover:text-accent rounded-lg hover:bg-accent/10 transition-colors"
+                            title="Renomear título"
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </button>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteConversation(conv.id);
+                            }}
+                            className="p-1.5 text-muted-foreground hover:text-destructive rounded-lg hover:bg-destructive/10 transition-colors"
+                            title="Excluir conversa"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Título e Edição */}
+                      {isEditing ? (
+                        <div className="flex items-center gap-2 my-1" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="text"
+                            value={editingTitleInput}
+                            onChange={(e) => setEditingTitleInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveTitle(conv.id);
+                              if (e.key === 'Escape') setEditingTitleId(null);
+                            }}
+                            autoFocus
+                            className="flex-1 bg-secondary/80 border border-accent rounded-lg px-2.5 py-1 text-xs text-foreground focus:outline-none"
+                          />
+                          <button
+                            onClick={() => handleSaveTitle(conv.id)}
+                            className="p-1.5 bg-accent text-accent-foreground rounded-lg text-xs font-medium"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setEditingTitleId(null)}
+                            className="p-1.5 bg-secondary text-muted-foreground rounded-lg text-xs"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => loadConversation(conv)}
+                          className="text-left w-full group-hover:text-accent transition-colors cursor-pointer"
+                        >
+                          <h3 className="text-sm font-bold text-foreground leading-snug line-clamp-1 mb-1">
+                            {conv.title || "Conversa Bíblica"}
+                          </h3>
+
+                          {/* Prévia da Resposta da IA */}
+                          <p className="text-xs text-muted-foreground/90 line-clamp-2 leading-relaxed">
+                            {previewText}
+                          </p>
+                        </button>
+                      )}
+
+                      {/* Indicador de Abertura no Rodapé */}
+                      <div 
+                        onClick={() => loadConversation(conv)}
+                        className="mt-2.5 pt-2 border-t border-border/40 flex items-center justify-between text-[11px] font-semibold text-accent/80 group-hover:text-accent transition-colors cursor-pointer"
+                      >
+                        <span className="flex items-center gap-1">
+                          Continuar conversa <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-normal">
+                          Criptografia local ativada
+                        </span>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
             )}
           </div>
         </div>
+
+        {/* Modal de Confirmação para Apagar Todo o Histórico */}
+        <AnimatePresence>
+          {showClearAllModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs"
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="glass-card max-w-sm w-full p-5 rounded-2xl bg-card border border-border shadow-xl text-center"
+              >
+                <div className="h-12 w-12 rounded-2xl bg-destructive/15 text-destructive flex items-center justify-center mx-auto mb-3">
+                  <ShieldAlert className="h-6 w-6" />
+                </div>
+                <h3 className="font-serif text-base font-bold text-foreground mb-2">Apagar Todo o Histórico?</h3>
+                <p className="text-xs text-muted-foreground mb-5 leading-relaxed">
+                  Esta ação excluirá permanentemente todas as conversas e respostas salvas da IA. Não é possível desfazer.
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowClearAllModal(false)}
+                    className="flex-1 py-2 rounded-xl bg-secondary text-xs font-semibold text-foreground hover:bg-secondary/80 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleClearAllHistory}
+                    className="flex-1 py-2 rounded-xl bg-destructive text-destructive-foreground text-xs font-bold transition-all hover:bg-destructive/90 shadow-xs"
+                  >
+                    Sim, Apagar Tudo
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }

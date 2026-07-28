@@ -110,6 +110,7 @@ export const syncAllUserDataToSupabase = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    const aiKey = `ia-biblica-conversations_${user.id}`;
     const keysToSync = [
       { ref: "READING_PLAN_PROGRESS", key: "biblia_planos_leitura_progresso_v1" },
       { ref: "READING_PLAN_FAVORITES", key: PLAN_FAVORITES_KEY },
@@ -118,7 +119,7 @@ export const syncAllUserDataToSupabase = async () => {
       { ref: "BIBLE_NOTES", key: NOTES_KEY },
       { ref: "BIBLE_FAVORITES", key: FAVORITES_KEY },
       { ref: "BIBLE_SEARCH_HISTORY", key: SEARCH_HISTORY_KEY },
-      { ref: "AI_CONVERSATIONS", key: AI_CONVERSATIONS_KEY },
+      { ref: "AI_CONVERSATIONS", key: aiKey },
     ];
 
     for (const item of keysToSync) {
@@ -143,6 +144,7 @@ export const syncAllUserDataFromSupabaseOnLogin = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    const aiKey = `ia-biblica-conversations_${user.id}`;
     const keysToLoad = [
       { ref: "READING_PLAN_PROGRESS", key: "biblia_planos_leitura_progresso_v1" },
       { ref: "READING_PLAN_FAVORITES", key: PLAN_FAVORITES_KEY },
@@ -151,7 +153,7 @@ export const syncAllUserDataFromSupabaseOnLogin = async () => {
       { ref: "BIBLE_NOTES", key: NOTES_KEY },
       { ref: "BIBLE_FAVORITES", key: FAVORITES_KEY },
       { ref: "BIBLE_SEARCH_HISTORY", key: SEARCH_HISTORY_KEY },
-      { ref: "AI_CONVERSATIONS", key: AI_CONVERSATIONS_KEY },
+      { ref: "AI_CONVERSATIONS", key: aiKey },
     ];
 
     for (const item of keysToLoad) {

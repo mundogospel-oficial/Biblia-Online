@@ -17,7 +17,7 @@ export const checkAndIncrementUsage = async (type: 'simple' | 'complex' | 'image
       userId = user.id;
     }
 
-    const limits = { simple: 15, complex: 5, image: 3, create_image: 3, translation: 3, dictionary: 3 };
+    const limits = { simple: 7, complex: 5, image: 3, create_image: 3, translation: 3, dictionary: 3 };
     const limitValue = limits[type];
     const tipoUso = type;
 
@@ -51,14 +51,21 @@ export const checkAndIncrementUsage = async (type: 'simple' | 'complex' | 'image
         p_limite_diario: limitValue
       });
 
-      if (!rpcError && typeof rpcData === 'boolean') {
-        return rpcData;
+      if (!rpcError) {
+        if (typeof rpcData === 'boolean') {
+          return rpcData;
+        }
+        if (rpcData && typeof rpcData === 'object' && 'allowed' in rpcData) {
+          return Boolean((rpcData as any).allowed);
+        }
+        // Se a chamada RPC executou sem erro, o registro já foi realizado no banco atômico!
+        return true;
       }
     } catch (rpcEx) {
       console.warn("Aviso na chamada RPC registrar_uso_ia_atomico:", rpcEx);
     }
 
-    // 3. Fallback: Registrar consumo diretamente na tabela user_ai_usage se o RPC não respondeu
+    // 3. Fallback: Registrar consumo diretamente na tabela user_ai_usage APENAS se a RPC falhou/não existe
     try {
       const { error: insertError } = await supabase
         .from('user_ai_usage')
