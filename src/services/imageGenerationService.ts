@@ -1,5 +1,117 @@
 import { supabase } from '@/integrations/supabase/client';
 import { refundUsage } from './usageService';
+import { APP_WHITE_LOGO_DATA_URL } from '@/assets/appLogoWhite';
+
+// Singleton cache para a logo do aplicativo em branco
+let watermarkLogoCache: HTMLImageElement | null = null;
+const getWatermarkLogo = (): Promise<HTMLImageElement | null> => {
+  return new Promise((resolve) => {
+    if (watermarkLogoCache && watermarkLogoCache.complete && watermarkLogoCache.naturalWidth) {
+      resolve(watermarkLogoCache);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      watermarkLogoCache = img;
+      resolve(img);
+    };
+    img.onerror = () => {
+      resolve(null);
+    };
+    img.src = APP_WHITE_LOGO_DATA_URL;
+  });
+};
+
+/**
+ * Desenha a marca d'água permanente do app (logo branca com transparência e sombra)
+ * diretamente no canvas da imagem gerada, tornando impossível removê-la ou burlar.
+ */
+export const drawWatermarkOnCanvas = (
+  ctx: CanvasRenderingContext2D, 
+  canvasWidth: number, 
+  canvasHeight: number, 
+  logoImg?: HTMLImageElement | null
+) => {
+  try {
+    const watermarkImg = logoImg || watermarkLogoCache;
+    if (!watermarkImg || !watermarkImg.complete || !watermarkImg.naturalWidth) return;
+
+    const w = canvasWidth;
+    const h = canvasHeight;
+
+    // Calcular tamanho proporcional da marca d'água (~6.5% da altura da imagem, mínimo de 32px)
+    const watermarkHeight = Math.max(32, Math.round(h * 0.065));
+    const aspect = (watermarkImg.naturalWidth || 200) / (watermarkImg.naturalHeight || 200);
+    const watermarkWidth = Math.round(watermarkHeight * aspect);
+
+    // Margens do canto inferior direito (~3.5% do tamanho da imagem)
+    const paddingRight = Math.max(12, Math.round(w * 0.035));
+    const paddingBottom = Math.max(12, Math.round(h * 0.035));
+
+    const x = w - watermarkWidth - paddingRight;
+    const y = h - watermarkHeight - paddingBottom;
+
+    ctx.save();
+    ctx.globalAlpha = 0.50; // 50% de opacidade (estilo idêntico ao Modo Criar)
+    ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
+    ctx.shadowBlur = Math.round(watermarkHeight * 0.15);
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 2;
+
+    ctx.drawImage(watermarkImg, x, y, watermarkWidth, watermarkHeight);
+    ctx.restore();
+  } catch (err) {
+    console.warn("[Watermark] Erro ao desenhar marca d'água no canvas:", err);
+  }
+};
+
+/**
+ * Garante que qualquer imagem (data URL ou HTTP) receba a marca d'água carimbada no canvas em base64
+ */
+export const ensureWatermarkedImage = async (imageUrl: string): Promise<string> => {
+  if (!imageUrl) return imageUrl;
+
+  try {
+    const logoImg = await getWatermarkLogo();
+    return new Promise<string>((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+
+      const timeout = setTimeout(() => {
+        resolve(imageUrl);
+      }, 10000);
+
+      img.onload = () => {
+        clearTimeout(timeout);
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.naturalWidth || img.width || 1024;
+          canvas.height = img.naturalHeight || img.height || 1024;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve(imageUrl);
+            return;
+          }
+          ctx.drawImage(img, 0, 0);
+          drawWatermarkOnCanvas(ctx, canvas.width, canvas.height, logoImg);
+          resolve(canvas.toDataURL("image/jpeg", 0.95));
+        } catch (canvasErr) {
+          console.warn("[Watermark] Falha ao gravar no canvas:", canvasErr);
+          resolve(imageUrl);
+        }
+      };
+
+      img.onerror = () => {
+        clearTimeout(timeout);
+        resolve(imageUrl);
+      };
+
+      img.src = imageUrl;
+    });
+  } catch {
+    return imageUrl;
+  }
+};
 
 export const generateBiblicalImage = async (
   userPrompt: string, 
@@ -219,10 +331,10 @@ Ao traduzir e enriquecer o pedido para o INGLÊS, crie uma descrição natural, 
 - COMPOSIÇÃO E ENQUADRAMENTO: Mantenha um enquadramento equilibrado de retrato ou cena (medium portrait or scenic historical composition, balanced facial proportions) para evitar deformação facial de lente super próxima.
 - ILUMINAÇÃO E PELE: Iluminação natural e cristalina (bright soft natural daylight), cores vivas e pele limpa e realista.
 - ESTILOS ESPECÍFICOS ([Estilo: ...]):
-  * CINEMATOGRÁFICO: "A high-end cinematic movie still, medium shot portrait, crisp focal clarity on face, natural realistic human eyes, clear detailed iris and pupils, soft golden sunlight, anamorphic lens, shallow depth of field, vivid natural colors, 8k resolution."
+  * CINEMATOGRÁFICO: "A high-end cinematic movie still, medium shot portrait, crisp focal clarity on face and eyes, crystal-clear detailed round pupils and iris with identical matching eye color, soft golden sunlight, anamorphic 85mm lens, shallow depth of field, vivid natural colors, masterwork 8k resolution."
   * ANIMAÇÃO 3D: "A beautiful 3D animated character illustration, Pixar and Disney studio art style, expressive face, clear aligned eyes, smooth 3D rendering, vibrant colors."
   * PIXEL ART: "Crisp 16-bit pixel art style, detailed retro video game graphics, clean pixel edges, nostalgic vibrant colors."
-  * FOTORREALISMO / PADRÃO: "An award-winning ultra-realistic 8k DSLR portrait photograph, medium portrait composition, crystal clear focus on face, natural realistic human eyes, authentic iris detail and pupils, natural eye gaze, pristine clean skin, bright natural daylight, 85mm lens f/2, authentic historical accuracy."
+  * FOTORREALISMO / PADRÃO: "An award-winning ultra-realistic 8k DSLR portrait photograph, medium portrait composition, razor-sharp focus on human face and eyes, crystal-clear detailed round pupils and iris with identical matching eye color, natural realistic eye gaze, pristine ultra-detailed human skin texture, bright soft natural daylight, 85mm lens f/1.8, authentic historical accuracy."
   * PINTURA A ÓLEO: "Master classical oil painting on canvas, refined elegant brushwork, luminous lighting, clear detailed facial features and expressive natural eyes, museum fine art quality."
   * AQUARELA: "Delicate watercolor painting on textured paper, soft fluid pastel colors, clean artistic outlines, graceful watercolor washes."
   * ANIME: "High quality Studio Ghibli inspired anime illustration, clean line art, luminous soft lighting, vibrant colors, expressive clear eyes."
@@ -279,24 +391,43 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
 
       let finalPrompt = enhancedPrompt;
 
-      const isAdamAndEve = /(?:adão|adao|adam).*(?:eva|eve)|(?:eva|eve).*(?:adão|adao|adam)|jardim do [ée]den|garden of eden/i.test(cleanPrompt + " " + enhancedPrompt);
-      if (isAdamAndEve) {
-        finalPrompt = `Biblical artwork of Adam and Eve: one adult male (Adam) with distinct masculine facial structure and short hair, and one adult female (Eve) with distinct feminine facial structure and long flowing hair, a man and a woman couple standing together, wearing modest classical biblical linen garments in the lush Garden of Eden paradise, surrounded by vibrant fruit trees, crystal clear rivers, serene animals, and divine sunlight, respectful sacred classical fine art, natural realistic human eyes with matching iris color, distinct male and female faces, high resolution 8k`;
+      // Extrair tag de estilo se presente no prompt original e garantir que lidera o prompt em inglês
+      let extractedStyle = "";
+      const styleMatch = cleanPrompt.match(/\[Estilo:\s*([^\]]+)\]/i);
+      if (styleMatch && styleMatch[1]) {
+        let styleAddon = styleMatch[1];
+        if (styleAddon.includes("-")) {
+          styleAddon = styleAddon.split("-").slice(1).join("-").trim();
+        }
+        extractedStyle = styleAddon;
+        if (styleAddon && !finalPrompt.toLowerCase().includes(styleAddon.toLowerCase().substring(0, 15))) {
+          finalPrompt = `${styleAddon}, ${finalPrompt}`;
+        }
       }
 
-      if (source === 'create') {
-        if (!enhancedPrompt.toLowerCase().includes("no people") && !enhancedPrompt.toLowerCase().includes("no humans")) {
-          finalPrompt = `${enhancedPrompt}, serene scenic natural landscape, no people, no humans, empty nature background, peaceful biblical environment, bright soft natural daylight, high resolution 8k`;
+      const isAdamAndEve = /(?:adão|adao|adam).*(?:eva|eve)|(?:eva|eve).*(?:adão|adao|adam)|jardim do [ée]den|garden of eden/i.test(cleanPrompt + " " + enhancedPrompt);
+      if (isAdamAndEve) {
+        const adamEveBase = `Award-winning photorealistic medium portrait photograph of Adam and Eve standing side by side in the Garden of Eden. On the left, Adam: handsome adult man with masculine facial features, short dark hair, clean smooth skin, and natural brown eyes. On the right, Eve: beautiful adult woman with feminine facial features, long wavy brown hair, clean smooth skin, and natural brown eyes. Balanced eye-level medium portrait shot, bright soft uniform key lighting brightly and evenly illuminating both faces, complete 100% unobstructed visibility of both eyes on both people with zero dark shadows or leaf reflections covering the eyes. Razor-sharp 8k focus on both faces, anatomically flawless facial symmetry, perfectly matching symmetrical eyes fully open, crystal-clear round pupils and natural iris reflections on both left and right eyes of each person, natural skin texture, perfectly defined eyebrows and relaxed lips. Pristine high-definition realism, no shadowed eyes, no glitched pupils, no distorted eyelids, no hair or leaves covering eyes, no heterochromia, no blurry face`;
+        if (extractedStyle) {
+          finalPrompt = `${extractedStyle}, ${adamEveBase}`;
+        } else {
+          finalPrompt = `${adamEveBase}`;
         }
+      }
+
+      const isLandscapeOnly = /no people|no humans|empty nature background|apenas paisagem|sem pessoas|sem rostos|sem seres humanos/i.test(cleanPrompt + " " + enhancedPrompt);
+
+      if (isLandscapeOnly) {
+        finalPrompt = `${finalPrompt}, serene scenic natural landscape, empty nature background, peaceful biblical environment, bright soft natural daylight, sharp focus 8k resolution`;
       } else {
-        // ARMONIZADOR FACIAL E OCULAR IA
+        // ARMONIZADOR FACIAL E OCULAR DE ULTRA-REALISMO (CLAREZA MÁXIMA DE OLHOS, ROSTOS E ENQUADRAMENTO LIMPO)
         if (/stained glass|vitral|mosaico|mosaic|cracked/i.test(finalPrompt)) {
-          finalPrompt += `, stained glass window pattern restricted strictly to background frame architecture, smooth clean realistic human face and pristine skin in foreground, no stained glass on face, no cracked skin`;
+          finalPrompt += `, stained glass/mosaic pattern strictly limited to background cathedral architecture frame, smooth clean photorealistic human face and pristine natural skin in foreground`;
         }
 
-        const facialHarmonizerAddon = `symmetrical realistic human faces, realistic detailed eyes, crystal clear pupils and iris with matching eye colors, natural anatomical eye gaze, anatomically correct facial structure, smooth natural skin texture, clean realistic facial features, high quality portrait lighting, no cross eyes, no misaligned eyes, no distorted pupils, no facial cracks, no extra limbs, no deformed face, no bad facial anatomy`;
+        const facialHarmonizerAddon = `photorealistic medium portrait photograph, balanced eye-level composition, bright uniform lighting across all faces with zero shadows on eyes, crisp razor-sharp focus on human faces and eyes, 100% clear unobstructed eyes on all individuals, anatomically perfect facial symmetry, clean smooth skin tone, authentic photorealistic human eyes with crystal-clear round pupils and natural iris texture, symmetrical eye gaze, perfectly defined eyebrows and lips, 8k resolution professional photography, no shadowed eyes, no glitched pupils, no distorted eyelids, no heterochromia, no blurry face`;
 
-        if (!finalPrompt.toLowerCase().includes("symmetrical realistic human faces") && !isAdamAndEve) {
+        if (!finalPrompt.toLowerCase().includes("photorealistic medium portrait photograph")) {
           finalPrompt = `${finalPrompt}, ${facialHarmonizerAddon}`;
         }
       }
@@ -340,7 +471,7 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
             reject(new Error("O tempo limite para gerar e carregar a imagem no navegador expirou (Timeout)."));
           }, 50000);
 
-          img.onload = () => {
+          img.onload = async () => {
             clearTimeout(timer);
             try {
               const canvas = document.createElement("canvas");
@@ -352,6 +483,8 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
                 return;
               }
               ctx.drawImage(img, 0, 0);
+              const logoImg = await getWatermarkLogo();
+              drawWatermarkOnCanvas(ctx, canvas.width, canvas.height, logoImg);
               resolve(canvas.toDataURL("image/jpeg", 0.95));
             } catch (canvasErr: any) {
               reject(canvasErr);
@@ -372,10 +505,11 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
         return `Aqui está a imagem gerada para: "${cleanPrompt}"\n\n![${cleanPrompt}](${base64Bytes})`;
       } catch (clientErr: any) {
         console.warn("[Fallback Cliente] Falha ao converter imagem para base64 local, aplicando fallback com link direto:", clientErr);
+        const watermarkedUrl = await ensureWatermarkedImage(pollinationsUrl);
         if (returnRawUrl) {
-          return pollinationsUrl;
+          return watermarkedUrl;
         }
-        return `Aqui está a imagem gerada para: "${cleanPrompt}"\n\n![${cleanPrompt}](${pollinationsUrl})`;
+        return `Aqui está a imagem gerada para: "${cleanPrompt}"\n\n![${cleanPrompt}](${watermarkedUrl})`;
       }
     }
 
@@ -392,12 +526,13 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
       throw new Error("O servidor não retornou uma URL de imagem válida.");
     }
 
-    // Se o backend já retornou a imagem convertida em Base64, use-a imediatamente
+    // Se o backend já retornou a imagem convertida em Base64, adicione a marca d'água e use-a imediatamente
     if (base64Image) {
+      const watermarkedBase64 = await ensureWatermarkedImage(base64Image);
       if (returnRawUrl) {
-        return base64Image;
+        return watermarkedBase64;
       }
-      return `Aqui está a imagem gerada para: "${cleanPrompt}"\n\n![${cleanPrompt}](${base64Image})`;
+      return `Aqui está a imagem gerada para: "${cleanPrompt}"\n\n![${cleanPrompt}](${watermarkedBase64})`;
     }
 
     try {
@@ -412,7 +547,7 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
           reject(new Error("O tempo limite para gerar e carregar a imagem no navegador expirou (Timeout)."));
         }, 50000);
 
-        img.onload = () => {
+        img.onload = async () => {
           clearTimeout(timer);
           try {
             const canvas = document.createElement("canvas");
@@ -424,6 +559,8 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
               return;
             }
             ctx.drawImage(img, 0, 0);
+            const logoImg = await getWatermarkLogo();
+            drawWatermarkOnCanvas(ctx, canvas.width, canvas.height, logoImg);
             const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
             resolve(dataUrl);
           } catch (canvasErr: any) {
@@ -446,10 +583,11 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
       return `Aqui está a imagem gerada para: "${cleanPrompt}"\n\n![${cleanPrompt}](${base64Bytes})`;
     } catch (fetchErr: any) {
       console.warn("Falha ao converter imagem gerada para base64 local, aplicando fallback com link direto:", fetchErr);
+      const watermarkedUrl = await ensureWatermarkedImage(pollinationsUrl);
       if (returnRawUrl) {
-        return pollinationsUrl;
+        return watermarkedUrl;
       }
-      return `Aqui está a imagem gerada para: "${cleanPrompt}"\n\n![${cleanPrompt}](${pollinationsUrl})`;
+      return `Aqui está a imagem gerada para: "${cleanPrompt}"\n\n![${cleanPrompt}](${watermarkedUrl})`;
     }
   } catch (error: any) {
     console.error("Falha ao gerar imagem:", error);

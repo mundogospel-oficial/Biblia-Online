@@ -84,6 +84,83 @@ const gradientPresets = [
 
 type ActiveTab = "verse" | "background" | "typography" | "export";
 
+const AIImagePreviewLoadingOverlay = () => {
+  const [stepIndex, setStepIndex] = useState(0);
+  const phrases = [
+    "Interpretando a passagem e tema bíblico...",
+    "Projetando composição fotorrealista em 8K...",
+    "Ajustando feixes de luz e iluminação sagrada...",
+    "Refinando traços faciais, olhos e textura ultrarrealista...",
+    "Finalizando a obra de arte..."
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setStepIndex((prev) => (prev + 1) % phrases.length);
+    }, 2800);
+    return () => clearInterval(timer);
+  }, [phrases.length]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="absolute inset-0 z-30 flex flex-col items-center justify-center p-6 text-center overflow-hidden bg-black/65 backdrop-blur-2xl rounded-2xl"
+    >
+      {/* Liquid glass floating background light aura */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full bg-accent/20 blur-3xl pointer-events-none animate-pulse" />
+      <div className="absolute top-1/3 left-1/3 w-40 h-40 rounded-full bg-primary/20 blur-2xl pointer-events-none animate-pulse" style={{ animationDuration: '6s' }} />
+
+      {/* Shimmer light sweep */}
+      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-accent/10 to-transparent animate-shimmer pointer-events-none" />
+
+      {/* Liquid Glass Badge Card */}
+      <motion.div
+        initial={{ scale: 0.9, y: 10 }}
+        animate={{ scale: 1, y: 0 }}
+        className="relative z-10 rounded-2xl border border-white/20 dark:border-white/10 bg-background/50 backdrop-blur-xl p-6 sm:p-7 shadow-2xl flex flex-col items-center max-w-xs sm:max-w-sm w-full"
+      >
+        {/* Animated Icon with liquid ring */}
+        <div className="relative flex h-16 w-16 items-center justify-center mb-4">
+          {/* Outer rotating dashed ring */}
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 7, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-0 rounded-full border-2 border-dashed border-accent/70"
+          />
+          {/* Inner glass icon container */}
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/20 border border-accent/40 shadow-inner backdrop-blur-md">
+            <Wand2 className="h-6 w-6 text-accent animate-pulse" />
+          </div>
+        </div>
+
+        {/* Title */}
+        <div className="flex items-center gap-1.5 mb-2">
+          <span className="font-bold text-base text-foreground tracking-tight">Criando Ilustração IA</span>
+          <Sparkles className="h-4 w-4 text-accent animate-spin" style={{ animationDuration: '4s' }} />
+        </div>
+
+        {/* Rotating phrase */}
+        <div className="h-6 relative overflow-hidden w-full flex items-center justify-center">
+          <AnimatePresence mode="wait">
+            <motion.span
+              key={stepIndex}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.3 }}
+              className="text-xs text-muted-foreground font-medium text-center truncate block px-2"
+            >
+              {phrases[stepIndex]}
+            </motion.span>
+          </AnimatePresence>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 const CreatePage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -1008,6 +1085,8 @@ const CreatePage = () => {
                       background: "linear-gradient(135deg, #090d16 0%, #171d2b 100%)"
                     }}
                   >
+                    {aiImageLoading && <AIImagePreviewLoadingOverlay />}
+
                     {aiImageUrl && !aiImageLoading && (
                       <Fragment>
                         <motion.img
@@ -1147,26 +1226,15 @@ const CreatePage = () => {
               </div>
 
               {/* Status Message below canvas */}
-              {bgType === "ai" && (
+              {bgType === "ai" && aiImageError && !aiImageLoading && (
                 <div className="w-full p-3 text-xs">
-                  {aiImageLoading && (
-                    <div className="flex items-center gap-2.5 text-accent bg-accent/10 border border-accent/20 rounded-xl p-3">
-                      <Loader2 className="h-4 w-4 animate-spin shrink-0 text-accent" />
-                      <div className="flex flex-col">
-                        <span className="font-semibold text-accent">Gerando Imagem com IA...</span>
-                        <span className="text-[10px] text-muted-foreground">Processando sua ilustração exclusiva em alta resolução.</span>
-                      </div>
+                  <div className="flex items-center gap-2 text-destructive bg-destructive/10 border border-destructive/20 rounded-xl p-3">
+                    <ImageOff className="h-4 w-4 shrink-0 text-destructive" />
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-destructive">Falha no carregamento</span>
+                      <span className="text-[10px] text-muted-foreground">Erro ao carregar imagem. Tente alterar o estilo ou gerar novamente.</span>
                     </div>
-                  )}
-                  {aiImageError && !aiImageLoading && (
-                    <div className="flex items-center gap-2 text-destructive bg-destructive/10 border border-destructive/20 rounded-xl p-3">
-                      <ImageOff className="h-4 w-4 shrink-0 text-destructive" />
-                      <div className="flex flex-col">
-                        <span className="font-semibold text-destructive">Falha no carregamento</span>
-                        <span className="text-[10px] text-muted-foreground">Erro ao carregar imagem. Tente alterar o estilo ou gerar novamente.</span>
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </div>
               )}
 

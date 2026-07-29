@@ -582,7 +582,7 @@ const SearchPage = () => {
           </div>
 
           {/* MATCHED BIBLICAL ENTITY CARD WHEN SEARCHING */}
-          {searched && matchedEntities.length > 0 && (
+          {activeTab === "todos" && searched && matchedEntities.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
@@ -653,7 +653,7 @@ const SearchPage = () => {
             </div>
           )}
 
-          {!loading && searched && results.length === 0 && matchedEntities.length === 0 && filteredCharacters.length === 0 && filteredTopics.length === 0 && filteredDevotionals.length === 0 && filteredPopularVerses.length === 0 && (
+          {!loading && searched && activeTab === "todos" && results.length === 0 && matchedEntities.length === 0 && filteredCharacters.length === 0 && filteredTopics.length === 0 && filteredDevotionals.length === 0 && filteredPopularVerses.length === 0 && filteredReadingPlans.length === 0 && (
             <div className="rounded-xl border border-dashed border-border p-8 text-center space-y-3">
               <BookOpen className="h-10 w-10 text-muted-foreground/40 mx-auto" />
               <p className="text-sm font-medium text-muted-foreground">
@@ -668,7 +668,7 @@ const SearchPage = () => {
             </div>
           )}
 
-          {!loading && results.length > 0 && (
+          {!loading && (activeTab === "todos" || activeTab === "passagens") && results.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="font-serif text-sm font-bold text-foreground sm:text-base flex items-center gap-1.5">

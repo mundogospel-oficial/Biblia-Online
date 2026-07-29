@@ -7,7 +7,7 @@ import {
   Plus, Image, ImagePlus, Upload, Video, Music, Download, LogIn,
   History, ChevronLeft, Zap, Bot, Paperclip, AlertCircle, MessageSquarePlus, Square, Share2,
   Loader2, ImageOff, FileText, ZoomIn, ZoomOut, WifiOff, Palette, ChevronDown, Check,
-  Search, Edit3, Clock, ArrowRight, ShieldAlert
+  Search, Edit3, Clock, ArrowRight, ShieldAlert, Wand2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +20,7 @@ import { checkAndIncrementUsage, getUserUsage, refundUsage } from "@/services/us
 import { saveAIHistory } from "@/services/userDataService";
 import { syncKeyToSupabase } from "@/services/userSyncService";
 import { generateBiblicalImage } from "@/services/imageGenerationService";
+import { APP_WHITE_LOGO_DATA_URL } from "@/assets/appLogoWhite";
 import { encryptConversationMessages, decryptConversationMessages } from "@/lib/security/cryptoService";
 import { maskPiiInText } from "@/lib/security/privacyGuard";
 import { validateImageContent } from "@/services/imageModerationService";
@@ -196,13 +197,49 @@ const getFilesForMessage = (m: Msg) => {
 
 type Msg = { role: "user" | "assistant"; content: string; image?: string; fileName?: string; files?: Array<{ name: string; size?: number; type?: string }> };
 
-const suggestions = [
+const defaultSuggestions = [
   "O que significa João 3:16?",
   "Quem foi o rei Davi?",
   "O que a Bíblia diz sobre ansiedade?",
   "Explique as parábolas de Jesus",
   "Me ensine sobre os frutos do Espírito",
   "Qual a história de Moisés?",
+];
+
+const imageSuggestions = [
+  "Cruz de Cristo ao pôr do sol em alta resolução",
+  "Arca de Noé sob o arco-íris no mar",
+  "Moisés abrindo o Mar Vermelho em glória",
+  "O Rei Davi tocando harpa nos campos de Belém",
+  "A criação do mundo e a luz divina brilhando",
+  "A última ceia de Jesus com os doze discípulos",
+];
+
+const videoSuggestions = [
+  "Roteiro para Reels sobre o Salmo 91",
+  "Vídeo curto explicando a parábola do filho pródigo",
+  "Roteiro educativo sobre as doze tribos de Israel",
+  "Mini documentário sobre a vida do Apóstolo Paulo",
+  "Esboço para vídeo de reflexão matinal",
+  "Roteiro para Shorts: 3 versículos sobre esperança",
+];
+
+const musicSuggestions = [
+  "Letra de louvor congregacional sobre gratidão",
+  "Composição acústica de adoração e paz",
+  "Hino solene inspirado no Salmo 23",
+  "Letra de música jovem sobre fé e propósito",
+  "Canção de ninar cristã para crianças",
+  "Louvor de celebração e vitória em Cristo",
+];
+
+const learningSuggestions = [
+  "Estudo aprofundado sobre o livro de Romanos",
+  "Contexto histórico do Sermão da Montanha",
+  "Explique as alianças bíblicas no Antigo Testamento",
+  "Significado dos nomes de Deus na Bíblia",
+  "Diferença entre lei e graça no Novo Testamento",
+  "Estudo sobre os dons do Espírito Santo",
 ];
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bible-chat`;
@@ -317,6 +354,66 @@ const ThinkingSpinner = ({ engine = "simples", mode = "chat" }: ThinkingSpinnerP
       >
         <Bot className="h-3.5 w-3.5 text-accent" />
       </motion.div>
+    </div>
+  );
+};
+
+const ImageGeneratingBubble = () => {
+  const [stepIndex, setStepIndex] = useState(0);
+  const phrases = [
+    "Interpretando o tema e iluminação bíblica...",
+    "Renderizando fotorrealismo e iluminação de estúdio...",
+    "Refinando rostos, olhos e textura de pele ultra-realista...",
+    "Finalizando ilustração de alta definição em 8K..."
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setStepIndex((prev) => (prev + 1) % phrases.length);
+    }, 2800);
+    return () => clearInterval(timer);
+  }, [phrases.length]);
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-white/20 dark:border-white/10 bg-background/50 backdrop-blur-xl p-3 sm:p-3.5 shadow-xl min-w-[260px] sm:min-w-[320px]">
+      {/* Liquid shimmer light sweep */}
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-accent/10 to-transparent animate-shimmer pointer-events-none" />
+      <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-accent/50 via-primary/60 to-accent/50 animate-pulse" />
+
+      <div className="flex items-center gap-3 relative z-10">
+        <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-accent/20 border border-accent/40 shadow-inner">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-0 rounded-xl border border-dashed border-accent/60"
+          />
+          <Wand2 className="h-4 w-4 text-accent animate-pulse" />
+        </div>
+
+        <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-xs text-foreground flex items-center gap-1">
+              Gerando Imagem com IA
+              <Sparkles className="h-3 w-3 text-accent animate-spin" style={{ animationDuration: '4s' }} />
+            </span>
+          </div>
+
+          <div className="h-3.5 relative overflow-hidden">
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={stepIndex}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.25 }}
+                className="text-[11px] text-muted-foreground truncate block font-medium"
+              >
+                {phrases[stepIndex]}
+              </motion.span>
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -483,6 +580,17 @@ const AIPage = () => {
   const [editingTitleInput, setEditingTitleInput] = useState("");
   const [showClearAllModal, setShowClearAllModal] = useState(false);
   const [activeMode, setActiveMode] = useState<ModeKey | null>(null);
+
+  const activeSuggestions = 
+    activeMode === "image"
+      ? imageSuggestions
+      : activeMode === "video"
+      ? videoSuggestions
+      : activeMode === "music"
+      ? musicSuggestions
+      : activeMode === "learning"
+      ? learningSuggestions
+      : defaultSuggestions;
   const [aiEngine, setAiEngine] = useState<AIEngine>("simples");
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<Array<{ name: string; url: string | null; type: string; size: number }>>([]);
@@ -1429,15 +1537,38 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
   };
 
   const handleModeSelect = (mode: typeof modes[0]) => {
+    const isCurrentlyEmpty = messages.length === 0;
+
     if (activeMode === mode.key) {
       setActiveMode(null);
+      setSelectedImageStyle(null);
       setShowModes(false);
+      if (!isCurrentlyEmpty) {
+        startNewChat();
+        toast({
+          title: "Modo encerrado",
+          description: `Você saiu do modo ${mode.label}. Nova conversa iniciada!`,
+        });
+      }
     } else {
+      const isSwitchingImage = activeMode === "image" || mode.key === "image";
+      const prevModeLabel = activeModeInfo?.label;
+
       setActiveMode(mode.key);
       if (mode.key !== "image") {
         setAiEngine("complexo");
       }
       setShowModes(false);
+
+      if (!isCurrentlyEmpty && isSwitchingImage) {
+        startNewChat();
+        toast({
+          title: `Modo ${mode.label} ativado`,
+          description: prevModeLabel
+            ? `Modo alterado de ${prevModeLabel} para ${mode.label}. Nova conversa iniciada!`
+            : `Modo ${mode.label} ativado! Nova conversa iniciada para gerar imagens.`,
+        });
+      }
     }
   };
 
@@ -1977,7 +2108,21 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
           <div className="relative flex shrink-0 items-center rounded-xl border border-border bg-secondary/50 p-0.5 sm:p-1">
             <button
               type="button"
-              onClick={() => { setAiEngine("simples"); setShowModes(false); setActiveMode(null); startNewChat(); }}
+              onClick={() => {
+                if (aiEngine !== "simples") {
+                  const hadMessages = messages.length > 0;
+                  setAiEngine("simples");
+                  setShowModes(false);
+                  setActiveMode(null);
+                  if (hadMessages) {
+                    startNewChat();
+                    toast({
+                      title: "IA Simples ativada",
+                      description: "Nova conversa iniciada ao alternar para a IA Simples.",
+                    });
+                  }
+                }
+              }}
               className={`relative z-10 flex items-center gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-[10px] font-semibold transition-colors duration-200 ${
                 aiEngine === "simples" ? "text-white font-bold" : "text-muted-foreground hover:text-foreground"
               }`}
@@ -1994,7 +2139,19 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
             </button>
             <button
               type="button"
-              onClick={() => { setAiEngine("complexo"); startNewChat(); }}
+              onClick={() => {
+                if (aiEngine !== "complexo") {
+                  const hadMessages = messages.length > 0;
+                  setAiEngine("complexo");
+                  if (hadMessages) {
+                    startNewChat();
+                    toast({
+                      title: "IA Complexa ativada",
+                      description: "Nova conversa iniciada ao alternar para a IA Complexa.",
+                    });
+                  }
+                }
+              }}
               className={`relative z-10 flex items-center gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-[10px] font-semibold transition-colors duration-200 ${
                 aiEngine === "complexo" ? "text-white font-bold" : "text-muted-foreground hover:text-foreground"
               }`}
@@ -2105,13 +2262,25 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full">
-                {suggestions.map((s) => (
+                {activeSuggestions.map((s) => (
                   <motion.button key={s} whileTap={{ scale: 0.97 }} onClick={() => !limitReached && send(s)}
                     disabled={limitReached}
-                    className="glass-card rounded-xl p-3 text-left text-xs text-card-foreground transition-colors hover:!border-accent liquid-btn disabled:opacity-50"
+                    className="glass-card rounded-xl p-3 text-left text-xs text-card-foreground transition-colors hover:!border-accent liquid-btn disabled:opacity-50 flex flex-col justify-between"
                   >
-                    <Sparkles className="mb-1 h-3.5 w-3.5 text-accent" />
-                    {s}
+                    <div className="flex items-center gap-1.5 mb-1 text-accent">
+                      {activeMode === "image" ? (
+                        <Image className="h-3.5 w-3.5" />
+                      ) : activeMode === "video" ? (
+                        <Video className="h-3.5 w-3.5" />
+                      ) : activeMode === "music" ? (
+                        <Music className="h-3.5 w-3.5" />
+                      ) : activeMode === "learning" ? (
+                        <GraduationCap className="h-3.5 w-3.5" />
+                      ) : (
+                        <Sparkles className="h-3.5 w-3.5" />
+                      )}
+                    </div>
+                    <span>{s}</span>
                   </motion.button>
                 ))}
               </div>
@@ -2164,12 +2333,16 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
               <div className="mr-1.5 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-primary">
                 {aiEngine === "simples" ? <Zap className="h-3.5 w-3.5 text-primary-foreground" /> : <Bot className="h-3.5 w-3.5 text-primary-foreground" />}
               </div>
-              <div className="glass-card rounded-2xl px-4 py-3 flex items-center gap-2">
-                <ThinkingSpinner engine={aiEngine} mode={activeMode} />
-                <span className="text-xs text-muted-foreground">
-                  {activeMode === "image" ? "Gerando imagem..." : activeMode === "video" ? "Escrevendo roteiro..." : "Pensando..."}
-                </span>
-              </div>
+              {activeMode === "image" ? (
+                <ImageGeneratingBubble />
+              ) : (
+                <div className="glass-card rounded-2xl px-4 py-3 flex items-center gap-2">
+                  <ThinkingSpinner engine={aiEngine} mode={activeMode} />
+                  <span className="text-xs text-muted-foreground">
+                    {activeMode === "video" ? "Escrevendo roteiro..." : "Pensando..."}
+                  </span>
+                </div>
+              )}
             </motion.div>
           )}
           <div ref={bottomRef} />
@@ -2182,23 +2355,40 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                 initial={{ opacity: 0, y: -4, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                className="mb-2 flex items-center justify-between gap-2 rounded-2xl border border-accent/40 bg-card/95 px-3.5 py-2 shadow-md backdrop-blur-xl"
+                className="mb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 rounded-2xl border border-accent/40 bg-card/95 p-2.5 sm:px-3.5 sm:py-2 shadow-md backdrop-blur-xl"
               >
-                <div className="flex items-center gap-2 text-xs font-semibold text-accent">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-accent/20 text-accent shrink-0">
+                <div className="flex items-center gap-2 text-xs font-semibold text-accent min-w-0">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/20 text-accent shrink-0">
                     {activeModeInfo.icon}
                   </div>
-                  <span>Modo Ativo: <strong className="font-bold text-foreground">{activeModeInfo.label}</strong></span>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-xs truncate">
+                      Modo Ativo: <strong className="font-bold text-foreground">{activeModeInfo.label}</strong>
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-normal truncate">
+                      Ao fechar este modo, um novo chat é iniciado para alternar os tópicos.
+                    </span>
+                  </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => {
+                    const modeLabel = activeModeInfo.label;
+                    const hadMessages = messages.length > 0;
                     setActiveMode(null);
                     setSelectedImageStyle(null);
+                    if (hadMessages) {
+                      startNewChat();
+                      toast({
+                        title: "Modo encerrado",
+                        description: `Você saiu do modo ${modeLabel}. Nova conversa iniciada.`,
+                      });
+                    }
                   }}
-                  className="flex h-6 w-6 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0"
-                  title="Desativar modo"
+                  className="flex h-7 px-2.5 items-center gap-1.5 rounded-xl bg-secondary hover:bg-destructive hover:text-destructive-foreground text-[11px] font-semibold text-muted-foreground transition-all shrink-0 self-end sm:self-center"
+                  title="Sair do modo"
                 >
+                  <span>Sair do Modo</span>
                   <X className="h-3.5 w-3.5" />
                 </button>
               </motion.div>
@@ -2326,7 +2516,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                 <div className="flex items-center gap-1 pl-0.5">
                   {aiEngine === "complexo" && (
                     <button type="button" onClick={() => setShowModes(!showModes)}
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors liquid-btn ${showModes ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors liquid-btn ${showModes ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
                     >
                       <Plus className="h-4 w-4" />
                     </button>
@@ -2346,7 +2536,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                       <button
                         type="button"
                         onClick={() => setShowStylePicker(!showStylePicker)}
-                        className={`flex h-9 items-center gap-1.5 rounded-xl px-2.5 text-xs font-semibold transition-all liquid-btn border ${
+                        className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-all liquid-btn border ${
                           selectedImageStyle
                             ? "border-accent bg-accent/15 text-accent shadow-sm"
                             : "border-border/80 bg-secondary/80 text-muted-foreground hover:text-foreground hover:border-accent/50"
@@ -2450,7 +2640,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
                     }, 120);
                   }}
-                  placeholder={!isOnline ? "Necessário internet para IA" : limitReached ? "Limite diário atingido" : activeModeInfo ? `Descreva (${activeModeInfo.label})...` : aiEngine === "simples" ? "Pergunta simples..." : "Pergunte qualquer coisa..."}
+                  placeholder={!isOnline ? "Necessário internet para IA" : limitReached ? "Limite diário atingido" : activeMode === "image" ? "Descreva sua imagem..." : activeModeInfo ? `Descreva (${activeModeInfo.label})...` : aiEngine === "simples" ? "Pergunta simples..." : "Pergunte qualquer coisa..."}
                   disabled={isLoading || limitReached || !isOnline}
                   className="flex-1 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                 />
@@ -2463,7 +2653,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                   <button
                     type="button"
                     onClick={handleStopResponse}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-white transition-colors liquid-btn mr-0.5"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-white transition-colors liquid-btn mr-0.5"
                     title="Parar resposta"
                   >
                     <Square size={16} fill="currentColor" />
