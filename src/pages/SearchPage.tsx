@@ -181,7 +181,7 @@ const SearchPage = () => {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<"todos" | "planos" | "personagens" | "assuntos" | "devocionais" | "passagens">("todos");
+  const [activeTab, setActiveTab] = useState<"todos" | "versiculos" | "planos" | "personagens" | "assuntos" | "devocionais" | "passagens">("todos");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Devotional Modal state
@@ -547,6 +547,7 @@ const SearchPage = () => {
           <div className="flex gap-1.5 overflow-x-auto pb-2.5 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden border-b border-border/30 relative">
             {[
               { id: "todos", label: "Todos e Destaques", icon: Compass },
+              ...(searched && results.length > 0 ? [{ id: "versiculos", label: `Versículos (${results.length})`, icon: BookOpen }] : []),
               { id: "planos", label: `Planos Diários (${filteredReadingPlans.length})`, icon: Calendar },
               { id: "personagens", label: `Personagens (${filteredCharacters.length})`, icon: User },
               { id: "assuntos", label: `Conhecimento (${filteredTopics.length})`, icon: BookOpen },
@@ -668,7 +669,7 @@ const SearchPage = () => {
             </div>
           )}
 
-          {!loading && (activeTab === "todos" || activeTab === "passagens") && results.length > 0 && (
+          {!loading && (activeTab === "todos" || activeTab === "versiculos") && results.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="font-serif text-sm font-bold text-foreground sm:text-base flex items-center gap-1.5">
@@ -719,11 +720,17 @@ const SearchPage = () => {
             </div>
           )}
 
+          {!loading && activeTab === "versiculos" && results.length === 0 && (
+            <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs font-medium text-muted-foreground my-2">
+              Não há versículos encontrados para sua busca.
+            </div>
+          )}
+
           {/* HISTORY AND SUGGESTIONS WHEN NOT SEARCHED OR BELOW SEARCH */}
           <div className="space-y-6 pt-2">
             
             {/* History if available */}
-            {!searched && history.length > 0 && (
+            {!searched && activeTab === "todos" && history.length > 0 && (
               <div className="glass-card rounded-2xl border border-border/80 bg-card/60 p-4 sm:p-5 space-y-3 shadow-sm backdrop-blur-md">
                 <div className="flex items-center justify-between pb-2 border-b border-border/40">
                   <div className="flex items-center gap-2">

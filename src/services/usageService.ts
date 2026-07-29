@@ -39,50 +39,32 @@ export const checkAndIncrementUsage = async (type: 'simple' | 'complex' | 'image
       .gte('created_at', todayISO);
 
     if (!countError && count !== null && count >= limitValue) {
-      console.warn(`[Cota Rígida] Limite diário de ${limitValue} atingido para '${tipoUso}'. Uso bloqueado.`);
+      console.warn(`[Cota Rígida] Limite diário de ${limitValue} atingido para '${tipoUso}'. Uso bloqueado (contagem atual: ${count}).`);
       return false; // COTA TOTALMENTE ESGOTADA! NÃO PERMITIR NENHUMA AÇÃO!
     }
 
-    // 2. Tentar registrar consumo via RPC atômico
-    try {
-      const { data: rpcData, error: rpcError } = await supabase.rpc('registrar_uso_ia_atomico', {
-        p_user_id: userId,
-        p_tipo_uso: tipoUso,
-        p_limite_diario: limitValue
+    // 2. Registrar consumo diretamente na tabela user_ai_usage para sincronia perfeita com getUserUsage
+    const { error: insertError } = await supabase
+      .from('user_ai_usage')
+      .insert({
+        user_id: userId,
+        tipo_uso: tipoUso,
+        created_at: new Date().toISOString()
       });
 
-      if (!rpcError) {
-        if (typeof rpcData === 'boolean') {
-          return rpcData;
-        }
-        if (rpcData && typeof rpcData === 'object' && 'allowed' in rpcData) {
-          return Boolean((rpcData as any).allowed);
-        }
-        // Se a chamada RPC executou sem erro, o registro já foi realizado no banco atômico!
-        return true;
-      }
-    } catch (rpcEx) {
-      console.warn("Aviso na chamada RPC registrar_uso_ia_atomico:", rpcEx);
-    }
-
-    // 3. Fallback: Registrar consumo diretamente na tabela user_ai_usage APENAS se a RPC falhou/não existe
-    try {
-      const { error: insertError } = await supabase
-        .from('user_ai_usage')
-        .insert({
-          user_id: userId,
-          tipo_uso: tipoUso,
-          created_at: new Date().toISOString()
+    if (insertError) {
+      console.warn("Aviso na inserção direta em user_ai_usage, tentando via RPC:", insertError.message);
+      try {
+        await supabase.rpc('registrar_uso_ia_atomico', {
+          p_user_id: userId,
+          p_tipo_uso: tipoUso,
+          p_limite_diario: limitValue
         });
-
-      if (insertError) {
-        console.warn("Aviso na inserção direta em user_ai_usage:", insertError.message);
+      } catch (rpcErr) {
+        console.warn("Exceção no fallback RPC:", rpcErr);
       }
-    } catch (insErr: any) {
-      console.warn("Exceção ao inserir em user_ai_usage:", insErr?.message);
     }
 
-    // Se a contagem era menor que o limite, permite o uso pois acabamos de registrar
     return true;
   } catch (error: any) {
     if (error?.message?.includes("Failed to fetch")) {

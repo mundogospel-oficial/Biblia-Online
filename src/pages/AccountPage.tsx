@@ -20,18 +20,18 @@ import { syncKeyToSupabase } from "@/services/userSyncService";
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
 const OFFLINE_KEY = "bible-offline-enabled";
 
-// Helper to translate common Supabase auth errors
+// Helper to translate common auth errors for end users
 const translateAuthError = (message: string) => {
   if (!message) return "Ocorreu um erro ao processar. Tente novamente.";
   const lowered = message.toLowerCase();
   if (lowered.includes("captcha") || lowered.includes("disallowed") || lowered.includes("invalid-input-response")) {
-    return "Erro de Captcha no Supabase: Desative a opção 'Enable Captcha Protection' no painel do Supabase (Authentication > Security) ou configure a Secret Key do Turnstile.";
+    return "Falha na verificação de segurança. Tente novamente em alguns instantes.";
   }
   if (lowered.includes("database error saving new user") || lowered.includes("database error")) {
-    return "Erro ao salvar novo usuário. O e-mail ou nome de usuário pode já estar em uso. Tente fazer login ou escolha outro @username.";
+    return "Erro ao criar conta. O e-mail ou nome de usuário já pode estar em uso.";
   }
   if (lowered.includes("user already registered") || lowered.includes("user_already_exists") || lowered.includes("already registered")) {
-    return "E-mail já cadastrado. Tente fazer login ou recuperar senha.";
+    return "E-mail já cadastrado. Tente fazer login ou recuperar sua senha.";
   }
   if (lowered.includes("timeout-or-duplicate")) return "A verificação de segurança expirou. Tente novamente.";
   if (lowered.includes("failed to fetch")) return "Erro de conexão. Verifique sua internet.";
@@ -222,6 +222,9 @@ const AccountPage = () => {
         const avatarWithBuster = `${publicUrl}?t=${Date.now()}`;
         setAvatarUrl(avatarWithBuster);
         await supabase.from('profiles').upsert({ id: userId, avatar_url: avatarWithBuster });
+        if (authCtx.user) {
+          authCtx.login({ ...authCtx.user, picture: avatarWithBuster });
+        }
         
         toast({ 
           title: "Foto de perfil atualizada", 
@@ -259,6 +262,9 @@ const AccountPage = () => {
         // Atualiza perfil no banco de dados para nulo
         await supabase.from('profiles').upsert({ id: userId, avatar_url: null });
         setAvatarUrl(null);
+        if (authCtx.user) {
+          authCtx.login({ ...authCtx.user, picture: "" });
+        }
         if (fileInputRef.current) fileInputRef.current.value = "";
 
         toast({ 
@@ -333,7 +339,7 @@ const AccountPage = () => {
       // 3. Atualiza os estados locais
       setDisplayName(cleanName);
       if (authCtx.user) {
-        authCtx.user.name = cleanName;
+        authCtx.login({ ...authCtx.user, name: cleanName });
       }
 
       toast({ 
@@ -643,8 +649,8 @@ const AccountPage = () => {
             setPwnedLeakCount(pwnedResult.count);
             setShowPwnedModal(true);
             toast({
-              title: "🚨 Senha Vazada Detectada!",
-              description: `Sua senha atual apareceu em ${pwnedResult.count.toLocaleString("pt-BR")} vazamentos de dados na internet. É OBRIGATÓRIO cadastrar uma nova senha!`,
+              title: "Senha vulnerável detectada",
+              description: `Sua senha atual apareceu em vazamentos de dados na internet. É necessário cadastrar uma nova senha por segurança.`,
               variant: "destructive",
             });
             return;

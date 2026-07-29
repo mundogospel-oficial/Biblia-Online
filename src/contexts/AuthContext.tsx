@@ -27,6 +27,36 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+const BIBLE_USER_KEY = "bible-google-user";
+
+const getStoredUser = (): GoogleUser | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(BIBLE_USER_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && (parsed.email || parsed.sub)) {
+      return parsed as GoogleUser;
+    }
+  } catch (e) {
+    console.error("Erro ao ler dados do usuário do localStorage:", e);
+  }
+  return null;
+};
+
+const setStoredUser = (userData: GoogleUser | null) => {
+  if (typeof window === "undefined") return;
+  try {
+    if (userData) {
+      localStorage.setItem(BIBLE_USER_KEY, JSON.stringify(userData));
+    } else {
+      localStorage.removeItem(BIBLE_USER_KEY);
+    }
+  } catch (e) {
+    console.error("Erro ao salvar dados do usuário no localStorage:", e);
+  }
+};
+
 const isInvalidName = (name?: string | null) => {
   if (!name || !name.trim()) return true;
   const clean = name.trim().toLowerCase();
@@ -110,7 +140,7 @@ export const handleAuthError = async (error: any): Promise<boolean> => {
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<GoogleUser | null>(null);
+  const [user, setUser] = useState<GoogleUser | null>(() => getStoredUser());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -119,12 +149,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'auth-sync-logout') {
         setUser(null);
+        setStoredUser(null);
         setLoading(false);
+      } else if (e.key === BIBLE_USER_KEY) {
+        if (!e.newValue) {
+          setUser(null);
+        } else {
+          try {
+            setUser(JSON.parse(e.newValue));
+          } catch {}
+        }
       }
     };
     
     const handleLogoutLocal = () => {
       setUser(null);
+      setStoredUser(null);
       setLoading(false);
     };
 
@@ -140,18 +180,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const wasCleaned = await handleAuthError(error);
           if (wasCleaned && isSubscribed) {
             setUser(null);
+            setStoredUser(null);
             setLoading(false);
             return;
           }
-          if (error.message.includes("Failed to fetch")) {
+          if (error.message?.includes("Failed to fetch")) {
             console.warn("Sem conexão para verificar sessão.");
           }
         }
 
-        if (isSubscribed && session?.user) {
-          setUser(mapSupabaseUser(session.user));
-          setupPushNotifications(session.user.id);
-          syncAllUserDataFromSupabaseOnLogin().catch(console.error);
+        if (isSubscribed) {
+          if (session?.user) {
+            const mapped = mapSupabaseUser(session.user);
+            setUser(mapped);
+            setStoredUser(mapped);
+            setupPushNotifications(session.user.id);
+            syncAllUserDataFromSupabaseOnLogin().catch(console.error);
+          } else {
+            const localUser = getStoredUser();
+            if (!localUser) {
+              setUser(null);
+            }
+          }
         }
       } catch (err) {
         await handleAuthError(err);
@@ -166,12 +216,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!isSubscribed) return;
       
       if (session?.user) {
-        setUser(mapSupabaseUser(session.user));
+        const mapped = mapSupabaseUser(session.user);
+        setUser(mapped);
+        setStoredUser(mapped);
         syncAllUserDataFromSupabaseOnLogin().catch(console.error);
-      } else {
-        // Se houve erro no refresh silencioso disparado pelo Supabase, o session virá nulo
-        // e o evento pode não ser SIGNED_OUT se for um erro de rede/token
-        if (!session) setUser(null);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setStoredUser(null);
       }
       setLoading(false);
     });
@@ -184,14 +235,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // login kept for interface compatibility but is a no-op;
-  // auth state is driven exclusively by Supabase session
-  const login = (_userData: GoogleUser) => {};
+  const login = (userData: GoogleUser) => {
+    setUser(userData);
+    setStoredUser(userData);
+    if (userData.sub) {
+      setupPushNotifications(userData.sub);
+    }
+  };
 
   const logout = async () => {
     // Desativa planos de leitura e sincroniza dados antes de deslogar
     await deactivatePlansAndSyncOnLogout().catch(console.error);
     setUser(null);
+    setStoredUser(null);
     await forceSignOut();
   };
 

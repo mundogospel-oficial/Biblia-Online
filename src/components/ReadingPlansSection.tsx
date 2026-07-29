@@ -151,6 +151,14 @@ export const ReadingPlansSection = () => {
     }
 
     if (!isCurrentPlanActive) {
+      if (progress.activePlanId) {
+        toast({
+          title: "Você já tem um plano ativado!",
+          description: `Você precisa desativar o plano "${activePlan?.title || 'atual'}" antes de ativar ou realizar lições deste plano.`,
+          variant: "destructive",
+        });
+        return;
+      }
       // Automatically activate plan when user clicks on an uncompleted day to mark it
       const updated = await setActivePlan(currentPlanViewed.id);
       setProgress(updated);
@@ -234,6 +242,16 @@ export const ReadingPlansSection = () => {
       toast({
         title: "Login Necessário",
         description: "Você precisa fazer login para ativar planos de leitura e acompanhar seu progresso.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (progress.activePlanId && progress.activePlanId !== planId) {
+      const currentActive = readingPlans.find((p) => p.id === progress.activePlanId);
+      toast({
+        title: "Você já tem um plano ativado!",
+        description: `Para ativar o plano "${readingPlans.find(p => p.id === planId)?.title || 'novo'}", você precisa primeiro desativar o plano "${currentActive?.title || 'atual'}".`,
         variant: "destructive",
       });
       return;
@@ -406,21 +424,40 @@ export const ReadingPlansSection = () => {
 
         {/* Notice if inactive */}
         {!isCurrentPlanActive && (
-          <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 text-xs text-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className={`rounded-xl border p-4 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+            activePlan
+              ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
+              : "border-blue-500/30 bg-blue-500/10 text-blue-200"
+          }`}>
             <div className="flex items-center gap-2.5">
               <Sparkles className="h-4 w-4 text-accent shrink-0" />
               <span>
-                {completedDays.length > 0
-                  ? `Seu progresso está salvo! (${completedDays.length} de ${currentPlanViewed.durationDays} dias concluídos). Ative este plano para continuar marcando seus dias.`
-                  : 'Clique em "Ativar Este Plano Agora" para iniciar o acompanhamento diário e registrar suas reflexões.'}
+                {activePlan ? (
+                  <>
+                    Você já possui o plano <strong className="text-foreground font-bold">"{activePlan.title}"</strong> ativado. Desative o plano ativo para poder ativar este ou qualquer outro plano.
+                  </>
+                ) : completedDays.length > 0 ? (
+                  `Seu progresso está salvo! (${completedDays.length} de ${currentPlanViewed.durationDays} dias concluídos). Ative este plano para continuar marcando seus dias.`
+                ) : (
+                  'Clique em "Ativar Este Plano Agora" para iniciar o acompanhamento diário e registrar suas reflexões.'
+                )}
               </span>
             </div>
-            <button
-              onClick={() => handleSelectPlan(currentPlanViewed.id)}
-              className="px-3.5 py-1.5 bg-accent text-accent-foreground font-bold rounded-lg text-[11px] hover:opacity-90 transition-colors shrink-0 shadow-sm"
-            >
-              Ativar Este Plano Agora
-            </button>
+            {activePlan ? (
+              <button
+                onClick={() => setSelectedPlanId(activePlan.id)}
+                className="px-3.5 py-1.5 bg-amber-500/20 text-amber-300 font-bold rounded-lg text-[11px] hover:bg-amber-500/30 transition-colors shrink-0 shadow-sm border border-amber-500/40"
+              >
+                Ver Plano Ativo ("{activePlan.title}")
+              </button>
+            ) : (
+              <button
+                onClick={() => handleSelectPlan(currentPlanViewed.id)}
+                className="px-3.5 py-1.5 bg-accent text-accent-foreground font-bold rounded-lg text-[11px] hover:opacity-90 transition-colors shrink-0 shadow-sm"
+              >
+                Ativar Este Plano Agora
+              </button>
+            )}
           </div>
         )}
 

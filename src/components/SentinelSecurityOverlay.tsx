@@ -16,8 +16,8 @@ export interface SentinelSecurityOverlayProps {
 
 export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = ({
   isBlocked,
-  blockReason = "Comportamento violador ou atividade suspeita detectada pelo Sentinel Security.",
-  errorCode = "BAN_SENTINEL_SECURITY_0x800403",
+  blockReason = "Acesso suspenso por atividade não permitida.",
+  errorCode = "BAN_SECURITY_0x800403",
   fingerprint = "HASH_PROTECTED",
   isExtensionDetected,
   extensionReasons = [],
@@ -34,13 +34,13 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
   const turnstileRef = useRef<any>(null);
 
   // Formata o código do ban garantindo prefixo BAN_ sem a palavra "ERR_"
-  const rawCode = errorCode || fingerprint || "BAN_SENTINEL_SECURITY_0x800403";
+  const rawCode = errorCode || fingerprint || "BAN_SECURITY_0x800403";
   const displayBanCode = rawCode.replace(/^ERR_/, "BAN_");
 
   const handleCloudflareLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isCloudflareVerified && !turnstileToken) {
-      setLoginError("Por favor, conclua a verificação do Cloudflare Turnstile antes de prosseguir.");
+      setLoginError("Por favor, conclua a verificação de segurança antes de prosseguir.");
       return;
     }
 
@@ -146,7 +146,7 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
               Seu dispositivo foi bloqueado por motivos de segurança
             </h1>
             <p className="text-sm sm:text-base text-blue-100/90 font-sans leading-relaxed">
-              O sistema Sentinel identificou uma atividade suspeita ou violadora de segurança associada a este dispositivo. O acesso a esta aplicação foi suspenso para proteger os dados e o ambiente.
+              Identificamos uma atividade suspeita associada a este dispositivo. O acesso foi suspenso por medida de segurança.
             </p>
           </div>
 

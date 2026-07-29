@@ -94,7 +94,7 @@ export function useSentinel(config: any = {}) {
           timestamp: new Date().toISOString()
         };
         reportBanToSupabase(testRecord);
-        return "🚨 Sentinel: Bloqueio ativado e registrado no Supabase!";
+        return "Bloqueio de segurança ativado.";
       };
       (window as any).triggerSentinelBlock = (window as any).testSentinelBlock;
     }

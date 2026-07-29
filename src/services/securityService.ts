@@ -273,11 +273,11 @@ export const recordRateLimitAttempt = (category: "login" | "ai_prompt"): {
       allowed: false,
       isWarning: false,
       isBlocked: true,
-      message: "🚨 Acesso suspenso por violação de segurança e abuso de taxa."
+      message: "Acesso temporariamente suspenso por muitas tentativas incorretas. Tente novamente mais tarde."
     };
   }
 
-  // 1ª ocorrência -> Aviso de Rate Limit / Desafio Cloudflare
+  // 1ª ocorrência -> Aviso de limite
   if (count >= limit.warnThreshold) {
     rateLimitWarnings[category] = (rateLimitWarnings[category] || 0) + 1;
     return {
@@ -285,8 +285,8 @@ export const recordRateLimitAttempt = (category: "login" | "ai_prompt"): {
       isWarning: true,
       isBlocked: false,
       message: category === "login"
-        ? "⚠️ Aviso de Segurança Cloudflare/Sentinel: Muitas tentativas de login em curto intervalo. Aguarde 1 minuto."
-        : "⚠️ Aviso de Rate Limit: Muitas requisições de IA enviadas. Aguarde alguns instantes antes de enviar novamente."
+        ? "Muitas tentativas de login em um curto intervalo. Aguarde 1 minuto."
+        : "Muitas requisições enviadas. Aguarde alguns instantes antes de tentar novamente."
     };
   }
 

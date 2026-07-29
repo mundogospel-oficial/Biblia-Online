@@ -74,7 +74,7 @@ const ResetPasswordPage = () => {
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) {
-        toast({ title: "Erro", description: `Erro: ${translateAuthError(error.message)}`, variant: "destructive" });
+        toast({ title: "Erro", description: translateAuthError(error.message), variant: "destructive" });
         return;
       }
       toast({ title: "Sucesso", description: "Senha atualizada com sucesso!" });

@@ -375,38 +375,70 @@ const ImageGeneratingBubble = () => {
   }, [phrases.length]);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-white/20 dark:border-white/10 bg-background/50 backdrop-blur-xl p-3 sm:p-3.5 shadow-xl min-w-[260px] sm:min-w-[320px]">
-      {/* Liquid shimmer light sweep */}
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-accent/10 to-transparent animate-shimmer pointer-events-none" />
-      <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-accent/50 via-primary/60 to-accent/50 animate-pulse" />
+    <div className="relative overflow-hidden rounded-2xl border border-sky-400/35 dark:border-sky-400/25 bg-gradient-to-br from-slate-950/90 via-blue-950/85 to-sky-950/90 backdrop-blur-2xl p-3.5 sm:p-4 shadow-[0_8px_32px_0_rgba(2,132,199,0.3)] dark:shadow-[0_8px_32px_0_rgba(2,132,199,0.5)] min-w-[270px] sm:min-w-[340px]">
+      {/* Liquid Glass Specular Blue Highlight */}
+      <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-sky-400/25 via-blue-400/10 to-transparent rounded-t-2xl pointer-events-none" />
+
+      {/* Floating Ambient Blue Liquid Light Orbs */}
+      <motion.div
+        animate={{
+          x: [-12, 16, -12],
+          y: [-8, 8, -8],
+          scale: [0.9, 1.2, 0.9],
+        }}
+        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute -top-6 -left-6 w-28 h-28 rounded-full bg-sky-500/30 blur-2xl pointer-events-none"
+      />
+      <motion.div
+        animate={{
+          x: [12, -14, 12],
+          y: [8, -8, 8],
+          scale: [1.15, 0.85, 1.15],
+        }}
+        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute -bottom-6 -right-6 w-28 h-28 rounded-full bg-blue-600/35 blur-2xl pointer-events-none"
+      />
+
+      {/* Liquid Shimmer Light Sweep */}
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-sky-300/20 to-transparent animate-shimmer pointer-events-none" />
+
+      {/* Glowing Blue Top Border Accent */}
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-blue-500 via-sky-300 to-blue-500 shadow-[0_0_12px_rgba(56,189,248,0.9)] animate-pulse" />
 
       <div className="flex items-center gap-3 relative z-10">
-        <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-accent/20 border border-accent/40 shadow-inner">
+        {/* Liquid Glass Icon Badge */}
+        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-900/40 border border-sky-400/40 shadow-[0_4px_16px_rgba(2,132,199,0.25)] backdrop-blur-md">
+          {/* Animated liquid gradient outer ring */}
           <motion.div
             animate={{ rotate: 360 }}
-            transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
-            className="absolute inset-0 rounded-xl border border-dashed border-accent/60"
+            transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
+            className="absolute -inset-0.5 rounded-2xl p-[1.5px] bg-gradient-to-tr from-sky-400 via-blue-500 to-cyan-300 opacity-90 shadow-[0_0_12px_rgba(56,189,248,0.7)]"
           />
-          <Wand2 className="h-4 w-4 text-accent animate-pulse" />
+          <motion.div
+            animate={{ rotate: -360 }}
+            transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-0 rounded-2xl border border-dashed border-sky-300/80"
+          />
+          <Wand2 className="h-4 sm:h-5 w-4 sm:w-5 text-sky-300 animate-pulse drop-shadow-[0_0_10px_rgba(56,189,248,0.9)] z-10" />
         </div>
 
         <div className="flex flex-col gap-0.5 flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-xs text-foreground flex items-center gap-1">
+            <span className="font-bold text-xs sm:text-sm text-sky-100 flex items-center gap-1.5 tracking-tight drop-shadow-sm">
               Gerando Imagem com IA
-              <Sparkles className="h-3 w-3 text-accent animate-spin" style={{ animationDuration: '4s' }} />
+              <Sparkles className="h-3.5 w-3.5 text-sky-300 animate-spin" style={{ animationDuration: '3.5s' }} />
             </span>
           </div>
 
-          <div className="h-3.5 relative overflow-hidden">
+          <div className="h-4 relative overflow-hidden">
             <AnimatePresence mode="wait">
               <motion.span
                 key={stepIndex}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.25 }}
-                className="text-[11px] text-muted-foreground truncate block font-medium"
+                initial={{ opacity: 0, y: 6, filter: "blur(4px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, y: -6, filter: "blur(4px)" }}
+                transition={{ duration: 0.35, ease: "easeOut" }}
+                className="text-[11px] sm:text-xs text-sky-200/90 truncate block font-medium tracking-wide"
               >
                 {phrases[stepIndex]}
               </motion.span>
@@ -501,14 +533,14 @@ const IMAGE_STYLES: ImageStyleOption[] = [
     id: "cinematic",
     label: "Cinematográfico",
     badge: "Cinematográfico",
-    promptAddon: "CINEMATOGRÁFICO: Ultra-realistic epic movie still, crisp focal clarity, soft golden sunlight, anamorphic camera lens, shallow depth of field, sharp focus on eyes and face, pristine realistic skin tones, 8k resolution",
+    promptAddon: "CINEMATOGRÁFICO: Ultra-realistic epic movie still, crisp focal clarity, soft golden sunlight, anamorphic camera lens, shallow depth of field, ultra-realistic human eyes with identical matching eye color, hyper-detailed crystal-clear iris, razor-sharp pupil definition without motion blur even on extreme close-up zoom, pristine realistic skin tones, 8k resolution",
     description: "Luz dourada de cinema e lente anamórfica de alta clareza"
   },
   {
     id: "animation",
     label: "Animação 3D",
     badge: "Animação 3D",
-    promptAddon: "ANIMAÇÃO 3D: 3D animated character art style, smooth Pixar/Disney rendering, soft subsurface scattering lighting, expressive features, vibrant color palette",
+    promptAddon: "ANIMAÇÃO 3D: 3D animated character art style, smooth Pixar/Disney rendering, soft subsurface scattering lighting, expressive features, clear aligned eyes with razor-sharp pupil clarity, vibrant color palette",
     description: "Estilo 3D estilizado Pixar e Disney"
   },
   {
@@ -522,7 +554,7 @@ const IMAGE_STYLES: ImageStyleOption[] = [
     id: "realistic",
     label: "Fotorrealismo",
     badge: "Fotorrealismo",
-    promptAddon: "FOTORREALISMO: Award-winning ultra-realistic DSLR portrait photography, 8k UHD, shot on 85mm lens f/1.4, bright soft natural daylight, pristine clean skin, hyper-detailed clear eyes, sharp focus, authentic historical accuracy",
+    promptAddon: "FOTORREALISMO: Award-winning ultra-realistic DSLR portrait photography, 8k UHD, shot on 85mm lens f/1.4, bright soft natural daylight, pristine clean skin, ultra-realistic human eyes with identical matching eye color, hyper-detailed crystal-clear iris, razor-sharp pupil definition with zero motion blur even on extreme close-up zoom, sharp focus, authentic historical accuracy",
     description: "Fotografia fotorrealista com pele limpa e iluminação natural"
   },
   {
@@ -571,7 +603,7 @@ const AIPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showModes, setShowModes] = useState(false);
-  const [selectedImageStyle, setSelectedImageStyle] = useState<ImageStyleOption | null>(null);
+  const [selectedImageStyle, setSelectedImageStyle] = useState<ImageStyleOption | null>(() => IMAGE_STYLES.find(s => s.id === "cinematic") || IMAGE_STYLES[0]);
   const [showStylePicker, setShowStylePicker] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [historySearchQuery, setHistorySearchQuery] = useState("");
@@ -960,7 +992,7 @@ const AIPage = () => {
   useEffect(() => {
     if (activeMode === "image") {
       setLimitReached(usageStats.image >= LIMIT_IMAGE);
-    } else if (activeMode) {
+    } else if (activeMode && (activeMode === "video" || activeMode === "music")) {
       setLimitReached(usageStats.complex >= LIMIT_COMPLEX);
     } else if (aiEngine === "simples") {
       setLimitReached(usageStats.simple >= LIMIT_SIMPLE);
@@ -1282,6 +1314,7 @@ const AIPage = () => {
     const limitType = mode === 'video' || mode === 'music' ? 'complex' : 'image';
     try {
       const hasQuota = await checkAndIncrementUsage(limitType as any, user.sub);
+      await fetchUsage();
       if (!hasQuota) {
         toast({ title: "Limite atingido", description: "Sua cota diária para este recurso acabou. Recarga em até 12h.", variant: "destructive" });
         setLimitReached(true);
@@ -1427,6 +1460,7 @@ NUNCA use # para títulos, use **negrito**.`;
       } else {
         const limitType = aiEngine === "complexo" ? "complex" : "simple";
         const hasQuota = await checkAndIncrementUsage(limitType, user.sub);
+        await fetchUsage();
         if (!hasQuota) {
           toast({ 
             title: "Limite atingido", 
@@ -1459,10 +1493,8 @@ NUNCA use # para títulos, use **negrito**.`;
     try {
       let responseText = "";
       if (activeMode === 'image') {
-        let imagePromptWithStyle = finalText;
-        if (selectedImageStyle) {
-          imagePromptWithStyle = `[Estilo: ${selectedImageStyle.label} - ${selectedImageStyle.promptAddon}] ${finalText}`;
-        }
+        const activeStyle = selectedImageStyle || IMAGE_STYLES.find(st => st.id === "cinematic") || IMAGE_STYLES[0];
+        const imagePromptWithStyle = `[Estilo: ${activeStyle.label} - ${activeStyle.promptAddon}] ${finalText}`;
         responseText = await generateBiblicalImage(imagePromptWithStyle, controller.signal, 'square', false, 'chat', aiEngine === 'complexo');
       } else if (activeMode === 'learning') {
         const learningPrompt = `Você é um professor e teólogo cristão dedicado ao ensino bíblico de forma altamente didática, passo a passo e interativa.
@@ -1593,7 +1625,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
       <div className="space-y-1">
         {msg.image && (
           <Fragment>
-            <div className="mb-2 relative w-full aspect-square overflow-hidden rounded-xl bg-muted border border-border shadow-inner">
+            <div className="mb-2 relative w-full max-w-[280px] sm:max-w-[320px] aspect-square overflow-hidden rounded-xl bg-muted border border-border shadow-md">
               <ResilientImage src={msg.image} alt="Imagem bíblica gerada" onClick={() => setLightboxImage(msg.image!)} />
             </div>
             <div className="mt-1.5 flex gap-2">
@@ -1614,7 +1646,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
              const imageUrl = imgMatch[1];
              return (
                <Fragment key={i}>
-                 <div className="mb-2 mt-2 relative w-full aspect-square overflow-hidden rounded-xl bg-muted border border-border shadow-inner">
+                 <div className="mb-2 mt-2 relative w-full max-w-[280px] sm:max-w-[320px] aspect-square overflow-hidden rounded-xl bg-muted border border-border shadow-md">
                    <ResilientImage src={imageUrl} alt="Imagem bíblica gerada" onClick={() => setLightboxImage(imageUrl)} />
                  </div>
                  <div className="mt-1.5 flex gap-2">
@@ -2545,7 +2577,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                       >
                         <Palette className="h-4 w-4 shrink-0 text-accent" />
                         <span className="text-[11px] font-semibold max-w-[95px] truncate">
-                          {selectedImageStyle ? selectedImageStyle.label : "Estilo"}
+                          {selectedImageStyle ? selectedImageStyle.label : "Cinematográfico"}
                         </span>
                         <ChevronDown className={`h-3 w-3 shrink-0 transition-transform duration-200 ${showStylePicker ? "rotate-180" : ""}`} />
                       </button>
@@ -2565,37 +2597,21 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                                 <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
                                   <Palette className="h-4 w-4 text-accent" /> Selecionar Estilo Visual
                                 </span>
-                                {selectedImageStyle && (
+                                {selectedImageStyle?.id !== "cinematic" && (
                                   <button
                                     type="button"
-                                    onClick={() => setSelectedImageStyle(null)}
+                                    onClick={() => setSelectedImageStyle(IMAGE_STYLES.find(s => s.id === "cinematic") || null)}
                                     className="text-[11px] text-accent hover:text-accent/80 font-semibold transition-colors"
                                   >
-                                    Limpar
+                                    Restaurar Padrão
                                   </button>
                                 )}
                               </div>
 
                               <div className="grid grid-cols-1 gap-1.5 max-h-64 overflow-y-auto pr-1.5 custom-scrollbar">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedImageStyle(null);
-                                    setShowStylePicker(false);
-                                  }}
-                                  className={`flex items-center justify-between rounded-xl px-3 py-2 text-left text-xs transition-all ${
-                                    !selectedImageStyle ? "bg-accent/20 font-bold text-accent border border-accent/40" : "hover:bg-secondary/80 text-foreground"
-                                  }`}
-                                >
-                                  <div>
-                                    <p className="font-semibold text-xs">Nenhum (Padrão Livre)</p>
-                                    <p className="text-[10px] text-muted-foreground">A IA decide o melhor estilo com base no pedido</p>
-                                  </div>
-                                  {!selectedImageStyle && <Check className="h-4 w-4 text-accent shrink-0" />}
-                                </button>
-
                                 {IMAGE_STYLES.map((st) => {
                                   const isSelected = selectedImageStyle?.id === st.id;
+                                  const isDefault = st.id === "cinematic";
                                   return (
                                     <button
                                       key={st.id}
@@ -2613,6 +2629,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                                       <div className="min-w-0 flex-1 pr-2">
                                         <p className="font-semibold text-xs text-foreground flex items-center justify-between gap-1">
                                           <span>{st.label}</span>
+                                          {isDefault && <span className="text-[10px] text-accent font-normal">(Padrão)</span>}
                                         </p>
                                         <p className="text-[10px] text-muted-foreground truncate mt-0.5">{st.description}</p>
                                       </div>

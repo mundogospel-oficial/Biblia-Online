@@ -106,51 +106,62 @@ const AIImagePreviewLoadingOverlay = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="absolute inset-0 z-30 flex flex-col items-center justify-center p-6 text-center overflow-hidden bg-black/65 backdrop-blur-2xl rounded-2xl"
+      className="absolute inset-0 z-30 flex flex-col items-center justify-center p-6 text-center overflow-hidden bg-black/70 backdrop-blur-2xl rounded-2xl"
     >
       {/* Liquid glass floating background light aura */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full bg-accent/20 blur-3xl pointer-events-none animate-pulse" />
-      <div className="absolute top-1/3 left-1/3 w-40 h-40 rounded-full bg-primary/20 blur-2xl pointer-events-none animate-pulse" style={{ animationDuration: '6s' }} />
+      <motion.div
+        animate={{ scale: [0.9, 1.15, 0.9], rotate: [0, 90, 0] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full bg-accent/25 blur-3xl pointer-events-none"
+      />
+      <motion.div
+        animate={{ scale: [1.1, 0.85, 1.1], rotate: [0, -90, 0] }}
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute top-1/3 left-1/3 w-48 h-48 rounded-full bg-cyan-400/20 blur-3xl pointer-events-none"
+      />
 
       {/* Shimmer light sweep */}
-      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-accent/10 to-transparent animate-shimmer pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-accent/15 to-transparent animate-shimmer pointer-events-none" />
 
       {/* Liquid Glass Badge Card */}
       <motion.div
         initial={{ scale: 0.9, y: 10 }}
         animate={{ scale: 1, y: 0 }}
-        className="relative z-10 rounded-2xl border border-white/20 dark:border-white/10 bg-background/50 backdrop-blur-xl p-6 sm:p-7 shadow-2xl flex flex-col items-center max-w-xs sm:max-w-sm w-full"
+        className="relative z-10 rounded-2xl border border-sky-400/35 dark:border-sky-400/25 bg-gradient-to-br from-slate-950/90 via-blue-950/85 to-sky-950/90 backdrop-blur-2xl p-6 sm:p-8 shadow-[0_8px_32px_0_rgba(2,132,199,0.35)] flex flex-col items-center max-w-xs sm:max-w-sm w-full overflow-hidden"
       >
+        {/* Specular Top Glass Reflection */}
+        <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-sky-400/25 via-blue-400/10 to-transparent rounded-t-2xl pointer-events-none" />
+
         {/* Animated Icon with liquid ring */}
         <div className="relative flex h-16 w-16 items-center justify-center mb-4">
-          {/* Outer rotating dashed ring */}
+          {/* Outer liquid rotating border ring */}
           <motion.div
             animate={{ rotate: 360 }}
-            transition={{ duration: 7, repeat: Infinity, ease: "linear" }}
-            className="absolute inset-0 rounded-full border-2 border-dashed border-accent/70"
+            transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+            className="absolute -inset-1 rounded-full p-[2px] bg-gradient-to-tr from-sky-400 via-blue-500 to-cyan-300 opacity-90 shadow-[0_0_15px_rgba(56,189,248,0.7)]"
           />
           {/* Inner glass icon container */}
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/20 border border-accent/40 shadow-inner backdrop-blur-md">
-            <Wand2 className="h-6 w-6 text-accent animate-pulse" />
+          <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-900/40 border border-sky-400/40 shadow-[0_4px_16px_rgba(2,132,199,0.25)] backdrop-blur-md z-10">
+            <Wand2 className="h-7 w-7 text-sky-300 animate-pulse drop-shadow-[0_0_10px_rgba(56,189,248,0.9)]" />
           </div>
         </div>
 
         {/* Title */}
-        <div className="flex items-center gap-1.5 mb-2">
-          <span className="font-bold text-base text-foreground tracking-tight">Criando Ilustração IA</span>
-          <Sparkles className="h-4 w-4 text-accent animate-spin" style={{ animationDuration: '4s' }} />
+        <div className="flex items-center gap-2 mb-2 z-10">
+          <span className="font-bold text-base sm:text-lg text-sky-100 tracking-tight drop-shadow-sm">Criando Ilustração IA</span>
+          <Sparkles className="h-4.5 w-4.5 text-sky-300 animate-spin" style={{ animationDuration: '3.5s' }} />
         </div>
 
         {/* Rotating phrase */}
-        <div className="h-6 relative overflow-hidden w-full flex items-center justify-center">
+        <div className="h-6 relative overflow-hidden w-full flex items-center justify-center z-10">
           <AnimatePresence mode="wait">
             <motion.span
               key={stepIndex}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.3 }}
-              className="text-xs text-muted-foreground font-medium text-center truncate block px-2"
+              initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
+              className="text-xs sm:text-sm text-muted-foreground font-medium text-center truncate block px-2 tracking-wide"
             >
               {phrases[stepIndex]}
             </motion.span>

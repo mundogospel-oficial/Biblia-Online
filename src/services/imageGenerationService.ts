@@ -315,30 +315,42 @@ export const generateBiblicalImage = async (
 Você é um Diretor de Arte de Imagens Bíblicas e Moderador de Conteúdo Mestre, especialista em Engenharia de Prompts para geradores de imagem avançados.
 
 REGRA 1 (Nudez e Conteúdo Impróprio/Sensual): Verifique se o pedido contém qualquer menção direta ou indireta a nudez, sensualidade, erotismo, trajes sumários/íntimos ou conteúdo adulto. Se violar esta regra, responda EXATAMENTE: "BLOQUEADO".
-EXCEÇÃO SAGRADA OBRIGATÓRIA PARA ADÃO E EVA / JARDIM DO ÉDEN: Se o pedido for sobre "Adão e Eva", "Adam and Eve" ou o "Jardim do Éden", NÃO BLOQUEIE. Em vez disso, transforme o pedido em uma cena bíblica sagrada e highly respeitosa de Adão e Eva vestindo vestes/túnicas modestas e elegantes de linho bíblico no Jardim do Éden paradisíaco, cercados por natureza exuberante, rios e luz divina.
+EXCEÇÃO SAGRADA OBRIGATÓRIA PARA ADÃO E EVA / JARDIM DO ÉDEN: Se o pedido for sobre "Adão e Eva", "Adam and Eve", "Adão", "Eva" ou o "Jardim do Éden", NÃO BLOQUEIE. Em vez disso, transforme o pedido em uma cena bíblica sagrada e altamente respeitosa de Adão e Eva no Jardim do Éden paradisíaco, cercados por natureza exuberante (árvores frutíferas, rios cristalinos, animais pacíficos, flores e iluminação divina).
+- PERSONAGENS DE ADÃO E EVA: Descreva obrigatoriamente um homem adulto (Adão) com estrutura facial masculina bonita e cabelo curto, e uma mulher adulta (Eva) com estrutura facial feminina graciosa e cabelos longos e ondulados (um casal de homem e mulher) vestindo vestes/túnicas modestas e elegantes de linho bíblico clássico (sem nudez, estilo sacro e respeitoso).
+- ROSTOS E OLHOS DE ADÃO E EVA: Exija expressamente rostos bonitos e limpos com olhos humanos altamente realistas da mesma cor ("beautiful clean human faces, ultra-realistic human eyes with identical matching eye color, hyper-detailed crystal-clear iris, razor-sharp pupil definition with zero motion blur even on extreme close-up zoom, 8k focus, lifelike eye catchlight reflections, serene natural expression, pristine skin").
 
-REGRA 2 (Filtro Bíblico e Cristão Estrito): Verifique se o pedido é EXCLUSIVAMENTE sobre temas, passagens, cenários, profecias, virtudes ou personagens descritos na Bíblia Sagrada ou relacionados à fé e história cristã. Se contiver QUALQUER assunto de outras religiões (Budismo, Hinduísmo, Mitologia, Entidades de Matriz Africana, etc.), feitiçaria, bruxaria, ocultismo, satanismo, horóscopo, tarô, astrologia, deuses pagãos ou temas seculares/mundanos (tecnologia moderna, carros, super-heróis, anime, esportes seculares), responda EXATAMENTE: "BLOQUEADO".
+REGRA 2 (Filtro Bíblico e Cristão Estrito): Verifique se o pedido é EXCLUSIVAMENTE sobre temas, passagens, cenários, profecias, virtudes ou personagens descritos na Bíblia Sagrada ou relacionados à fé e história cristã. Se contiver QUALQUER assunto de outras religiões (Budismo, Hinduísmo, Mitologia, Entidades de Matriz Africana, etc.), feitiçaria, bruxaria, occultismo, satanismo, horóscopo, tarô, astrologia, deuses pagãos ou temas seculares/mundanos (tecnologia moderna, carros, super-heróis, anime, esportes seculares), responda EXATAMENTE: "BLOQUEADO".
 
 ${isCreateMode ? `REGRA 3 (MODO CRIAR COM VERSÍCULOS - PAISAGENS NATURAIS SEM HUMANOS):
 ATENÇÃO OBRIGATÓRIA: Este pedido é do Modo Criar com Versículos (fundo de imagem para texto/post). A imagem DEVE SER EXCLUSIVAMENTE UMA PAISAGEM NATURAL BÍBLICA, SEM NENHUMA PESSOA, SEM SERES HUMANOS, SEM ROSTOS, SEM CORPOS E SEM FIGURAS HUMANAS.
-Gere um prompt em inglês focado 100% em elementos de natureza inspiradora (céu, montanhas, vales, desertos, rios, mares, árvores, flores, luz solar divina, névoa, nascer do sol) e adicione OBRIGATORIAMENTE ao final do prompt: "serene scenic natural landscape, no people, no humans, empty nature background, peaceful biblical environment, 8k resolution".` : `REGRA 3 (ANATOMIA, PERSONAGENS BÍBLICOS E ADÃO E EVA):
-Ao traduzir e enriquecer o pedido para o INGLÊS, crie uma descrição natural, fluida e de altíssima fidelidade.
-- PERSONAGENS BÍBLICOS, CASAIS E ADÃO E EVA (OBRIGATÓRIO):
-  * Para Adão e Eva ("Adão e Eva" / "Adam and Eve"): Descreva obrigatoriamente e com máxima clareza: "one adult male (Adam) with distinct masculine facial structure and short hair, and one adult female (Eve) with distinct feminine facial structure and long flowing hair, a man and a woman couple standing together, wearing modest classical biblical linen garments in the lush Garden of Eden paradise, surrounded by vibrant fruit trees, crystal clear rivers, serene animals, and divine sunlight rays. Respectful, sacred, classical fine art style, no nudity, natural human faces".
-  * Para Casais / Homem e Mulher: Sempre diferencie explicitamente "one adult male with masculine features and one adult female with feminine features" para garantir a diferenciação correta dos gêneros sem confundir o gerador de imagem.
-  * Para outros personagens bíblicos (Jesus, Moisés, Davi, Abraão, etc.): Descreva feições humanas realistas e serenas, vestes históricas detalhadas e contexto bíblico fiel.
-- ANATOMIA E OLHOS NATURAIS (CRÍTICO): Os olhos e rostos devem ser humanos, anatômicos e totalmente naturais ("natural realistic human eyes, crystal-clear iris, anatomically accurate round pupils, natural realistic eye gaze, sharp eye focus"). NUNCA gere rostos rachados, vitrais quebrados, mosaicos disformes, olhos vesgos, heterocromia estranha ou deformações faciais. Se duas pessoas estiverem na cena, especifique a diferenciação anatômica e o olhar natural entre elas.
-- COMPOSIÇÃO E ENQUADRAMENTO: Mantenha um enquadramento equilibrado de retrato ou cena (medium portrait or scenic historical composition, balanced facial proportions) para evitar deformação facial de lente super próxima.
-- ILUMINAÇÃO E PELE: Iluminação natural e cristalina (bright soft natural daylight), cores vivas e pele limpa e realista.
-- ESTILOS ESPECÍFICOS ([Estilo: ...]):
-  * CINEMATOGRÁFICO: "A high-end cinematic movie still, medium shot portrait, crisp focal clarity on face and eyes, crystal-clear detailed round pupils and iris with identical matching eye color, soft golden sunlight, anamorphic 85mm lens, shallow depth of field, vivid natural colors, masterwork 8k resolution."
-  * ANIMAÇÃO 3D: "A beautiful 3D animated character illustration, Pixar and Disney studio art style, expressive face, clear aligned eyes, smooth 3D rendering, vibrant colors."
+Gere um prompt em inglês focado 100% em elementos de natureza inspiradora (céu, montanhas, vales, desertos, rios, mares, árvores, flores, luz solar divina, névoa, nascer do sol) e adicione OBRIGATORIAMENTE ao final do prompt: "serene scenic natural landscape, no people, no humans, empty nature background, peaceful biblical environment, 8k resolution".` : `REGRA 3 (ADAPTAÇÃO SEMÂNTICA, PERSONAGENS BÍBLICOS E MONUMENTOS/ARQUITETURA):
+Ao traduzir e enriquecer o pedido para o INGLÊS, identifique e adapte a estrutura do prompt com base no CONTEÚDO SOLICITADO:
+
+TIPO A — ADÃO E EVA / JARDIM DO ÉDEN (OBRIGATÓRIO):
+- Sempre coloque a cena no Jardim do Éden paradisíaco ("lush Garden of Eden paradise, surrounded by vibrant fruit trees, crystal clear rivers, serene animals, and divine sunlight rays").
+- Descreva Adão e Eva como um homem e uma mulher com estruturas faciais bonitas, anatomicamente perfeitas e olhos humanos extremamente realistas com a mesma cor em cada par de olhos ("beautiful clean human faces, ultra-realistic human eyes with identical matching eye color, hyper-detailed crystal-clear iris, razor-sharp pupil definition with zero motion blur even on extreme close-up zoom, 8k focus, lifelike eye catchlight reflections, serene expression, pristine skin").
+- Vestes modestas e sagradas de linho bíblico (sem nudez).
+
+TIPO B — MONUMENTOS, ARQUITETURA, ESTRUTURAS E PAISAGENS BÍBLICAS (EX: TORRE DE BABEL, ARCA DE NOÉ, TEMPLO DE SALOMÃO, MAR VERMELHO, JERICÓ, MONTE SINAI):
+- ATENÇÃO CRÍTICA: Se o pedido for sobre estruturas, monumentos, arquitetura ou grandes eventos bíblicos sem foco em retratos humanos (exemplo: "Torre de Babel", "Arca de Noé", "Templo de Salomão", "Mar Vermelho", "Muralhas de Jericó", "Monte Sinai", "Criação do Mundo"):
+- NÃO ADICIONE NEM FORCE rostos humanos, olhos em close-up, nem termos de fotografia de retrato! A imagem deve focar 100% no MONUMENTO, NA ARQUITETURA, NA ESCALA ÉPICA E NO SIGNIFICADO HISTÓRICO BÍBLICO.
+- Para "TORRE DE BABEL" / "Tower of Babel": Descreva aprimoradamente uma colossal e imponente torre ziggurat antiga de tijolos alcançando as nuvens ("an awe-inspiring epic ancient ziggurat tower of Babel reaching up into dramatic clouds, monumental ancient Mesopotamian clay-brick architecture, detailed ancient construction site at the base with small distant ancient workers, vast biblical plains of Shinar, golden dramatic lighting, volumetric sunbeams, hyper-detailed historical accuracy, 8k resolution").
+- Para "ARCA DE NOÉ" / "Noah's Ark": Descreva a imensa arca de madeira em Mount Ararat ou em meio ao dilúvio e arco-íris, focando na majestosa estrutura de madeira de gofer e no cenário épico.
+- Para "MAR VERMELHO": Descreva o milagre monumental com paredes colossais de água cristalina nas laterais e caminho seco ao centro.
+- Aprimore a descrição para que o gerador de imagem entenda com profundidade a atmosfera, o estilo arquitetônico e a grandiosidade sem adicionar rostos deslocados da cena.
+
+TIPO C — OUTROS PERSONAGENS BÍBLICOS (Jesus, Moisés, Davi, Abraão, Profetas, Apóstolos, etc.):
+- Descreva feições humanas bonitas, serenas e realistas, vestes históricas detalhadas e contexto bíblico fiel.
+- OLHOS E ANATOMIA NATURAIS: Exija olhos humanos totalmente naturais, ultrarrealistas e extremamente nítidos com a mesma cor em cada par de olhos ("ultra-realistic human eyes with identical matching eye color, hyper-detailed crystal-clear iris, razor-sharp pupil definition with zero motion blur even on extreme close-up zoom, 8k focus, lifelike eye catchlight reflections, serene natural gaze, pristine clean skin, anatomically correct features"). NUNCA insira mosaicos, vitrais, borrões ou trincas no rosto.
+
+ESTILOS VISUAIS ([Estilo: ...]):
+- Se nenhum estilo específico for solicitado, utilize POR PADRÃO O ESTILO CINEMATOGRÁFICO:
+  * CINEMATOGRÁFICO (Padrão): "High-end epic cinematic movie still, masterwork lighting, crisp focal clarity, ultra-realistic human eyes with identical matching eye color, hyper-detailed crystal-clear iris, razor-sharp pupil definition with zero motion blur even on close-up zoom, soft golden sunlight, anamorphic camera lens, shallow depth of field, vivid natural colors, masterwork 8k resolution."
+  * ANIMAÇÃO 3D: "A beautiful 3D animated character illustration, Pixar and Disney studio art style, expressive face, clear aligned eyes with identical matching eye color and razor-sharp pupil clarity, smooth 3D rendering, vibrant colors."
   * PIXEL ART: "Crisp 16-bit pixel art style, detailed retro video game graphics, clean pixel edges, nostalgic vibrant colors."
-  * FOTORREALISMO / PADRÃO: "An award-winning ultra-realistic 8k DSLR portrait photograph, medium portrait composition, razor-sharp focus on human face and eyes, crystal-clear detailed round pupils and iris with identical matching eye color, natural realistic eye gaze, pristine ultra-detailed human skin texture, bright soft natural daylight, 85mm lens f/1.8, authentic historical accuracy."
-  * PINTURA A ÓLEO: "Master classical oil painting on canvas, refined elegant brushwork, luminous lighting, clear detailed facial features and expressive natural eyes, museum fine art quality."
-  * AQUARELA: "Delicate watercolor painting on textured paper, soft fluid pastel colors, clean artistic outlines, graceful watercolor washes."
-  * ANIME: "High quality Studio Ghibli inspired anime illustration, clean line art, luminous soft lighting, vibrant colors, expressive clear eyes."
-  * ILUSTRAÇÃO BÍBLICA SACRA: "Sacred illuminated manuscript artwork, royal gold leaf accents in decorative background frame, stained glass window cathedral architecture background, reverent biblical fresco style with smooth realistic human face and clean skin in foreground, natural realistic human eyes, no stained glass on face, no cracked skin."`}
+  * FOTORREALISMO: "An award-winning ultra-realistic 8k DSLR photograph, razor-sharp focus on faces and eyes, pristine detailed human skin texture, ultra-realistic human eyes with identical matching eye color, hyper-detailed crystal-clear iris, razor-sharp pupil definition without motion blur even on extreme close-up zoom, natural daylight, authentic historical accuracy."
+  * PINTURA A ÓLEO: "Master classical oil painting on canvas, refined elegant brushwork, luminous lighting, museum fine art quality."
+  * AQUARELA: "Delicate watercolor painting on textured paper, soft fluid pastel colors, clean artistic outlines."`}
 
 REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS em um único parágrafo fluido. Não inclua aspas, preâmbulos, avisos ou explicações. Se for inadequado, responda APENAS: "BLOQUEADO".`;
 
@@ -405,9 +417,11 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
         }
       }
 
+      const displayPrompt = cleanPrompt.replace(/\[Estilo:\s*[^\]]+\]/gi, '').trim() || cleanPrompt;
+
       const isAdamAndEve = /(?:adão|adao|adam).*(?:eva|eve)|(?:eva|eve).*(?:adão|adao|adam)|jardim do [ée]den|garden of eden/i.test(cleanPrompt + " " + enhancedPrompt);
       if (isAdamAndEve) {
-        const adamEveBase = `Award-winning photorealistic medium portrait photograph of Adam and Eve standing side by side in the Garden of Eden. On the left, Adam: handsome adult man with masculine facial features, short dark hair, clean smooth skin, and natural brown eyes. On the right, Eve: beautiful adult woman with feminine facial features, long wavy brown hair, clean smooth skin, and natural brown eyes. Balanced eye-level medium portrait shot, bright soft uniform key lighting brightly and evenly illuminating both faces, complete 100% unobstructed visibility of both eyes on both people with zero dark shadows or leaf reflections covering the eyes. Razor-sharp 8k focus on both faces, anatomically flawless facial symmetry, perfectly matching symmetrical eyes fully open, crystal-clear round pupils and natural iris reflections on both left and right eyes of each person, natural skin texture, perfectly defined eyebrows and relaxed lips. Pristine high-definition realism, no shadowed eyes, no glitched pupils, no distorted eyelids, no hair or leaves covering eyes, no heterochromia, no blurry face`;
+        const adamEveBase = `Award-winning photorealistic medium chest-up portrait photograph of Adam and Eve standing in the Garden of Eden, facing forward towards the camera. On the left, Adam: handsome adult man with masculine facial features, short dark hair, clean smooth skin, and natural dark brown eyes. On the right, Eve: beautiful adult woman with feminine facial features, long wavy brown hair, clean smooth skin, and natural brown eyes. Balanced eye-level composition with clear space around faces, soft uniform studio fill lighting evenly illuminating both faces with zero harsh dappled sunlight shadows across eyes or skin. 100% complete unobstructed visibility of all eyes, clear gap between foliage leaves and faces so no leaves cover or touch eyes or eyebrows. Razor-sharp 8k focus on both faces, anatomically flawless facial symmetry, perfectly matching symmetrical eyes fully open, crystal-clear centered round dark pupils, razor-sharp iris texture, natural eye catchlight reflections on both eyes of each person, natural skin texture, perfectly defined eyebrows and relaxed lips. Pristine high-definition realism, no shadowed eyes, no white cloudy eyes, no blinded eyes, no cat eye pupils, no glitched pupils, no distorted eyelids, no hair or leaves covering eyes, no heterochromia, no strabismus, no blurry face`;
         if (extractedStyle) {
           finalPrompt = `${extractedStyle}, ${adamEveBase}`;
         } else {
@@ -425,9 +439,9 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
           finalPrompt += `, stained glass/mosaic pattern strictly limited to background cathedral architecture frame, smooth clean photorealistic human face and pristine natural skin in foreground`;
         }
 
-        const facialHarmonizerAddon = `photorealistic medium portrait photograph, balanced eye-level composition, bright uniform lighting across all faces with zero shadows on eyes, crisp razor-sharp focus on human faces and eyes, 100% clear unobstructed eyes on all individuals, anatomically perfect facial symmetry, clean smooth skin tone, authentic photorealistic human eyes with crystal-clear round pupils and natural iris texture, symmetrical eye gaze, perfectly defined eyebrows and lips, 8k resolution professional photography, no shadowed eyes, no glitched pupils, no distorted eyelids, no heterochromia, no blurry face`;
+        const facialHarmonizerAddon = `photorealistic medium chest-up portrait photograph, balanced eye-level composition, soft uniform studio fill lighting across all faces with zero dark shadows or dappled reflections covering eyes, crisp razor-sharp focus on human faces and eyes, 100% clear unobstructed eyes on all individuals, clear gap between foliage and faces, anatomically perfect facial symmetry, clean smooth skin tone, authentic photorealistic human eyes with crystal-clear centered round dark pupils and natural iris texture, symmetrical forward eye gaze, perfectly defined eyebrows and lips, 8k resolution professional photography, no shadowed eyes, no white cloudy eyes, no glitched pupils, no distorted eyelids, no heterochromia, no strabismus, no blurry face`;
 
-        if (!finalPrompt.toLowerCase().includes("photorealistic medium portrait photograph")) {
+        if (!finalPrompt.toLowerCase().includes("photorealistic medium")) {
           finalPrompt = `${finalPrompt}, ${facialHarmonizerAddon}`;
         }
       }
@@ -502,14 +516,14 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
         if (returnRawUrl) {
           return base64Bytes;
         }
-        return `Aqui está a imagem gerada para: "${cleanPrompt}"\n\n![${cleanPrompt}](${base64Bytes})`;
+        return `Aqui está a imagem gerada para: "${displayPrompt}"\n\n![${displayPrompt}](${base64Bytes})`;
       } catch (clientErr: any) {
         console.warn("[Fallback Cliente] Falha ao converter imagem para base64 local, aplicando fallback com link direto:", clientErr);
         const watermarkedUrl = await ensureWatermarkedImage(pollinationsUrl);
         if (returnRawUrl) {
           return watermarkedUrl;
         }
-        return `Aqui está a imagem gerada para: "${cleanPrompt}"\n\n![${cleanPrompt}](${watermarkedUrl})`;
+        return `Aqui está a imagem gerada para: "${displayPrompt}"\n\n![${displayPrompt}](${watermarkedUrl})`;
       }
     }
 
@@ -532,7 +546,7 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
       if (returnRawUrl) {
         return watermarkedBase64;
       }
-      return `Aqui está a imagem gerada para: "${cleanPrompt}"\n\n![${cleanPrompt}](${watermarkedBase64})`;
+      return `Aqui está a imagem gerada para: "${displayPrompt}"\n\n![${displayPrompt}](${watermarkedBase64})`;
     }
 
     try {
@@ -580,14 +594,14 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
         return base64Bytes;
       }
 
-      return `Aqui está a imagem gerada para: "${cleanPrompt}"\n\n![${cleanPrompt}](${base64Bytes})`;
+      return `Aqui está a imagem gerada para: "${displayPrompt}"\n\n![${displayPrompt}](${base64Bytes})`;
     } catch (fetchErr: any) {
       console.warn("Falha ao converter imagem gerada para base64 local, aplicando fallback com link direto:", fetchErr);
       const watermarkedUrl = await ensureWatermarkedImage(pollinationsUrl);
       if (returnRawUrl) {
         return watermarkedUrl;
       }
-      return `Aqui está a imagem gerada para: "${cleanPrompt}"\n\n![${cleanPrompt}](${watermarkedUrl})`;
+      return `Aqui está a imagem gerada para: "${displayPrompt}"\n\n![${displayPrompt}](${watermarkedUrl})`;
     }
   } catch (error: any) {
     console.error("Falha ao gerar imagem:", error);
