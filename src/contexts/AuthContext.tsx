@@ -1,6 +1,3 @@
-/**
- * Auth Context - Refactored Logout and Session State Management
- */
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { supabase, isAuthRefreshError } from "@/integrations/supabase/client";
 import type { User as SupaUser } from "@supabase/supabase-js";
@@ -89,27 +86,16 @@ export const forceSignOut = async () => {
   try {
     // 1. Previne reautenticação automática do navegador (Credential Manager API)
     if (typeof window !== "undefined" && (navigator as any).credentials?.preventSilentAccess) {
-      try {
-        await (navigator as any).credentials.preventSilentAccess();
-      } catch (credErr) {
-        console.warn("Aviso ao prevenir silent access do navegador:", credErr);
-      }
+      await (navigator as any).credentials.preventSilentAccess().catch(() => {});
     }
 
     // 2. Limpeza completa dos dados do usuário do localStorage
     clearAllLocalUserData();
 
     // 3. Encerra a sessão no Supabase globalmente
-    try {
-      await supabase.auth.signOut({ scope: "global" });
-    } catch (globalErr) {
-      console.warn("Aviso ao encerrar sessão global no Supabase:", globalErr);
-      try {
-        await supabase.auth.signOut();
-      } catch (localErr) {
-        console.warn("Aviso ao encerrar sessão local no Supabase:", localErr);
-      }
-    }
+    await supabase.auth.signOut({ scope: "global" }).catch(() => {
+      return supabase.auth.signOut().catch(() => {});
+    });
 
     // 4. Limpeza manual agressiva de TODOS os tokens e chaves do Supabase no localStorage
     const keysToRemove: string[] = [];
@@ -127,11 +113,7 @@ export const forceSignOut = async () => {
     keysToRemove.forEach(k => localStorage.removeItem(k));
 
     // 5. Limpa sessionStorage
-    try {
-      sessionStorage.clear();
-    } catch (sessionErr) {
-      console.warn("Aviso ao limpar sessionStorage:", sessionErr);
-    }
+    try { sessionStorage.clear(); } catch {}
 
     // 6. Notifica outras abas e componentes locais sobre o deslogamento
     localStorage.setItem('auth-sync-logout', Date.now().toString());
@@ -175,9 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           try {
             setUser(JSON.parse(e.newValue));
-          } catch (jsonErr) {
-            console.warn("Erro ao ler usuário atualizado no storage:", jsonErr);
-          }
+          } catch {}
         }
       }
     };
@@ -215,11 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(mapped);
             setStoredUser(mapped);
             setupPushNotifications(session.user.id);
-            try {
-              await syncAllUserDataFromSupabaseOnLogin();
-            } catch (syncErr) {
-              console.error("Erro na sincronização de dados no login inicial:", syncErr);
-            }
+            syncAllUserDataFromSupabaseOnLogin().catch(console.error);
           } else {
             const localUser = getStoredUser();
             if (!localUser) {
@@ -243,11 +219,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const mapped = mapSupabaseUser(session.user);
         setUser(mapped);
         setStoredUser(mapped);
-        try {
-          await syncAllUserDataFromSupabaseOnLogin();
-        } catch (syncErr) {
-          console.error("Erro na sincronização ao alterar estado de auth:", syncErr);
-        }
+        syncAllUserDataFromSupabaseOnLogin().catch(console.error);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setStoredUser(null);
@@ -278,21 +250,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearAllLocalUserData();
     window.dispatchEvent(new Event('auth-sync-logout-local'));
 
-    // 2. Executa encerramento de sessão e sincronização em segundo plano usando try/catch/finally
+    // 2. Executa encerramento de sessão e sincronização em segundo plano
     try {
-      try {
-        await deactivatePlansAndSyncOnLogout();
-      } catch (syncErr) {
-        console.error("Erro na sincronização de logout:", syncErr);
-      }
-
-      await forceSignOut();
+      deactivatePlansAndSyncOnLogout().catch(console.error);
+      await forceSignOut().catch(console.error);
     } catch (err) {
-      console.error("Erro durante o encerramento da sessão:", err);
-    } finally {
-      setUser(null);
-      setStoredUser(null);
-      clearAllLocalUserData();
+      console.error("Erro no logout em segundo plano:", err);
     }
   };
 
