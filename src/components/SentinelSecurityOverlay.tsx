@@ -48,11 +48,11 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
     setLoginError(null);
 
     try {
-      const tokenToUse = turnstileToken || "1x00000000000000000000AA";
+      const captchaToken = (turnstileToken && turnstileToken !== "bypass") ? turnstileToken : undefined;
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
-        options: { captchaToken: tokenToUse },
+        options: captchaToken ? { captchaToken } : undefined,
       });
 
       if (error) {
@@ -229,7 +229,7 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
               <div className="bg-[#121c30] border border-slate-700/80 rounded-xl p-3 flex flex-col items-center justify-center min-h-[75px] shadow-inner relative overflow-hidden">
                 <Turnstile
                   ref={turnstileRef}
-                  siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || "1x00000000000000000000AA"}
+                  siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || ""}
                   onSuccess={(token) => {
                     setTurnstileToken(token);
                     setIsCloudflareVerified(true);

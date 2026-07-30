@@ -86,16 +86,22 @@ export const forceSignOut = async () => {
   try {
     // 1. Previne reautenticação automática do navegador (Credential Manager API)
     if (typeof window !== "undefined" && (navigator as any).credentials?.preventSilentAccess) {
-      await (navigator as any).credentials.preventSilentAccess().catch(() => {});
+      try {
+        await (navigator as any).credentials.preventSilentAccess();
+      } catch {}
     }
 
     // 2. Limpeza completa dos dados do usuário do localStorage
     clearAllLocalUserData();
 
     // 3. Encerra a sessão no Supabase globalmente
-    await supabase.auth.signOut({ scope: "global" }).catch(() => {
-      return supabase.auth.signOut().catch(() => {});
-    });
+    try {
+      await supabase.auth.signOut({ scope: "global" });
+    } catch {
+      try {
+        await supabase.auth.signOut();
+      } catch {}
+    }
 
     // 4. Limpeza manual agressiva de TODOS os tokens e chaves do Supabase no localStorage
     const keysToRemove: string[] = [];
@@ -250,12 +256,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearAllLocalUserData();
     window.dispatchEvent(new Event('auth-sync-logout-local'));
 
-    // 2. Executa encerramento de sessão e sincronização em segundo plano
+    // 2. Executa encerramento de sessão e sincronização em segundo plano usando try/catch/finally
     try {
-      deactivatePlansAndSyncOnLogout().catch(console.error);
-      await forceSignOut().catch(console.error);
+      try {
+        await deactivatePlansAndSyncOnLogout();
+      } catch (syncErr) {
+        console.error("Erro na sincronização de logout:", syncErr);
+      }
+
+      await forceSignOut();
     } catch (err) {
-      console.error("Erro no logout em segundo plano:", err);
+      console.error("Erro durante o encerramento da sessão:", err);
+    } finally {
+      setUser(null);
+      setStoredUser(null);
+      clearAllLocalUserData();
     }
   };
 

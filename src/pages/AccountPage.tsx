@@ -540,8 +540,8 @@ const AccountPage = () => {
           return;
         }
 
-        // Envia o captchaToken na chamada principal
-        const tokenToUse = turnstileToken || "1x00000000000000000000AA";
+        // Envia o captchaToken na chamada principal apenas se for válido e diferente de "bypass"
+        const captchaToken = (turnstileToken && turnstileToken !== "bypass") ? turnstileToken : undefined;
         let { data, error } = await supabase.auth.signUp({ 
           email: cleanEmail, 
           password,
@@ -551,30 +551,9 @@ const AccountPage = () => {
               display_name: cleanName,
               username: cleanHandle
             },
-            captchaToken: tokenToUse
+            ...(captchaToken ? { captchaToken } : {})
           }
         });
-
-        // Caso o projeto Supabase recuse o token (ex: Turnstile desativado no painel), tenta fallback sem captchaToken
-        if (error && (error.message.toLowerCase().includes("captcha") || error.message.toLowerCase().includes("invalid-input-response") || error.message.toLowerCase().includes("disallowed"))) {
-          console.warn("[SignUp Fallback] Erro de validação no captcha. Tentando cadastro com token de segurança alternativo...");
-          const fallbackRes = await supabase.auth.signUp({
-            email: cleanEmail,
-            password,
-            options: {
-              data: {
-                full_name: cleanName,
-                display_name: cleanName,
-                username: cleanHandle
-              },
-              captchaToken: "1x00000000000000000000AA"
-            }
-          });
-          if (!fallbackRes.error) {
-            data = fallbackRes.data;
-            error = null;
-          }
-        }
 
         // Se houver erro de gatilho de banco (ex: Database error saving new user), tenta fallback sem os metadados pesados
         if (error && error.message.toLowerCase().includes("database error")) {
@@ -582,14 +561,14 @@ const AccountPage = () => {
           const fallbackRes = await supabase.auth.signUp({ 
             email: cleanEmail, 
             password,
-            options: { captchaToken: tokenToUse }
+            options: captchaToken ? { captchaToken } : undefined
           });
           data = fallbackRes.data;
           error = fallbackRes.error;
         }
 
         if (error) {
-          console.warn("Aviso ao cadastrar no Supabase:", error.message);
+          console.error("Erro ao cadastrar no Supabase:", error.message);
           toast({ title: "Erro no Cadastro", description: translateAuthError(error.message), variant: "destructive" });
           turnstileRef.current?.reset();
           setTurnstileToken("");
@@ -616,32 +595,16 @@ const AccountPage = () => {
         // Verifica se a senha do usuário existente apareceu em vazamentos de dados
         const pwnedResult = await checkPwnedPassword(password);
 
-        // Envia o captchaToken na chamada principal
-        const tokenToUse = turnstileToken || "1x00000000000000000000AA";
+        // Envia o captchaToken na chamada principal apenas se for válido e diferente de "bypass"
+        const captchaToken = (turnstileToken && turnstileToken !== "bypass") ? turnstileToken : undefined;
         let { data, error } = await supabase.auth.signInWithPassword({ 
           email: cleanEmail, 
           password,
-          options: {
-            captchaToken: tokenToUse
-          }
+          options: captchaToken ? { captchaToken } : undefined
         });
 
-        // Caso o projeto Supabase recuse o token (ex: Turnstile desativado no painel do Supabase), tenta fallback com token alternativo
-        if (error && (error.message.toLowerCase().includes("captcha") || error.message.toLowerCase().includes("invalid-input-response") || error.message.toLowerCase().includes("disallowed"))) {
-          console.warn("[SignIn Fallback] Erro de validação no captcha. Tentando login com token alternativo...");
-          const fallbackRes = await supabase.auth.signInWithPassword({
-            email: cleanEmail,
-            password,
-            options: { captchaToken: "1x00000000000000000000AA" }
-          });
-          if (!fallbackRes.error) {
-            data = fallbackRes.data;
-            error = null;
-          }
-        }
-
         if (error) {
-          console.warn("Aviso ao logar no Supabase:", error.message);
+          console.error("Erro ao logar no Supabase:", error.message);
           toast({ title: "Erro no Login", description: translateAuthError(error.message), variant: "destructive" });
           turnstileRef.current?.reset();
           setTurnstileToken("");
@@ -719,28 +682,17 @@ const AccountPage = () => {
     setAuthLoading(true);
     try {
       console.log("2. Enviando requisição para o Supabase...");
-      const tokenToUse = turnstileToken || "1x00000000000000000000AA";
-      // Envia o captchaToken na chamada principal
+      const captchaToken = (turnstileToken && turnstileToken !== "bypass") ? turnstileToken : undefined;
+      // Envia o captchaToken na chamada principal apenas se for válido e diferente de "bypass"
       let { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
         redirectTo: `${window.location.origin}/atualizar-senha`,
-        captchaToken: tokenToUse,
+        ...(captchaToken ? { captchaToken } : {}),
       });
-
-      // Caso o projeto Supabase recuse o token (ex: Turnstile desativado no painel), tenta fallback com token alternativo
-      if (error && (error.message.toLowerCase().includes("captcha") || error.message.toLowerCase().includes("invalid-input-response") || error.message.toLowerCase().includes("disallowed"))) {
-        console.warn("[ResetPassword Fallback] Erro de validação no captcha. Tentando envio com token alternativo...");
-        const fallbackRes = await supabase.auth.resetPasswordForEmail(resetEmail, {
-          redirectTo: `${window.location.origin}/atualizar-senha`,
-          captchaToken: "1x00000000000000000000AA",
-        });
-        if (!fallbackRes.error) {
-          error = null;
-        }
-      }
 
       console.log("3. Resposta do Supabase:", { error });
 
       if (error) {
+        console.error("Erro no envio do e-mail de recuperação:", error.message);
         toast({ title: "Erro", description: translateAuthError(error.message), variant: "destructive" });
         turnstileRef.current?.reset();
         setTurnstileToken("");
@@ -809,8 +761,12 @@ const AccountPage = () => {
       
       // 2. Limpeza local e logout seguro
       localStorage.clear();
-      await supabase.auth.signOut().catch(() => {});
-      await authCtx.logout().catch(() => {});
+      try {
+        await supabase.auth.signOut();
+      } catch {}
+      try {
+        await authCtx.logout();
+      } catch {}
       
       navigate("/", { replace: true });
       toast({ title: "Conta Excluída", description: "Todos os seus dados foram removidos permanentemente." });
@@ -1394,7 +1350,7 @@ const AccountPage = () => {
               <div className="flex justify-center overflow-hidden min-h-[65px] w-[300px] mx-auto mt-4 relative">
                 <Turnstile 
                   ref={turnstileRef}
-                  siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || "1x00000000000000000000AA"} 
+                  siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || ""} 
                   onSuccess={(token) => setTurnstileToken(token)}
                   onExpire={() => {
                     setTurnstileToken("");
@@ -1502,7 +1458,7 @@ const AccountPage = () => {
                 <div className="flex justify-center overflow-hidden min-h-[65px] w-[300px] mx-auto mt-3 relative">
                   <Turnstile 
                     ref={turnstileRef}
-                    siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || "1x00000000000000000000AA"} 
+                    siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || ""} 
                     onSuccess={(token) => setTurnstileToken(token)}
                     onExpire={() => {
                       setTurnstileToken("");
