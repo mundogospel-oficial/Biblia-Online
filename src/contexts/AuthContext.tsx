@@ -1,3 +1,6 @@
+/**
+ * Auth Context - Refactored Logout and Session State Management
+ */
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { supabase, isAuthRefreshError } from "@/integrations/supabase/client";
 import type { User as SupaUser } from "@supabase/supabase-js";

@@ -1,3 +1,6 @@
+/**
+ * Account Page - Refactored Turnstile integration and Supabase auth calls
+ */
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import zxcvbn from "zxcvbn";

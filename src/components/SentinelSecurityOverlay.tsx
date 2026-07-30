@@ -1,3 +1,6 @@
+/**
+ * Sentinel Security Overlay - Refactored Turnstile Env Execution and Error Handling
+ */
 import React, { useEffect, useState, useRef } from "react";
 import { ShieldAlert, RefreshCw, AlertTriangle, Lock, EyeOff, ShieldCheck, X, CheckCircle2, KeyRound, Loader2 } from "lucide-react";
 import { Turnstile } from '@marsidev/react-turnstile';
