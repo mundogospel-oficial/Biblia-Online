@@ -558,32 +558,11 @@ const IMAGE_STYLES: ImageStyleOption[] = [
     description: "Fotografia fotorrealista com pele limpa e iluminação natural"
   },
   {
-    id: "oil_painting",
-    label: "Pintura a Óleo",
-    badge: "Pintura a Óleo",
-    promptAddon: "PINTURA A ÓLEO: Classical master oil painting on canvas, refined elegant brushstrokes, warm luminous lighting, deep museum quality fine art",
-    description: "Técnica clássica com iluminação luminosa e textura em tela"
-  },
-  {
-    id: "watercolor",
-    label: "Aquarela",
-    badge: "Aquarela",
-    promptAddon: "AQUARELA: Delicate watercolor painting on textured paper, soft fluid color washes, graceful ink outlines, artistic pigment splashes",
-    description: "Tons suaves e pigmentos fluidos"
-  },
-  {
     id: "anime",
     label: "Anime / Desenho",
     badge: "Anime",
     promptAddon: "ANIME: High quality Studio Ghibli inspired anime illustration, clean line art, luminous lighting, vibrant colors, detailed hand-drawn anime aesthetic",
     description: "Ilustração estilo Ghibli / Manga"
-  },
-  {
-    id: "biblical_art",
-    label: "Ilustração Bíblica Sacra",
-    badge: "Ilustração Bíblica",
-    promptAddon: "ILUSTRAÇÃO BÍBLICA SACRA: Sacred medieval illuminated manuscript art, golden leaf accents, stained glass window radiance, reverent biblical fresco style, royal gold hues",
-    description: "Arte sacra medieval com folhas de ouro"
   },
 ];
 
@@ -2656,7 +2635,23 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
                     }, 120);
                   }}
-                  placeholder={!isOnline ? "Necessário internet para IA" : limitReached ? "Limite diário atingido" : activeMode === "image" ? "Descreva sua imagem..." : activeModeInfo ? `Descreva (${activeModeInfo.label})...` : aiEngine === "simples" ? "Pergunta simples..." : "Pergunte qualquer coisa..."}
+                  placeholder={
+                    !isOnline
+                      ? "Necessário internet para IA"
+                      : limitReached
+                      ? "Limite diário atingido"
+                      : activeMode === "image"
+                      ? "Descreva sua imagem..."
+                      : activeMode === "video"
+                      ? "Descreva seu roteiro de vídeo..."
+                      : activeMode === "learning"
+                      ? "Descreva o que quer aprender..."
+                      : activeMode === "music"
+                      ? "Descreva a letra da música..."
+                      : aiEngine === "simples"
+                      ? "Pergunta Bíblica simples..."
+                      : "Pergunte qualquer tema bíblico..."
+                  }
                   disabled={isLoading || limitReached || !isOnline}
                   className="flex-1 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                 />

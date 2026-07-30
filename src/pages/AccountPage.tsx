@@ -93,7 +93,7 @@ const AccountPage = () => {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [showPwnedModal, setShowPwnedModal] = useState(false);
   const [pwnedLeakCount, setPwnedLeakCount] = useState(0);
-  const [appVersion, setAppVersion] = useState("2.5");
+  const [appVersion, setAppVersion] = useState("2.5.0");
   const [notificationTestError, setNotificationTestError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -104,7 +104,7 @@ const AccountPage = () => {
     fetch('/version.json', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => setAppVersion(data.version))
-      .catch(() => setAppVersion("2.5"));
+      .catch(() => setAppVersion("2.5.0"));
 
     const loadProfile = async () => {
       if (authCtx.user?.sub) {
@@ -1551,7 +1551,7 @@ const AccountPage = () => {
 
           <div className="mt-8 pb-4 text-center">
             <p className="text-xs text-muted-foreground font-sans font-medium tracking-wide">
-              Biblia Online — Versão {appVersion || "2.1"}
+              Biblia Online — Versão {appVersion || "2.5.0"}
             </p>
           </div>
 

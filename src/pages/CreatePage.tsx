@@ -7,8 +7,9 @@ import {
   Download, Palette, RectangleVertical, Square, RectangleHorizontal,
   Image, Type, Search, Loader2, Sparkles, Wand2, Eye, Share2, ImageOff, WifiOff,
   Sliders, RefreshCw, Check, BookOpen, Quote, Layers, SlidersHorizontal, SlidersVertical,
-  Maximize2, AlignmentLeft, AlignmentCenter, AlignmentRight, AlertCircle
+  Maximize2, AlignmentLeft, AlignmentCenter, AlignmentRight, AlertCircle, Pipette
 } from "lucide-react";
+import { HexColorPicker } from "react-colorful";
 import html2canvas from "html2canvas-pro";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -84,90 +85,283 @@ const gradientPresets = [
 
 type ActiveTab = "verse" | "background" | "typography" | "export";
 
+function hexToRgb(hex: string) {
+  let c = hex.replace("#", "");
+  if (c.length === 3) {
+    c = c.split("").map((x) => x + x).join("");
+  }
+  const num = parseInt(c, 16);
+  if (isNaN(num)) return { r: 0, g: 0, b: 0 };
+  return {
+    r: (num >> 16) & 255,
+    g: (num >> 8) & 255,
+    b: num & 255,
+  };
+}
+
+function rgbToHex(r: number, g: number, b: number) {
+  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+  const toHex = (v: number) => clamp(v).toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+interface LiquidGlassColorPickerProps {
+  color: string;
+  onChange: (color: string) => void;
+  presetColors?: string[];
+  label?: string;
+}
+
+function LiquidGlassColorPicker({
+  color,
+  onChange,
+  presetColors = presetColors,
+  label = "Cor de Fundo Sólida"
+}: LiquidGlassColorPickerProps) {
+  const rgb = hexToRgb(color);
+
+  const handleRgbChange = (channel: "r" | "g" | "b", val: number) => {
+    const newRgb = { ...rgb, [channel]: Math.max(0, Math.min(255, val)) };
+    onChange(rgbToHex(newRgb.r, newRgb.g, newRgb.b));
+  };
+
+  const handleEyeDropper = async () => {
+    if ("EyeDropper" in window) {
+      try {
+        // @ts-ignore
+        const eyeDropper = new window.EyeDropper();
+        const result = await eyeDropper.open();
+        if (result?.sRGBHex) {
+          onChange(result.sRGBHex);
+        }
+      } catch (e) {
+        // user canceled
+      }
+    }
+  };
+
+  return (
+    <div className="glass-card relative overflow-hidden rounded-2xl border border-border/80 bg-card/85 backdrop-blur-2xl p-4 shadow-[0_8px_32px_rgba(2,132,199,0.12)] space-y-3.5">
+      {/* Specular glass reflection bar */}
+      <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-sky-400/15 via-blue-400/5 to-transparent pointer-events-none rounded-t-2xl" />
+
+      {/* Header */}
+      <div className="flex items-center justify-between relative z-10">
+        <span className="text-xs font-bold text-foreground flex items-center gap-1.5 tracking-tight">
+          <Sparkles className="h-3.5 w-3.5 text-accent animate-pulse" />
+          {label}
+        </span>
+
+        <div className="flex items-center gap-2">
+          {"EyeDropper" in window && (
+            <button
+              type="button"
+              onClick={handleEyeDropper}
+              title="Conta-gotas (Capturar cor da tela)"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent/15 border border-accent/30 text-accent text-[11px] font-semibold hover:bg-accent/25 transition-all shadow-sm active:scale-95"
+            >
+              <Pipette className="h-3.5 w-3.5 text-accent animate-pulse" />
+              <span>Pipeta</span>
+            </button>
+          )}
+
+          {/* Color preview badge */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-secondary/80 border border-border/60 shadow-inner">
+            <div
+              className="h-3.5 w-3.5 rounded-full border border-white/50 shadow-sm"
+              style={{ backgroundColor: color }}
+            />
+            <span className="text-xs font-mono font-bold text-foreground uppercase">{color}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Full-Width Canvas Picker Square */}
+      <div className="liquid-color-picker relative rounded-xl p-1 bg-secondary/30 border border-border/60 shadow-inner">
+        <HexColorPicker color={color} onChange={onChange} />
+      </div>
+
+      {/* RGB + HEX Inputs */}
+      <div className="grid grid-cols-4 gap-2 pt-0.5 relative z-10">
+        <div className="flex flex-col items-center p-1.5 rounded-xl bg-secondary/60 border border-border/60 backdrop-blur-md">
+          <span className="text-[9px] font-mono font-bold text-sky-400 uppercase tracking-wider mb-0.5">HEX</span>
+          <input
+            type="text"
+            value={color}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val.startsWith("#") || val.length <= 7) onChange(val);
+            }}
+            className="w-full text-center bg-transparent border-0 outline-none text-xs font-mono font-bold text-foreground p-0 uppercase"
+          />
+        </div>
+
+        <div className="flex flex-col items-center p-1.5 rounded-xl bg-secondary/60 border border-border/60 backdrop-blur-md">
+          <span className="text-[9px] font-mono font-bold text-red-400 uppercase tracking-wider mb-0.5">R</span>
+          <input
+            type="number"
+            min={0}
+            max={255}
+            value={rgb.r}
+            onChange={(e) => handleRgbChange("r", Number(e.target.value))}
+            className="w-full text-center bg-transparent border-0 outline-none text-xs font-mono font-bold text-foreground p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+        </div>
+
+        <div className="flex flex-col items-center p-1.5 rounded-xl bg-secondary/60 border border-border/60 backdrop-blur-md">
+          <span className="text-[9px] font-mono font-bold text-emerald-400 uppercase tracking-wider mb-0.5">G</span>
+          <input
+            type="number"
+            min={0}
+            max={255}
+            value={rgb.g}
+            onChange={(e) => handleRgbChange("g", Number(e.target.value))}
+            className="w-full text-center bg-transparent border-0 outline-none text-xs font-mono font-bold text-foreground p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+        </div>
+
+        <div className="flex flex-col items-center p-1.5 rounded-xl bg-secondary/60 border border-border/60 backdrop-blur-md">
+          <span className="text-[9px] font-mono font-bold text-sky-400 uppercase tracking-wider mb-0.5">B</span>
+          <input
+            type="number"
+            min={0}
+            max={255}
+            value={rgb.b}
+            onChange={(e) => handleRgbChange("b", Number(e.target.value))}
+            className="w-full text-center bg-transparent border-0 outline-none text-xs font-mono font-bold text-foreground p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+        </div>
+      </div>
+
+      {/* Preset Swatches */}
+      {presetColors && presetColors.length > 0 && (
+        <div className="pt-2 border-t border-border/60 space-y-1.5 relative z-10">
+          <span className="text-[10px] font-semibold text-muted-foreground block">Paleta de Cores Sólidas</span>
+          <div className="grid grid-cols-5 sm:grid-cols-8 gap-1.5">
+            {presetColors.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => onChange(c)}
+                className={`h-7 rounded-lg border transition-all relative flex items-center justify-center ${
+                  color.toLowerCase() === c.toLowerCase()
+                    ? "border-sky-400 ring-2 ring-sky-400/60 scale-105 shadow-[0_0_12px_rgba(56,189,248,0.6)] z-10"
+                    : "border-border/60 hover:border-sky-400/50 hover:scale-100"
+                }`}
+                style={{ backgroundColor: c }}
+              >
+                {color.toLowerCase() === c.toLowerCase() && (
+                  <Check className={`h-3 w-3 ${c.toLowerCase() === "#ffffff" ? "text-black" : "text-white"} drop-shadow-md`} />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const AIImagePreviewLoadingOverlay = () => {
   const [stepIndex, setStepIndex] = useState(0);
-  const phrases = [
-    "Interpretando a passagem e tema bíblico...",
-    "Projetando composição fotorrealista em 8K...",
-    "Ajustando feixes de luz e iluminação sagrada...",
-    "Refinando traços faciais, olhos e textura ultrarrealista...",
-    "Finalizando a obra de arte..."
+  const [progress, setProgress] = useState(15);
+
+  const processes = [
+    { text: "Interpretando a passagem e tema bíblico...", targetProgress: 25 },
+    { text: "Projetando composição fotorrealista em 8K...", targetProgress: 50 },
+    { text: "Ajustando feixes de luz e iluminação...", targetProgress: 75 },
+    { text: "Refinando detalhes, cores e texturas...", targetProgress: 90 },
+    { text: "Finalizando a obra de arte...", targetProgress: 98 },
   ];
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setStepIndex((prev) => (prev + 1) % phrases.length);
+    const stepInterval = setInterval(() => {
+      setStepIndex((prev) => (prev + 1) % processes.length);
     }, 2800);
-    return () => clearInterval(timer);
-  }, [phrases.length]);
+
+    return () => clearInterval(stepInterval);
+  }, [processes.length]);
+
+  useEffect(() => {
+    const target = processes[stepIndex].targetProgress;
+    const progressInterval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev < target) return Math.min(target, prev + 1);
+        if (prev > target && stepIndex === 0) return 15;
+        return prev;
+      });
+    }, 40);
+
+    return () => clearInterval(progressInterval);
+  }, [stepIndex]);
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="absolute inset-0 z-30 flex flex-col items-center justify-center p-6 text-center overflow-hidden bg-black/70 backdrop-blur-2xl rounded-2xl"
+      className="absolute inset-0 z-30 flex flex-col items-center justify-center p-6 text-center overflow-hidden bg-black/80 backdrop-blur-md rounded-2xl"
     >
-      {/* Liquid glass floating background light aura */}
-      <motion.div
-        animate={{ scale: [0.9, 1.15, 0.9], rotate: [0, 90, 0] }}
-        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full bg-accent/25 blur-3xl pointer-events-none"
-      />
-      <motion.div
-        animate={{ scale: [1.1, 0.85, 1.1], rotate: [0, -90, 0] }}
-        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute top-1/3 left-1/3 w-48 h-48 rounded-full bg-cyan-400/20 blur-3xl pointer-events-none"
-      />
-
-      {/* Shimmer light sweep */}
-      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-accent/15 to-transparent animate-shimmer pointer-events-none" />
-
-      {/* Liquid Glass Badge Card */}
-      <motion.div
-        initial={{ scale: 0.9, y: 10 }}
-        animate={{ scale: 1, y: 0 }}
-        className="relative z-10 rounded-2xl border border-sky-400/35 dark:border-sky-400/25 bg-gradient-to-br from-slate-950/90 via-blue-950/85 to-sky-950/90 backdrop-blur-2xl p-6 sm:p-8 shadow-[0_8px_32px_0_rgba(2,132,199,0.35)] flex flex-col items-center max-w-xs sm:max-w-sm w-full overflow-hidden"
-      >
-        {/* Specular Top Glass Reflection */}
-        <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-sky-400/25 via-blue-400/10 to-transparent rounded-t-2xl pointer-events-none" />
-
-        {/* Animated Icon with liquid ring */}
-        <div className="relative flex h-16 w-16 items-center justify-center mb-4">
-          {/* Outer liquid rotating border ring */}
+      <div className="relative z-10 flex flex-col items-center max-w-xs sm:max-w-sm w-full space-y-4">
+        
+        {/* Ícone de Gerando */}
+        <div className="relative flex items-center justify-center my-1">
+          {/* Anel giratório externo */}
           <motion.div
             animate={{ rotate: 360 }}
-            transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
-            className="absolute -inset-1 rounded-full p-[2px] bg-gradient-to-tr from-sky-400 via-blue-500 to-cyan-300 opacity-90 shadow-[0_0_15px_rgba(56,189,248,0.7)]"
+            transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
+            className="absolute -inset-3 rounded-full border-2 border-dashed border-sky-400/60"
           />
-          {/* Inner glass icon container */}
-          <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-900/40 border border-sky-400/40 shadow-[0_4px_16px_rgba(2,132,199,0.25)] backdrop-blur-md z-10">
-            <Wand2 className="h-7 w-7 text-sky-300 animate-pulse drop-shadow-[0_0_10px_rgba(56,189,248,0.9)]" />
+          
+          {/* Brilho de fundo suave */}
+          <div className="absolute inset-0 rounded-full bg-sky-500/20 blur-md animate-pulse" />
+
+          {/* Container do ícone */}
+          <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-black/60 border border-white/20 shadow-xl text-sky-400">
+            <Wand2 className="h-7 w-7 animate-pulse text-sky-400 drop-shadow-[0_0_12px_rgba(56,189,248,0.9)]" />
           </div>
         </div>
 
-        {/* Title */}
-        <div className="flex items-center gap-2 mb-2 z-10">
-          <span className="font-bold text-base sm:text-lg text-sky-100 tracking-tight drop-shadow-sm">Criando Ilustração IA</span>
-          <Sparkles className="h-4.5 w-4.5 text-sky-300 animate-spin" style={{ animationDuration: '3.5s' }} />
+        {/* Título de Geração */}
+        <div className="flex items-center justify-center gap-2">
+          <span className="font-semibold text-sm sm:text-base text-white tracking-tight">
+            Gerando Imagem com IA
+          </span>
+          <Sparkles className="h-4 w-4 text-sky-400 animate-spin" style={{ animationDuration: '3s' }} />
         </div>
 
-        {/* Rotating phrase */}
-        <div className="h-6 relative overflow-hidden w-full flex items-center justify-center z-10">
+        {/* Barra de Carregamento */}
+        <div className="w-full space-y-1.5 px-2">
+          <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden p-0.5 border border-white/15 relative">
+            <motion.div
+              className="h-full bg-gradient-to-r from-sky-500 via-blue-500 to-cyan-400 rounded-full shadow-[0_0_12px_rgba(56,189,248,0.8)]"
+              style={{ width: `${progress}%` }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+            />
+          </div>
+          <div className="flex justify-between items-center text-[10px] font-mono text-slate-400">
+            <span>Processando...</span>
+            <span className="font-bold text-sky-300">{progress}%</span>
+          </div>
+        </div>
+
+        {/* Processos Escritos em Baixo */}
+        <div className="h-8 relative overflow-hidden w-full flex items-center justify-center">
           <AnimatePresence mode="wait">
             <motion.span
               key={stepIndex}
-              initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
+              initial={{ opacity: 0, y: 6, filter: "blur(2px)" }}
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
-              transition={{ duration: 0.35, ease: "easeOut" }}
-              className="text-xs sm:text-sm text-muted-foreground font-medium text-center truncate block px-2 tracking-wide"
+              exit={{ opacity: 0, y: -6, filter: "blur(2px)" }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="text-xs text-slate-300 font-medium text-center truncate block px-2 tracking-wide"
             >
-              {phrases[stepIndex]}
+              {processes[stepIndex].text}
             </motion.span>
           </AnimatePresence>
         </div>
-      </motion.div>
+
+      </div>
     </motion.div>
   );
 };
@@ -696,36 +890,12 @@ const CreatePage = () => {
 
                 {/* Sub-panel 3: Custom Color */}
                 {bgType === "custom_color" && (
-                  <div className="glass-card rounded-2xl p-4 border border-border/60 space-y-3">
-                    <span className="text-xs font-semibold text-foreground block">Cor de Fundo Sólida</span>
-                    <div className="grid grid-cols-5 gap-2">
-                      {presetColors.map((c) => (
-                        <button
-                          key={c}
-                          onClick={() => setCustomColor(c)}
-                          className={`h-9 rounded-xl border-2 transition-all ${
-                            customColor === c ? "border-accent scale-105 shadow-md" : "border-transparent hover:scale-95"
-                          }`}
-                          style={{ backgroundColor: c }}
-                        />
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-2 pt-2 border-t border-border/40">
-                      <span className="text-xs text-muted-foreground">Personalizado:</span>
-                      <input
-                        type="color"
-                        value={customColor}
-                        onChange={(e) => setCustomColor(e.target.value)}
-                        className="h-8 w-10 cursor-pointer rounded-lg border border-border bg-transparent p-0.5"
-                      />
-                      <input
-                        type="text"
-                        value={customColor}
-                        onChange={(e) => setCustomColor(e.target.value)}
-                        className="w-24 rounded-lg border border-border bg-secondary/50 px-2.5 py-1 text-xs text-foreground font-mono"
-                      />
-                    </div>
-                  </div>
+                  <LiquidGlassColorPicker
+                    color={customColor}
+                    onChange={setCustomColor}
+                    presetColors={presetColors}
+                    label="Cor de Fundo Sólida"
+                  />
                 )}
 
                 {/* Sub-panel 4: AI Image Background */}
@@ -926,19 +1096,12 @@ const CreatePage = () => {
 
                   {bgType === "ai" && (
                     <div className="pt-2 border-t border-border/40">
-                      <span className="text-xs font-semibold text-foreground block mb-2">Cor do Texto (Sobre a Foto)</span>
-                      <div className="flex items-center gap-2">
-                        {["#ffffff", "#f8fafc", "#fef08a", "#bae6fd", "#fbcfe8", "#000000"].map((color) => (
-                          <button
-                            key={color}
-                            onClick={() => setTextColor(color)}
-                            className={`h-7 w-7 rounded-full border-2 transition-transform ${
-                              textColor === color ? "border-accent scale-110 shadow-sm" : "border-transparent hover:scale-105"
-                            }`}
-                            style={{ backgroundColor: color }}
-                          />
-                        ))}
-                      </div>
+                      <LiquidGlassColorPicker
+                        color={textColor}
+                        onChange={setTextColor}
+                        presetColors={["#ffffff", "#f8fafc", "#fef08a", "#bae6fd", "#fbcfe8", "#000000", "#ffd700", "#38bdf8"]}
+                        label="Cor do Texto (Sobre a Foto)"
+                      />
                     </div>
                   )}
                 </div>
