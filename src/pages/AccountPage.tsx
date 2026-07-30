@@ -771,9 +771,14 @@ const AccountPage = () => {
 
   const handleLogout = async () => {
     setShowLogoutModal(false);
-    await authCtx.logout();
     toast({ title: "Logout realizado" });
-    navigate("/", { replace: true });
+    try {
+      await authCtx.logout();
+    } catch (err) {
+      console.error("Erro no logout:", err);
+    } finally {
+      window.location.href = "/";
+    }
   };
 
   const handleDeleteData = async () => {
@@ -796,12 +801,12 @@ const AccountPage = () => {
       // 2. Limpeza local e logout seguro
       localStorage.clear();
       await supabase.auth.signOut().catch(() => {});
-      authCtx.logout();
+      await authCtx.logout().catch(() => {});
       
       toast({ title: "Conta Excluída", description: "Todos os seus dados foram removidos permanentemente." });
       
       // 3. Redirecionamento imediato
-      navigate("/", { replace: true });
+      window.location.href = "/";
     } catch (error: any) {
       console.error("Erro fatal na exclusão:", error);
       toast({ 

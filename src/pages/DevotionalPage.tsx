@@ -155,7 +155,7 @@ const DevotionalPage = () => {
           </div>
 
           {/* Tab Navigation */}
-          <div className="mb-6 flex gap-1.5 overflow-x-auto pb-2.5 border-b border-border/30 relative scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden select-none">
+          <div className="mb-6 flex gap-1.5 overflow-x-auto pb-2.5 border-b border-border/30 relative scroll-smooth themed-scrollbar select-none">
             {[
               { id: "hoje", label: "Devocional de Hoje", icon: Sparkles },
               { id: "planos", label: "Planos de Leitura", icon: BookOpen },
@@ -351,7 +351,7 @@ const DevotionalPage = () => {
                       <Filter className="h-3 w-3" />
                       Filtrar por Tema
                     </label>
-                    <div className="flex gap-1.5 overflow-x-auto pb-2.5 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden select-none">
+                    <div className="flex gap-1.5 overflow-x-auto pb-2.5 scroll-smooth themed-scrollbar select-none">
                       {categories.map((cat) => {
                         const isActive = selectedCategory === cat;
                         return (

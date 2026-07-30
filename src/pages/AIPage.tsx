@@ -2428,7 +2428,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
           </AnimatePresence>
 
           <AnimatePresence>
-            {showModes && aiEngine === "complexo" && (
+            {showModes && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="mb-2 flex flex-wrap gap-1.5">
                 {modes.map((m) => (
                   <button key={m.key}
@@ -2546,13 +2546,12 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
               {/* Input row */}
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1 pl-0.5">
-                  {aiEngine === "complexo" && (
-                    <button type="button" onClick={() => setShowModes(!showModes)}
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors liquid-btn ${showModes ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                  )}
+                  <button type="button" onClick={() => setShowModes(!showModes)}
+                    title="Alternar modos e ferramentas"
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors liquid-btn ${showModes ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
                   <button type="button" onClick={() => fileInputRef.current?.click()}
                     disabled={limitReached}
                     title="Anexar arquivos ou imagens"
