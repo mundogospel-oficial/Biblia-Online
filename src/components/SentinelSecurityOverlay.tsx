@@ -29,9 +29,10 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState<string | undefined>(undefined);
   const [isCloudflareVerified, setIsCloudflareVerified] = useState(false);
   const turnstileRef = useRef<any>(null);
+  const turnstileSiteKey = import.meta.env.VITE_CLOUDFLARE_SITE_KEY;
 
   // Formata o código do ban garantindo prefixo BAN_ sem a palavra "ERR_"
   const rawCode = errorCode || fingerprint || "BAN_SECURITY_0x800403";
@@ -39,7 +40,7 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
 
   const handleCloudflareLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isCloudflareVerified && !turnstileToken) {
+    if (Boolean(turnstileSiteKey) && !isCloudflareVerified && !turnstileToken) {
       setLoginError("Por favor, conclua a verificação de segurança antes de prosseguir.");
       return;
     }
@@ -52,14 +53,14 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
-        options: captchaToken ? { captchaToken } : undefined,
+        ...(captchaToken ? { options: { captchaToken } } : {}),
       });
 
       if (error) {
         setLoginError("Credenciais inválidas: " + (error.message || "Email ou senha incorretos."));
         setIsSubmitting(false);
         turnstileRef.current?.reset();
-        setTurnstileToken("");
+        setTurnstileToken(undefined);
         return;
       }
 
@@ -70,10 +71,11 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
         // Notifica o app sem recarregar a página a todo momento
         onReload();
       }
-    } catch {
+    } catch (err: any) {
+      console.error("Erro ao validar login no Supabase:", err);
       setLoginError("Erro ao validar login no Supabase. Verifique suas credenciais.");
       turnstileRef.current?.reset();
-      setTurnstileToken("");
+      setTurnstileToken(undefined);
     } finally {
       setIsSubmitting(false);
     }
@@ -226,34 +228,36 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
               </div>
 
               {/* Turnstile Widget Real da Cloudflare */}
-              <div className="bg-[#121c30] border border-slate-700/80 rounded-xl p-3 flex flex-col items-center justify-center min-h-[75px] shadow-inner relative overflow-hidden">
-                <Turnstile
-                  ref={turnstileRef}
-                  siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || ""}
-                  onSuccess={(token) => {
-                    setTurnstileToken(token);
-                    setIsCloudflareVerified(true);
-                  }}
-                  onExpire={() => {
-                    setTurnstileToken("");
-                    setIsCloudflareVerified(false);
-                    turnstileRef.current?.reset();
-                  }}
-                  onError={() => {
-                    // Fallback para dev/preview caso a domain key esteja em localhost
-                    setIsCloudflareVerified(true);
-                  }}
-                  options={{ theme: "dark" }}
-                />
-                
-                {/* Indicador visual de verificação */}
-                {isCloudflareVerified && (
-                  <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Navegador Verificado com Sucesso</span>
-                  </div>
-                )}
-              </div>
+              {Boolean(turnstileSiteKey) && (
+                <div className="bg-[#121c30] border border-slate-700/80 rounded-xl p-3 flex flex-col items-center justify-center min-h-[75px] shadow-inner relative overflow-hidden">
+                  <Turnstile
+                    ref={turnstileRef}
+                    siteKey={turnstileSiteKey as string}
+                    onSuccess={(token) => {
+                      setTurnstileToken(token);
+                      setIsCloudflareVerified(true);
+                    }}
+                    onExpire={() => {
+                      setTurnstileToken(undefined);
+                      setIsCloudflareVerified(false);
+                      turnstileRef.current?.reset();
+                    }}
+                    onError={(err) => {
+                      console.warn("Turnstile error / dev mode:", err);
+                      setIsCloudflareVerified(true);
+                    }}
+                    options={{ theme: "dark" }}
+                  />
+                  
+                  {/* Indicador visual de verificação */}
+                  {isCloudflareVerified && (
+                    <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Navegador Verificado com Sucesso</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Formulário de Login para remoção do Ban */}
               <form onSubmit={handleCloudflareLoginSubmit} className="space-y-4">
@@ -294,7 +298,7 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
 
                 <button
                   type="submit"
-                  disabled={isSubmitting || (!isCloudflareVerified && !turnstileToken)}
+                  disabled={isSubmitting || (Boolean(turnstileSiteKey) && !isCloudflareVerified && !turnstileToken)}
                   className="w-full bg-blue-600 hover:bg-blue-500 active:scale-[0.99] disabled:opacity-50 text-white text-xs font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {isSubmitting ? (

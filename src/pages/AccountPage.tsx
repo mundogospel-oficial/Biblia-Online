@@ -15,7 +15,7 @@ import { sendLocalNotification, getNotificationSettings, saveNotificationSetting
 import { validatePasswordSecurity } from "@/utils/passwordValidator";
 import { checkPwnedPassword } from "@/utils/pwnedPasswordValidator";
 import { MandatoryPwnedPasswordModal } from "@/components/MandatoryPwnedPasswordModal";
-import { syncKeyToSupabase } from "@/services/userSyncService";
+import { syncKeyToSupabase, clearAllLocalUserData } from "@/services/userSyncService";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
 const OFFLINE_KEY = "bible-offline-enabled";
@@ -90,7 +90,8 @@ const AccountPage = () => {
   const { toast } = useToast();
   const { checkRisk } = useSentinel();
 
-  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState<string | undefined>(undefined);
+  const turnstileSiteKey = import.meta.env.VITE_CLOUDFLARE_SITE_KEY;
   const [showPwnedModal, setShowPwnedModal] = useState(false);
   const [pwnedLeakCount, setPwnedLeakCount] = useState(0);
   const [appVersion, setAppVersion] = useState("2.5");
@@ -571,7 +572,7 @@ const AccountPage = () => {
           console.error("Erro ao cadastrar no Supabase:", error.message);
           toast({ title: "Erro no Cadastro", description: translateAuthError(error.message), variant: "destructive" });
           turnstileRef.current?.reset();
-          setTurnstileToken("");
+          setTurnstileToken(undefined);
           return;
         }
 
@@ -607,7 +608,7 @@ const AccountPage = () => {
           console.error("Erro ao logar no Supabase:", error.message);
           toast({ title: "Erro no Login", description: translateAuthError(error.message), variant: "destructive" });
           turnstileRef.current?.reset();
-          setTurnstileToken("");
+          setTurnstileToken(undefined);
           return;
         }
 
@@ -629,7 +630,9 @@ const AccountPage = () => {
             try {
               const cred = new (window as any).PasswordCredential({ id: email, password, name: email });
               await navigator.credentials.store(cred);
-            } catch {}
+            } catch (credErr) {
+              console.warn("Aviso ao salvar credencial de senha:", credErr);
+            }
           }
           navigate("/");
         }
@@ -638,7 +641,7 @@ const AccountPage = () => {
       console.error("Erro inesperado:", err);
       toast({ title: "Erro", description: "Ocorreu um erro inesperado ao criar a conta.", variant: "destructive" });
       turnstileRef.current?.reset();
-      setTurnstileToken("");
+      setTurnstileToken(undefined);
     } finally {
       setAuthLoading(false);
     }
@@ -695,20 +698,20 @@ const AccountPage = () => {
         console.error("Erro no envio do e-mail de recuperação:", error.message);
         toast({ title: "Erro", description: translateAuthError(error.message), variant: "destructive" });
         turnstileRef.current?.reset();
-        setTurnstileToken("");
+        setTurnstileToken(undefined);
         return;
       }
 
       toast({ title: "Sucesso", description: "Link enviado! Verifique sua caixa de entrada e SPAM." });
       turnstileRef.current?.reset();
-      setTurnstileToken("");
+      setTurnstileToken(undefined);
       setShowForgotPassword(false);
 
     } catch (err) {
       console.error("Erro inesperado no catch:", err);
       toast({ title: "Erro", description: "Ocorreu um erro ao processar o pedido.", variant: "destructive" });
       turnstileRef.current?.reset();
-      setTurnstileToken("");
+      setTurnstileToken(undefined);
     } finally {
       setAuthLoading(false);
     }
@@ -760,13 +763,17 @@ const AccountPage = () => {
       }
       
       // 2. Limpeza local e logout seguro
-      localStorage.clear();
+      clearAllLocalUserData();
       try {
         await supabase.auth.signOut();
-      } catch {}
+      } catch (signOutErr) {
+        console.warn("Aviso no signOut ao excluir conta:", signOutErr);
+      }
       try {
         await authCtx.logout();
-      } catch {}
+      } catch (logoutErr) {
+        console.warn("Aviso no logout ao excluir conta:", logoutErr);
+      }
       
       navigate("/", { replace: true });
       toast({ title: "Conta Excluída", description: "Todos os seus dados foram removidos permanentemente." });
@@ -892,7 +899,8 @@ const AccountPage = () => {
         setOfflineEnabled(false);
         localStorage.setItem(OFFLINE_KEY, "false");
         toast({ title: "Dados offline removidos" });
-      } catch {
+      } catch (cacheErr) {
+        console.error("Erro ao remover cache offline:", cacheErr);
         toast({ title: "Erro ao remover dados offline", variant: "destructive" });
       }
       return;
@@ -968,7 +976,9 @@ const AccountPage = () => {
           if (response.ok) {
             await cache.put(url, response.clone());
           }
-        } catch {}
+        } catch (fetchErr) {
+          console.warn("Aviso ao baixar arquivo para cache offline:", fetchErr);
+        }
         completed++;
         setOfflineProgress(Math.round((completed / filesToCache.length) * 100));
       }
@@ -977,7 +987,8 @@ const AccountPage = () => {
       setOfflineEnabled(true);
       localStorage.setItem(OFFLINE_KEY, "true");
       toast({ title: "Bíblia baixada com sucesso", description: "Disponível para uso offline." });
-    } catch {
+    } catch (downloadErr) {
+      console.error("Erro ao baixar Bíblia para uso offline:", downloadErr);
       toast({ title: "Erro ao baixar", description: "Verifique sua conexão.", variant: "destructive" });
     } finally {
       setIsDownloading(false);
@@ -1331,7 +1342,7 @@ const AccountPage = () => {
                 <input type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="Seu e-mail" required
                   className="w-full rounded-xl border border-white/10 bg-secondary/30 px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:bg-secondary/50 focus:outline-none focus:ring-1 focus:ring-accent transition-all backdrop-blur-md" />
                 
-                <button type="submit" disabled={authLoading || !turnstileToken}
+                <button type="submit" disabled={authLoading || (Boolean(turnstileSiteKey) && !turnstileToken)}
                   className="w-full rounded-xl bg-accent py-3.5 text-sm font-bold text-accent-foreground shadow-lg shadow-accent/20 hover:shadow-accent/35 transition-all disabled:opacity-50 liquid-btn">
                   {authLoading ? "Enviando..." : "Enviar Link"}
                 </button>
@@ -1339,7 +1350,7 @@ const AccountPage = () => {
               <button 
                 onClick={() => {
                   setShowForgotPassword(false);
-                  setTurnstileToken("");
+                  setTurnstileToken(undefined);
                   turnstileRef.current?.reset();
                 }} 
                 className="w-full text-center text-xs font-semibold text-accent hover:underline transition-colors"
@@ -1347,22 +1358,24 @@ const AccountPage = () => {
                 Voltar ao login
               </button>
               
-              <div className="flex justify-center overflow-hidden min-h-[65px] w-[300px] mx-auto mt-4 relative">
-                <Turnstile 
-                  ref={turnstileRef}
-                  siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || ""} 
-                  onSuccess={(token) => setTurnstileToken(token)}
-                  onExpire={() => {
-                    setTurnstileToken("");
-                    turnstileRef.current?.reset();
-                  }}
-                  onError={() => {
-                    console.warn("Turnstile widget failed to load or domain is not authorized. Permitindo bypass local.");
-                    setTurnstileToken("bypass");
-                  }}
-                  options={{ theme: "auto" }}
-                />
-              </div>
+              {Boolean(turnstileSiteKey) && (
+                <div className="flex justify-center overflow-hidden min-h-[65px] w-[300px] mx-auto mt-4 relative">
+                  <Turnstile 
+                    ref={turnstileRef}
+                    siteKey={turnstileSiteKey as string} 
+                    onSuccess={(token) => setTurnstileToken(token)}
+                    onExpire={() => {
+                      setTurnstileToken(undefined);
+                      turnstileRef.current?.reset();
+                    }}
+                    onError={() => {
+                      console.warn("Turnstile widget failed to load or domain is not authorized. Permitindo bypass local.");
+                      setTurnstileToken("bypass");
+                    }}
+                    options={{ theme: "auto" }}
+                  />
+                </div>
+              )}
             </div>
           ) : (
             <div className="glass-card rounded-2xl p-6 border border-white/10 shadow-2xl backdrop-blur-xl space-y-4">
@@ -1440,7 +1453,7 @@ const AccountPage = () => {
                   );
                 })()}
 
-                <button type="submit" disabled={authLoading || !turnstileToken || (isSignUp && zxcvbn(password).score < 3)}
+                <button type="submit" disabled={authLoading || (Boolean(turnstileSiteKey) && !turnstileToken) || (isSignUp && zxcvbn(password).score < 3)}
                   className="w-full rounded-xl bg-accent py-3.5 text-sm font-bold text-accent-foreground shadow-lg shadow-accent/20 hover:shadow-accent/35 transition-all disabled:opacity-50 disabled:cursor-not-allowed liquid-btn">
                   {authLoading ? "Carregando..." : isSignUp ? "Criar Conta" : "Entrar"}
                 </button>
@@ -1448,29 +1461,31 @@ const AccountPage = () => {
                 {!isSignUp && (
                   <button type="button" onClick={() => {
                     setShowForgotPassword(true);
-                    setTurnstileToken("");
+                    setTurnstileToken(undefined);
                     turnstileRef.current?.reset();
                   }} className="w-full text-center text-xs font-semibold text-accent hover:underline transition-colors">
                     Esqueci minha senha
                   </button>
                 )}
 
-                <div className="flex justify-center overflow-hidden min-h-[65px] w-[300px] mx-auto mt-3 relative">
-                  <Turnstile 
-                    ref={turnstileRef}
-                    siteKey={import.meta.env.VITE_CLOUDFLARE_SITE_KEY || ""} 
-                    onSuccess={(token) => setTurnstileToken(token)}
-                    onExpire={() => {
-                      setTurnstileToken("");
-                      turnstileRef.current?.reset();
-                    }}
-                    onError={() => {
-                      console.warn("Turnstile widget failed to load or domain is not authorized. Permitindo bypass local.");
-                      setTurnstileToken("bypass");
-                    }}
-                    options={{ theme: "auto" }}
-                  />
-                </div>
+                {Boolean(turnstileSiteKey) && (
+                  <div className="flex justify-center overflow-hidden min-h-[65px] w-[300px] mx-auto mt-3 relative">
+                    <Turnstile 
+                      ref={turnstileRef}
+                      siteKey={turnstileSiteKey as string} 
+                      onSuccess={(token) => setTurnstileToken(token)}
+                      onExpire={() => {
+                        setTurnstileToken(undefined);
+                        turnstileRef.current?.reset();
+                      }}
+                      onError={() => {
+                        console.warn("Turnstile widget failed to load or domain is not authorized. Permitindo bypass local.");
+                        setTurnstileToken("bypass");
+                      }}
+                      options={{ theme: "auto" }}
+                    />
+                  </div>
+                )}
               </form>
 
               <div className="my-4 flex items-center gap-3">
@@ -1496,7 +1511,7 @@ const AccountPage = () => {
                 {isSignUp ? "Já tem conta?" : "Não tem conta?"}{" "}
                 <button onClick={() => {
                   setIsSignUp(!isSignUp);
-                  setTurnstileToken("");
+                  setTurnstileToken(undefined);
                   turnstileRef.current?.reset();
                 }} className="font-bold text-accent hover:underline transition-colors">
                   {isSignUp ? "Entrar" : "Criar conta"}
