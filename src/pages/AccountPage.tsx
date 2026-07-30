@@ -63,6 +63,35 @@ const generateDefaultUsername = (str?: string | null) => {
   return base && base.length >= 3 ? base : (base || "usuario") + "_" + Math.floor(100 + Math.random() * 900);
 };
 
+const getProfileCacheKey = (userId: string) => `user_profile_${userId}`;
+
+interface LocalProfileCache {
+  displayName?: string;
+  avatarUrl?: string | null;
+  username?: string;
+}
+
+const getLocalProfileCache = (userId: string): LocalProfileCache | null => {
+  if (typeof window === "undefined" || !userId) return null;
+  try {
+    const raw = localStorage.getItem(getProfileCacheKey(userId));
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    return null;
+  }
+};
+
+const setLocalProfileCache = (userId: string, data: Partial<LocalProfileCache>) => {
+  if (typeof window === "undefined" || !userId) return;
+  try {
+    const current = getLocalProfileCache(userId) || {};
+    const updated = { ...current, ...data };
+    localStorage.setItem(getProfileCacheKey(userId), JSON.stringify(updated));
+  } catch (err) {
+    console.warn("Error updating local profile cache:", err);
+  }
+};
+
 const AccountPage = () => {
   const authCtx = useAuth();
   const { language, setLanguage, t } = useLanguage();
@@ -110,6 +139,26 @@ const AccountPage = () => {
       .then(data => setAppVersion(data.version))
       .catch(() => setAppVersion("2.5"));
 
+    // 1. Carregamento instantâneo a partir do localStorage/Contexto para renderização sem atraso (0ms)
+    if (authCtx.user?.sub) {
+      const userId = authCtx.user.sub;
+      const cached = getLocalProfileCache(userId);
+      if (cached) {
+        if (cached.displayName) setDisplayName(cached.displayName);
+        if (cached.avatarUrl !== undefined) setAvatarUrl(cached.avatarUrl);
+        if (cached.username) setUsername(cached.username);
+      } else {
+        if (authCtx.user.name && !isInvalidName(authCtx.user.name)) {
+          setDisplayName(authCtx.user.name);
+        }
+        if (authCtx.user.picture) {
+          setAvatarUrl(authCtx.user.picture);
+        }
+        setUsername(generateDefaultUsername(authCtx.user.name || authCtx.user.email));
+      }
+    }
+
+    // 2. Sincronização em segundo plano com o Supabase
     const loadProfile = async () => {
       if (authCtx.user?.sub) {
         const userId = authCtx.user.sub;
@@ -136,8 +185,7 @@ const AccountPage = () => {
             validName = authCtx.user.name;
           }
 
-          setDisplayName(validName);
-          setAvatarUrl(profile?.avatar_url || meta.avatar_url || meta.picture || authCtx.user.picture || null);
+          const finalAvatar = profile?.avatar_url || meta.avatar_url || meta.picture || authCtx.user.picture || null;
 
           let validUsername = (profile as any)?.username || meta.username || meta.user_name || meta.preferred_username || "";
           let isMissingUsername = false;
@@ -145,7 +193,17 @@ const AccountPage = () => {
             validUsername = generateDefaultUsername(validName || authCtx.user.email);
             isMissingUsername = true;
           }
+
+          setDisplayName(validName);
+          setAvatarUrl(finalAvatar);
           setUsername(validUsername);
+
+          // Atualiza o cache do localStorage para o próximo carregamento instantâneo
+          setLocalProfileCache(userId, {
+            displayName: validName,
+            avatarUrl: finalAvatar,
+            username: validUsername
+          });
 
           if (isMissingUsername) {
             setEditingUsername(true);
@@ -185,9 +243,18 @@ const AccountPage = () => {
         } catch (err) {
           console.error("Error loading profile:", err);
           const fallbackName = !isInvalidName(authCtx.user.name) ? authCtx.user.name : "";
+          const fallbackAvatar = authCtx.user.picture || null;
+          const fallbackUsername = generateDefaultUsername(fallbackName || authCtx.user.email);
+
           setDisplayName(fallbackName);
-          setAvatarUrl(authCtx.user.picture || null);
-          setUsername(generateDefaultUsername(fallbackName || authCtx.user.email));
+          setAvatarUrl(fallbackAvatar);
+          setUsername(fallbackUsername);
+
+          setLocalProfileCache(userId, {
+            displayName: fallbackName,
+            avatarUrl: fallbackAvatar,
+            username: fallbackUsername
+          });
         }
       }
     };
@@ -198,7 +265,7 @@ const AccountPage = () => {
       setNotificationsEnabled(isGranted && localStorage.getItem(NOTIFICATIONS_KEY) === "true");
       setOfflineEnabled(localStorage.getItem(OFFLINE_KEY) === "true");
     }
-  }, [authCtx.loading, authCtx.user]);
+  }, [authCtx.loading, authCtx.user, toast]);
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -225,6 +292,7 @@ const AccountPage = () => {
         const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path);
         const avatarWithBuster = `${publicUrl}?t=${Date.now()}`;
         setAvatarUrl(avatarWithBuster);
+        setLocalProfileCache(userId, { avatarUrl: avatarWithBuster });
         await supabase.from('profiles').upsert({ id: userId, avatar_url: avatarWithBuster });
         if (authCtx.user) {
           authCtx.login({ ...authCtx.user, picture: avatarWithBuster });
@@ -266,6 +334,7 @@ const AccountPage = () => {
         // Atualiza perfil no banco de dados para nulo
         await supabase.from('profiles').upsert({ id: userId, avatar_url: null });
         setAvatarUrl(null);
+        setLocalProfileCache(userId, { avatarUrl: null });
         if (authCtx.user) {
           authCtx.login({ ...authCtx.user, picture: "" });
         }
@@ -342,6 +411,7 @@ const AccountPage = () => {
 
       // 3. Atualiza os estados locais
       setDisplayName(cleanName);
+      setLocalProfileCache(userId, { displayName: cleanName });
       if (authCtx.user) {
         authCtx.login({ ...authCtx.user, name: cleanName });
       }
@@ -423,6 +493,7 @@ const AccountPage = () => {
 
       // 3. Atualiza estado local imediatamente substituindo o antigo @
       setUsername(cleanHandle);
+      setLocalProfileCache(userId, { username: cleanHandle });
 
       toast({ 
         title: "Nome de usuário salvo!", 
