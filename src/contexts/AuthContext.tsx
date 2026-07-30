@@ -244,11 +244,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    // Desativa planos de leitura e sincroniza dados antes de deslogar
-    await deactivatePlansAndSyncOnLogout().catch(console.error);
+    // 1. Limpa o estado local imediatamente para feedback de UI de 0ms
     setUser(null);
     setStoredUser(null);
-    await forceSignOut();
+    clearAllLocalUserData();
+    window.dispatchEvent(new Event('auth-sync-logout-local'));
+
+    // 2. Executa encerramento de sessão e sincronização em segundo plano
+    try {
+      deactivatePlansAndSyncOnLogout().catch(console.error);
+      await forceSignOut().catch(console.error);
+    } catch (err) {
+      console.error("Erro no logout em segundo plano:", err);
+    }
   };
 
   return (
