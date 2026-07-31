@@ -22,6 +22,7 @@ import { syncKeyToSupabase } from "@/services/userSyncService";
 import { generateBiblicalImage } from "@/services/imageGenerationService";
 import { APP_WHITE_LOGO_DATA_URL } from "@/assets/appLogoWhite";
 import { encryptConversationMessages, decryptConversationMessages } from "@/lib/security/cryptoService";
+import { safeSetLocalStorage } from "@/lib/storage";
 import { maskPiiInText } from "@/lib/security/privacyGuard";
 import { validateImageContent } from "@/services/imageModerationService";
 
@@ -901,7 +902,7 @@ const AIPage = () => {
               let localConvs: Conversation[] = localData ? JSON.parse(localData) : [];
               const existingIds = new Set(localConvs.map(c => c.id));
               const merged = [...guestConvs.filter(c => !existingIds.has(c.id)), ...localConvs];
-              localStorage.setItem(userKey, JSON.stringify(merged));
+              safeSetLocalStorage(userKey, JSON.stringify(merged));
               localStorage.removeItem(guestKey);
             }
           } catch (e) {
@@ -1104,7 +1105,7 @@ const AIPage = () => {
 
       // 1. Salva imediatamente o estado no localStorage (funciona logado ou visitante)
       try {
-        localStorage.setItem(userKey, JSON.stringify(updated));
+        safeSetLocalStorage(userKey, JSON.stringify(updated));
       } catch (e) {
         console.error("Erro ao salvar localmente:", e);
       }
@@ -1118,7 +1119,7 @@ const AIPage = () => {
           }))
         ).then(async (encryptedConversations) => {
           const jsonStr = JSON.stringify(encryptedConversations);
-          localStorage.setItem(userKey, jsonStr);
+          safeSetLocalStorage(userKey, jsonStr);
           await syncKeyToSupabase("AI_CONVERSATIONS", jsonStr);
         }).catch(console.error);
       }
@@ -1149,7 +1150,7 @@ const AIPage = () => {
     const userKey = getConversationsKey(userSecret);
 
     try {
-      localStorage.setItem(userKey, JSON.stringify(updated));
+      safeSetLocalStorage(userKey, JSON.stringify(updated));
     } catch (e) {
       console.error("Erro ao remover no localStorage:", e);
     }
@@ -1162,7 +1163,7 @@ const AIPage = () => {
         }))
       ).then(async (encryptedConversations) => {
         const jsonStr = JSON.stringify(encryptedConversations);
-        localStorage.setItem(userKey, jsonStr);
+        safeSetLocalStorage(userKey, jsonStr);
         await syncKeyToSupabase("AI_CONVERSATIONS", jsonStr);
       }).catch(console.error);
     }
@@ -1715,7 +1716,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
       ).then(encryptedConversations => {
         const jsonStr = JSON.stringify(encryptedConversations);
         const userKey = getConversationsKey(user?.sub);
-        localStorage.setItem(userKey, jsonStr);
+        safeSetLocalStorage(userKey, jsonStr);
         syncKeyToSupabase("AI_CONVERSATIONS", jsonStr);
       }).catch(console.error);
     };
@@ -2407,7 +2408,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
           </AnimatePresence>
 
           <AnimatePresence>
-            {showModes && (
+            {showModes && aiEngine !== "simples" && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="mb-2 flex flex-wrap gap-1.5">
                 {modes.map((m) => (
                   <button key={m.key}
@@ -2525,12 +2526,14 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
               {/* Input row */}
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1 pl-0.5">
-                  <button type="button" onClick={() => setShowModes(!showModes)}
-                    title="Alternar modos e ferramentas"
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors liquid-btn ${showModes ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
+                  {aiEngine !== "simples" && (
+                    <button type="button" onClick={() => setShowModes(!showModes)}
+                      title="Alternar modos e ferramentas"
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors liquid-btn ${showModes ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  )}
                   <button type="button" onClick={() => fileInputRef.current?.click()}
                     disabled={limitReached}
                     title="Anexar arquivos ou imagens"
