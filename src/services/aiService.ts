@@ -526,12 +526,11 @@ REGRAS OBRIGATÓRIAS (RIGOROSAS):
   // Fallback para OpenRouter se o Gemini falhar ou não retornar conteúdo suficiente
   const openRouterKeys = [openRouterKey, openRouterKey2, import.meta.env.VITE_OPENROUTER_API_KEY].filter(Boolean) as string[];
   const freeModels = [
+    "deepseek/deepseek-chat",
     "google/gemma-2-9b-it:free",
     "meta-llama/llama-3.1-8b-instruct:free",
-    "qwen/qwen-2.5-7b-instruct:free",
     "mistralai/mistral-7b-instruct:free",
-    "deepseek/deepseek-chat",
-    "openrouter/auto"
+    "openrouter/free"
   ];
 
   for (const rKey of openRouterKeys) {

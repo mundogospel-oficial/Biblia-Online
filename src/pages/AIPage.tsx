@@ -22,7 +22,6 @@ import { syncKeyToSupabase } from "@/services/userSyncService";
 import { generateBiblicalImage } from "@/services/imageGenerationService";
 import { APP_WHITE_LOGO_DATA_URL } from "@/assets/appLogoWhite";
 import { encryptConversationMessages, decryptConversationMessages } from "@/lib/security/cryptoService";
-import { safeSetLocalStorage } from "@/lib/storage";
 import { maskPiiInText } from "@/lib/security/privacyGuard";
 import { validateImageContent } from "@/services/imageModerationService";
 
@@ -902,7 +901,7 @@ const AIPage = () => {
               let localConvs: Conversation[] = localData ? JSON.parse(localData) : [];
               const existingIds = new Set(localConvs.map(c => c.id));
               const merged = [...guestConvs.filter(c => !existingIds.has(c.id)), ...localConvs];
-              safeSetLocalStorage(userKey, JSON.stringify(merged));
+              localStorage.setItem(userKey, JSON.stringify(merged));
               localStorage.removeItem(guestKey);
             }
           } catch (e) {
@@ -1105,7 +1104,7 @@ const AIPage = () => {
 
       // 1. Salva imediatamente o estado no localStorage (funciona logado ou visitante)
       try {
-        safeSetLocalStorage(userKey, JSON.stringify(updated));
+        localStorage.setItem(userKey, JSON.stringify(updated));
       } catch (e) {
         console.error("Erro ao salvar localmente:", e);
       }
@@ -1119,7 +1118,7 @@ const AIPage = () => {
           }))
         ).then(async (encryptedConversations) => {
           const jsonStr = JSON.stringify(encryptedConversations);
-          safeSetLocalStorage(userKey, jsonStr);
+          localStorage.setItem(userKey, jsonStr);
           await syncKeyToSupabase("AI_CONVERSATIONS", jsonStr);
         }).catch(console.error);
       }
@@ -1150,7 +1149,7 @@ const AIPage = () => {
     const userKey = getConversationsKey(userSecret);
 
     try {
-      safeSetLocalStorage(userKey, JSON.stringify(updated));
+      localStorage.setItem(userKey, JSON.stringify(updated));
     } catch (e) {
       console.error("Erro ao remover no localStorage:", e);
     }
@@ -1163,7 +1162,7 @@ const AIPage = () => {
         }))
       ).then(async (encryptedConversations) => {
         const jsonStr = JSON.stringify(encryptedConversations);
-        safeSetLocalStorage(userKey, jsonStr);
+        localStorage.setItem(userKey, jsonStr);
         await syncKeyToSupabase("AI_CONVERSATIONS", jsonStr);
       }).catch(console.error);
     }
@@ -1291,25 +1290,15 @@ const AIPage = () => {
     if (!user) return;
     
     // Check quota before loading
-    const isImageMode = mode === 'image';
-    const limitType = mode === 'video' || mode === 'music' ? 'complex' : (isImageMode ? 'image' : 'simple');
+    const limitType = mode === 'video' || mode === 'music' ? 'complex' : 'image';
     try {
-      if (isImageMode) {
-        if (usageStats.image >= LIMIT_IMAGE) {
-          toast({ title: "Limite atingido", description: "Sua cota diária para imagens acabou. Recarga em até 12h.", variant: "destructive" });
-          setLimitReached(true);
-          setIsLoading(false);
-          return;
-        }
-      } else {
-        const hasQuota = await checkAndIncrementUsage(limitType as any, user.sub);
-        await fetchUsage();
-        if (!hasQuota) {
-          toast({ title: "Limite atingido", description: "Sua cota diária para este recurso acabou. Recarga em até 12h.", variant: "destructive" });
-          setLimitReached(true);
-          setIsLoading(false);
-          return;
-        }
+      const hasQuota = await checkAndIncrementUsage(limitType as any, user.sub);
+      await fetchUsage();
+      if (!hasQuota) {
+        toast({ title: "Limite atingido", description: "Sua cota diária para este recurso acabou. Recarga em até 12h.", variant: "destructive" });
+        setLimitReached(true);
+        setIsLoading(false);
+        return;
       }
     } catch (error: any) {
       console.error("Erro na verificação de cotas:", error);
@@ -1436,17 +1425,13 @@ NUNCA use # para títulos, use **negrito**.`;
     // Check quota before loading
     try {
       if (activeMode === "image") {
-        if (usageStats.image >= LIMIT_IMAGE) {
-          toast({ 
-            title: "Limite atingido", 
-            description: `Limite de ${LIMIT_IMAGE} imagens atingido. Recarga em 12h.`, 
-            variant: "destructive" 
-          });
-          setLimitReached(true);
-          setIsLoading(false);
-          return;
-        }
-        // Note: image usage is recorded automatically on generation success by server / fallback
+        toast({ 
+          title: "Modo em Manutenção", 
+          description: "O modo gerar imagens está em manutenção", 
+          variant: "destructive" 
+        });
+        setIsLoading(false);
+        return;
       } else {
         const limitType = aiEngine === "complexo" ? "complex" : "simple";
         const hasQuota = await checkAndIncrementUsage(limitType, user.sub);
@@ -1483,9 +1468,13 @@ NUNCA use # para títulos, use **negrito**.`;
     try {
       let responseText = "";
       if (activeMode === 'image') {
-        const activeStyle = selectedImageStyle || IMAGE_STYLES.find(st => st.id === "cinematic") || IMAGE_STYLES[0];
-        const imagePromptWithStyle = `[Estilo: ${activeStyle.label} - ${activeStyle.promptAddon}] ${finalText}`;
-        responseText = await generateBiblicalImage(imagePromptWithStyle, controller.signal, 'square', false, 'chat', aiEngine === 'complexo');
+        toast({
+          title: "Modo em manutenção",
+          description: "O modo gerar imagens está em manutenção",
+          variant: "destructive"
+        });
+        setIsLoading(false);
+        return;
       } else if (activeMode === 'learning') {
         const learningPrompt = `Você é um professor e teólogo cristão dedicado ao ensino bíblico de forma altamente didática, passo a passo e interativa.
 
@@ -1577,7 +1566,13 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
       const prevModeLabel = activeModeInfo?.label;
 
       setActiveMode(mode.key);
-      if (mode.key !== "image") {
+      if (mode.key === "image") {
+        toast({
+          title: "Modo em Manutenção",
+          description: "O modo gerar imagens está em manutenção",
+          variant: "destructive"
+        });
+      } else {
         setAiEngine("complexo");
       }
       setShowModes(false);
@@ -1726,7 +1721,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
       ).then(encryptedConversations => {
         const jsonStr = JSON.stringify(encryptedConversations);
         const userKey = getConversationsKey(user?.sub);
-        safeSetLocalStorage(userKey, jsonStr);
+        localStorage.setItem(userKey, jsonStr);
         syncKeyToSupabase("AI_CONVERSATIONS", jsonStr);
       }).catch(console.error);
     };
@@ -1901,7 +1896,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
               </div>
             ) : (
               <AnimatePresence mode="popLayout">
-                {filteredConversations.map((conv) => {
+                {filteredConversations.map((conv, idx) => {
                   const categoryInfo = getConversationCategoryInfo(conv);
                   const CategoryIcon = categoryInfo.icon;
                   const previewText = getConversationPreview(conv);
@@ -1909,7 +1904,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
 
                   return (
                     <motion.div
-                      key={conv.id}
+                      key={conv.id ? `${conv.id}-${idx}` : `conv-${idx}`}
                       layout
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -2024,6 +2019,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
         <AnimatePresence>
           {showClearAllModal && (
             <motion.div
+              key="clear-all-modal"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -2191,6 +2187,33 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
           </div>
         </div>
 
+        {activeMode === "image" && (
+          <motion.div 
+            initial={{ opacity: 0, y: -6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className="shrink-0 mb-3 flex items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 backdrop-blur-md shadow-md"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                <AlertCircle className="h-5 w-5 text-amber-400" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-xs sm:text-sm font-bold text-amber-100 truncate">
+                    O modo gerar imagens está em manutenção
+                  </p>
+                  <span className="shrink-0 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold text-amber-300 border border-amber-500/30">
+                    Em Manutenção
+                  </span>
+                </div>
+                <p className="text-[11px] sm:text-xs text-amber-300/80 truncate mt-0.5">
+                  O recurso de geração de imagens da IA bíblica está temporariamente em manutenção.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {limitReached && (
           <motion.div 
             initial={{ opacity: 0, y: -6, scale: 0.98 }}
@@ -2285,9 +2308,9 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full">
                 {activeSuggestions.map((s) => (
-                  <motion.button key={s} whileTap={{ scale: 0.97 }} onClick={() => !limitReached && send(s)}
-                    disabled={limitReached}
-                    className="glass-card rounded-xl p-3 text-left text-xs text-card-foreground transition-colors hover:!border-accent liquid-btn disabled:opacity-50 flex flex-col justify-between"
+                  <motion.button key={s} whileTap={{ scale: activeMode === "image" ? 1 : 0.97 }} onClick={() => !limitReached && activeMode !== "image" && send(s)}
+                    disabled={limitReached || activeMode === "image"}
+                    className="glass-card rounded-xl p-3 text-left text-xs text-card-foreground transition-colors hover:!border-accent liquid-btn disabled:opacity-50 disabled:cursor-not-allowed flex flex-col justify-between"
                   >
                     <div className="flex items-center gap-1.5 mb-1 text-accent">
                       {activeMode === "image" ? (
@@ -2374,6 +2397,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
           <AnimatePresence>
             {activeModeInfo && (
               <motion.div
+                key={activeModeInfo.key}
                 initial={{ opacity: 0, y: -4, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -4, scale: 0.98 }}
@@ -2418,8 +2442,8 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
           </AnimatePresence>
 
           <AnimatePresence>
-            {showModes && aiEngine !== "simples" && (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="mb-2 flex flex-wrap gap-1.5">
+            {showModes && (
+              <motion.div key="show-modes-panel" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="mb-2 flex flex-wrap gap-1.5">
                 {modes.map((m) => (
                   <button key={m.key}
                     type="button"
@@ -2429,6 +2453,11 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     }`}
                   >
                     {m.icon} {m.label}
+                    {m.key === "image" && (
+                      <span className="ml-1 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-400 border border-amber-500/30">
+                        Manutenção
+                      </span>
+                    )}
                   </button>
                 ))}
               </motion.div>
@@ -2447,6 +2476,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
               <AnimatePresence>
                 {isDragging && (
                   <motion.div 
+                    key="dragging-overlay"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
@@ -2469,6 +2499,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
               <AnimatePresence>
                 {previews.length > 0 && (
                   <motion.div 
+                    key="previews-area"
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -2545,9 +2576,9 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     </button>
                   )}
                   <button type="button" onClick={() => fileInputRef.current?.click()}
-                    disabled={limitReached}
-                    title="Anexar arquivos ou imagens"
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground active:scale-95 transition-all shadow-xs disabled:opacity-50"
+                    disabled={limitReached || activeMode === "image"}
+                    title={activeMode === "image" ? "Modo em manutenção" : "Anexar arquivos ou imagens"}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground active:scale-95 transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Upload size={17} className="stroke-[2.2]" />
                   </button>
@@ -2558,13 +2589,10 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     <div className="relative">
                       <button
                         type="button"
+                        disabled={activeMode === "image"}
                         onClick={() => setShowStylePicker(!showStylePicker)}
-                        className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-all liquid-btn border ${
-                          selectedImageStyle
-                            ? "border-accent bg-accent/15 text-accent shadow-sm"
-                            : "border-border/80 bg-secondary/80 text-muted-foreground hover:text-foreground hover:border-accent/50"
-                        }`}
-                        title="Selecione o estilo da imagem"
+                        className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-all liquid-btn border opacity-60 cursor-not-allowed border-border/80 bg-secondary/80 text-muted-foreground`}
+                        title="O modo gerar imagens está em manutenção"
                       >
                         <Palette className="h-4 w-4 shrink-0 text-accent" />
                         <span className="text-[11px] font-semibold max-w-[95px] truncate">
@@ -2572,67 +2600,6 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                         </span>
                         <ChevronDown className={`h-3 w-3 shrink-0 transition-transform duration-200 ${showStylePicker ? "rotate-180" : ""}`} />
                       </button>
-
-                      {/* Menu Popover de Estilos */}
-                      <AnimatePresence>
-                        {showStylePicker && (
-                          <>
-                            <div className="fixed inset-0 z-40" onClick={() => setShowStylePicker(false)} />
-                            <motion.div
-                              initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                              animate={{ opacity: 1, y: 0, scale: 1 }}
-                              exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                              className="absolute bottom-full mb-3 left-0 z-50 w-72 sm:w-80 rounded-2xl border border-border/90 bg-card/95 p-3 shadow-2xl backdrop-blur-2xl"
-                            >
-                              <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/60 px-1">
-                                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                                  <Palette className="h-4 w-4 text-accent" /> Selecionar Estilo Visual
-                                </span>
-                                {selectedImageStyle?.id !== "cinematic" && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setSelectedImageStyle(IMAGE_STYLES.find(s => s.id === "cinematic") || null)}
-                                    className="text-[11px] text-accent hover:text-accent/80 font-semibold transition-colors"
-                                  >
-                                    Restaurar Padrão
-                                  </button>
-                                )}
-                              </div>
-
-                              <div className="grid grid-cols-1 gap-1.5 max-h-64 overflow-y-auto pr-1.5 custom-scrollbar">
-                                {IMAGE_STYLES.map((st) => {
-                                  const isSelected = selectedImageStyle?.id === st.id;
-                                  const isDefault = st.id === "cinematic";
-                                  return (
-                                    <button
-                                      key={st.id}
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedImageStyle(st);
-                                        setShowStylePicker(false);
-                                      }}
-                                      className={`flex items-center justify-between rounded-xl px-3 py-2 text-left text-xs transition-all ${
-                                        isSelected
-                                          ? "bg-accent/20 font-bold text-accent border border-accent/40 shadow-sm"
-                                          : "hover:bg-secondary/80 text-foreground border border-transparent"
-                                      }`}
-                                    >
-                                      <div className="min-w-0 flex-1 pr-2">
-                                        <p className="font-semibold text-xs text-foreground flex items-center justify-between gap-1">
-                                          <span>{st.label}</span>
-                                          {isDefault && <span className="text-[10px] text-accent font-normal">(Padrão)</span>}
-                                        </p>
-                                        <p className="text-[10px] text-muted-foreground truncate mt-0.5">{st.description}</p>
-                                      </div>
-                                      {isSelected && <Check className="h-4 w-4 text-accent shrink-0" />}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </motion.div>
-                          </>
-                        )}
-                      </AnimatePresence>
                     </div>
                   )}
                 </div>
@@ -2654,7 +2621,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                       : limitReached
                       ? "Limite diário atingido"
                       : activeMode === "image"
-                      ? "Descreva sua imagem..."
+                      ? "O modo gerar imagens está em manutenção"
                       : activeMode === "video"
                       ? "Descreva seu roteiro de vídeo..."
                       : activeMode === "learning"
@@ -2665,7 +2632,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                       ? "Pergunta Bíblica simples..."
                       : "Pergunte qualquer tema bíblico..."
                   }
-                  disabled={isLoading || limitReached || !isOnline}
+                  disabled={isLoading || limitReached || !isOnline || activeMode === "image"}
                   className="flex-1 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 {input.length > 1000 && (
@@ -2685,9 +2652,9 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                 ) : (
                   <button
                     type="submit"
-                    disabled={!input.trim() || limitReached || !isOnline}
+                    disabled={!input.trim() || limitReached || !isOnline || activeMode === "image"}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground transition-colors liquid-btn disabled:opacity-50 disabled:cursor-not-allowed mr-0.5 shadow-sm"
-                    title="Enviar"
+                    title={activeMode === "image" ? "Modo em manutenção" : "Enviar"}
                   >
                     <ArrowUp size={18} className="stroke-[2.5]" />
                   </button>

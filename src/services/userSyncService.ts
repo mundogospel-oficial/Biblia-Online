@@ -1,6 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
 import { savePlanProgress, getLocalPlanProgress, UserPlanProgress } from "./readingPlanService";
-import { safeSetLocalStorage } from "@/lib/storage";
 
 const PLAN_FAVORITES_KEY = "biblia-planos-favoritos";
 const PLAN_REFLECTIONS_KEY = "biblia_planos_reflexoes_v1";
@@ -93,7 +92,7 @@ export const loadKeyFromSupabase = async (referenceKey: string, localStorageKey:
       .maybeSingle();
 
     if (!error && existing?.note_text) {
-      safeSetLocalStorage(localStorageKey, existing.note_text);
+      localStorage.setItem(localStorageKey, existing.note_text);
     } else {
       // Se a conta no banco ainda não possui dados gravados, mas temos dados no localStorage do usuário,
       // sincroniza do local para o Supabase para nunca perder o histórico

@@ -61,12 +61,12 @@ Versículos para traduzir:
 ${verses.map(v => `${v.verse}: ${v.text}`).join('\n')}`;
 
   const freeModels = [
+    "deepseek/deepseek-chat",
     "google/gemma-2-9b-it:free",
     "meta-llama/llama-3.1-8b-instruct:free",
-    "qwen/qwen-2.5-7b-instruct:free",
     "mistralai/mistral-7b-instruct:free",
-    "deepseek/deepseek-chat",
-    "openrouter/auto"
+    "qwen/qwen-2.5-7b-instruct:free",
+    "openrouter/free"
   ];
 
   let lastError = "Não foi possível conectar ao serviço OpenRouter de tradução.";
