@@ -820,10 +820,10 @@ TIPO C — OUTROS PERSONAGENS BÍBLICOS (Jesus, Moisés, Davi, Abraão, Profetas
 
 ESTILOS VISUAIS ([Estilo: ...]):
 - Se nenhum estilo específico for solicitado, utilize POR PADRÃO O ESTILO CINEMATOGRÁFICO:
-  * CINEMATOGRÁFICO (Padrão): "High-end epic cinematic movie still, masterwork lighting, crisp focal clarity, ultra-realistic human eyes with identical matching eye color, hyper-detailed crystal-clear iris, razor-sharp pupil definition with zero motion blur even on close-up zoom, soft golden sunlight, anamorphic camera lens, shallow depth of field, vivid natural colors, masterwork 8k resolution."
+  * CINEMATOGRÁFICO (Padrão): "High-end epic cinematic movie still, masterwork dramatic lighting, tack-sharp focal precision across entire face and eyes, perfectly aligned symmetrical human eyes with identical matching dark brown irises, flawless round dark pupils, crisp razor-sharp iris texture without blur or double pupils, 100% sharp focus on both eyes, pristine natural skin texture, masterwork 8k resolution, no motion blur, no depth of field blur on eyes, no cat eyes, no split pupils, no double irises, no heterochromia, no strabismus, no deformed eyes, no cloudy irises, ultra sharp eyes."
   * ANIMAÇÃO 3D: "A beautiful 3D animated character illustration, Pixar and Disney studio art style, expressive face, clear aligned eyes with identical matching eye color and razor-sharp pupil clarity, smooth 3D rendering, vibrant colors."
   * PIXEL ART: "Crisp 16-bit pixel art style, detailed retro video game graphics, clean pixel edges, nostalgic vibrant colors."
-  * FOTORREALISMO: "An award-winning ultra-realistic 8k DSLR photograph, razor-sharp focus on faces and eyes, pristine detailed human skin texture, ultra-realistic human eyes with identical matching eye color, hyper-detailed crystal-clear iris, razor-sharp pupil definition without motion blur even on extreme close-up zoom, natural daylight, authentic historical accuracy."
+  * FOTORREALISMO: "An award-winning ultra-realistic 8k DSLR photograph, razor-sharp focus on faces and eyes, pristine detailed human skin texture, ultra-realistic human eyes with identical matching eye color, hyper-detailed crystal-clear iris, razor-sharp pupil definition without motion blur even on extreme close-up zoom, natural daylight, authentic historical accuracy, no motion blur, no depth of field blur on eyes, no cat eyes, no split pupils, no double irises, no heterochromia, no strabismus, no deformed eyes, no cloudy irises, ultra sharp eyes."
   * PINTURA A ÓLEO: "Master classical oil painting on canvas, refined elegant brushwork, luminous lighting, museum fine art quality."
   * AQUARELA: "Delicate watercolor painting on textured paper, soft fluid pastel colors, clean artistic outlines."`}
 
@@ -912,11 +912,15 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
           finalPrompt += `, stained glass/mosaic pattern strictly limited to background cathedral architecture frame, smooth clean photorealistic human face and pristine natural skin in foreground`;
         }
 
-        const facialHarmonizerAddon = `photorealistic medium chest-up portrait photograph, balanced eye-level composition, soft uniform studio fill lighting across all faces with zero dark shadows or dappled reflections covering eyes, crisp razor-sharp focus on human faces and eyes, 100% clear unobstructed eyes on all individuals, clear gap between foliage and faces, anatomically perfect facial symmetry, clean smooth skin tone, authentic photorealistic human eyes with crystal-clear centered round dark pupils and natural iris texture, symmetrical forward eye gaze, perfectly defined eyebrows and lips, 8k resolution professional photography, no shadowed eyes, no white cloudy eyes, no glitched pupils, no distorted eyelids, no heterochromia, no strabismus, no blurry face`;
+        const facialHarmonizerAddon = `photorealistic medium chest-up portrait photograph, balanced eye-level composition, soft uniform studio fill lighting across all faces with zero dark shadows or dappled reflections covering eyes, crisp tack-sharp focus on human faces and eyes, 100% clear unobstructed eyes on all individuals, clear gap between foliage and faces, anatomically perfect facial symmetry, clean smooth skin tone, authentic photorealistic human eyes with crystal-clear centered round dark pupils and natural iris texture, symmetrical forward eye gaze, perfectly defined eyebrows and lips, 8k resolution professional photography, no shadowed eyes, no white cloudy eyes, no glitched pupils, no cat eyes, no split pupils, no double irises, no polycoria, no heterochromia, no strabismus, no distorted eyelids, no blurry face, no motion blur, no depth of field blur on eyes, ultra sharp eyes`;
 
         if (!finalPrompt.toLowerCase().includes("photorealistic medium")) {
           finalPrompt = `${finalPrompt}, ${facialHarmonizerAddon}`;
         }
+      }
+
+      if (!isLandscapeOnly && !finalPrompt.toLowerCase().includes("no glitched pupils")) {
+        finalPrompt += `, tack-sharp focus, crystal-clear eyes, perfectly round dark pupils, no motion blur, no face blur, no blurry eyes, no out of focus eyes, no glitched pupils, no cat eyes, no split pupils, no double irises, no polycoria, no heterochromia, no distorted eyelids, no deformed eyes, 8k resolution`;
       }
 
       let width = 1024;

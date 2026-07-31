@@ -533,8 +533,8 @@ const IMAGE_STYLES: ImageStyleOption[] = [
     id: "cinematic",
     label: "Cinematográfico",
     badge: "Cinematográfico",
-    promptAddon: "CINEMATOGRÁFICO: Ultra-realistic epic movie still, crisp focal clarity, soft golden sunlight, anamorphic camera lens, shallow depth of field, ultra-realistic human eyes with identical matching eye color, hyper-detailed crystal-clear iris, razor-sharp pupil definition without motion blur even on extreme close-up zoom, pristine realistic skin tones, 8k resolution",
-    description: "Luz dourada de cinema e lente anamórfica de alta clareza"
+    promptAddon: "CINEMATOGRÁFICO: Ultra-realistic epic movie still, masterwork dramatic lighting, tack-sharp focal precision across entire face and eyes, perfectly aligned symmetrical human eyes with identical matching dark brown irises, flawless round dark pupils, crisp razor-sharp iris texture without blur or double pupils, 100% sharp focus on both eyes, pristine natural skin texture, masterwork 8k resolution, no motion blur, no depth of field blur on eyes, no cat eyes, no split pupils, no double irises, no heterochromia, no strabismus, no deformed eyes, no cloudy irises, ultra sharp eyes",
+    description: "Luz de cinema épica com nitidez total e olhos perfeitos"
   },
   {
     id: "animation",
@@ -554,8 +554,8 @@ const IMAGE_STYLES: ImageStyleOption[] = [
     id: "realistic",
     label: "Fotorrealismo",
     badge: "Fotorrealismo",
-    promptAddon: "FOTORREALISMO: Award-winning ultra-realistic DSLR portrait photography, 8k UHD, shot on 85mm lens f/1.4, bright soft natural daylight, pristine clean skin, ultra-realistic human eyes with identical matching eye color, hyper-detailed crystal-clear iris, razor-sharp pupil definition with zero motion blur even on extreme close-up zoom, sharp focus, authentic historical accuracy",
-    description: "Fotografia fotorrealista com pele limpa e iluminação natural"
+    promptAddon: "FOTORREALISMO: Award-winning ultra-realistic DSLR portrait photography, 8k UHD, bright soft natural daylight, pristine clean skin, tack-sharp focal precision across entire face and eyes, perfectly aligned symmetrical human eyes with identical matching dark brown irises, flawless round dark pupils, crisp razor-sharp iris texture without blur or double pupils, 100% sharp focus on both eyes, authentic historical accuracy, no motion blur, no depth of field blur on eyes, no cat eyes, no split pupils, no double irises, no heterochromia, no strabismus, no deformed eyes, no cloudy irises, ultra sharp eyes",
+    description: "Fotografia fotorrealista com nitidez máxima e olhos hiper-detalhados"
   },
   {
     id: "anime",
