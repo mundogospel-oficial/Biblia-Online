@@ -291,7 +291,7 @@ export const generateBiblicalImage = async (
       // 3. Obter chaves do Gemini e OpenRouter do Supabase para tradução/refinamento local
       let googleKey = (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
       let googleKey2 = (import.meta.env.VITE_GEMINI_API_KEY_2 || "").trim();
-      let openRouterKey = (import.meta.env.VITE_OPENROUTER_API_KEY || "").trim();
+      let openRouterKey = ((import.meta.env as any).VITE_OPEN_ROUTER_IMAGENS || (import.meta.env as any).OPEN_ROUTER_IMAGENS || import.meta.env.VITE_OPENROUTER_API_KEY || "").trim();
       let openRouterKey2 = (import.meta.env.VITE_OPENROUTER_API_KEY_2 || "").trim();
       let systemPromptMaster = "Você SÓ PODE responder sobre a Bíblia. Use markdown limpo.";
 
@@ -379,12 +379,13 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
       if (openRouterKeysToTry.length > 0) {
         console.log(`[OPEN_ROUTER_IMAGENS] Processando mensagem e gerando prompt via OpenRouter...`);
         const openRouterModels = [
-          "meta-llama/llama-3.3-70b-instruct:free",
           "google/gemma-2-9b-it:free",
+          "meta-llama/llama-3.1-8b-instruct:free",
+          "meta-llama/llama-3.3-70b-instruct:free",
           "qwen/qwen-2.5-72b-instruct:free",
-          "deepseek/deepseek-r1-distill-llama-70b:free",
-          "mistralai/mistral-large-2411",
-          "openai/gpt-4o-mini"
+          "mistralai/mistral-7b-instruct:free",
+          "openai/gpt-4o-mini",
+          "openrouter/auto"
         ];
 
         for (const orKey of openRouterKeysToTry) {

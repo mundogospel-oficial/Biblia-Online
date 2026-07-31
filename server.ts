@@ -753,7 +753,7 @@ ou
       // 3. Obter chaves do Gemini, OpenRouter (OPEN_ROUTER_IMAGENS) e prompt mestre do Banco de Dados / Ambiente
       let googleKey = (process.env.VITE_GEMINI_API_KEY || "").trim();
       let googleKey2 = (process.env.VITE_GEMINI_API_KEY_2 || "").trim();
-      let openRouterKey = (process.env.VITE_OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY || "").trim();
+      let openRouterKey = (process.env.OPEN_ROUTER_IMAGENS || process.env.VITE_OPEN_ROUTER_IMAGENS || process.env.VITE_OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY || "").trim();
       let openRouterKey2 = (process.env.VITE_OPENROUTER_API_KEY_2 || process.env.OPENROUTER_API_KEY_2 || "").trim();
       let systemPromptMaster = "Você SÓ PODE responder sobre a Bíblia. Use markdown limpo. As versões oficiais de Bíblia integradas no aplicativo são: Almeida (ARC/Almeida 1980), Bíblia Livre (BLivre 2018), King James Version (KJV), Bible in Basic English (BBE) e World English Bible (WEB). Responda e cite versículos fielmente utilizando estritamente estas versões.";
 
@@ -850,12 +850,13 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
       if (openRouterKeysToTry.length > 0) {
         console.log(`[OPEN_ROUTER_IMAGENS] Sistema de IA OpenRouter ativado para processar o pedido de imagem do usuário...`);
         const preferredOpenRouterModels = [
-          "meta-llama/llama-3.3-70b-instruct:free",
           "google/gemma-2-9b-it:free",
+          "meta-llama/llama-3.1-8b-instruct:free",
+          "meta-llama/llama-3.3-70b-instruct:free",
           "qwen/qwen-2.5-72b-instruct:free",
-          "deepseek/deepseek-r1-distill-llama-70b:free",
-          "mistralai/mistral-large-2411",
-          "openai/gpt-4o-mini"
+          "mistralai/mistral-7b-instruct:free",
+          "openai/gpt-4o-mini",
+          "openrouter/auto"
         ];
 
         for (const orKey of openRouterKeysToTry) {
