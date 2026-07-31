@@ -26,9 +26,8 @@ export const checkAndIncrementUsage = async (type: 'simple' | 'complex' | 'image
       return true;
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayISO = today.toISOString();
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+    const windowISO = twelveHoursAgo.toISOString();
 
     // 1. VERIFICAÇÃO RÍGIDA DE COTA: Consultar contagem direta na tabela user_ai_usage
     const { count, error: countError } = await supabase
@@ -36,7 +35,7 @@ export const checkAndIncrementUsage = async (type: 'simple' | 'complex' | 'image
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('tipo_uso', tipoUso)
-      .gte('created_at', todayISO);
+      .gte('created_at', windowISO);
 
     if (!countError && count !== null && count >= limitValue) {
       console.warn(`[Cota Rígida] Limite diário de ${limitValue} atingido para '${tipoUso}'. Uso bloqueado (contagem atual: ${count}).`);
@@ -96,15 +95,14 @@ export const getUserUsage = async (providedUserId?: string) => {
     
     if (!navigator.onLine) return { simple_count: 0, complex_count: 0, image_count: 0 };
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayISO = today.toISOString();
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+    const windowISO = twelveHoursAgo.toISOString();
 
     const { data, error } = await supabase
       .from('user_ai_usage')
       .select('tipo_uso')
       .eq('user_id', userId)
-      .gte('created_at', todayISO);
+      .gte('created_at', windowISO);
 
     if (error) {
       if (error.message?.includes("Failed to fetch")) {
@@ -150,16 +148,15 @@ export const refundUsage = async (type: 'simple' | 'complex' | 'image' | 'create
     if (!user) return;
     const userId = user.id;
 
-    // Remove o último registro de uso desse tipo hoje
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Remove o último registro de uso desse tipo nas últimas 12h
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
     
     const { data: lastUsage, error: selectError } = await supabase
       .from('user_ai_usage')
       .select('id')
       .eq('user_id', userId)
       .eq('tipo_uso', type)
-      .gte('created_at', today.toISOString())
+      .gte('created_at', twelveHoursAgo.toISOString())
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();

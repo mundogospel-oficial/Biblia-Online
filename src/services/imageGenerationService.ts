@@ -194,15 +194,14 @@ export const generateBiblicalImage = async (
       const quotaLimit = 3;
 
       if (user) {
-        const today = new Date();
-        today.setUTCHours(0, 0, 0, 0);
+        const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
         try {
           const { count, error: countError } = await supabase
             .from('user_ai_usage')
             .select('*', { count: 'exact', head: true })
             .eq('user_id', user.id)
             .eq('tipo_uso', quotaType)
-            .gte('created_at', today.toISOString());
+            .gte('created_at', twelveHoursAgo.toISOString());
 
           if (!countError && count !== null && count >= quotaLimit) {
             const displayLimitMsg = isCreateSource 

@@ -724,10 +724,9 @@ ou
       const quotaType = isCreateSource ? 'create_image' : 'image';
       const quotaLimit = 3;
 
-      // 2. Verificar limite de cotas diárias de imagem no Banco de Dados (independente e separada)
+      // 2. Verificar limite de cotas de imagem nas últimas 12 horas no Banco de Dados
       if (adminClient && userId) {
-        const today = new Date();
-        today.setUTCHours(0, 0, 0, 0);
+        const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
 
         try {
           const { count, error: countError } = await adminClient
@@ -735,7 +734,7 @@ ou
             .select('*', { count: 'exact', head: true })
             .eq('user_id', userId)
             .eq('tipo_uso', quotaType)
-            .gte('created_at', today.toISOString());
+            .gte('created_at', twelveHoursAgo.toISOString());
 
           if (countError) {
             console.error("[Quota Backend] Erro computando uso diário:", countError);

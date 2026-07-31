@@ -1291,15 +1291,25 @@ const AIPage = () => {
     if (!user) return;
     
     // Check quota before loading
-    const limitType = mode === 'video' || mode === 'music' ? 'complex' : 'image';
+    const isImageMode = mode === 'image';
+    const limitType = mode === 'video' || mode === 'music' ? 'complex' : (isImageMode ? 'image' : 'simple');
     try {
-      const hasQuota = await checkAndIncrementUsage(limitType as any, user.sub);
-      await fetchUsage();
-      if (!hasQuota) {
-        toast({ title: "Limite atingido", description: "Sua cota diária para este recurso acabou. Recarga em até 12h.", variant: "destructive" });
-        setLimitReached(true);
-        setIsLoading(false);
-        return;
+      if (isImageMode) {
+        if (usageStats.image >= LIMIT_IMAGE) {
+          toast({ title: "Limite atingido", description: "Sua cota diária para imagens acabou. Recarga em até 12h.", variant: "destructive" });
+          setLimitReached(true);
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        const hasQuota = await checkAndIncrementUsage(limitType as any, user.sub);
+        await fetchUsage();
+        if (!hasQuota) {
+          toast({ title: "Limite atingido", description: "Sua cota diária para este recurso acabou. Recarga em até 12h.", variant: "destructive" });
+          setLimitReached(true);
+          setIsLoading(false);
+          return;
+        }
       }
     } catch (error: any) {
       console.error("Erro na verificação de cotas:", error);

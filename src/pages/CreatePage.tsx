@@ -496,15 +496,14 @@ const CreatePage = () => {
       }
       if (!targetUserId) return 0;
 
-      const today = new Date();
-      today.setUTCHours(0, 0, 0, 0);
+      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
 
       const { count, error } = await supabase
         .from('user_ai_usage')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', targetUserId)
         .eq('tipo_uso', 'create_image')
-        .gte('created_at', today.toISOString());
+        .gte('created_at', twelveHoursAgo.toISOString());
 
       if (!error && count !== null) {
         setCreateImageCount(count);
