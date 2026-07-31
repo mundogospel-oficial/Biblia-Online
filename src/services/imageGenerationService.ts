@@ -128,6 +128,8 @@ export const generateBiblicalImage = async (
     .replace(/[\r\n]+/g, " ") // REMOVER quebras de linha para evitar quebras em URLs e Markdowns
     .trim();
 
+  const displayPrompt = cleanPrompt.replace(/\[Estilo:\s*[^\]]+\]/gi, '').trim() || cleanPrompt;
+
   // Chamar o proxy do backend para geração de imagem protegida pelo Sentinel e por token de autenticação
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -416,8 +418,6 @@ REGRA 4 (Saída Limpa): Responda APENAS com o prompt final refinado em INGLÊS e
           finalPrompt = `${styleAddon}, ${finalPrompt}`;
         }
       }
-
-      const displayPrompt = cleanPrompt.replace(/\[Estilo:\s*[^\]]+\]/gi, '').trim() || cleanPrompt;
 
       const isAdamAndEve = /(?:adão|adao|adam).*(?:eva|eve)|(?:eva|eve).*(?:adão|adao|adam)|jardim do [ée]den|garden of eden/i.test(cleanPrompt + " " + enhancedPrompt);
       if (isAdamAndEve) {
