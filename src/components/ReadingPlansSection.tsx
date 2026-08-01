@@ -445,19 +445,29 @@ export const ReadingPlansSection = () => {
                   <div className="flex items-start gap-3.5">
                     <button
                       onClick={() => handleDayClick(day)}
-                      className={`mt-0.5 shrink-0 rounded-full p-1 transition-transform active:scale-90 ${
+                      disabled={!isCurrentPlanActive}
+                      className={`mt-0.5 shrink-0 rounded-full p-1 transition-transform ${
                         isDone
-                          ? "text-emerald-500"
-                          : "text-muted-foreground hover:text-accent"
+                          ? "text-emerald-500 active:scale-90"
+                          : !isCurrentPlanActive
+                          ? "text-muted-foreground/30 opacity-40 cursor-not-allowed"
+                          : "text-muted-foreground hover:text-accent active:scale-90"
                       }`}
                       title={
                         isDone
                           ? "Clique para desmarcar ou ver lição salva"
+                          : !isCurrentPlanActive
+                          ? "Ative este plano para liberar a marcação da lição"
                           : "Concluir e responder reflexão da lição"
                       }
                     >
                       {isDone ? (
                         <CheckCircle2 className="h-6 w-6 fill-emerald-500/20 text-emerald-500" />
+                      ) : !isCurrentPlanActive ? (
+                        <div className="relative flex items-center justify-center">
+                          <Circle className="h-6 w-6 text-muted-foreground/30" />
+                          <Lock className="h-3 w-3 absolute text-muted-foreground/50" />
+                        </div>
                       ) : (
                         <Circle className="h-6 w-6" />
                       )}
