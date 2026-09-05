@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
 import { savePlanProgress, getLocalPlanProgress, UserPlanProgress } from "./readingPlanService";
 
 const PLAN_FAVORITES_KEY = "biblia-planos-favoritos";
@@ -47,6 +47,7 @@ export const clearAllLocalUserData = () => {
  * Salva uma chave de dados no Supabase (tabela user_notes)
  */
 export const syncKeyToSupabase = async (referenceKey: string, localValueStr: string) => {
+  if (!isSupabaseConfigured) return;
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -81,6 +82,7 @@ export const syncKeyToSupabase = async (referenceKey: string, localValueStr: str
  * Carrega dados do Supabase e salva no localStorage de forma segura
  */
 export const loadKeyFromSupabase = async (referenceKey: string, localStorageKey: string) => {
+  if (!isSupabaseConfigured) return;
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -111,6 +113,7 @@ export const loadKeyFromSupabase = async (referenceKey: string, localStorageKey:
  * Sincroniza TODO o histórico, planos, atividades, reflexões e preferências para o Supabase
  */
 export const syncAllUserDataToSupabase = async () => {
+  if (!isSupabaseConfigured) return;
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -133,8 +136,8 @@ export const syncAllUserDataToSupabase = async () => {
         await syncKeyToSupabase(item.ref, val);
       }
     }
-  } catch (err) {
-    console.error("Erro ao sincronizar todos os dados do usuário:", err);
+  } catch (err: any) {
+    console.warn("Aviso ao sincronizar dados do usuário:", err?.message || err);
   }
 };
 
@@ -142,6 +145,7 @@ export const syncAllUserDataToSupabase = async () => {
  * Restaura todo o histórico da conta do usuário vindo do Supabase
  */
 export const syncAllUserDataFromSupabaseOnLogin = async () => {
+  if (!isSupabaseConfigured) return;
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -164,8 +168,8 @@ export const syncAllUserDataFromSupabaseOnLogin = async () => {
     for (const item of keysToLoad) {
       await loadKeyFromSupabase(item.ref, item.key);
     }
-  } catch (err) {
-    console.error("Erro ao carregar dados da conta do Supabase:", err);
+  } catch (err: any) {
+    console.warn("Aviso ao carregar dados da conta do Supabase:", err?.message || err);
   }
 };
 

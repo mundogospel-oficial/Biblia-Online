@@ -4,12 +4,14 @@ import { Sparkles, Clock, RotateCcw, X } from "lucide-react";
 import { useFocusMode, formatRemainingTime } from "@/services/focusModeService";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
+import { useFeatureGate } from "@/hooks/useFeatureGate";
 
 interface FocusModeCardProps {
   compact?: boolean;
 }
 
 export const FocusModeCard: React.FC<FocusModeCardProps> = ({ compact = false }) => {
+  const { canAccess } = useFeatureGate();
   const { t } = useLanguage();
   const { toast } = useToast();
   const {
@@ -19,6 +21,11 @@ export const FocusModeCard: React.FC<FocusModeCardProps> = ({ compact = false })
     toggleFocus,
     renewFocus,
   } = useFocusMode();
+
+  // Oculta 100% o Modo Foco para usuários comuns que não possuam a role beta no Supabase
+  if (!canAccess("beta")) {
+    return null;
+  }
 
   const handleToggle = async () => {
     if (active) {

@@ -3,12 +3,14 @@ import { supabase, isAuthRefreshError } from "@/integrations/supabase/client";
 import type { User as SupaUser } from "@supabase/supabase-js";
 import { setupPushNotifications } from "@/services/pushService";
 import { syncAllUserDataFromSupabaseOnLogin, deactivatePlansAndSyncOnLogout, clearAllLocalUserData } from "@/services/userSyncService";
+import { saveVerifiedRole, getVerifiedRoleFromCache, verifyBetaPermissionWithServer } from "@/services/tamperProtectionService";
 
 export interface GoogleUser {
   name: string;
   email: string;
   picture: string;
   sub: string;
+  role?: string;
 }
 
 interface AuthContextType {
@@ -16,6 +18,11 @@ interface AuthContextType {
   login: (userData: GoogleUser) => void;
   logout: () => Promise<void>;
   loading: boolean;
+  role: string;
+  isBeta: boolean;
+  isAdmin: boolean;
+  hasAccess: (requiredRole?: string) => boolean;
+  refreshRole: () => Promise<string>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -23,6 +30,11 @@ const AuthContext = createContext<AuthContextType>({
   login: () => {},
   logout: async () => {},
   loading: true,
+  role: 'padrao',
+  isBeta: false,
+  isAdmin: false,
+  hasAccess: () => false,
+  refreshRole: async () => 'padrao',
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -139,9 +151,38 @@ export const handleAuthError = async (error: any): Promise<boolean> => {
   return false;
 };
 
+const fetchProfileRole = async (userId: string): Promise<string> => {
+  if (!userId) return 'padrao';
+  try {
+    // 1. Consulta autoritativa direta com o Supabase
+    const { isAllowed, role: serverRole } = await verifyBetaPermissionWithServer();
+    if (serverRole && serverRole !== 'padrao') {
+      return serverRole;
+    }
+
+    // 2. Se a rede estiver offline temporariamente, valida usando hash criptográfico
+    const verifiedCachedRole = await getVerifiedRoleFromCache(userId);
+    return verifiedCachedRole;
+  } catch {
+    return await getVerifiedRoleFromCache(userId);
+  }
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<GoogleUser | null>(() => getStoredUser());
   const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState<string>('padrao');
+
+  const refreshRole = async (): Promise<string> => {
+    const current = user || getStoredUser();
+    if (current?.sub) {
+      const r = await fetchProfileRole(current.sub);
+      setRole(r);
+      return r;
+    }
+    setRole('padrao');
+    return 'padrao';
+  };
 
   useEffect(() => {
     let isSubscribed = true;
@@ -150,13 +191,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (e.key === 'auth-sync-logout') {
         setUser(null);
         setStoredUser(null);
+        setRole('padrao');
         setLoading(false);
       } else if (e.key === BIBLE_USER_KEY) {
         if (!e.newValue) {
           setUser(null);
+          setRole('padrao');
         } else {
           try {
-            setUser(JSON.parse(e.newValue));
+            const parsed = JSON.parse(e.newValue);
+            setUser(parsed);
+            if (parsed?.sub) {
+              getVerifiedRoleFromCache(parsed.sub).then((r) => {
+                if (isSubscribed) setRole(r);
+              });
+            }
           } catch {}
         }
       }
@@ -165,6 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const handleLogoutLocal = () => {
       setUser(null);
       setStoredUser(null);
+      setRole('padrao');
       setLoading(false);
     };
 
@@ -181,6 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (wasCleaned && isSubscribed) {
             setUser(null);
             setStoredUser(null);
+            setRole('padrao');
             setLoading(false);
             return;
           }
@@ -196,10 +247,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setStoredUser(mapped);
             setupPushNotifications(session.user.id);
             syncAllUserDataFromSupabaseOnLogin().catch(console.error);
+            fetchProfileRole(session.user.id).then(r => {
+              if (isSubscribed) setRole(r);
+            });
           } else {
             const localUser = getStoredUser();
             if (!localUser) {
               setUser(null);
+              setRole('padrao');
+            } else if (localUser.sub) {
+              getVerifiedRoleFromCache(localUser.sub).then(r => {
+                if (isSubscribed) setRole(r);
+              });
             }
           }
         }
@@ -220,9 +279,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(mapped);
         setStoredUser(mapped);
         syncAllUserDataFromSupabaseOnLogin().catch(console.error);
+        fetchProfileRole(session.user.id).then(r => {
+          if (isSubscribed) setRole(r);
+        });
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setStoredUser(null);
+        setRole('padrao');
       }
       setLoading(false);
     });
@@ -240,6 +303,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStoredUser(userData);
     if (userData.sub) {
       setupPushNotifications(userData.sub);
+      fetchProfileRole(userData.sub).then(r => setRole(r));
     }
   };
 
@@ -247,6 +311,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 1. Limpa o estado local imediatamente para feedback de UI de 0ms
     setUser(null);
     setStoredUser(null);
+    setRole('padrao');
     clearAllLocalUserData();
     window.dispatchEvent(new Event('auth-sync-logout-local'));
 
@@ -259,8 +324,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const isBeta = role.toLowerCase() === 'beta' || role.toLowerCase() === 'admin';
+  const isAdmin = role.toLowerCase() === 'admin';
+
+  const hasAccess = (requiredRole: string = 'beta') => {
+    const current = role.toLowerCase();
+    const target = requiredRole.toLowerCase();
+    if (current === 'admin') return true;
+    if (target === 'beta') return current === 'beta' || current === 'admin';
+    return current === target;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, role, isBeta, isAdmin, hasAccess, refreshRole }}>
       {children}
     </AuthContext.Provider>
   );

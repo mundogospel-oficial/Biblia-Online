@@ -175,6 +175,11 @@ const TermsModal = ({ isOpen, onClose }: TermsModalProps) => {
                     <p>Ao enviar imagens ou arquivos para a IA, lembre-se de que eles são processados por sistemas parceiros para gerar as respostas que você busca. Para sua segurança e privacidade, pedimos que não compartilhe fotos pessoais, documentos ou arquivos que não estejam relacionados ao estudo bíblico. Recomendamos usar apenas conteúdos que façam parte da sua pesquisa dentro do aplicativo.</p>
                   </section>
 
+                  <section>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">22. Programa Beta</h3>
+                    <p>O acesso às funcionalidades em versão Beta é disponibilizado sem coleta de dados adicionais. Tratam-se de recursos finalizados para lançamento antecipado, que não apresentam riscos e destinam-se exclusivamente ao teste de novas funções pelo usuário.</p>
+                  </section>
+
                   <div className="pt-4 flex justify-end pb-4 pr-1">
                     <button
                       onClick={onClose}

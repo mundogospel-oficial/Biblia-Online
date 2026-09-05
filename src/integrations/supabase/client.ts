@@ -5,20 +5,21 @@ import type { Database } from './types';
 const envUrl = import.meta.env.VITE_SUPABASE_URL;
 const envKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+export const isSupabaseConfigured = Boolean(
+  envUrl &&
+  typeof envUrl === 'string' &&
+  envUrl.startsWith('http') &&
+  !envUrl.includes('127.0.0.1') &&
+  envKey &&
+  typeof envKey === 'string' &&
+  !envKey.includes('YOUR_SUPABASE')
+);
+
 // We use 127.0.0.1 as a fallback to avoid DNS lookup failures if vars are missing
-const SUPABASE_URL = (envUrl && envUrl.startsWith('http')) ? envUrl : 'http://127.0.0.1';
+const SUPABASE_URL = (envUrl && typeof envUrl === 'string' && envUrl.startsWith('http')) ? envUrl : 'http://127.0.0.1';
 
-if (!envUrl || !envUrl.startsWith('http')) {
-  console.warn("Supabase URL is not configured. Some features (Auth, AI History, Realtime) will fail with 'Failed to fetch'. Set VITE_SUPABASE_URL in Secrets.");
-}
-
-if (envUrl && !envUrl.startsWith('http')) {
-  console.error("The provided Supabase URL does not start with 'http'. It looks like you might have accidentally copied the SHA256 digest instead of the actual URL.");
-}
-
-// Interceptor opcional ou log para debug de rede
-if (import.meta.env.DEV) {
-  console.log("Supabase URL:", SUPABASE_URL);
+if (!isSupabaseConfigured) {
+  console.warn("Supabase URL is not configured. Safe mock fallback active to prevent 'Failed to fetch'. Set VITE_SUPABASE_URL in Secrets.");
 }
 
 const SUPABASE_PUBLISHABLE_KEY = envKey || 'YOUR_SUPABASE_ANON_KEY';
@@ -68,12 +69,45 @@ const safeAuthLock = async <R>(name: string, acquireTimeout: number, fn: () => P
   }
 };
 
+// Custom safe fetch to intercept unconfigured endpoints or catch network blips
+const safeSupabaseFetch: typeof fetch = async (input, init) => {
+  const urlStr = typeof input === 'string' ? input : (input instanceof Request ? input.url : String(input));
+  
+  if (!isSupabaseConfigured || urlStr.includes('127.0.0.1')) {
+    const isAuth = urlStr.includes('/auth/v1');
+    const body = isAuth ? JSON.stringify({ user: null, session: null }) : JSON.stringify([]);
+    return new Response(body, {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  try {
+    return await fetch(input, init);
+  } catch (err: any) {
+    const msg = String(err?.message || err).toLowerCase();
+    if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('aborted') || msg.includes('load failed')) {
+      console.warn('[Supabase Safe Fetch] Rede instável ou servidor indisponível:', err?.message || err);
+      const isAuth = urlStr.includes('/auth/v1');
+      const body = isAuth ? JSON.stringify({ user: null, session: null }) : JSON.stringify([]);
+      return new Response(body, {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    throw err;
+  }
+};
+
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
+    persistSession: isSupabaseConfigured,
+    autoRefreshToken: isSupabaseConfigured,
     lock: safeAuthLock,
+  },
+  global: {
+    fetch: safeSupabaseFetch,
   }
 });
 
@@ -160,6 +194,9 @@ export const clearStaleSession = () => {
 };
 
 supabase.auth.getSession = async () => {
+  if (!isSupabaseConfigured) {
+    return { data: { session: null }, error: null };
+  }
   try {
     const res = await originalGetSession();
     if (res.error) {
@@ -187,6 +224,9 @@ supabase.auth.getSession = async () => {
 };
 
 supabase.auth.getUser = async (jwt?: string) => {
+  if (!isSupabaseConfigured) {
+    return { data: { user: null }, error: null };
+  }
   try {
     const res = await originalGetUser(jwt);
     if (res.error) {

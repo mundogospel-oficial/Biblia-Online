@@ -245,6 +245,17 @@ export const BIBLICAL_SITUATIONS: BiblicalSituation[] = [
     directEnglishPrompt: 'A devout worshipper kneeling in sincere humble prayer, hands clasped naturally in prayer with anatomically perfect five fingers on each hand, gentle beam of warm golden celestial light illuminating the scene, calm serene expression of faith, authentic modest biblical attire, tack-sharp focus, photorealistic 8k, no distortions',
     requiresHuman: true,
     badge: 'Personagem Bíblico'
+  },
+  {
+    id: 'adao-e-eva-eden',
+    title: 'Adão e Eva no Jardim do Éden',
+    category: 'personagens',
+    categoryLabel: 'Personagens Bíblicos',
+    description: 'Adão e Eva no Jardim do Éden: homem com cabelo curto bem aparado e mulher com cabelos longos, ambos lado a lado olhando diretamente de frente para a câmera',
+    prompt: 'Adão e Eva no Jardim do Éden bem próximos lado a lado, homem com cabelo curto escuro estilo militar bem aparado e barba curta, mulher com cabelos longos naturais ondulados, ambos olhando diretamente nos olhos da câmera, vestidos com túnicas modestas opacas de linho cobrindo ombros e tronco, cenário paradisíaco do Éden com árvores frutíferas e luz celestial',
+    directEnglishPrompt: 'A centered frontal portrait of Adam and Eve standing very close together shoulder-to-shoulder in the biblical Garden of Eden. Both figures are centered side by side with no space between them, directly facing forward, looking straight into the camera lens with clear direct eye contact. Adam on the left is a handsome man with a very neat short cropped crew cut dark brown hair, buzzed clean short hair on the sides, neat short trimmed beard, clear warm brown eyes, and a flawlessly symmetric handsome face. Eve on the right is a beautiful woman with voluminous long natural wavy dark brown hair cascading gently over her shoulders, tender expressive hazel eyes, and a flawlessly symmetric feminine face. Both are fully dressed in thick opaque modest ancient biblical tunics made of raw natural unbleached linen covering their chest, shoulders and torso with complete dignity and reverence. In the background, the lush paradise of the Garden of Eden with primeval trees, blooming flowers, a crystal-clear stream, and soft warm golden celestial sunlight rays filtering through the canopy. Ultra-sharp focus, perfect facial anatomy, immaculate detailed eyes, photorealistic masterpiece, 8k uhd',
+    requiresHuman: true,
+    badge: 'Personagem Bíblico'
   }
 ];
 

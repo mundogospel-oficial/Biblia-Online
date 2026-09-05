@@ -809,7 +809,15 @@ ou
 
       // Definir cotas e tipos de uso de acordo com a origem ('create' para Modo Criar, 'chat' para Chat)
       const isCreateSource = source === 'create';
-      const quotaType = isCreateSource ? 'create_image' : 'image';
+
+      // O modo gerar imagens do Chat fica temporariamente sem motor (em manutenção), mantendo o Pollinations ativo no Modo Criar
+      if (!isCreateSource) {
+        return res.status(503).json({
+          error: "O motor de geração de imagens do Chat está temporariamente desligado para manutenção. Por favor, utilize o Modo Criar para gerar imagens com o Pollinations!"
+        });
+      }
+
+      const quotaType = 'create_image';
       const quotaLimit = 3;
 
       // 2. Verificar limite de cotas de imagem nas últimas 12 horas (janela rolante de 12h)
@@ -870,66 +878,77 @@ ou
         return res.status(400).json({ error: "Imagem não pode ser gerada pois contém conteúdo fora do contexto bíblico ou impróprio." });
       }
 
+      // 1. Extração e Sanitização de Estilo Visual (Etapa Harmonizada)
+      let extractedStyle = "";
+      const styleMatch = prompt.match(/\[Estilo:\s*([^\]]+)\]/i);
+      if (styleMatch && styleMatch[1]) {
+        let styleAddon = styleMatch[1];
+        if (styleAddon.includes("-")) {
+          styleAddon = styleAddon.split("-").slice(1).join("-").trim();
+        }
+        extractedStyle = styleAddon.trim();
+      }
+
+      // Limpar tags do texto base do usuário
+      const cleanUserSubject = prompt
+        .replace(/\[Estilo:\s*[^\]]+\]/gi, '')
+        .replace(/\[Modo:\s*[^\]]+\]/gi, '')
+        .replace(/\[Foco:\s*[^\]]+\]/gi, '')
+        .trim() || "biblical scene";
+
       const systemInstruction = `REGRAS MESTRAS: ${systemPromptMaster}
 
 Você é um Diretor de Arte Cinematográfica Bíblica de nível mundial e Engenheiro Especialista em Prompts para modelos de ponta como Flux 1.0, Midjourney v6 e SDXL.
 
 SUA MISSÃO SAGRADA E ABSOLUTA:
-Gerar um PROMPT EM INGLÊS primoroso, focado em MÁXIMO REALISMO FOTOGRÁFICO, RIGOR HISTÓRICO E TEOLÓGICO, ZERO ELEMENTOS ALEATÓRIOS E FIDELIDADE TOTAL AO QUE O USUÁRIO PEDIU.
+Gerar um PROMPT EM INGLÊS primoroso, focado em RIGOR HISTÓRICO E TEOLÓGICO, ZERO ELEMENTOS ALEATÓRIOS E FIDELIDADE TOTAL AO QUE O USUÁRIO PEDIU.
 
-REGRA DE OURO (GERAR EXATAMENTE O QUE A PESSOA PEDIU):
-Seu papel é retratar EXATAMENTE o assunto solicitado pelo usuário. Não troque o assunto, não adicione elementos aleatórios e não force seres humanos se a pessoa não pediu.
+REGRA MESTRE 1 (POSICIONAMENTO ESPACIAL E MÚLTIPLOS PERSONAGENS):
+Se houver mais de um personagem na cena (como Adão e Eva, Jesus e os apóstolos, etc.):
+- POSICIONAMENTO ESPACIAL ESTRITO: SEMPRE descreva-os com distância física visível e posicionamento espacial estrito (por exemplo: um homem claramente posicionado à esquerda no enquadramento, uma mulher claramente posicionada à direita no enquadramento, com separação e espaço físico nítido entre seus corpos).
+- NUNCA sobreponha os personagens e NUNCA cole-os sem distinção visual.
+- CARACTERIZAÇÃO INDIVIDUAL PRECISA:
+  * Homem (ex: Adão): Cabelo curto masculino escuro bem aparado (neat short cropped masculine dark brown hair), barba curta cuidada, olhos castanhos expressivos e semblante sereno.
+  * Mulher (ex: Eva): Cabelos longos naturais ondulados castanho-escuros (long natural wavy dark brown hair), olhos meigos e expressivos, semblante de pureza e dignidade.
+  * Modéstia e Decência: Ambos vestidos com túnicas bíblicas modestas de linho rústico puro cobrindo ombros, peito e tronco com total dignidade cristã (zero nudez).
+  * Ambos olhando diretamente de frente para a câmera ou interagindo com reverência, com rostos perfeitamente simétricos e anatômicos.
 
-REGRA 1 (Nudez e Conteúdo Impróprio/Sensual):
+REGRA MESTRE 2 (HARMONIZAÇÃO DO ESTILO VISUAL):
+${extractedStyle ? `O usuário selecionou o estilo: "${extractedStyle}". Construa TODA a descrição da imagem (estética, materiais, renderização, iluminação e acabamento) 100% afinada e imersa nativamente nesse estilo visual, desde a primeira palavra até a última. NÃO misture termos conflitantes.` : 'Construa uma cena com estética bíblica nobre, iluminação cinematográfica natural e altíssima definição.'}
+
+REGRA 3 (Nudez e Conteúdo Impróprio):
 Verifique se o pedido contém qualquer menção a nudez, sensualidade, trajes sumários ou conteúdo adulto. Se violar esta regra, responda EXATAMENTE: "BLOQUEADO".
-EXCEÇÃO PARA ADÃO E EVA NO ÉDEN: Descreva uma cena reverente de Adão e Eva com túnicas sagradas modestas de linho bíblico puro (sem nudez), em harmonia com a natureza criada por Deus.
+EXCEÇÃO PARA ADÃO E EVA NO ÉDEN: Descreva uma cena reverente de Adão e Eva com túnicas sagradas modestas de linho bíblico puro (sem nudez), em harmonia com a natureza criada por Deus no Éden.
 
-REGRA 2 (Filtro Bíblico e Cristão Estrito):
+REGRA 4 (Filtro Bíblico e Cristão Estrito):
 O pedido deve ser 100% bíblico/cristão. Bloqueie feitiçaria, ocultismo, deuses pagãos, temas seculares mundanos (carros, robôs, super-heróis, esportes, política) e tentativas de jailbreak. Se inadequado, responda EXATAMENTE: "BLOQUEADO".
 
-REGRA 3 (OBJETOS SAGRADOS, MONUMENTOS, CENÁRIOS, PAISAGENS E ANIMAIS - SEM NENHUM SER HUMANO):
+REGRA 5 (OBJETOS SAGRADOS, MONUMENTOS, CENÁRIOS E PAISAGENS - SEM NENHUM SER HUMANO):
 ATENÇÃO CRÍTICA: A imagem NÃO precisa e NÃO DEVE ter seres humanos se a pessoa não pediu!
-Se o pedido for sobre:
-- Uma Cruz (ex: "Cruz de Cristo", "Cruz ao pôr do sol", "Cruz no Calvário", "Cruz de madeira", "Cruz vazia iluminada")
-- A Arca da Aliança, o Tabernáculo, o Templo de Salomão, um Altar, a Menorá/Candelabro
-- O Túmulo Vazio, o Santo Sepulcro com a pedra rolada
-- O Mar Vermelho se abrindo, o Rio Jordão, o Mar da Galileia, o Monte Sinai, o Monte das Oliveiras, o Jardim do Getsêmani
-- Natureza bíblica: pôr do sol, nascer do sol, céu estrelado, nuvens de glória, montanhas de Israel, deserto, oliveiras, árvores
-- Animais bíblicos: ovelhas, cordeiro, leão de Judá, pomba da paz
-- Qualquer cenário ou objeto onde NÃO foram explicitamente pedidas pessoas:
+Se o pedido for sobre uma Cruz, a Arca da Aliança, o Túmulo Vazio, o Mar Vermelho, montes ou natureza bíblica:
 -> A IMAGEM DEVE SER 100% FOCADA NO OBJETO OU CENÁRIO SOLICITADO!
 -> PROIBIDO ADICIONAR PESSOAS, PROIBIDO ROSTOS E PROIBIDO CORPOS HUMANOS!
--> Adicione obrigatoriamente no final do prompt: "solitary focal subject, empty environment, no people, no humans, no human figures, no faces, no hands".
+-> Adicione: "solitary focal subject, empty environment, no people, no humans, no human figures, no faces, no hands".
 
-REGRA 4 (PERSONAGENS BÍBLICOS - SOMENTE SE O USUÁRIO PEDIR EXPLICITAMENTE):
-SOMENTE se o usuário pedir explicitamente um ser humano ou personagem bíblico (ex: "Jesus orando", "Jesus ensinando", "Moisés segurando as tábuas", "Davi", "uma pessoa de joelhos em oração", "apóstolos", "discípulos", "profeta"):
-1. CARACTERIZAÇÃO HISTÓRICA E TEOLÓGICA PRECISA:
-- Etnia e semblante autênticos do Oriente Médio antigo / Semítico do século I. Olhar límpido, sereno, expressivo, reverente e com dignidade sagrada.
-- Trajes bíblicos autênticos: túnicas longas de linho rústico ou lã em tons naturais, manto drapeado, sandálias rústicas de tiras de couro. PROIBIDO roupas modernas ou fantasias medievais.
-- Jesus Cristo: homem semítico de 30-33 anos, barba e cabelos castanho-escuros naturais bem cuidados, túnica rústica de linho sem costura, manto drapeado, olhar compassivo e sereno de paz e autoridade espiritual (sem auréolas de néon caricatas).
-2. ANATOMIA PERFEITA E ZERO DEFORMAÇÃO:
-- Mãos com exatamente 5 dedos proporcionais e naturais em cada mão, segurando objetos com naturalidade.
-- Simetria ocular perfeita, íris nítidas, textura natural de pele humana com poros finos (sem plástico, sem cera).
-- PROIBIDO membros extras, dedos fundidos ou deformações.
+REGRA 6 (PERSONAGENS BÍBLICOS - ANATOMIA IMPECÁVEL):
+- Mãos com exatamente 5 dedos proporcionais e naturais em cada mão.
+- Simetria ocular perfeita, íris nítidas, sem membros extras e sem deformações.
 
-REGRA 5 (ESTILOS E QUALIDADE FOTOGRÁFICA MÁXIMA):
-Incorpore o estilo visual solicitado com iluminação cinematográfica de nível mestre (luz solar dourada, raios volumétricos, sombras suaves), profundidade de campo cinematográfica, texturas tangíveis e altíssima definição: "ultra-photorealistic biblical masterwork, 8k uhd resolution, tack-sharp focus, crystal-clear zoom clarity, edge-to-edge full bleed, no black bars, no letterbox, no borders".
-
-REGRA 6 (SAÍDA ESTRITAMENTE LIMPA):
+REGRA 7 (SAÍDA ESTRITAMENTE LIMPA):
 Responda EXCLUSIVAMENTE com o prompt final refinado em INGLÊS em um único parágrafo contínuo.
 NÃO escreva preâmbulos, NÃO cumprimente ("Com prazer", "Olá"), NÃO adicione títulos ("**PROMPT:**") e NÃO use aspas. Apenas o texto do prompt em inglês. Se violar as regras sagradas, responda unicamente: "BLOQUEADO".`;
 
       let promptGenerated = false;
 
-      // 1. Resolução Imediata de Situações Bíblicas Predefinidas (Zero Alucinação, Zero Pessoas Acidentais)
-      const situationMatch = resolveBiblicalSituationSubject(prompt);
-      if (situationMatch) {
+      // 2. Resolução Imediata de Objetos/Cenários Sagrados Sem Pessoas (Cruz, Sepulcro, Mar Vermelho)
+      const situationMatch = resolveBiblicalSituationSubject(cleanUserSubject);
+      if (situationMatch && !situationMatch.requiresHuman) {
         enhancedPrompt = situationMatch.englishSubject;
         promptGenerated = true;
-        console.log(`[Gemini Imagem] Situação bíblica resolvida com sucesso (${situationMatch.matchedSituation}): "${enhancedPrompt.substring(0, 80)}..."`);
+        console.log(`[Gemini Imagem] Situação bíblica de cenário/objeto resolvida com sucesso (${situationMatch.matchedSituation}): "${enhancedPrompt.substring(0, 80)}..."`);
       }
 
-      // 2. SISTEMA GEMINI DE OTIMIZAÇÃO E ENGENHARIA DE PROMPT VISUAL (Se não for situação padrão)
+      // 3. SISTEMA GEMINI DE OTIMIZAÇÃO E ENGENHARIA DE PROMPT VISUAL
       // Utiliza o Google Gemini diretamente para rápida interpretação, moderação e criação de prompt de imagem impecável
       const keysToTry = [googleKey, googleKey2, process.env.GOOGLE_API_KEY, process.env.GEMINI_API_KEY].filter(Boolean) as string[];
       const uniqueKeys = Array.from(new Set(keysToTry));
@@ -951,9 +970,9 @@ NÃO escreva preâmbulos, NÃO cumprimente ("Com prazer", "Olá"), NÃO adicione
 
             const response = await ai.models.generateContent({
               model: modelId,
-              contents: `${systemInstruction}\n\nATENÇÃO MÁXIMA: O ASSUNTO PRINCIPAL DEVE SER A PRIMEIRA FRASE DO PARÁGRAFO. SE O USUÁRIO NÃO PEDIU PESSOAS, NÃO INCLUA NENHUM SER HUMANO, ROSTO OU MULHER.\n\nPedido do usuário para imagem: "${prompt}"`,
+              contents: `${systemInstruction}\n\nATENÇÃO MÁXIMA: O ASSUNTO PRINCIPAL DEVE SER A PRIMEIRA FRASE DO PARÁGRAFO. SE HOUVER MAIS DE UM PERSONAGEM, APLIQUE RIGOROSAMENTE A REGRA MESTRE DE POSICIONAMENTO ESPACIAL COM SEPARAÇÃO FÍSICA VISÍVEL ENTRE ELES.\n\nPedido do usuário: "${cleanUserSubject}"${extractedStyle ? `\nEstilo visual selecionado: "${extractedStyle}"` : ''}`,
               config: {
-                temperature: 0.1,
+                temperature: 0.2,
                 maxOutputTokens: 600
               }
             });
@@ -1004,75 +1023,27 @@ NÃO escreva preâmbulos, NÃO cumprimente ("Com prazer", "Olá"), NÃO adicione
         return res.status(400).json({ error: "A descrição fornecida contém termos que violam as diretrizes de conteúdo visual." });
       }
 
-      // 3. Extração e Sanitização de Estilo Visual
-      let extractedStyle = "";
-      const styleMatch = prompt.match(/\[Estilo:\s*([^\]]+)\]/i);
-      if (styleMatch && styleMatch[1]) {
-        let styleAddon = styleMatch[1];
-        if (styleAddon.includes("-")) {
-          styleAddon = styleAddon.split("-").slice(1).join("-").trim();
-        }
-        extractedStyle = styleAddon;
-      }
-
-      // 4. Detecção precisa: Ser humano explicitamente solicitado vs Objeto/Cenário
-      const fullCombinedText = (prompt + " " + enhancedPrompt).toLowerCase();
-
-      // Verificação negativa explícita (sem pessoas / no people / [foco: sem pessoas])
-      const hasExplicitNegativePeople = /\b(no people|no humans|no human figures|without people|sem pessoas|sem humanos|sem nenhuma pessoa|sem gente|foco:\s*sem pessoas)\b/i.test(fullCombinedText);
-
-      // Neutralizar expressões sagradas ("cruz de cristo", "cross of christ", "túmulo de cristo", etc.) para não confundir com pedido de figura humana
-      const promptCleanedForHumanCheck = prompt
-        .replace(/\b(cruz\s+de|cross\s+of|t[uú]mulo\s+de|tomb\s+of|sepulcro\s+de|sangue\s+de|blood\s+of|caminho\s+de|amor\s+de|paz\s+de|evangelho\s+de|palavra\s+de|corpo\s+de|obra\s+de)\s+(cristo|jesus|christ)/gi, "objeto_sagrado")
-        .replace(/\b(cruz|cross|crucifixo)\b/gi, "cruz_objeto")
-        .toLowerCase();
-
-      const hasExplicitHuman = !hasExplicitNegativePeople && (
-        situationMatch ? situationMatch.requiresHuman : (
-          /\b(pessoa|pessoas|person|people|homem|homens|man|men|mulher|mulheres|woman|women|crian[cç]a|crian[cç]as|child|children|rosto|rostos|face|faces|ap[oó]stolo|ap[oó]stolos|apostle|apostles|disc[ií]pulo|disc[ií]pulos|disciple|disciples|profeta|profetas|prophet|prophets|mois[eé]s|moses|davi|david|abra[aã]o|abraham|no[eé]|noah|elias|elijah|pedro|peter|paulo|paul|maria|mary|jos[eé]|joseph|anjo|anjos|angel|angels|multid[aã]o|multitude|crowd|shepherd|pastor|jesus|cristo|christ)\b/i.test(promptCleanedForHumanCheck)
-        )
-      );
-
-      // 5. SUBJECT-FIRST COMPOSITION (O Assunto em inglês SEMPRE vem primeiro)
-      // Remove prefixos acidentais de estilo que possam ter ficado no enhancedPrompt
+      // 4. SUBJECT-FIRST COMPOSITION (Sem sobreposição ou textos conflitantes)
       let cleanSubject = enhancedPrompt.replace(/\[Estilo:\s*[^\]]+\]/gi, '').trim();
       if (!cleanSubject) {
-        cleanSubject = prompt.replace(/\[Estilo:\s*[^\]]+\]/gi, '').trim() || "biblical scene";
+        cleanSubject = cleanUserSubject;
       }
 
-      let finalPrompt = "";
+      // 5. Se o Gemini já concebeu o prompt harmonicamente, respeitar sua saída nativa
+      let finalPrompt = cleanSubject;
       const isAnimeOrPixel = /anime|manga|ghibli|pixel art|16-bit/i.test(prompt + " " + extractedStyle);
 
-      if (hasExplicitHuman) {
-        // PERSONAGENS BÍBLICOS: Anatomia perfeita de 5 dedos, vestes históricas sem deformações
-        finalPrompt = `${cleanSubject}, authentic historical biblical attire, natural skin textures, anatomically correct hands with exactly 5 fingers on each hand, natural eye symmetry, no extra limbs, no deformed fingers`;
-        if (extractedStyle) {
-          finalPrompt += `, ${extractedStyle}`;
-        }
-        if (!finalPrompt.toLowerCase().includes("zoom clarity")) {
-          if (isAnimeOrPixel) {
-            finalPrompt += `, tack-sharp clean lines, vibrant luminous colors, high visual contrast, extreme zoom clarity, masterwork quality, 8k resolution`;
-          } else {
-            finalPrompt += `, ultra-high definition, tack-sharp focus, extreme zoom clarity, rich intricate fabric folds, dramatic volumetric natural lighting, 8k uhd resolution, clean intentional composition`;
-          }
-        }
-      } else {
-        // OBJETOS SAGRADOS, CRUZEIS, CENÁRIOS: ZERO PESSOAS, ZERO MULHERES, ZERO ROSTOS
-        // Modificadores negativos colocados IMEDIATAMENTE após o assunto principal
-        finalPrompt = `${cleanSubject}, solitary focal subject, empty environment, majestic landscape, no people, no humans, no woman, no man, no human figures, no faces, no hands, completely devoid of humans`;
-        if (extractedStyle) {
-          // Remove termos de retrato (como "shallow depth of field") para não induzir foco em rostos
-          const sanitizedStyle = extractedStyle
-            .replace(/\bshallow depth of field\b/gi, "deep landscape focus")
-            .replace(/\bportrait\b/gi, "landscape view");
-          finalPrompt += `, ${sanitizedStyle}`;
-        }
-        if (!finalPrompt.toLowerCase().includes("zoom clarity")) {
-          if (isAnimeOrPixel) {
-            finalPrompt += `, tack-sharp lines, vibrant colors, clean contrast, extreme zoom clarity, masterwork quality, 8k resolution`;
-          } else {
-            finalPrompt += `, ultra-high definition, tack-sharp focus, extreme zoom clarity, intricate textures, dramatic lighting, high visual contrast, 8k uhd resolution, clean composition`;
-          }
+      // Se por contingência o Gemini não rodou e sobrou só o texto original, anexar o estilo
+      if (finalPrompt === cleanUserSubject && extractedStyle) {
+        finalPrompt = `${extractedStyle}, ${finalPrompt}`;
+      }
+
+      // Adicionar apenas refinamentos de nitidez se não estiverem presentes
+      if (!finalPrompt.toLowerCase().includes("8k") && !finalPrompt.toLowerCase().includes("uhd")) {
+        if (isAnimeOrPixel) {
+          finalPrompt += `, tack-sharp clean lines, vibrant luminous colors, masterwork quality, 8k resolution`;
+        } else {
+          finalPrompt += `, tack-sharp focus, dramatic volumetric lighting, 8k uhd resolution`;
         }
       }
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import SentinelCore from "../lib/security/sentinel-security.js";
 import { getLocalBan, reportBanToSupabase, checkIsBannedInSupabase, SecurityBanRecord } from "@/services/securityService";
+import { isSupabaseConfigured } from "@/integrations/supabase/client";
 import { SentinelSecurityOverlay } from "@/components/SentinelSecurityOverlay";
 
 export function useSentinel(config: any = {}) {
@@ -35,6 +36,8 @@ export function useSentinel(config: any = {}) {
 
   // Checagem ativa na tabela de banimentos do Supabase ao iniciar
   useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
     let mounted = true;
 
     const verifySupabaseBan = async () => {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { syncKeyToSupabase } from "./userSyncService";
+import { verifyBetaPermissionWithServer, getVerifiedRoleFromCache } from "./tamperProtectionService";
 
 export const FOCUS_MODE_KEY = "bible_focus_mode";
 export const FOCUS_DURATION_MS = 60 * 60 * 1000; // 1 hora em milissegundos (3600 segundos)
@@ -92,7 +93,9 @@ export const getLocalFocusModeState = (): FocusModeState => {
  * Retorna se o Modo Foco está ativo no momento (usado pelo sistema de toasts)
  */
 export const isFocusModeActive = (): boolean => {
-  return getLocalFocusModeState().active;
+  const local = getLocalFocusModeState();
+  if (!local.active) return false;
+  return true;
 };
 
 /**
@@ -119,8 +122,30 @@ export const saveFocusModeToServer = async (data: FocusModeData): Promise<void> 
 
 /**
  * Ativa o Modo Foco por 1 hora (ou duração customizada) e salva no localStorage e servidor
+ * PROTEGIDO: Validação autoritativa direta com o Supabase antes de ativar qualquer coisa.
  */
 export const enableFocusMode = async (durationMs: number = FOCUS_DURATION_MS): Promise<FocusModeState> => {
+  // 1. CHECAGEM DE SEGURANÇA AUTORITATIVA ANTI-TAMPER:
+  // Garante que o usuário tem permissão 'beta' ou 'admin' validada diretamente pelo Supabase
+  const { isAllowed } = await verifyBetaPermissionWithServer();
+  if (!isAllowed) {
+    // Se não for permitido, anula imediatamente qualquer alteração feita via DevTools
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem(FOCUS_MODE_KEY);
+    }
+    const emptyState: FocusModeState = {
+      active: false,
+      expiresAt: 0,
+      startedAt: 0,
+      durationSeconds: 3600,
+      remainingSeconds: 0,
+    };
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("bible-focus-mode-change", { detail: { ...emptyState, manual: true } }));
+    }
+    throw new Error("Acesso não autorizado: o Modo Foco é restrito a contas autorizadas em fase Beta.");
+  }
+
   const now = Date.now();
   const expiresAt = now + durationMs;
   const durationSeconds = Math.floor(durationMs / 1000);
@@ -183,9 +208,25 @@ export const disableFocusMode = async (manual: boolean = true): Promise<FocusMod
 
 /**
  * Sincroniza o Modo Foco com o servidor (chamado ao carregar perfil ou página de conta)
+ * PROTEGIDO: Se um usuário não-autorizado tiver adulterado o localStorage via DevTools,
+ * a sincronização purga a chave imediatamente.
  */
 export const syncFocusModeWithServer = async (): Promise<FocusModeState> => {
   try {
+    const { isAllowed } = await verifyBetaPermissionWithServer();
+    if (!isAllowed) {
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem(FOCUS_MODE_KEY);
+      }
+      return {
+        active: false,
+        expiresAt: 0,
+        startedAt: 0,
+        durationSeconds: 3600,
+        remainingSeconds: 0,
+      };
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return getLocalFocusModeState();
 

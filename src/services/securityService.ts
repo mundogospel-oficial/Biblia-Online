@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
 
 export interface SecurityBanRecord {
   fingerprint: string;
@@ -303,6 +303,10 @@ if (typeof window !== "undefined") {
 }
 
 export const checkIsBannedInSupabase = async (fingerprintHash?: string): Promise<{ isBanned: boolean; record?: SecurityBanRecord }> => {
+  if (!isSupabaseConfigured) {
+    return { isBanned: false };
+  }
+
   const localBan = getLocalBan();
   const effectiveFp = fingerprintHash || localBan?.fingerprint;
 
@@ -369,8 +373,13 @@ export const checkIsBannedInSupabase = async (fingerprintHash?: string): Promise
     // Limpa qualquer trava local para destravar o computador!
     clearLocalBan();
     return { isBanned: false };
-  } catch (err) {
-    console.error("Erro ao verificar status de banimento no Supabase:", err);
+  } catch (err: any) {
+    const msg = String(err?.message || err);
+    if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("network")) {
+      console.warn("Supabase indisponível no momento para verificar banimento:", msg);
+    } else {
+      console.error("Erro ao verificar status de banimento no Supabase:", err);
+    }
     clearLocalBan();
     return { isBanned: false };
   }
@@ -467,6 +476,10 @@ export const reportBanToSupabase = async (record: SecurityBanRecord) => {
   try {
     saveLocalBan(record);
 
+    if (!isSupabaseConfigured) {
+      return;
+    }
+
     // Tenta capturar o IP público real do cliente
     const publicIp = await fetchClientPublicIp();
     if (publicIp) {
@@ -540,7 +553,12 @@ export const reportBanToSupabase = async (record: SecurityBanRecord) => {
         });
       } catch {}
     }
-  } catch (err) {
-    console.error("Erro ao reportar banimento ao Supabase:", err);
+  } catch (err: any) {
+    const msg = String(err?.message || err);
+    if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("network")) {
+      console.warn("Falha de rede ao reportar banimento ao Supabase:", msg);
+    } else {
+      console.error("Erro ao reportar banimento ao Supabase:", err);
+    }
   }
 };

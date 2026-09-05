@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import zxcvbn from "zxcvbn";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
-import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2, AlertTriangle, Languages, X, Sparkles, Clock, RotateCcw } from "lucide-react";
+import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2, AlertTriangle, Languages, X, Sparkles, Clock, RotateCcw, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, forceSignOut, handleAuthError } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -17,6 +17,8 @@ import { checkPwnedPassword } from "@/utils/pwnedPasswordValidator";
 import { MandatoryPwnedPasswordModal } from "@/components/MandatoryPwnedPasswordModal";
 import { syncKeyToSupabase } from "@/services/userSyncService";
 import { FocusModeCard } from "@/components/FocusModeCard";
+import { BetaGate } from "@/components/BetaGate";
+import { UserRoleBadge } from "@/components/UserRoleBadge";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
 const OFFLINE_KEY = "bible-offline-enabled";
@@ -135,6 +137,11 @@ const AccountPage = () => {
 
           setDisplayName(validName);
           setAvatarUrl(profile?.avatar_url || meta.avatar_url || meta.picture || authCtx.user.picture || null);
+
+          if (profile && (profile as any).role) {
+            localStorage.setItem(`user_role_${userId}`, String((profile as any).role).trim().toLowerCase());
+            authCtx.refreshRole().catch(() => {});
+          }
 
           let validUsername = (profile as any)?.username || meta.username || meta.user_name || meta.preferred_username || "";
           let isMissingUsername = false;
@@ -1184,6 +1191,12 @@ const AccountPage = () => {
                 )}
 
                 <p className="mt-2 text-xs font-mono text-muted-foreground/80 tracking-wide">{authCtx.user?.email}</p>
+
+                {authCtx.role && authCtx.role !== 'padrao' && (
+                  <div className="mt-2.5 flex justify-center">
+                    <UserRoleBadge role={authCtx.role} />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-3">
@@ -1320,8 +1333,10 @@ const AccountPage = () => {
                       </div>
                     )}
 
-                    {/* Modo Foco - Timer de 1 hora com silenciamento de toasts normais */}
-                    <FocusModeCard />
+                    {/* Modo Foco - Exclusivo para usuários Beta / Selecionados no Supabase */}
+                    <BetaGate>
+                      <FocusModeCard />
+                    </BetaGate>
 
                     <button onClick={toggleOffline} disabled={isDownloading} className="flex w-full items-center justify-between rounded-xl bg-secondary/30 border border-white/5 p-3.5 transition-all hover:bg-secondary/50 hover:border-white/10 disabled:opacity-70 liquid-btn">
                       <div className="flex items-center gap-3">

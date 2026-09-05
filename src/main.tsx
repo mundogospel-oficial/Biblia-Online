@@ -2,6 +2,22 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
+// Soften console.error for transient network glitches
+const originalConsoleError = console.error.bind(console);
+console.error = (...args: any[]) => {
+  const text = args.map(a => (a?.message || a?.stack || String(a || ''))).join(' ');
+  if (
+    text.includes('Failed to fetch') ||
+    text.includes('NetworkError') ||
+    text.includes('fetch failed') ||
+    text.includes('Load failed')
+  ) {
+    console.warn('[Rede] Falha transitória de conexão interceptada com segurança:', ...args);
+    return;
+  }
+  originalConsoleError(...args);
+};
+
 // Global error handler to catch network/fetch glitches and LockManager timeouts gracefully without breaking app UI
 window.addEventListener("unhandledrejection", (event) => {
   const reasonStr = event.reason
