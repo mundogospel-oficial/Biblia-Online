@@ -262,28 +262,28 @@ function LiquidGlassColorPicker({
   );
 }
 
+const AI_IMAGE_PROCESSES = [
+  { text: "Interpretando a passagem e tema bíblico...", targetProgress: 25 },
+  { text: "Projetando composição fotorrealista em 8K...", targetProgress: 50 },
+  { text: "Ajustando feixes de luz e iluminação...", targetProgress: 75 },
+  { text: "Refinando detalhes, cores e texturas...", targetProgress: 90 },
+  { text: "Finalizando a obra de arte...", targetProgress: 98 },
+];
+
 const AIImagePreviewLoadingOverlay = () => {
   const [stepIndex, setStepIndex] = useState(0);
   const [progress, setProgress] = useState(15);
 
-  const processes = [
-    { text: "Interpretando a passagem e tema bíblico...", targetProgress: 25 },
-    { text: "Projetando composição fotorrealista em 8K...", targetProgress: 50 },
-    { text: "Ajustando feixes de luz e iluminação...", targetProgress: 75 },
-    { text: "Refinando detalhes, cores e texturas...", targetProgress: 90 },
-    { text: "Finalizando a obra de arte...", targetProgress: 98 },
-  ];
-
   useEffect(() => {
     const stepInterval = setInterval(() => {
-      setStepIndex((prev) => (prev + 1) % processes.length);
+      setStepIndex((prev) => (prev + 1) % AI_IMAGE_PROCESSES.length);
     }, 2800);
 
     return () => clearInterval(stepInterval);
-  }, [processes.length]);
+  }, []);
 
   useEffect(() => {
-    const target = processes[stepIndex].targetProgress;
+    const target = AI_IMAGE_PROCESSES[stepIndex].targetProgress;
     const progressInterval = setInterval(() => {
       setProgress((prev) => {
         if (prev < target) return Math.min(target, prev + 1);
@@ -356,7 +356,7 @@ const AIImagePreviewLoadingOverlay = () => {
               transition={{ duration: 0.3, ease: "easeOut" }}
               className="text-xs text-slate-300 font-medium text-center truncate block px-2 tracking-wide"
             >
-              {processes[stepIndex].text}
+              {AI_IMAGE_PROCESSES[stepIndex].text}
             </motion.span>
           </AnimatePresence>
         </div>
@@ -496,15 +496,14 @@ const CreatePage = () => {
       }
       if (!targetUserId) return 0;
 
-      const today = new Date();
-      today.setUTCHours(0, 0, 0, 0);
+      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
 
       const { count, error } = await supabase
         .from('user_ai_usage')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', targetUserId)
         .eq('tipo_uso', 'create_image')
-        .gte('created_at', today.toISOString());
+        .gte('created_at', twelveHoursAgo);
 
       if (!error && count !== null) {
         setCreateImageCount(count);
@@ -544,8 +543,17 @@ const CreatePage = () => {
     setBgType("ai");
 
     try {
-      const stylePrompt = customAiPrompt.trim() || imageStyles[selectedStyleIndex].prompt;
-      const fullPrompt = `Cenário de paisagem natural inspirada no versículo: "${verseText}". Estilo: ${stylePrompt}. Apenas paisagem natural inspiradora de fundo, sem pessoas, sem rostos e sem seres humanos.`;
+      const selectedStyle = imageStyles[selectedStyleIndex];
+      const styleName = selectedStyle?.label || "Cinematográfico";
+      const styleDetails = selectedStyle?.prompt || "fotografia cinematográfica épica";
+      const refInfo = verseRef ? ` (${verseRef})` : '';
+
+      let fullPrompt = "";
+      if (customAiPrompt.trim()) {
+        fullPrompt = `[Estilo: ${styleName}] Imagem bíblica inspirada no versículo sagrado: "${verseText}"${refInfo}. Solicitação específica do usuário: "${customAiPrompt.trim()}". Instrução mandatória para o modelo: Gere EXATAMENTE o que o usuário solicitou. Se a solicitação for sobre cenários, cruzes, montanhas, túmulo, arca, natureza ou objetos sagrados (sem mencionar pessoas), NÃO inclua figuras humanas nem rostos. Se for solicitado um personagem bíblico ou pessoa, retrate com fidelidade bíblica, trajes de linho histórico, anatomia perfeita (5 dedos em cada mão), semblante sereno e iluminação cinematográfica, sem deformações e sem coisas aleatórias.`;
+      } else {
+        fullPrompt = `[Estilo: ${styleName}] Imagem bíblica inspirada no versículo sagrado: "${verseText}"${refInfo}. Estilo estético: ${styleDetails}. Instrução mandatória para o modelo: Compreenda a essência do versículo. Se a passagem evocar paisagens, natureza, a criação ou objetos sagrados (como cruzes, templos, arca), crie um cenário majestoso sem figuras humanas. Se evocar personagens bíblicos, retrate-os com reverência, trajes autênticos do século I e anatomia perfeita, sem coisas aleatórias.`;
+      }
 
       const imageUrl = await generateBiblicalImage(fullPrompt, undefined, activeFormat, true, 'create', true);
 
@@ -940,14 +948,44 @@ const CreatePage = () => {
                         </div>
 
                         <div>
-                          <label className="text-[10px] text-muted-foreground block mb-1">Ou descreva em poucas palavras (máx. 200 caracteres):</label>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] text-muted-foreground block">Descreva exatamente o que deseja ver na imagem (opcional):</label>
+                            <span className="text-[9px] text-muted-foreground font-mono">{customAiPrompt.length}/300</span>
+                          </div>
                           <input
-                            maxLength={200}
+                            maxLength={300}
                             value={customAiPrompt}
-                            onChange={(e) => setCustomAiPrompt(e.target.value.slice(0, 200))}
-                            placeholder="Ex: Cruz ao anoitecer com luz celestial"
+                            onChange={(e) => setCustomAiPrompt(e.target.value.slice(0, 300))}
+                            placeholder="Ex: Cruz de Cristo ao pôr do sol, Túmulo vazio, Jesus orando..."
                             className="w-full rounded-xl border border-input bg-secondary/40 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                           />
+
+                          {/* Sugestões Rápidas */}
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {[
+                              "Cruz de Cristo ao pôr do sol",
+                              "Jesus em oração",
+                              "Túmulo vazio iluminado",
+                              "O Bom Pastor com ovelha",
+                              "Cenário sagrado da Criação"
+                            ].map((suggestion) => (
+                              <button
+                                key={suggestion}
+                                type="button"
+                                onClick={() => setCustomAiPrompt(suggestion)}
+                                className={`text-[9px] px-2 py-0.5 rounded-full border transition-all ${
+                                  customAiPrompt === suggestion
+                                    ? "bg-accent/20 border-accent text-accent-foreground font-medium"
+                                    : "bg-secondary/30 border-border/40 text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
+                                }`}
+                              >
+                                {suggestion}
+                              </button>
+                            ))}
+                          </div>
+                          <p className="text-[9px] text-muted-foreground/70 mt-1">
+                            A IA gera exatamente o que você descrever: cenários, cruzes e natureza sem pessoas se não pedir, ou personagens bíblicos autênticos com anatomia perfeita se solicitar.
+                          </p>
                         </div>
 
                         {/* Overlay opacity for AI Images */}

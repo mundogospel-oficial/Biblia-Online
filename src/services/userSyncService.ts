@@ -21,6 +21,7 @@ export const USER_DATA_KEYS = [
   AI_CONVERSATIONS_KEY,
   "biblia-devocionais-favoritos",
   "bible-google-user",
+  "bible_focus_mode",
 ];
 
 /**

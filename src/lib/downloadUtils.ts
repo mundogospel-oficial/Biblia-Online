@@ -2,6 +2,7 @@
  * Utility for handling image and text downloads/sharing with cross-platform fallbacks.
  */
 import { toast } from "@/hooks/use-toast";
+import { cropBlackBars } from "./imageCropUtils";
 
 export const generateProfessionalFileName = (prefix: string = "Biblia-Online"): string => {
   if (/\.(png|jpg|jpeg|webp)$/i.test(prefix)) {
@@ -36,19 +37,20 @@ export const downloadBibleImage = async (dataUrl: string, fileNamePrefix: string
   const fileName = generateProfessionalFileName(fileNamePrefix);
 
   try {
-    let downloadUrl = dataUrl;
+    const cleanUrl = await cropBlackBars(dataUrl);
+    let downloadUrl = cleanUrl;
     
     // For external URLs, fetch the blob to avoid CORS issues and ensure download attribute works
-    if (dataUrl.startsWith('http')) {
+    if (cleanUrl.startsWith('http')) {
       try {
-        const response = await fetch(dataUrl, { mode: 'cors' });
+        const response = await fetch(cleanUrl, { mode: 'cors' });
         if (response.ok) {
           const blob = await response.blob();
           downloadUrl = URL.createObjectURL(blob);
         }
       } catch (err) {
         console.warn("Could not proxy download via CORS blob, using direct URL", err);
-        downloadUrl = dataUrl;
+        downloadUrl = cleanUrl;
       }
     }
 
@@ -81,16 +83,17 @@ export const shareBibleImage = async (dataUrl: string, fileNamePrefix: string = 
   const fileName = generateProfessionalFileName(fileNamePrefix);
 
   try {
+    const cleanUrl = await cropBlackBars(dataUrl);
     let blob: Blob | null = null;
     
-    if (dataUrl.startsWith('data:')) {
+    if (cleanUrl.startsWith('data:')) {
       // Direct data URL to blob conversion via fetch or atob
       try {
-        const res = await fetch(dataUrl);
+        const res = await fetch(cleanUrl);
         blob = await res.blob();
       } catch {
         try {
-          const parts = dataUrl.split(',');
+          const parts = cleanUrl.split(',');
           const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
           const binary = atob(parts[1]);
           const array = new Uint8Array(binary.length);
@@ -102,9 +105,9 @@ export const shareBibleImage = async (dataUrl: string, fileNamePrefix: string = 
           console.error("DataURL decode failed", decodeErr);
         }
       }
-    } else if (dataUrl.startsWith('blob:')) {
+    } else if (cleanUrl.startsWith('blob:')) {
       try {
-        const res = await fetch(dataUrl);
+        const res = await fetch(cleanUrl);
         blob = await res.blob();
       } catch (e) {
         console.warn("Fetch blob URL failed", e);
@@ -112,7 +115,7 @@ export const shareBibleImage = async (dataUrl: string, fileNamePrefix: string = 
     } else {
       // External HTTP URL
       try {
-        const response = await fetch(dataUrl, { mode: 'cors' });
+        const response = await fetch(cleanUrl, { mode: 'cors' });
         if (response.ok) {
           blob = await response.blob();
         }

@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
+import { isFocusModeActive } from "@/services/focusModeService";
 
 const TOAST_LIMIT = 1;
 const TOAST_REMOVE_DELAY = 5000;
@@ -11,6 +12,7 @@ type ToasterToast = ToastProps & {
   title?: React.ReactNode;
   description?: React.ReactNode;
   action?: ToastActionElement;
+  important?: boolean;
 };
 
 const actionTypes = {
@@ -167,6 +169,18 @@ function cleanToastText(text?: React.ReactNode): React.ReactNode {
 }
 
 function toast({ ...props }: Toast) {
+  // Quando o Modo Foco está ativo, silencia toasts normais não essenciais para focar na Palavra
+  if (isFocusModeActive()) {
+    const isImportant = props.important === true || props.variant === "destructive";
+    if (!isImportant) {
+      return {
+        id: "suppressed-by-focus-mode",
+        dismiss: () => {},
+        update: () => {},
+      };
+    }
+  }
+
   const id = genId();
 
   let title = props.title;

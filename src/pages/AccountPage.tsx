@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import zxcvbn from "zxcvbn";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
-import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2, AlertTriangle, Languages, X } from "lucide-react";
+import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2, AlertTriangle, Languages, X, Sparkles, Clock, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, forceSignOut, handleAuthError } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -16,6 +16,7 @@ import { validatePasswordSecurity } from "@/utils/passwordValidator";
 import { checkPwnedPassword } from "@/utils/pwnedPasswordValidator";
 import { MandatoryPwnedPasswordModal } from "@/components/MandatoryPwnedPasswordModal";
 import { syncKeyToSupabase } from "@/services/userSyncService";
+import { FocusModeCard } from "@/components/FocusModeCard";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
 const OFFLINE_KEY = "bible-offline-enabled";
@@ -93,7 +94,7 @@ const AccountPage = () => {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [showPwnedModal, setShowPwnedModal] = useState(false);
   const [pwnedLeakCount, setPwnedLeakCount] = useState(0);
-  const [appVersion, setAppVersion] = useState("2.5.0");
+  const [appVersion, setAppVersion] = useState("2.5.1");
   const [notificationTestError, setNotificationTestError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -104,7 +105,7 @@ const AccountPage = () => {
     fetch('/version.json', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => setAppVersion(data.version))
-      .catch(() => setAppVersion("2.5.0"));
+      .catch(() => setAppVersion("2.5.1"));
 
     const loadProfile = async () => {
       if (authCtx.user?.sub) {
@@ -194,7 +195,7 @@ const AccountPage = () => {
       setNotificationsEnabled(isGranted && localStorage.getItem(NOTIFICATIONS_KEY) === "true");
       setOfflineEnabled(localStorage.getItem(OFFLINE_KEY) === "true");
     }
-  }, [authCtx.loading, authCtx.user]);
+  }, [authCtx.loading, authCtx.user, toast]);
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1319,6 +1320,9 @@ const AccountPage = () => {
                       </div>
                     )}
 
+                    {/* Modo Foco - Timer de 1 hora com silenciamento de toasts normais */}
+                    <FocusModeCard />
+
                     <button onClick={toggleOffline} disabled={isDownloading} className="flex w-full items-center justify-between rounded-xl bg-secondary/30 border border-white/5 p-3.5 transition-all hover:bg-secondary/50 hover:border-white/10 disabled:opacity-70 liquid-btn">
                       <div className="flex items-center gap-3">
                         <span className="text-muted-foreground">
@@ -1409,7 +1413,8 @@ const AccountPage = () => {
               </div>
             </div>
           ) : (
-            <div className="glass-card rounded-2xl p-6 border border-white/10 shadow-2xl backdrop-blur-xl space-y-4">
+            <>
+              <div className="glass-card rounded-2xl p-6 border border-white/10 shadow-2xl backdrop-blur-xl space-y-4">
               <div className="text-center">
                 <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/15 border border-accent/30 text-accent shadow-lg shadow-accent/10">
                   <LogIn className="h-7 w-7 text-accent" />
@@ -1547,11 +1552,12 @@ const AccountPage = () => {
                 </button>
               </p>
             </div>
+            </>
           )}
 
           <div className="mt-8 pb-4 text-center">
             <p className="text-xs text-muted-foreground font-sans font-medium tracking-wide">
-              Biblia Online — Versão {appVersion || "2.5.0"}
+              Biblia Online — Versão {appVersion || "2.5.1"}
             </p>
           </div>
 

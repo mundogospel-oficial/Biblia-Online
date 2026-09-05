@@ -7,7 +7,8 @@ import {
   Plus, Image, ImagePlus, Upload, Video, Music, Download, LogIn,
   History, ChevronLeft, Zap, Bot, Paperclip, AlertCircle, MessageSquarePlus, Square, Share2,
   Loader2, ImageOff, FileText, ZoomIn, ZoomOut, WifiOff, Palette, ChevronDown, Check,
-  Search, Edit3, Clock, ArrowRight, ShieldAlert, Wand2
+  Search, Edit3, Clock, ArrowRight, ShieldAlert, Wand2,
+  ThumbsUp, ThumbsDown, RotateCcw, Copy
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +17,7 @@ import { useAuth, forceSignOut, handleAuthError } from "@/contexts/AuthContext";
 import { downloadBibleImage, shareBibleImage } from "@/lib/downloadUtils";
 
 import { askBibleAI, AIAttachment } from "@/services/aiService";
-import { checkAndIncrementUsage, getUserUsage, refundUsage } from "@/services/usageService";
+import { checkAndIncrementUsage, checkQuotaOnly, getUserUsage, refundUsage } from "@/services/usageService";
 import { saveAIHistory } from "@/services/userDataService";
 import { syncKeyToSupabase } from "@/services/userSyncService";
 import { generateBiblicalImage } from "@/services/imageGenerationService";
@@ -24,6 +25,7 @@ import { APP_WHITE_LOGO_DATA_URL } from "@/assets/appLogoWhite";
 import { encryptConversationMessages, decryptConversationMessages } from "@/lib/security/cryptoService";
 import { maskPiiInText } from "@/lib/security/privacyGuard";
 import { validateImageContent } from "@/services/imageModerationService";
+import { analyzeLetterbox } from "@/lib/imageCropUtils";
 
 const formatMessageForDisplay = (text: string): string => {
   if (!text) return "";
@@ -44,6 +46,38 @@ const cleanImageLinksFromText = (text: string): string => {
     .replace(/https?:\/\/[^\s)]+/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+};
+
+const extractImageUrl = (str: string): string | null => {
+  if (!str) return null;
+  const trimmed = str.trim();
+  if (!trimmed) return null;
+
+  // Markdown image format: ![alt](url)
+  const mdMatch = trimmed.match(/!\[.*?\]\((https?:\/\/[^\s)]+|data:image\/[^\s)]+)\)/i);
+  if (mdMatch) return mdMatch[1];
+
+  // Direct Base64 Data URI
+  if (trimmed.startsWith("data:image/")) return trimmed;
+
+  // Pure or contained HTTP(S) URL
+  const urlMatch = trimmed.match(/(https?:\/\/[^\s]+)/i);
+  if (urlMatch) {
+    const u = urlMatch[1].replace(/[)>,.]*$/, ""); // Clean trailing punctuation
+    if (
+      u.includes("pollinations.ai") ||
+      u.includes("oaidalle") ||
+      u.includes("b-cdn.net") ||
+      u.includes("cloudinary") ||
+      u.includes("supabase.co/storage") ||
+      u.includes("googleapis.com") ||
+      u.includes("replicate") ||
+      /\.(jpe?g|png|gif|webp|svg)(\?.*)?$/i.test(u)
+    ) {
+      return u;
+    }
+  }
+  return null;
 };
 
 const generateTitleFromAI = (msgs: Msg[]): string => {
@@ -195,7 +229,14 @@ const getFilesForMessage = (m: Msg) => {
   return [];
 };
 
-type Msg = { role: "user" | "assistant"; content: string; image?: string; fileName?: string; files?: Array<{ name: string; size?: number; type?: string }> };
+type Msg = {
+  role: "user" | "assistant";
+  content: string;
+  image?: string;
+  fileName?: string;
+  files?: Array<{ name: string; size?: number; type?: string }>;
+  feedback?: "like" | "dislike";
+};
 
 const defaultSuggestions = [
   "O que significa João 3:16?",
@@ -207,12 +248,12 @@ const defaultSuggestions = [
 ];
 
 const imageSuggestions = [
-  "Cruz de Cristo ao pôr do sol em alta resolução",
-  "Arca de Noé sob o arco-íris no mar",
-  "Moisés abrindo o Mar Vermelho em glória",
-  "O Rei Davi tocando harpa nos campos de Belém",
-  "A criação do mundo e a luz divina brilhando",
-  "A última ceia de Jesus com os doze discípulos",
+  "Cruz de Cristo ao pôr do sol em ultra-realismo 8k",
+  "Moisés abrindo o Mar Vermelho em detalhes ultranítidos",
+  "Arca de Noé sob o arco-íris com texturas realistas",
+  "O Rei Davi tocando harpa nos campos com riqueza de detalhes",
+  "A criação do mundo e a luz divina em alta definição",
+  "A última ceia de Jesus com iluminação cinematográfica e nitidez",
 ];
 
 const videoSuggestions = [
@@ -362,9 +403,9 @@ const ImageGeneratingBubble = () => {
   const [stepIndex, setStepIndex] = useState(0);
   const phrases = [
     "Interpretando o tema e iluminação bíblica...",
-    "Renderizando fotorrealismo e iluminação de estúdio...",
-    "Refinando rostos, olhos e textura de pele ultra-realista...",
-    "Finalizando ilustração de alta definição em 8K..."
+    "Renderizando cena com altíssima definição e nitidez...",
+    "Aprimorando contrastes, texturas e clareza nos detalhes...",
+    "Finalizando imagem cristalina em alta resolução (8K)..."
   ];
 
   useEffect(() => {
@@ -460,15 +501,26 @@ interface ResilientImageProps {
 const ResilientImage: React.FC<ResilientImageProps> = ({ src, alt, className = "absolute inset-0 w-full h-full object-cover", onClick }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [letterboxScale, setLetterboxScale] = useState(1);
   const imgRef = useRef<HTMLImageElement>(null);
+
+  const evaluateLetterbox = (img: HTMLImageElement) => {
+    setIsLoading(false);
+    const info = analyzeLetterbox(img);
+    if (info.hasLetterbox && info.scale > 1) {
+      setLetterboxScale(info.scale);
+    } else {
+      setLetterboxScale(1);
+    }
+  };
 
   useEffect(() => {
     setIsLoading(true);
     setHasError(false);
+    setLetterboxScale(1);
 
-    // If image has already completed loading (cached, base64 data URI), disable loader
     if (imgRef.current && imgRef.current.complete) {
-      setIsLoading(false);
+      evaluateLetterbox(imgRef.current);
     }
   }, [src]);
 
@@ -497,9 +549,14 @@ const ResilientImage: React.FC<ResilientImageProps> = ({ src, alt, className = "
           ref={imgRef}
           src={src}
           alt={alt}
-          className={`${className} ${onClick ? 'hover:scale-[1.02] transition-transform duration-300' : ''}`}
+          crossOrigin="anonymous"
+          style={{
+            transform: letterboxScale > 1 ? `scale(${letterboxScale})` : undefined,
+            transformOrigin: 'center center'
+          }}
+          className={`${className} transition-transform duration-300 ${onClick ? 'hover:scale-[1.03]' : ''}`}
           referrerPolicy="no-referrer"
-          onLoad={() => setIsLoading(false)}
+          onLoad={(e) => evaluateLetterbox(e.currentTarget)}
           onError={() => {
             setIsLoading(false);
             setHasError(true);
@@ -513,8 +570,8 @@ const ResilientImage: React.FC<ResilientImageProps> = ({ src, alt, className = "
 type ModeKey = "image" | "video" | "learning" | "music";
 type AIEngine = "complexo" | "simples";
 
-const modes: { key: ModeKey; icon: React.ReactNode; label: string; prefix: string }[] = [
-  { key: "image", icon: <Image className="h-4 w-4" />, label: "Gerar Imagens", prefix: "[Modo: Gerar Imagem] " },
+const modes: { key: ModeKey; icon: React.ReactNode; label: string; prefix: string; hidden?: boolean }[] = [
+  { key: "image", icon: <Image className="h-4 w-4" />, label: "Gerar Imagens", prefix: "[Modo: Gerar Imagem] ", hidden: true },
   { key: "video", icon: <Video className="h-4 w-4" />, label: "Roteiros de Vídeo", prefix: "[Modo: Gerar Vídeo] " },
   { key: "learning", icon: <GraduationCap className="h-4 w-4" />, label: "Aprendizado", prefix: "[Modo: Aprendizado] " },
   { key: "music", icon: <Music className="h-4 w-4" />, label: "Criar Músicas", prefix: "[Modo: Criar Música] " },
@@ -533,36 +590,36 @@ const IMAGE_STYLES: ImageStyleOption[] = [
     id: "cinematic",
     label: "Cinematográfico",
     badge: "Cinematográfico",
-    promptAddon: "CINEMATOGRÁFICO: Ultra-realistic epic movie still, masterwork dramatic lighting, tack-sharp focal precision across entire face and eyes, perfectly aligned symmetrical human eyes with identical matching dark brown irises, flawless round dark pupils, crisp razor-sharp iris texture without blur or double pupils, 100% sharp focus on both eyes, pristine natural skin texture, masterwork 8k resolution, no motion blur, no depth of field blur on eyes, no cat eyes, no split pupils, no double irises, no heterochromia, no strabismus, no deformed eyes, no cloudy irises, ultra sharp eyes",
-    description: "Luz de cinema épica com nitidez total e olhos perfeitos"
+    promptAddon: "CINEMATOGRÁFICO: Ultra-realistic epic cinematic photography, masterwork dramatic volumetric lighting, rich color contrast, crystal-clear definition, shallow depth of field, tack-sharp focus, extreme zoom clarity, 8k uhd resolution, authentic historical biblical atmosphere, photorealistic detail, full bleed edge-to-edge, no letterbox, no black bars, no frame",
+    description: "Luz de cinema épica, altíssima definição e atmosfera grandiosa"
   },
   {
     id: "animation",
     label: "Animação 3D",
     badge: "Animação 3D",
-    promptAddon: "ANIMAÇÃO 3D: 3D animated character art style, smooth Pixar/Disney rendering, soft subsurface scattering lighting, expressive features, clear aligned eyes with razor-sharp pupil clarity, vibrant color palette",
-    description: "Estilo 3D estilizado Pixar e Disney"
+    promptAddon: "ANIMAÇÃO 3D: Ultra-high quality 3D animation art style illustration, crisp rendering, sharp focus, vibrant vivid colors, high contrast clarity, smooth subsurface scattering lighting, expressive features, masterwork 3D digital art, extreme zoom clarity, edge-to-edge composition, no borders",
+    description: "Estilo 3D estilizado, caloroso e de altíssima nitidez"
   },
   {
-    id: "pixel",
-    label: "Pixel Art",
-    badge: "Pixel Art",
-    promptAddon: "PIXEL ART: Detailed 16-bit pixel art style, retro video game aesthetic, crisp pixel edges, nostalgic color palette, masterfully crafted pixel scene",
-    description: "Arte retrô 16-bit em pixels"
-  },
-  {
-    id: "realistic",
-    label: "Fotorrealismo",
-    badge: "Fotorrealismo",
-    promptAddon: "FOTORREALISMO: Award-winning ultra-realistic DSLR portrait photography, 8k UHD, bright soft natural daylight, pristine clean skin, tack-sharp focal precision across entire face and eyes, perfectly aligned symmetrical human eyes with identical matching dark brown irises, flawless round dark pupils, crisp razor-sharp iris texture without blur or double pupils, 100% sharp focus on both eyes, authentic historical accuracy, no motion blur, no depth of field blur on eyes, no cat eyes, no split pupils, no double irises, no heterochromia, no strabismus, no deformed eyes, no cloudy irises, ultra sharp eyes",
-    description: "Fotografia fotorrealista com nitidez máxima e olhos hiper-detalhados"
+    id: "painting",
+    label: "Pintura a Óleo",
+    badge: "Pintura a Óleo",
+    promptAddon: "PINTURA A ÓLEO: Master classical oil painting on canvas, refined crisp brushwork, luminous chiaroscuro lighting, crystal clear details, museum fine art quality, vibrant rich tones, extreme zoom clarity, edge-to-edge canvas",
+    description: "Obra de arte clássica com pinceladas e texturas ricas"
   },
   {
     id: "anime",
     label: "Anime / Desenho",
     badge: "Anime",
-    promptAddon: "ANIME: High quality Studio Ghibli inspired anime illustration, clean line art, luminous lighting, vibrant colors, detailed hand-drawn anime aesthetic",
-    description: "Ilustração estilo Ghibli / Manga"
+    promptAddon: "ANIME: Ultra-crisp high quality Studio Ghibli inspired anime illustration, tack-sharp clean line art, luminous lighting, vibrant vivid colors, crystal clear details, detailed hand-drawn aesthetic, extreme zoom clarity, full bleed edge-to-edge, no margins",
+    description: "Ilustração estilo Ghibli / Manga nítida e luminosa"
+  },
+  {
+    id: "pixel",
+    label: "Pixel Art",
+    badge: "Pixel Art",
+    promptAddon: "PIXEL ART: Masterwork 16-bit pixel art style, retro video game graphics, crisp clean pixel edges, high contrast, vibrant color palette, tack-sharp rendering, extreme zoom clarity, full frame coverage",
+    description: "Arte retrô 16-bit nítida e rica em pixels"
   },
 ];
 
@@ -609,18 +666,30 @@ const AIPage = () => {
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [lightboxLetterboxScale, setLightboxLetterboxScale] = useState(1);
   const [zoomScale, setZoomScale] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const lastTouchDistance = useRef<number | null>(null);
+  const [messageFeedback, setMessageFeedback] = useState<Record<number, "like" | "dislike">>({});
+  const [copiedAssistantIdx, setCopiedAssistantIdx] = useState<number | null>(null);
+  const [copiedUserIdx, setCopiedUserIdx] = useState<number | null>(null);
 
   useEffect(() => {
     if (!lightboxImage) {
       setZoomScale(1);
       setPanOffset({ x: 0, y: 0 });
+      setLightboxLetterboxScale(1);
     }
   }, [lightboxImage]);
+
+  // Garante que o modo de gerar imagens permaneça oculto e desativado na IA
+  useEffect(() => {
+    if (activeMode === "image") {
+      setActiveMode(null);
+    }
+  }, [activeMode]);
 
   const lightboxImgRef = useRef<HTMLImageElement | null>(null);
 
@@ -1071,7 +1140,7 @@ const AIPage = () => {
   }
 
   // Lógica criptografada de persistência com título gerado pela IA
-  const saveConversation = (msgs: Msg[], explicitTitle?: string) => {
+  const saveConversation = (msgs: Msg[], explicitTitle?: string, preserveTimestamp?: boolean) => {
     if (msgs.length < 2) return;
     const userSecret = user?.sub;
     const userKey = getConversationsKey(userSecret);
@@ -1086,7 +1155,7 @@ const AIPage = () => {
           // Se já existe no histórico, atualiza mantendo/gerando o título da IA
           updated = prev.map(c => 
             c.id === currentChatIdRef.current 
-              ? { ...c, title: explicitTitle || (c.title && c.title !== msgs[0]?.content ? c.title : aiTitle), messages: msgs, timestamp: Date.now(), engine: c.engine || aiEngine } 
+              ? { ...c, title: explicitTitle || (c.title && c.title !== msgs[0]?.content ? c.title : aiTitle), messages: msgs, timestamp: preserveTimestamp ? (c.timestamp || Date.now()) : Date.now(), engine: c.engine || aiEngine } 
               : c
           );
         } else {
@@ -1133,12 +1202,20 @@ const AIPage = () => {
     currentChatIdRef.current = null;
     setActiveMode(null);
     setAttachedFiles([]);
+    setMessageFeedback({});
   };
 
   const loadConversation = (conv: Conversation) => {
     currentChatIdRef.current = conv.id; // Atualiza a referência para continuar o mesmo chat
     setMessages(conv.messages);
     setShowHistory(false);
+    const initialFeedback: Record<number, "like" | "dislike"> = {};
+    conv.messages.forEach((msg, idx) => {
+      if (msg.feedback) {
+        initialFeedback[idx] = msg.feedback;
+      }
+    });
+    setMessageFeedback(initialFeedback);
   };
 
   const deleteConversation = (id: string) => {
@@ -1290,21 +1367,35 @@ const AIPage = () => {
     if (!user) return;
     
     // Check quota before loading
-    const limitType = mode === 'video' || mode === 'music' ? 'complex' : 'image';
-    try {
-      const hasQuota = await checkAndIncrementUsage(limitType as any, user.sub);
-      await fetchUsage();
-      if (!hasQuota) {
-        toast({ title: "Limite atingido", description: "Sua cota diária para este recurso acabou. Recarga em até 12h.", variant: "destructive" });
-        setLimitReached(true);
+    if (mode === 'image') {
+      try {
+        const hasQuota = await checkQuotaOnly('image', user.sub);
+        if (!hasQuota) {
+          toast({ title: "Limite atingido", description: "Você atingiu o seu limite diário de 3 imagens no Chat. Sua cota recarrega em até 12h.", variant: "destructive" });
+          setLimitReached(true);
+          setIsLoading(false);
+          return;
+        }
+      } catch (error: any) {
+        console.error("Erro na verificação de cotas:", error);
+      }
+    } else {
+      const limitType = mode === 'video' || mode === 'music' ? 'complex' : 'image';
+      try {
+        const hasQuota = await checkAndIncrementUsage(limitType as any, user.sub);
+        await fetchUsage();
+        if (!hasQuota) {
+          toast({ title: "Limite atingido", description: "Sua cota diária para este recurso acabou. Recarga em até 12h.", variant: "destructive" });
+          setLimitReached(true);
+          setIsLoading(false);
+          return;
+        }
+      } catch (error: any) {
+        console.error("Erro na verificação de cotas:", error);
+        toast({ title: "Aviso", description: error.message || "Não foi possível verificar suas cotas de uso.", variant: "destructive" });
         setIsLoading(false);
         return;
       }
-    } catch (error: any) {
-      console.error("Erro na verificação de cotas:", error);
-      toast({ title: "Aviso", description: error.message || "Não foi possível verificar suas cotas de uso.", variant: "destructive" });
-      setIsLoading(false);
-      return;
     }
 
     const controller = new AbortController();
@@ -1316,6 +1407,56 @@ const AIPage = () => {
     setInput("");
     setIsLoading(true);
     setShowModes(false);
+
+    if (mode === "image") {
+      try {
+        const cleanPrompt = text.replace(/\[Modo:.*?\]\s*/g, "").trim();
+        const stylePrefix = selectedImageStyle ? `[Estilo: ${selectedImageStyle.promptAddon || selectedImageStyle.label}] ` : "";
+        const fullPrompt = `${stylePrefix}${cleanPrompt}`;
+        
+        const imageUrl = await generateBiblicalImage(fullPrompt, controller.signal, 'square', true, 'chat');
+        
+        if (!imageUrl) {
+          throw new Error("O modelo não retornou uma imagem. Tente novamente.");
+        }
+
+        const assistantMsg: Msg = { role: "assistant", content: "", image: imageUrl };
+        const finalMessages = [...currentMsgs, assistantMsg];
+        setMessages(finalMessages);
+        saveConversation(finalMessages);
+        fetchUsage();
+        
+        saveAIHistory(text, assistantMsg.content, mode).catch(console.error);
+      } catch (e: any) {
+        if (e.name === 'AbortError') {
+          toast({ description: "Geração interrompida." });
+        } else {
+          const errMsg = e?.message || "";
+          if (
+            errMsg.toLowerCase().includes("improprio") || 
+            errMsg.toLowerCase().includes("impróprio") || 
+            errMsg.toLowerCase().includes("bloqueado") || 
+            errMsg.toLowerCase().includes("inapropriad") ||
+            errMsg.toLowerCase().includes("diretrizes") ||
+            errMsg.toLowerCase().includes("termos") ||
+            errMsg.toLowerCase().includes("conteúdo visual")
+          ) {
+            toast({ title: "Conteúdo Bloqueado", description: "A descrição fornecida contém termos que violam as diretrizes de conteúdo visual.", variant: "destructive" });
+          } else {
+            const formattedMsg = errMsg.includes("Failed to fetch") 
+              ? "Erro de conexão com o servidor. Verifique sua internet e tente novamente." 
+              : (errMsg || "Tente novamente mais tarde.");
+            toast({ title: "Erro na IA", description: formattedMsg, variant: "destructive" });
+          }
+        }
+        setMessages(prev => prev.slice(0, -1));
+      } finally {
+        setIsLoading(false);
+        setAbortController(null);
+        fetchUsage();
+      }
+      return;
+    }
 
     const videoSystemPrompt = `Atue como um roteirista profissional de vídeos, especializado em teologia e conteúdo cristão focado em engajamento digital (YouTube/Instagram/TikTok). Seu objetivo é criar um roteiro dinâmico, profundo e estritamente fiel às Escrituras Sagradas.
 
@@ -1418,34 +1559,24 @@ NUNCA use # para títulos, use **negrito**.`;
       setAttachedFiles([]);
     }
 
-    if (activeMode && activeMode !== "learning" && ["video", "music"].includes(activeMode)) {
+    if (activeMode && activeMode !== "learning" && ["video", "music", "image"].includes(activeMode)) {
       return sendSpecialMode(finalText, activeMode, attachments, fileNamesStr, filesListForMsg.length > 0 ? filesListForMsg : undefined);
     }
 
     // Check quota before loading
     try {
-      if (activeMode === "image") {
+      const limitType = aiEngine === "complexo" ? "complex" : "simple";
+      const hasQuota = await checkAndIncrementUsage(limitType, user.sub);
+      await fetchUsage();
+      if (!hasQuota) {
         toast({ 
-          title: "Modo em Manutenção", 
-          description: "O modo gerar imagens está em manutenção", 
+          title: "Limite atingido", 
+          description: "Sua cota diária de mensagens acabou. Recarga em até 12h.", 
           variant: "destructive" 
         });
+        setLimitReached(true);
         setIsLoading(false);
         return;
-      } else {
-        const limitType = aiEngine === "complexo" ? "complex" : "simple";
-        const hasQuota = await checkAndIncrementUsage(limitType, user.sub);
-        await fetchUsage();
-        if (!hasQuota) {
-          toast({ 
-            title: "Limite atingido", 
-            description: "Sua cota diária de mensagens acabou. Recarga em até 12h.", 
-            variant: "destructive" 
-          });
-          setLimitReached(true);
-          setIsLoading(false);
-          return;
-        }
       }
     } catch (error: any) {
       console.error("Erro na verificação de cotas:", error);
@@ -1467,15 +1598,7 @@ NUNCA use # para títulos, use **negrito**.`;
 
     try {
       let responseText = "";
-      if (activeMode === 'image') {
-        toast({
-          title: "Modo em manutenção",
-          description: "O modo gerar imagens está em manutenção",
-          variant: "destructive"
-        });
-        setIsLoading(false);
-        return;
-      } else if (activeMode === 'learning') {
+      if (activeMode === 'learning') {
         const learningPrompt = `Você é um professor e teólogo cristão dedicado ao ensino bíblico de forma altamente didática, passo a passo e interativa.
 
 🛑 REGRAS INVIOLÁVEIS DE ESCOPO E TAMANHO:
@@ -1548,6 +1671,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
   };
 
   const handleModeSelect = (mode: typeof modes[0]) => {
+    if (mode.hidden || mode.key === "image") return;
     const isCurrentlyEmpty = messages.length === 0;
 
     if (activeMode === mode.key) {
@@ -1567,14 +1691,9 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
 
       setActiveMode(mode.key);
       if (mode.key === "image") {
-        toast({
-          title: "Modo em Manutenção",
-          description: "O modo gerar imagens está em manutenção",
-          variant: "destructive"
-        });
-      } else {
-        setAiEngine("complexo");
+        setSelectedImageStyle(prev => prev || IMAGE_STYLES[0]);
       }
+      setAiEngine("complexo");
       setShowModes(false);
 
       if (!isCurrentlyEmpty && isSwitchingImage) {
@@ -1587,6 +1706,191 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
         });
       }
     }
+  };
+
+  const handleToggleLike = (idx: number) => {
+    const currentFb = messages[idx]?.feedback || messageFeedback[idx];
+    const newFeedback: "like" | undefined = currentFb === "like" ? undefined : "like";
+
+    setMessageFeedback(prev => {
+      const next = { ...prev };
+      if (!newFeedback) {
+        delete next[idx];
+      } else {
+        next[idx] = "like";
+      }
+      return next;
+    });
+
+    const updatedMessages: Msg[] = messages.map((m, i) => {
+      if (i === idx) {
+        return { ...m, feedback: newFeedback };
+      }
+      return m;
+    });
+    setMessages(updatedMessages);
+
+    // Salva imediatamente no histórico da conversa (preservando data original)
+    if (updatedMessages.length >= 2) {
+      saveConversation(updatedMessages, undefined, true);
+    }
+
+    if (newFeedback === "like") {
+      toast({
+        title: "Obrigado pelo feedback!",
+        description: "Avaliação positiva salva no histórico da conversa.",
+      });
+    } else {
+      toast({
+        title: "Feedback removido",
+        description: "Avaliação removida do histórico.",
+      });
+    }
+  };
+
+  const handleToggleDislike = (idx: number) => {
+    const currentFb = messages[idx]?.feedback || messageFeedback[idx];
+    const newFeedback: "dislike" | undefined = currentFb === "dislike" ? undefined : "dislike";
+
+    setMessageFeedback(prev => {
+      const next = { ...prev };
+      if (!newFeedback) {
+        delete next[idx];
+      } else {
+        next[idx] = "dislike";
+      }
+      return next;
+    });
+
+    const updatedMessages: Msg[] = messages.map((m, i) => {
+      if (i === idx) {
+        return { ...m, feedback: newFeedback };
+      }
+      return m;
+    });
+    setMessages(updatedMessages);
+
+    // Salva imediatamente no histórico da conversa (preservando data original)
+    if (updatedMessages.length >= 2) {
+      saveConversation(updatedMessages, undefined, true);
+    }
+
+    if (newFeedback === "dislike") {
+      toast({
+        title: "Feedback registrado",
+        description: "Retorno salvo no histórico da conversa para aprimoramento.",
+      });
+    } else {
+      toast({
+        title: "Feedback removido",
+        description: "Avaliação removida do histórico.",
+      });
+    }
+  };
+
+  const handleRepeatResponse = (assistantIndex: number) => {
+    if (isLoading) return;
+    if (limitReached) {
+      toast({
+        title: "Limite diário atingido",
+        description: "Sua cota diária de mensagens foi atingida. Recarga em até 12h.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!isOnline) {
+      toast({
+        title: "Sem conexão",
+        description: "É necessária conexão com a internet para reenviar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    let userPrompt = "";
+    for (let idx = assistantIndex - 1; idx >= 0; idx--) {
+      if (messages[idx]?.role === "user") {
+        userPrompt = messages[idx].content;
+        break;
+      }
+    }
+
+    if (!userPrompt) {
+      toast({
+        title: "Pergunta não encontrada",
+        description: "Não foi possível identificar a pergunta anterior correspondente.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const cleanPrompt = userPrompt.replace(/\[Arquivo:\s*.*?\]\n?/gi, "").trim();
+    const promptToSend = cleanPrompt || userPrompt;
+
+    toast({
+      title: "Repetindo resposta...",
+      description: "Reenviando pergunta e contabilizando na cota de uso.",
+    });
+
+    send(promptToSend);
+  };
+
+  const handleCopyResponse = async (content: string, idx: number) => {
+    try {
+      const cleanText = formatMessageForDisplay(cleanImageLinksFromText(content));
+      await navigator.clipboard.writeText(cleanText || content);
+      setCopiedAssistantIdx(idx);
+      setTimeout(() => setCopiedAssistantIdx(null), 2000);
+      toast({
+        title: "Resposta copiada!",
+        description: "Texto copiado para sua área de transferência.",
+      });
+    } catch (err) {
+      console.error("Falha ao copiar resposta:", err);
+      toast({
+        title: "Erro ao copiar",
+        description: "Não foi possível copiar o texto automaticamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCopyUserQuestion = async (content: string, idx: number) => {
+    try {
+      const cleanText = formatMessageForDisplay(content);
+      await navigator.clipboard.writeText(cleanText || content);
+      setCopiedUserIdx(idx);
+      setTimeout(() => setCopiedUserIdx(null), 2000);
+      toast({
+        title: "Pergunta copiada!",
+        description: "Sua pergunta foi copiada para a área de transferência.",
+      });
+    } catch (err) {
+      console.error("Falha ao copiar pergunta:", err);
+      toast({
+        title: "Erro ao copiar",
+        description: "Não foi possível copiar a pergunta.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditUserQuestion = (content: string) => {
+    const cleanText = formatMessageForDisplay(content);
+    setInput(cleanText || content);
+    setTimeout(() => {
+      const inputEl = document.getElementById("ai-prompt-input") as HTMLInputElement | null;
+      if (inputEl) {
+        inputEl.focus();
+        const len = inputEl.value.length;
+        inputEl.setSelectionRange(len, len);
+      }
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 50);
+    toast({
+      title: "Editar pergunta",
+      description: "Pergunta carregada no campo abaixo. Ajuste o texto e clique em enviar.",
+    });
   };
 
   const renderAssistantContent = (msg: Msg) => {
@@ -1606,19 +1910,21 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
       );
     };
 
+    const topImage = msg.image || extractImageUrl(msg.content);
+
     return (
       <div className="space-y-1">
-        {msg.image && (
+        {topImage && (
           <Fragment>
             <div className="mb-2 relative w-full max-w-[280px] sm:max-w-[320px] aspect-square overflow-hidden rounded-xl bg-muted border border-border shadow-md">
-              <ResilientImage src={msg.image} alt="Imagem bíblica gerada" onClick={() => setLightboxImage(msg.image!)} />
+              <ResilientImage src={topImage} alt="Imagem bíblica gerada" onClick={() => setLightboxImage(topImage)} />
             </div>
             <div className="mt-1.5 flex gap-2">
-              <button onClick={() => downloadImage(msg.image!)}
+              <button onClick={() => downloadImage(topImage)}
                 className="flex items-center gap-1.5 rounded-lg bg-accent/15 px-3 py-1.8 text-[11px] font-semibold text-accent hover:bg-accent/25 transition-all liquid-btn">
                 <Download className="h-3.5 w-3.5" /> Baixar
               </button>
-              <button onClick={() => shareBibleImage(msg.image!)}
+              <button onClick={() => shareBibleImage(topImage)}
                 className="flex items-center gap-1.5 rounded-lg bg-primary/15 px-3 py-1.8 text-[11px] font-semibold text-primary hover:bg-primary/25 transition-all liquid-btn">
                 <Share2 className="h-3.5 w-3.5" /> Compartilhar
               </button>
@@ -1626,26 +1932,29 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
           </Fragment>
         )}
         {lines.map((line, i) => {
-          const imgMatch = line.match(/!\[.*?\]\((https?:\/\/.*?\?.*|data:image\/.*?;base64,.*?)\)/);
-          if (imgMatch) {
-             const imageUrl = imgMatch[1];
-             return (
-               <Fragment key={i}>
-                 <div className="mb-2 mt-2 relative w-full max-w-[280px] sm:max-w-[320px] aspect-square overflow-hidden rounded-xl bg-muted border border-border shadow-md">
-                   <ResilientImage src={imageUrl} alt="Imagem bíblica gerada" onClick={() => setLightboxImage(imageUrl)} />
-                 </div>
-                 <div className="mt-1.5 flex gap-2">
-                   <button onClick={() => downloadImage(imageUrl)}
-                     className="flex items-center gap-1.5 rounded-lg bg-accent/15 px-3 py-1.8 text-[11px] font-semibold text-accent hover:bg-accent/25 transition-all liquid-btn">
-                     <Download className="h-3.5 w-3.5" /> Baixar
-                   </button>
-                   <button onClick={() => shareBibleImage(imageUrl)}
-                     className="flex items-center gap-1.5 rounded-lg bg-primary/15 px-3 py-1.8 text-[11px] font-semibold text-primary hover:bg-primary/25 transition-all liquid-btn">
-                     <Share2 className="h-3.5 w-3.5" /> Compartilhar
-                   </button>
-                 </div>
-               </Fragment>
-             );
+          const lineImgUrl = extractImageUrl(line);
+          if (lineImgUrl) {
+            // If this image is already shown as topImage or the line is just the image URL, skip duplicate text rendering
+            if (topImage && (lineImgUrl === topImage || line.trim() === lineImgUrl || line.trim().startsWith("!["))) {
+              return null;
+            }
+            return (
+              <Fragment key={i}>
+                <div className="mb-2 mt-2 relative w-full max-w-[280px] sm:max-w-[320px] aspect-square overflow-hidden rounded-xl bg-muted border border-border shadow-md">
+                  <ResilientImage src={lineImgUrl} alt="Imagem bíblica gerada" onClick={() => setLightboxImage(lineImgUrl)} />
+                </div>
+                <div className="mt-1.5 flex gap-2">
+                  <button onClick={() => downloadImage(lineImgUrl)}
+                    className="flex items-center gap-1.5 rounded-lg bg-accent/15 px-3 py-1.8 text-[11px] font-semibold text-accent hover:bg-accent/25 transition-all liquid-btn">
+                    <Download className="h-3.5 w-3.5" /> Baixar
+                  </button>
+                  <button onClick={() => shareBibleImage(lineImgUrl)}
+                    className="flex items-center gap-1.5 rounded-lg bg-primary/15 px-3 py-1.8 text-[11px] font-semibold text-primary hover:bg-primary/25 transition-all liquid-btn">
+                    <Share2 className="h-3.5 w-3.5" /> Compartilhar
+                  </button>
+                </div>
+              </Fragment>
+            );
           }
           if (line.startsWith("**") && line.endsWith("**")) {
             return <p key={i} className="text-xs font-bold text-foreground mt-1.5">{line.slice(2, -2)}</p>;
@@ -1914,7 +2223,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     >
                       {/* Top Bar Card */}
                       <div className="flex items-center justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${categoryInfo.badgeBg}`}>
                             <CategoryIcon className="h-3 w-3" />
                             {categoryInfo.label}
@@ -1923,6 +2232,22 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                             <Clock className="h-3 w-3 text-muted-foreground/70" />
                             {formatRelativeDate(conv.timestamp)}
                           </span>
+                          {conv.messages.some(m => m.feedback === "like") && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/25" title="Contém resposta com Gostei">
+                              <ThumbsUp className="h-2.5 w-2.5" />
+                              {conv.messages.filter(m => m.feedback === "like").length > 1 && (
+                                <span>{conv.messages.filter(m => m.feedback === "like").length}</span>
+                              )}
+                            </span>
+                          )}
+                          {conv.messages.some(m => m.feedback === "dislike") && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-rose-500/15 text-rose-400 border border-rose-500/25" title="Contém resposta com Não gostei">
+                              <ThumbsDown className="h-2.5 w-2.5" />
+                              {conv.messages.filter(m => m.feedback === "dislike").length > 1 && (
+                                <span>{conv.messages.filter(m => m.feedback === "dislike").length}</span>
+                              )}
+                            </span>
+                          )}
                         </div>
 
                         {/* Ações */}
@@ -2187,32 +2512,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
           </div>
         </div>
 
-        {activeMode === "image" && (
-          <motion.div 
-            initial={{ opacity: 0, y: -6, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            className="shrink-0 mb-3 flex items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 backdrop-blur-md shadow-md"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                <AlertCircle className="h-5 w-5 text-amber-400" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-xs sm:text-sm font-bold text-amber-100 truncate">
-                    O modo gerar imagens está em manutenção
-                  </p>
-                  <span className="shrink-0 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold text-amber-300 border border-amber-500/30">
-                    Em Manutenção
-                  </span>
-                </div>
-                <p className="text-[11px] sm:text-xs text-amber-300/80 truncate mt-0.5">
-                  O recurso de geração de imagens da IA bíblica está temporariamente em manutenção.
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        )}
+
 
         {limitReached && (
           <motion.div 
@@ -2276,7 +2576,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                   ? "Estudos e explicações bíblicas aprofundadas com a IA."
                   : aiEngine === "simples"
                   ? "Perguntas diretas sobre a Bíblia, com resposta rápida e resumida."
-                  : "Respostas detalhadas, geração de imagens, estudos e áudios."}
+                  : "Respostas detalhadas, estudos bíblicos aprofundados, roteiros e áudios."}
               </p>
 
               <div className="mb-5">
@@ -2308,8 +2608,8 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full">
                 {activeSuggestions.map((s) => (
-                  <motion.button key={s} whileTap={{ scale: activeMode === "image" ? 1 : 0.97 }} onClick={() => !limitReached && activeMode !== "image" && send(s)}
-                    disabled={limitReached || activeMode === "image"}
+                  <motion.button key={s} whileTap={{ scale: 0.97 }} onClick={() => !limitReached && send(s)}
+                    disabled={limitReached}
                     className="glass-card rounded-xl p-3 text-left text-xs text-card-foreground transition-colors hover:!border-accent liquid-btn disabled:opacity-50 disabled:cursor-not-allowed flex flex-col justify-between"
                   >
                     <div className="flex items-center gap-1.5 mb-1 text-accent">
@@ -2368,7 +2668,117 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     })}
                   </div>
                 )}
-                {m.role === "assistant" ? renderAssistantContent(m) : <span className="text-sm">{formatMessageForDisplay(m.content)}</span>}
+                {m.role === "assistant" ? (
+                  <div className="space-y-1">
+                    {renderAssistantContent(m)}
+                    {activeMode !== "image" && !m.image && !extractImageUrl(m.content) && m.content && (() => {
+                      const currentFb = m.feedback || messageFeedback[i];
+                      return (
+                        <div className="mt-2.5 pt-2 border-t border-border/40 flex items-center gap-1 sm:gap-1.5 flex-wrap text-muted-foreground">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleLike(i)}
+                            title={currentFb === "like" ? "Gostei da resposta (salvo no histórico)" : "Gostei da resposta (Like)"}
+                            aria-label="Gostei da resposta"
+                            className={`flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs transition-colors ${
+                              currentFb === "like"
+                                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-medium shadow-xs"
+                                : "hover:bg-secondary hover:text-foreground text-muted-foreground border border-transparent"
+                            }`}
+                          >
+                            <ThumbsUp className="h-3.5 w-3.5" />
+                            <span className="text-[11px] hidden sm:inline">Gostei</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleToggleDislike(i)}
+                            title={currentFb === "dislike" ? "Não gostei da resposta (salvo no histórico)" : "Não gostei da resposta (Deslike)"}
+                            aria-label="Não gostei da resposta"
+                            className={`flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs transition-colors ${
+                              currentFb === "dislike"
+                                ? "bg-rose-500/20 text-rose-400 border border-rose-500/30 font-medium shadow-xs"
+                                : "hover:bg-secondary hover:text-foreground text-muted-foreground border border-transparent"
+                            }`}
+                          >
+                            <ThumbsDown className="h-3.5 w-3.5" />
+                            <span className="text-[11px] hidden sm:inline">Não gostei</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRepeatResponse(i)}
+                            disabled={isLoading || limitReached}
+                            title="Repetir resposta (reenvia o prompt e desconta na cota)"
+                            aria-label="Repetir resposta"
+                            className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs hover:bg-secondary hover:text-foreground text-muted-foreground border border-transparent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                            <span className="text-[11px]">Repetir</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleCopyResponse(m.content, i)}
+                            title="Copiar resposta"
+                            aria-label="Copiar resposta"
+                            className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs hover:bg-secondary hover:text-foreground text-muted-foreground border border-transparent transition-colors"
+                          >
+                            {copiedAssistantIdx === i ? (
+                              <>
+                                <Check className="h-3.5 w-3.5 text-emerald-400" />
+                                <span className="text-[11px] text-emerald-400 font-medium">Copiado!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="h-3.5 w-3.5" />
+                                <span className="text-[11px]">Copiar</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <span className="text-sm leading-relaxed">{formatMessageForDisplay(m.content)}</span>
+                    {activeMode !== "image" && m.content && (
+                      <div className="mt-2 pt-1.5 border-t border-primary-foreground/20 flex items-center justify-end gap-1.5 flex-wrap text-primary-foreground/80">
+                        <button
+                          type="button"
+                          onClick={() => handleCopyUserQuestion(m.content, i)}
+                          title="Copiar pergunta"
+                          aria-label="Copiar pergunta"
+                          className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] hover:bg-black/20 hover:text-primary-foreground transition-all duration-150"
+                        >
+                          {copiedUserIdx === i ? (
+                            <>
+                              <Check className="h-3 w-3 text-emerald-300" />
+                              <span className="font-medium text-emerald-300">Copiada!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3 w-3" />
+                              <span>Copiar</span>
+                            </>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleEditUserQuestion(m.content)}
+                          title="Editar pergunta e reenviar"
+                          aria-label="Editar pergunta e reenviar"
+                          className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] hover:bg-black/20 hover:text-primary-foreground transition-all duration-150"
+                        >
+                          <Edit3 className="h-3 w-3" />
+                          <span>Editar</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </motion.div>
           ))}
@@ -2444,7 +2854,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
           <AnimatePresence>
             {showModes && (
               <motion.div key="show-modes-panel" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="mb-2 flex flex-wrap gap-1.5">
-                {modes.map((m) => (
+                {modes.filter((m) => !m.hidden).map((m) => (
                   <button key={m.key}
                     type="button"
                     onClick={() => handleModeSelect(m)}
@@ -2453,11 +2863,6 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     }`}
                   >
                     {m.icon} {m.label}
-                    {m.key === "image" && (
-                      <span className="ml-1 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-400 border border-amber-500/30">
-                        Manutenção
-                      </span>
-                    )}
                   </button>
                 ))}
               </motion.div>
@@ -2576,8 +2981,8 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     </button>
                   )}
                   <button type="button" onClick={() => fileInputRef.current?.click()}
-                    disabled={limitReached || activeMode === "image"}
-                    title={activeMode === "image" ? "Modo em manutenção" : "Anexar arquivos ou imagens"}
+                    disabled={limitReached}
+                    title="Anexar arquivos ou imagens"
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground active:scale-95 transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Upload size={17} className="stroke-[2.2]" />
@@ -2589,10 +2994,9 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     <div className="relative">
                       <button
                         type="button"
-                        disabled={activeMode === "image"}
                         onClick={() => setShowStylePicker(!showStylePicker)}
-                        className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-all liquid-btn border opacity-60 cursor-not-allowed border-border/80 bg-secondary/80 text-muted-foreground`}
-                        title="O modo gerar imagens está em manutenção"
+                        className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-all liquid-btn border border-border/80 bg-secondary/80 text-muted-foreground hover:text-foreground`}
+                        title="Escolher estilo da imagem"
                       >
                         <Palette className="h-4 w-4 shrink-0 text-accent" />
                         <span className="text-[11px] font-semibold max-w-[95px] truncate">
@@ -2600,6 +3004,48 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                         </span>
                         <ChevronDown className={`h-3 w-3 shrink-0 transition-transform duration-200 ${showStylePicker ? "rotate-180" : ""}`} />
                       </button>
+
+                      <AnimatePresence>
+                        {showStylePicker && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                            className="absolute bottom-full left-0 mb-2 w-64 rounded-2xl border border-border bg-card/95 p-1.5 shadow-xl backdrop-blur-md z-50 flex flex-col gap-1"
+                          >
+                            <div className="px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/50 flex items-center justify-between">
+                              <span>Estilo da Imagem</span>
+                              <Sparkles className="h-3 w-3 text-accent" />
+                            </div>
+                            {IMAGE_STYLES.map((style) => {
+                              const isSelected = selectedImageStyle?.id === style.id;
+                              return (
+                                <button
+                                  key={style.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedImageStyle(style);
+                                    setShowStylePicker(false);
+                                  }}
+                                  className={`flex flex-col text-left px-3 py-2 rounded-xl text-xs transition-colors ${
+                                    isSelected
+                                      ? "bg-accent/15 text-accent border border-accent/30 font-semibold"
+                                      : "hover:bg-secondary/80 text-foreground"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between w-full">
+                                    <span className="font-semibold">{style.label}</span>
+                                    {isSelected && <Check className="h-3.5 w-3.5 text-accent" />}
+                                  </div>
+                                  <span className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1 font-normal">
+                                    {style.description}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   )}
                 </div>
@@ -2621,7 +3067,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                       : limitReached
                       ? "Limite diário atingido"
                       : activeMode === "image"
-                      ? "O modo gerar imagens está em manutenção"
+                      ? "Descreva a imagem bíblica que deseja gerar..."
                       : activeMode === "video"
                       ? "Descreva seu roteiro de vídeo..."
                       : activeMode === "learning"
@@ -2632,7 +3078,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                       ? "Pergunta Bíblica simples..."
                       : "Pergunte qualquer tema bíblico..."
                   }
-                  disabled={isLoading || limitReached || !isOnline || activeMode === "image"}
+                  disabled={isLoading || limitReached || !isOnline}
                   className="flex-1 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 {input.length > 1000 && (
@@ -2652,9 +3098,9 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                 ) : (
                   <button
                     type="submit"
-                    disabled={!input.trim() || limitReached || !isOnline || activeMode === "image"}
+                    disabled={!input.trim() || limitReached || !isOnline}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground transition-colors liquid-btn disabled:opacity-50 disabled:cursor-not-allowed mr-0.5 shadow-sm"
-                    title={activeMode === "image" ? "Modo em manutenção" : "Enviar"}
+                    title="Enviar"
                   >
                     <ArrowUp size={18} className="stroke-[2.5]" />
                   </button>
@@ -2688,9 +3134,9 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
             >
               <div className="flex items-center gap-2 text-white font-medium text-xs sm:text-sm">
                 <Sparkles className="h-4 w-4 text-accent" />
-                <span>Visualizador de Arte</span>
+                <span>Visualizador de Imagem</span>
                 {zoomScale > 1 && (
-                  <span className="text-[10px] font-mono bg-accent/20 text-accent px-2 py-0.5 rounded-full border border-accent/30">
+                  <span className="text-[10px] font-mono bg-accent/20 text-accent px-2 py-0.5 rounded-full border border-accent/30 font-bold">
                     {Math.round(zoomScale * 100)}%
                   </span>
                 )}
@@ -2719,12 +3165,22 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                 ref={lightboxImgRef}
                 src={lightboxImage}
                 alt="Arte bíblica em alta definição"
+                crossOrigin="anonymous"
                 className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl border border-white/10 block mx-auto touch-none transition-transform duration-100 ease-out"
                 style={{
-                  transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomScale})`,
+                  transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomScale * lightboxLetterboxScale})`,
                   cursor: zoomScale > 1 ? (isDraggingImage ? 'grabbing' : 'grab') : 'zoom-in',
+                  imageRendering: 'auto',
                 }}
                 referrerPolicy="no-referrer"
+                onLoad={(e) => {
+                  const info = analyzeLetterbox(e.currentTarget);
+                  if (info.hasLetterbox && info.scale > 1) {
+                    setLightboxLetterboxScale(info.scale);
+                  } else {
+                    setLightboxLetterboxScale(1);
+                  }
+                }}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUpOrLeave}
@@ -2764,6 +3220,24 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
               </button>
 
               <div className="flex items-center gap-1 border-l border-white/10 pl-1.5 sm:pl-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (zoomScale > 1) {
+                      setZoomScale(1);
+                      setPanOffset({ x: 0, y: 0 });
+                    } else {
+                      setZoomScale(2);
+                    }
+                  }}
+                  className={`flex h-9 px-2 items-center justify-center rounded-xl text-xs font-mono font-bold transition-all active:scale-95 border border-white/10 ${
+                    zoomScale > 1 ? "bg-accent text-white" : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                  }`}
+                  title="Alternar Zoom Rápido 2x"
+                >
+                  {zoomScale > 1 ? `${Math.round(zoomScale * 10) / 10}x` : "2x"}
+                </button>
+
                 <button
                   type="button"
                   onClick={() => {

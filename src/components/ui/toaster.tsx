@@ -7,7 +7,7 @@ export function Toaster() {
 
   return (
     <ToastProvider>
-      {toasts.map(function ({ id, title, description, action, variant, ...props }) {
+      {toasts.map(function ({ id, title, description, action, variant, important, ...props }) {
         const isDestructive = variant === "destructive";
         const Icon = isDestructive ? AlertCircle : Bell;
 

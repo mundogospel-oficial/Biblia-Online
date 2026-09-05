@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-// Global error handler to catch network/fetch glitches gracefully without breaking app UI
+// Global error handler to catch network/fetch glitches and LockManager timeouts gracefully without breaking app UI
 window.addEventListener("unhandledrejection", (event) => {
   const reasonStr = event.reason
     ? (typeof event.reason === "string"
@@ -14,10 +14,32 @@ window.addEventListener("unhandledrejection", (event) => {
     reasonStr.includes("Failed to fetch") ||
     reasonStr.includes("NetworkError") ||
     reasonStr.includes("Load failed") ||
-    reasonStr.includes("fetch failed")
+    reasonStr.includes("fetch failed") ||
+    reasonStr.includes("LockManager") ||
+    reasonStr.includes("NavigatorLock") ||
+    reasonStr.includes("lock:sb-") ||
+    (reasonStr.includes("lock") && reasonStr.includes("timed out waiting"))
   ) {
-    console.warn("[Rede] Conexão temporariamente indisponível (Failed to fetch). As ações serão reexecutadas ou salvas localmente.");
-    event.preventDefault(); // Prevents runtime error overlay for network blips
+    console.warn("[Sistema] Exceção assíncrona interceptada com segurança:", reasonStr);
+    event.preventDefault(); // Prevents runtime error overlay for network blips / lock timeouts
+  }
+});
+
+window.addEventListener("error", (event) => {
+  const msg = event.message || "";
+  if (
+    msg.includes("Failed to fetch") ||
+    msg.includes("NetworkError") ||
+    msg.includes("Load failed") ||
+    msg.includes("fetch failed") ||
+    msg.includes("Script error") ||
+    msg.includes("LockManager") ||
+    msg.includes("NavigatorLock") ||
+    msg.includes("lock:sb-") ||
+    (msg.includes("lock") && msg.includes("timed out waiting"))
+  ) {
+    console.warn("[Sistema] Erro global interceptado com segurança:", msg);
+    event.preventDefault();
   }
 });
 

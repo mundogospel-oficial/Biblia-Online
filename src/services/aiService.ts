@@ -23,8 +23,9 @@ export const fetchKeys = async (): Promise<{ googleKey: string; googleKey2: stri
     return { googleKey: cachedGoogleKey, googleKey2: cachedGoogleKey2, openRouterKey: cachedOpenRouterKey, openRouterKey2: cachedOpenRouterKey2 };
   }
 
-  let envGoogle = (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
-  let envGoogle2 = (import.meta.env.VITE_GEMINI_API_KEY_2 || "").trim();
+  // Chaves de IA gerenciadas de forma segura (sem expor segredos no bundle público)
+  let envGoogle = "";
+  let envGoogle2 = "";
   let envOpenRouter = (import.meta.env.VITE_OPENROUTER_API_KEY || "").trim();
   let envOpenRouter2 = (import.meta.env.VITE_OPENROUTER_API_KEY_2 || "").trim();
 
@@ -621,7 +622,7 @@ export const askBibleAI = async (
     }
   } catch (error: any) {
     if (error.name === 'AbortError' || error.message?.includes('abort')) throw error;
-    if (error.message === 'Failed to fetch') {
+    if (error.message?.includes('Failed to fetch') || error.message?.includes('fetch failed') || error.message?.includes('NetworkError')) {
       throw new Error("Erro de conexão: Não foi possível alcançar o servidor da IA. Verifique sua conexão com a internet.");
     }
     throw new Error(error.message || "Ocorreu um erro inesperado ao consultar a IA.");

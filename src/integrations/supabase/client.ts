@@ -23,18 +23,82 @@ if (import.meta.env.DEV) {
 
 const SUPABASE_PUBLISHABLE_KEY = envKey || 'YOUR_SUPABASE_ANON_KEY';
 
+// In-memory queue-based lock to prevent deadlocks from Navigator LockManager in iframes and multi-tab environments
+const inMemoryAuthLocks = new Map<string, Promise<any>>();
+
+const safeAuthLock = async <R>(name: string, acquireTimeout: number, fn: () => Promise<R>): Promise<R> => {
+  const previous = inMemoryAuthLocks.get(name) ?? Promise.resolve();
+
+  let release: () => void = () => {};
+  const current = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+
+  inMemoryAuthLocks.set(name, previous.then(() => current, () => current));
+
+  let timeoutId: any = null;
+  const timeoutPromise = acquireTimeout > 0
+    ? new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(`Acquiring lock "${name}" timed out waiting ${acquireTimeout}ms`));
+        }, Math.min(acquireTimeout, 3000));
+      })
+    : null;
+
+  try {
+    if (timeoutPromise) {
+      await Promise.race([previous.catch(() => {}), timeoutPromise]);
+    } else {
+      await previous.catch(() => {});
+    }
+    return await fn();
+  } catch (err: any) {
+    // Se o lock expirar, executa a operação diretamente para não travar a autenticação do usuário
+    if (err?.message?.includes("timed out") || err?.name === "AbortError") {
+      console.warn(`[Supabase Lock] Aviso de concorrência para "${name}", executando diretamente com segurança.`);
+      return await fn();
+    }
+    throw err;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+    release();
+    if (inMemoryAuthLocks.get(name) === current) {
+      inMemoryAuthLocks.delete(name);
+    }
+  }
+};
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
+    lock: safeAuthLock,
   }
 });
 
 // Guard session against "Invalid Refresh Token" crash loop
 const originalGetSession = supabase.auth.getSession.bind(supabase.auth);
 const originalGetUser = supabase.auth.getUser.bind(supabase.auth);
+
+export const isLockTimeoutError = (error: any): boolean => {
+  if (!error) return false;
+  let str = '';
+  if (typeof error === 'string') {
+    str = error;
+  } else if (typeof error === 'object') {
+    str = [error.message, error.error_description, error.error, error.msg, error.name].filter(Boolean).join(' ');
+  } else {
+    str = String(error);
+  }
+  const lowered = str.toLowerCase();
+  return (
+    lowered.includes("lockmanager") ||
+    lowered.includes("navigatorlock") ||
+    lowered.includes("lock:sb-") ||
+    (lowered.includes("lock") && lowered.includes("timed out waiting"))
+  );
+};
 
 export const isAuthRefreshError = (error: any) => {
   if (!error) return false;
@@ -68,6 +132,10 @@ export const isAuthRefreshError = (error: any) => {
     lowered.includes("jwt expired") ||
     lowered.includes("failed to fetch") ||
     lowered.includes("networkerror") ||
+    lowered.includes("lockmanager") ||
+    lowered.includes("navigatorlock") ||
+    lowered.includes("lock:sb-") ||
+    (lowered.includes("lock") && lowered.includes("timed out waiting")) ||
     error?.status === 400 ||
     error?.status === 401
   );
@@ -94,12 +162,22 @@ export const clearStaleSession = () => {
 supabase.auth.getSession = async () => {
   try {
     const res = await originalGetSession();
-    if (res.error && isAuthRefreshError(res.error)) {
-      clearStaleSession();
-      return { data: { session: null }, error: null };
+    if (res.error) {
+      if (isLockTimeoutError(res.error)) {
+        console.warn("[Supabase] Lock de autenticação ignorado com segurança em getSession:", res.error);
+        return { data: { session: null }, error: null };
+      }
+      if (isAuthRefreshError(res.error)) {
+        clearStaleSession();
+        return { data: { session: null }, error: null };
+      }
     }
     return res;
   } catch (err) {
+    if (isLockTimeoutError(err)) {
+      console.warn("[Supabase] Exceção de lock capturada com segurança em getSession:", err);
+      return { data: { session: null }, error: null };
+    }
     if (isAuthRefreshError(err)) {
       clearStaleSession();
       return { data: { session: null }, error: null };
@@ -111,12 +189,22 @@ supabase.auth.getSession = async () => {
 supabase.auth.getUser = async (jwt?: string) => {
   try {
     const res = await originalGetUser(jwt);
-    if (res.error && isAuthRefreshError(res.error)) {
-      clearStaleSession();
-      return { data: { user: null }, error: null };
+    if (res.error) {
+      if (isLockTimeoutError(res.error)) {
+        console.warn("[Supabase] Lock de autenticação ignorado com segurança em getUser:", res.error);
+        return { data: { user: null }, error: null };
+      }
+      if (isAuthRefreshError(res.error)) {
+        clearStaleSession();
+        return { data: { user: null }, error: null };
+      }
     }
     return res;
   } catch (err) {
+    if (isLockTimeoutError(err)) {
+      console.warn("[Supabase] Exceção de lock capturada com segurança em getUser:", err);
+      return { data: { user: null }, error: null };
+    }
     if (isAuthRefreshError(err)) {
       clearStaleSession();
       return { data: { user: null }, error: null };
@@ -128,9 +216,18 @@ supabase.auth.getUser = async (jwt?: string) => {
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (event) => {
     const reasonStr = String(event.reason?.message || event.reason || '').toLowerCase();
-    if (isAuthRefreshError(event.reason) || reasonStr.includes('failed to fetch') || reasonStr.includes('networkerror')) {
-      console.warn("Intercepted unhandled network/auth rejection:", event.reason);
-      if (isAuthRefreshError(event.reason) && !reasonStr.includes('failed to fetch')) {
+    if (
+      isAuthRefreshError(event.reason) ||
+      isLockTimeoutError(event.reason) ||
+      reasonStr.includes('failed to fetch') ||
+      reasonStr.includes('networkerror') ||
+      reasonStr.includes('lockmanager') ||
+      reasonStr.includes('navigatorlock') ||
+      reasonStr.includes('lock:sb-') ||
+      (reasonStr.includes('lock') && reasonStr.includes('timed out waiting'))
+    ) {
+      console.warn("Intercepted unhandled network/auth/lock rejection:", event.reason);
+      if (isAuthRefreshError(event.reason) && !reasonStr.includes('failed to fetch') && !isLockTimeoutError(event.reason)) {
         clearStaleSession();
       }
       event.preventDefault();
@@ -139,9 +236,18 @@ if (typeof window !== 'undefined') {
 
   window.addEventListener('error', (event) => {
     const errStr = String(event.error?.message || event.message || '').toLowerCase();
-    if (isAuthRefreshError(event.error) || errStr.includes('failed to fetch') || errStr.includes('networkerror')) {
-      console.warn("Intercepted global network/auth error:", event.error || event.message);
-      if (isAuthRefreshError(event.error) && !errStr.includes('failed to fetch')) {
+    if (
+      isAuthRefreshError(event.error) ||
+      isLockTimeoutError(event.error) ||
+      errStr.includes('failed to fetch') ||
+      errStr.includes('networkerror') ||
+      errStr.includes('lockmanager') ||
+      errStr.includes('navigatorlock') ||
+      errStr.includes('lock:sb-') ||
+      (errStr.includes('lock') && errStr.includes('timed out waiting'))
+    ) {
+      console.warn("Intercepted global network/auth/lock error:", event.error || event.message);
+      if (isAuthRefreshError(event.error) && !errStr.includes('failed to fetch') && !isLockTimeoutError(event.error)) {
         clearStaleSession();
       }
       event.preventDefault();

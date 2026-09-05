@@ -207,9 +207,9 @@ async function analyzeImageWithGeminiVision(file: File): Promise<boolean> {
       reader.readAsDataURL(file);
     });
 
-    // Obtain Gemini API keys from Supabase or env
-    let googleKey = (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
-    let googleKey2 = (import.meta.env.VITE_GEMINI_API_KEY_2 || "").trim();
+    // Obtain Gemini API keys securely (never exposed in public bundle)
+    let googleKey = "";
+    let googleKey2 = "";
 
     try {
       const { data } = await supabase

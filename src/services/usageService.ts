@@ -1,17 +1,57 @@
 import { supabase } from '@/integrations/supabase/client';
 
+export const getQuotaCutoff = (): string => {
+  // Cota de 12 horas rolantes (recarrega 12 horas após o uso de cada recurso)
+  return new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+};
+
+export const checkQuotaOnly = async (type: 'simple' | 'complex' | 'image' | 'create_image' | 'translation' | 'dictionary', providedUserId?: string): Promise<boolean> => {
+  let userId = providedUserId;
+  
+  try {
+    if (!userId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error("Usuário não autenticado no sistema.");
+      }
+      userId = user.id;
+    }
+
+    const limits = { simple: 7, complex: 5, image: 3, create_image: 3, translation: 3, dictionary: 3 };
+    const limitValue = limits[type];
+    const tipoUso = type;
+
+    if (!navigator.onLine) {
+      return true;
+    }
+
+    const cutoffISO = getQuotaCutoff();
+
+    const { count, error: countError } = await supabase
+      .from('user_ai_usage')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('tipo_uso', tipoUso)
+      .gte('created_at', cutoffISO);
+
+    if (!countError && count !== null && count >= limitValue) {
+      console.warn(`[Cota Rígida] Limite de ${limitValue} atingido para '${tipoUso}'. Uso bloqueado (contagem atual nas últimas 12h: ${count}).`);
+      return false;
+    }
+
+    return true;
+  } catch (error: any) {
+    return true;
+  }
+};
+
 export const checkAndIncrementUsage = async (type: 'simple' | 'complex' | 'image' | 'create_image' | 'translation' | 'dictionary', providedUserId?: string): Promise<boolean> => {
   let userId = providedUserId;
   
   try {
     if (!userId) {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) {
-        if (authError?.message?.includes("Failed to fetch")) {
-          console.warn("Falha de rede ao autenticar para cota. Permitindo uso local.");
-          return true;
-        }
-        console.error("Erro de autenticação ao verificar cotas:", authError);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
         throw new Error("Usuário não autenticado no sistema.");
       }
       userId = user.id;
@@ -26,24 +66,22 @@ export const checkAndIncrementUsage = async (type: 'simple' | 'complex' | 'image
       return true;
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayISO = today.toISOString();
+    const cutoffISO = getQuotaCutoff();
 
-    // 1. VERIFICAÇÃO RÍGIDA DE COTA: Consultar contagem direta na tabela user_ai_usage
+    // 1. VERIFICAÇÃO RÍGIDA DE COTA (Janela de 12 horas): Consultar contagem na tabela user_ai_usage
     const { count, error: countError } = await supabase
       .from('user_ai_usage')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('tipo_uso', tipoUso)
-      .gte('created_at', todayISO);
+      .gte('created_at', cutoffISO);
 
     if (!countError && count !== null && count >= limitValue) {
-      console.warn(`[Cota Rígida] Limite diário de ${limitValue} atingido para '${tipoUso}'. Uso bloqueado (contagem atual: ${count}).`);
-      return false; // COTA TOTALMENTE ESGOTADA! NÃO PERMITIR NENHUMA AÇÃO!
+      console.warn(`[Cota Rígida] Limite de ${limitValue} atingido para '${tipoUso}'. Uso bloqueado (contagem atual nas últimas 12h: ${count}).`);
+      return false; // COTA TOTALMENTE ESGOTADA!
     }
 
-    // 2. Registrar consumo diretamente na tabela user_ai_usage para sincronia perfeita com getUserUsage
+    // 2. Registrar consumo diretamente na tabela user_ai_usage para sincronia perfeita
     const { error: insertError } = await supabase
       .from('user_ai_usage')
       .insert({
@@ -83,28 +121,26 @@ export const getUserUsage = async (providedUserId?: string) => {
     if (!userId) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return { simple_count: 0, complex_count: 0, image_count: 0 };
+        if (!user) return { simple_count: 0, complex_count: 0, image_count: 0, create_image_count: 0, translation_count: 0, dictionary_count: 0 };
         userId = user.id;
       } catch (authErr: any) {
         if (authErr?.message?.includes("Failed to fetch")) {
           console.warn("Falha de rede ao buscar usuário para estatísticas de uso.");
-          return { simple_count: 0, complex_count: 0, image_count: 0 };
+          return { simple_count: 0, complex_count: 0, image_count: 0, create_image_count: 0, translation_count: 0, dictionary_count: 0 };
         }
         throw authErr;
       }
     }
     
-    if (!navigator.onLine) return { simple_count: 0, complex_count: 0, image_count: 0 };
+    if (!navigator.onLine) return { simple_count: 0, complex_count: 0, image_count: 0, create_image_count: 0, translation_count: 0, dictionary_count: 0 };
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayISO = today.toISOString();
+    const cutoffISO = getQuotaCutoff();
 
     const { data, error } = await supabase
       .from('user_ai_usage')
       .select('tipo_uso')
       .eq('user_id', userId)
-      .gte('created_at', todayISO);
+      .gte('created_at', cutoffISO);
 
     if (error) {
       if (error.message?.includes("Failed to fetch")) {
@@ -112,7 +148,7 @@ export const getUserUsage = async (providedUserId?: string) => {
       } else {
         console.error("Erro ao buscar uso do usuário:", error);
       }
-      return { simple_count: 0, complex_count: 0, image_count: 0 };
+      return { simple_count: 0, complex_count: 0, image_count: 0, create_image_count: 0, translation_count: 0, dictionary_count: 0 };
     }
 
     const usage = {
@@ -150,16 +186,15 @@ export const refundUsage = async (type: 'simple' | 'complex' | 'image' | 'create
     if (!user) return;
     const userId = user.id;
 
-    // Remove o último registro de uso desse tipo hoje
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Remove o último registro de uso desse tipo nas últimas 12 horas
+    const cutoffISO = getQuotaCutoff();
     
     const { data: lastUsage, error: selectError } = await supabase
       .from('user_ai_usage')
       .select('id')
       .eq('user_id', userId)
       .eq('tipo_uso', type)
-      .gte('created_at', today.toISOString())
+      .gte('created_at', cutoffISO)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
