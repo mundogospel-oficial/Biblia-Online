@@ -809,15 +809,7 @@ ou
 
       // Definir cotas e tipos de uso de acordo com a origem ('create' para Modo Criar, 'chat' para Chat)
       const isCreateSource = source === 'create';
-
-      // O modo gerar imagens do Chat fica temporariamente sem motor (em manutenção), mantendo o Pollinations ativo no Modo Criar
-      if (!isCreateSource) {
-        return res.status(503).json({
-          error: "O motor de geração de imagens do Chat está temporariamente desligado para manutenção. Por favor, utilize o Modo Criar para gerar imagens com o Pollinations!"
-        });
-      }
-
-      const quotaType = 'create_image';
+      const quotaType = isCreateSource ? 'create_image' : 'image';
       const quotaLimit = 3;
 
       // 2. Verificar limite de cotas de imagem nas últimas 12 horas (janela rolante de 12h)

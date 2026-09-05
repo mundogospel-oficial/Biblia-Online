@@ -132,11 +132,6 @@ export const generateBiblicalImage = async (
   const displayPrompt = cleanPrompt.replace(/\[Estilo:\s*[^\]]+\]/gi, '').trim() || cleanPrompt;
   const shouldWatermark = source !== 'create';
 
-  // Temporariamente sem motor no Chat: o Pollinations roda exclusivamente no Modo Criar
-  if (source !== 'create') {
-    throw new Error("O motor de geração de imagens do Chat está temporariamente desligado para manutenção. Por favor, utilize o Modo Criar para gerar suas imagens com o Pollinations!");
-  }
-
   // Chamar o proxy do backend para geração de imagem protegida pelo Sentinel e por token de autenticação
   try {
     const { data: { session } } = await supabase.auth.getSession();

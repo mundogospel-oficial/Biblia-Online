@@ -570,8 +570,8 @@ const ResilientImage: React.FC<ResilientImageProps> = ({ src, alt, className = "
 type ModeKey = "image" | "video" | "learning" | "music";
 type AIEngine = "complexo" | "simples";
 
-const modes: { key: ModeKey; icon: React.ReactNode; label: string; prefix: string; maintenance?: boolean }[] = [
-  { key: "image", icon: <Image className="h-4 w-4" />, label: "Gerar Imagens", prefix: "[Modo: Gerar Imagem] ", maintenance: true },
+const modes: { key: ModeKey; icon: React.ReactNode; label: string; prefix: string }[] = [
+  { key: "image", icon: <Image className="h-4 w-4" />, label: "Gerar Imagens", prefix: "[Modo: Gerar Imagem] " },
   { key: "video", icon: <Video className="h-4 w-4" />, label: "Roteiros de Vídeo", prefix: "[Modo: Gerar Vídeo] " },
   { key: "learning", icon: <GraduationCap className="h-4 w-4" />, label: "Aprendizado", prefix: "[Modo: Aprendizado] " },
   { key: "music", icon: <Music className="h-4 w-4" />, label: "Criar Músicas", prefix: "[Modo: Criar Música] " },
@@ -1402,19 +1402,52 @@ const AIPage = () => {
     setShowModes(false);
 
     if (mode === "image") {
-      setIsLoading(false);
-      setAbortController(null);
-      const assistantMsg: Msg = {
-        role: "assistant",
-        content: `⚠️ **Modo Gerar Imagens no Chat em manutenção (sem motor temporariamente)**\n\nO motor de geração de imagens diretamente aqui no Chat está temporariamente desligado para melhorias técnicas e ajustes.\n\n✨ **Enquanto isso, utilize a aba [Modo Criar](/criar)** no menu principal para gerar imagens bíblicas normalmente com o motor Pollinations!`
-      };
-      const finalMessages = [...currentMsgs, assistantMsg];
-      setMessages(finalMessages);
-      saveConversation(finalMessages);
-      toast({
-        title: "Modo sem motor no momento",
-        description: "A geração de imagens no Chat está em manutenção. Por favor, utilize o Modo Criar para gerar imagens!",
-      });
+      try {
+        const cleanPrompt = text.replace(/\[Modo:.*?\]\s*/g, "").trim();
+        const stylePrefix = selectedImageStyle ? `[Estilo: ${selectedImageStyle.promptAddon || selectedImageStyle.label}] ` : "";
+        const fullPrompt = `${stylePrefix}${cleanPrompt}`;
+        
+        const imageUrl = await generateBiblicalImage(fullPrompt, controller.signal, 'square', true, 'chat');
+        
+        if (!imageUrl) {
+          throw new Error("O modelo não retornou uma imagem. Tente novamente.");
+        }
+
+        const assistantMsg: Msg = { role: "assistant", content: "", image: imageUrl };
+        const finalMessages = [...currentMsgs, assistantMsg];
+        setMessages(finalMessages);
+        saveConversation(finalMessages);
+        fetchUsage();
+        
+        saveAIHistory(text, assistantMsg.content, mode).catch(console.error);
+      } catch (e: any) {
+        if (e.name === 'AbortError') {
+          toast({ description: "Geração interrompida." });
+        } else {
+          const errMsg = e?.message || "";
+          if (
+            errMsg.toLowerCase().includes("improprio") || 
+            errMsg.toLowerCase().includes("impróprio") || 
+            errMsg.toLowerCase().includes("bloqueado") || 
+            errMsg.toLowerCase().includes("inapropriad") ||
+            errMsg.toLowerCase().includes("diretrizes") ||
+            errMsg.toLowerCase().includes("termos") ||
+            errMsg.toLowerCase().includes("conteúdo visual")
+          ) {
+            toast({ title: "Conteúdo Bloqueado", description: "A descrição fornecida contém termos que violam as diretrizes de conteúdo visual.", variant: "destructive" });
+          } else {
+            const formattedMsg = errMsg.includes("Failed to fetch") 
+              ? "Erro de conexão com o servidor. Verifique sua internet e tente novamente." 
+              : (errMsg || "Tente novamente mais tarde.");
+            toast({ title: "Erro na IA", description: formattedMsg, variant: "destructive" });
+          }
+        }
+        setMessages(prev => prev.slice(0, -1));
+      } finally {
+        setIsLoading(false);
+        setAbortController(null);
+        fetchUsage();
+      }
       return;
     }
 
@@ -1651,10 +1684,6 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
       setActiveMode(mode.key);
       if (mode.key === "image") {
         setSelectedImageStyle(prev => prev || IMAGE_STYLES[0]);
-        toast({
-          title: "Modo Imagem (Sem motor no momento)",
-          description: "A geração de imagens no Chat está temporariamente sem motor. Utilize o Modo Criar para gerar imagens normalmente com o Pollinations!",
-        });
       }
       setAiEngine("complexo");
       setShowModes(false);
@@ -1662,12 +1691,10 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
       if (!isCurrentlyEmpty && isSwitchingImage) {
         startNewChat();
         toast({
-          title: mode.key === "image" ? "Modo Imagem (Em manutenção)" : `Modo ${mode.label} ativado`,
-          description: mode.key === "image"
-            ? "O motor do chat está temporariamente desligado. Utilize a aba Modo Criar para gerar imagens com Pollinations!"
-            : (prevModeLabel
-              ? `Modo alterado de ${prevModeLabel} para ${mode.label}. Nova conversa iniciada!`
-              : `Modo ${mode.label} ativado! Nova conversa iniciada.`),
+          title: `Modo ${mode.label} ativado`,
+          description: prevModeLabel
+            ? `Modo alterado de ${prevModeLabel} para ${mode.label}. Nova conversa iniciada!`
+            : `Modo ${mode.label} ativado! Nova conversa iniciada para gerar imagens.`,
         });
       }
     }
@@ -2783,18 +2810,11 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     {activeModeInfo.icon}
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <span className="text-xs truncate flex items-center gap-1.5">
+                    <span className="text-xs truncate">
                       Modo Ativo: <strong className="font-bold text-foreground">{activeModeInfo.label}</strong>
-                      {activeModeInfo.maintenance && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-500 font-semibold uppercase">
-                          Sem motor
-                        </span>
-                      )}
                     </span>
                     <span className="text-[10px] text-muted-foreground font-normal truncate">
-                      {activeModeInfo.maintenance
-                        ? "O motor deste modo está em manutenção temporária. Utilize o Modo Criar para gerar imagens com o Pollinations!"
-                        : "Ao fechar este modo, um novo chat é iniciado para alternar os tópicos."}
+                      Ao fechar este modo, um novo chat é iniciado para alternar os tópicos.
                     </span>
                   </div>
                 </div>
@@ -2834,12 +2854,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                       activeMode === m.key ? "border-accent bg-accent/10 text-accent" : "border-border bg-card text-card-foreground hover:border-accent"
                     }`}
                   >
-                    {m.icon} <span>{m.label}</span>
-                    {m.maintenance && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-500 font-semibold uppercase tracking-wider">
-                        Sem motor
-                      </span>
-                    )}
+                    {m.icon} {m.label}
                   </button>
                 ))}
               </motion.div>
