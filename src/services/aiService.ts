@@ -26,8 +26,8 @@ export const fetchKeys = async (): Promise<{ googleKey: string; googleKey2: stri
   // Chaves de IA gerenciadas de forma segura (sem expor segredos no bundle público)
   let envGoogle = "";
   let envGoogle2 = "";
-  let envOpenRouter = (import.meta.env.VITE_OPENROUTER_API_KEY || "").trim();
-  let envOpenRouter2 = (import.meta.env.VITE_OPENROUTER_API_KEY_2 || "").trim();
+  let envOpenRouter = "";
+  let envOpenRouter2 = "";
 
   try {
     const { data, error } = await supabase
@@ -524,8 +524,34 @@ REGRAS OBRIGATÓRIAS (RIGOROSAS):
     if (keyFailed) continue;
   }
 
-  // Fallback para OpenRouter se o Gemini falhar ou não retornar conteúdo suficiente
-  const openRouterKeys = [openRouterKey, openRouterKey2, import.meta.env.VITE_OPENROUTER_API_KEY].filter(Boolean) as string[];
+  // Fallback para OpenRouter via proxy seguro do servidor (OPENROUTER_API_KEY protegida)
+  try {
+    const backendRes = await fetch("/api/openrouter/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: dictSystemInstruction },
+          { role: 'user', content: dictPrompt }
+        ],
+        temperature: 0.3,
+        max_tokens: 4000
+      }),
+      signal
+    });
+    if (backendRes.ok) {
+      const data = await backendRes.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (content && content.trim().length > 30) {
+        return sanitizeAIResponse(content);
+      }
+    }
+  } catch (backendErr: any) {
+    if (backendErr.name === 'AbortError') throw backendErr;
+  }
+
+  // Fallback secundário local se chaves estiverem salvas no Supabase ai_settings
+  const openRouterKeys = [openRouterKey, openRouterKey2].filter(Boolean) as string[];
   const freeModels = [
     "deepseek/deepseek-chat",
     "google/gemma-2-9b-it:free",

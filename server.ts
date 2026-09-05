@@ -522,6 +522,93 @@ function startServer() {
     }
   });
 
+  // --- PROXY SEGURO DE OPENROUTER (Protege chaves OPENROUTER_API_KEY no servidor) ---
+  app.post("/api/openrouter/chat", async (req, res) => {
+    try {
+      const { messages, model, temperature, max_tokens, response_format } = req.body || {};
+      if (!messages || !Array.isArray(messages)) {
+        return res.status(400).json({ error: "Campo 'messages' obrigatório e deve ser um array." });
+      }
+
+      // Obter chaves seguras do ambiente do servidor
+      let rKey1 = (process.env.OPENROUTER_API_KEY || process.env.VITE_OPENROUTER_API_KEY || "").trim();
+      let rKey2 = (process.env.OPENROUTER_API_KEY_2 || process.env.VITE_OPENROUTER_API_KEY_2 || "").trim();
+
+      // Consultar banco Supabase se disponível
+      const adminClient = getSupabaseAdmin();
+      if (adminClient) {
+        try {
+          const { data } = await adminClient
+            .from('ai_settings')
+            .select('config_key, config_value')
+            .in('config_key', ['openrouter_api_key', 'openrouter_api_key_2']);
+          if (data) {
+            const dbKey1 = data.find(d => d.config_key === 'openrouter_api_key')?.config_value;
+            const dbKey2 = data.find(d => d.config_key === 'openrouter_api_key_2')?.config_value;
+            if (dbKey1 && dbKey1.trim()) rKey1 = dbKey1.trim();
+            if (dbKey2 && dbKey2.trim()) rKey2 = dbKey2.trim();
+          }
+        } catch (dbErr) {
+          console.warn("[OpenRouter Backend] Falha ao consultar chaves no banco:", dbErr);
+        }
+      }
+
+      const keysToTry = [rKey1, rKey2].filter(Boolean);
+      if (keysToTry.length === 0) {
+        return res.status(503).json({ error: "Chave OpenRouter não configurada no servidor." });
+      }
+
+      const modelsToTry = model ? [model] : [
+        "deepseek/deepseek-chat",
+        "google/gemma-2-9b-it:free",
+        "meta-llama/llama-3.1-8b-instruct:free",
+        "mistralai/mistral-7b-instruct:free",
+        "qwen/qwen-2.5-7b-instruct:free",
+        "openrouter/free"
+      ];
+
+      let lastError = "Falha ao consultar modelos OpenRouter.";
+
+      for (const key of keysToTry) {
+        for (const candidateModel of modelsToTry) {
+          try {
+            const orRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${key}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': req.headers.referer || "https://biblia-online.local",
+                'X-Title': 'Biblia Online Secure Service'
+              },
+              body: JSON.stringify({
+                model: candidateModel,
+                messages,
+                temperature: typeof temperature === 'number' ? temperature : 0.3,
+                max_tokens: typeof max_tokens === 'number' ? max_tokens : 4000,
+                ...(response_format ? { response_format } : {})
+              })
+            });
+
+            if (orRes.ok) {
+              const data = await orRes.json();
+              return res.json(data);
+            } else {
+              const errBody = await orRes.text();
+              lastError = `OpenRouter HTTP ${orRes.status}: ${errBody.slice(0, 150)}`;
+            }
+          } catch (fetchErr: any) {
+            lastError = fetchErr.message;
+          }
+        }
+      }
+
+      return res.status(502).json({ error: lastError });
+    } catch (err: any) {
+      console.error("[OpenRouter Backend Error]:", err);
+      return res.status(500).json({ error: "Erro interno no servidor OpenRouter proxy." });
+    }
+  });
+
   // Lista expandida de termos proibidos para moderação e auditoria rígida (Étnica/Cristã/Segurança)
   const EXPANDED_FORBIDDEN_TERMS = [
     // Nudity / NSFW / Sexual / Vulgarity

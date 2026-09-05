@@ -29,13 +29,6 @@ export const translateVersesAI = async (
   targetLang: 'en' | 'pt',
   signal?: AbortSignal
 ): Promise<TranslatedVerse[]> => {
-  const { openRouterKey, openRouterKey2 } = await fetchKeys();
-  const openRouterKeys = [openRouterKey, openRouterKey2, import.meta.env.VITE_OPENROUTER_API_KEY].filter(Boolean) as string[];
-
-  if (openRouterKeys.length === 0) {
-    throw new Error("Chave OpenRouter não configurada para tradução.");
-  }
-
   const sourceLang = targetLang === 'en' ? 'Português' : 'Inglês';
   const languageName = targetLang === 'en' ? 'Inglês' : 'Português';
 
@@ -59,6 +52,44 @@ Formato de resposta JSON:
 
 Versículos para traduzir:
 ${verses.map(v => `${v.verse}: ${v.text}`).join('\n')}`;
+
+  // 1. Tentar primeiro via proxy seguro no backend (onde OPENROUTER_API_KEY fica protegida)
+  try {
+    const backendRes = await fetch("/api/openrouter/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [
+          { role: "system", content: "Você é um tradutor especializado em textos bíblicos. Retorne apenas JSON." },
+          { role: "user", content: prompt }
+        ],
+        response_format: { type: "json_object" }
+      }),
+      signal
+    });
+
+    if (backendRes.ok) {
+      const data = await backendRes.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (content) {
+        const cleanContent = content.replace(/```json\n?|```/g, '').trim();
+        const parsed = JSON.parse(cleanContent);
+        if (parsed && Array.isArray(parsed.translations)) {
+          return parsed.translations;
+        }
+      }
+    }
+  } catch (backendErr: any) {
+    if (backendErr.name === 'AbortError') throw backendErr;
+  }
+
+  // 2. Fallback local utilizando chaves cadastradas no banco (sem expor variáveis VITE_)
+  const { openRouterKey, openRouterKey2 } = await fetchKeys();
+  const openRouterKeys = [openRouterKey, openRouterKey2].filter(Boolean) as string[];
+
+  if (openRouterKeys.length === 0) {
+    throw new Error("Chave OpenRouter não configurada para tradução.");
+  }
 
   const freeModels = [
     "deepseek/deepseek-chat",
