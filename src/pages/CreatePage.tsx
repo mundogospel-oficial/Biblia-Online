@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { downloadBibleImage, shareBibleImage } from "@/lib/downloadUtils";
-import { generateBiblicalImage } from "@/services/imageGenerationService";
+import { generateCreateModeImage } from "@/services/createModeImageService";
 import { APP_WHITE_LOGO_DATA_URL } from "@/assets/appLogoWhite";
 
 const formats: { key: CardFormat; label: string; dim: string; icon: React.ReactNode }[] = [
@@ -546,16 +546,20 @@ const CreatePage = () => {
       const selectedStyle = imageStyles[selectedStyleIndex];
       const styleName = selectedStyle?.label || "Cinematográfico";
       const styleDetails = selectedStyle?.prompt || "fotografia cinematográfica épica";
-      const refInfo = verseRef ? ` (${verseRef})` : '';
+      const refInfo = reference ? ` (${reference})` : '';
 
       let fullPrompt = "";
       if (customAiPrompt.trim()) {
-        fullPrompt = `[Estilo: ${styleName}] Imagem bíblica inspirada no versículo sagrado: "${verseText}"${refInfo}. Solicitação específica do usuário: "${customAiPrompt.trim()}". Instrução mandatória para o modelo: Gere EXATAMENTE o que o usuário solicitou. Se a solicitação for sobre cenários, cruzes, montanhas, túmulo, arca, natureza ou objetos sagrados (sem mencionar pessoas), NÃO inclua figuras humanas nem rostos. Se for solicitado um personagem bíblico ou pessoa, retrate com fidelidade bíblica, trajes de linho histórico, anatomia perfeita (5 dedos em cada mão), semblante sereno e iluminação cinematográfica, sem deformações e sem coisas aleatórias.`;
+        fullPrompt = `[Estilo: ${styleName}] Paisagem bíblica sagrada e majestosa inspirada no versículo sagrado: "${verseText}"${refInfo}. Detalhes do cenário e natureza: "${customAiPrompt.trim()}". REGRA MANDATÓRIA: Esta imagem é exclusivamente uma paisagem ou cenário natural bíblico. É ESTRITAMENTE PROIBIDO incluir seres humanos, pessoas, rostos, silhuetas ou figuras humanas. Foque unicamente na grandiosidade de montanhas majestosas, vales, céus com luz dourada celestial, oliveiras, caminhos tranquilos, águas serenas ou elementos da criação divina da natureza.`;
       } else {
-        fullPrompt = `[Estilo: ${styleName}] Imagem bíblica inspirada no versículo sagrado: "${verseText}"${refInfo}. Estilo estético: ${styleDetails}. Instrução mandatória para o modelo: Compreenda a essência do versículo. Se a passagem evocar paisagens, natureza, a criação ou objetos sagrados (como cruzes, templos, arca), crie um cenário majestoso sem figuras humanas. Se evocar personagens bíblicos, retrate-os com reverência, trajes autênticos do século I e anatomia perfeita, sem coisas aleatórias.`;
+        fullPrompt = `[Estilo: ${styleName}] Paisagem bíblica sagrada e majestosa inspirada no versículo sagrado: "${verseText}"${refInfo}. Estilo estético: ${styleDetails}. REGRA MANDATÓRIA: Esta imagem é exclusivamente uma paisagem ou cenário natural bíblico. É ESTRITAMENTE PROIBIDO incluir seres humanos, pessoas, rostos, silhuetas ou figuras humanas. Foque unicamente na grandiosidade da natureza bíblica, montanhas sagradas, céus ao amanhecer ou entardecer, vales tranquilos, oliveiras e luz celestial inspirados no versículo.`;
       }
 
-      const imageUrl = await generateBiblicalImage(fullPrompt, undefined, activeFormat, true, 'create', true);
+      const imageUrl = await generateCreateModeImage(fullPrompt, {
+        aspectRatio: activeFormat,
+        returnRawUrl: true,
+        isComplex: true
+      });
 
       if (imageUrl) {
         setAiImageUrl(imageUrl);
@@ -956,18 +960,18 @@ const CreatePage = () => {
                             maxLength={300}
                             value={customAiPrompt}
                             onChange={(e) => setCustomAiPrompt(e.target.value.slice(0, 300))}
-                            placeholder="Ex: Cruz de Cristo ao pôr do sol, Túmulo vazio, Jesus orando..."
+                            placeholder="Ex: Montanhas de Jerusalém ao pôr do sol, Rio Jordão sereno, oliveiras..."
                             className="w-full rounded-xl border border-input bg-secondary/40 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                           />
 
                           {/* Sugestões Rápidas */}
                           <div className="mt-1.5 flex flex-wrap gap-1">
                             {[
-                              "Cruz de Cristo ao pôr do sol",
-                              "Jesus em oração",
-                              "Túmulo vazio iluminado",
-                              "O Bom Pastor com ovelha",
-                              "Cenário sagrado da Criação"
+                              "Montanhas de Jerusalém ao pôr do sol",
+                              "Monte das Oliveiras em paz",
+                              "Rio Jordão e águas serenas",
+                              "Céu sagrado com luz dourada",
+                              "Cenário majestoso da Criação"
                             ].map((suggestion) => (
                               <button
                                 key={suggestion}
@@ -984,7 +988,7 @@ const CreatePage = () => {
                             ))}
                           </div>
                           <p className="text-[9px] text-muted-foreground/70 mt-1">
-                            A IA gera exatamente o que você descrever: cenários, cruzes e natureza sem pessoas se não pedir, ou personagens bíblicos autênticos com anatomia perfeita se solicitar.
+                            O Modo Criar gera exclusivamente paisagens e cenários bíblicos sagrados (sem humanos ou pessoas), ideal para destacar com clareza o versículo sagrado.
                           </p>
                         </div>
 

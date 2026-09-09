@@ -774,9 +774,17 @@ ou
     }
   });
 
-  app.post("/api/generate-image", async (req, res) => {
+  /**
+   * ============================================================================
+   * MODO CRIAR - MOTOR EXCLUSIVO DE GERAÇÃO COM POLLINATIONS AI (FLUX)
+   * ============================================================================
+   * ATENÇÃO: NÃO ALTERAR ESTE BLOCO/FUNÇÃO AO MODIFICAR OUTRAS IAS DE IMAGENS.
+   * A Pollinations AI é utilizada APENAS E EXCLUSIVAMENTE para o Modo Criar.
+   * ============================================================================
+   */
+  async function handleCreateModeImageGeneration(req: express.Request, res: express.Response) {
     try {
-      const { prompt: rawPrompt, aspectRatio, source = 'chat', isComplex = false } = req.body;
+      const { prompt: rawPrompt, aspectRatio, isComplex = true } = req.body;
       if (!rawPrompt) {
         return res.status(400).json({ error: "O prompt é obrigatório." });
       }
@@ -799,23 +807,20 @@ ou
             userId = user.id;
           }
         } catch (authErr) {
-          console.error("[Quota Backend] Erro de autenticação JWT:", authErr);
+          console.error("[Modo Criar] Erro de autenticação JWT:", authErr);
         }
       }
 
       if (!userId) {
-        return res.status(401).json({ error: "Sessão inválida ou expirada. Por favor, faça login para gerar imagens." });
+        return res.status(401).json({ error: "Sessão inválida ou expirada. Por favor, faça login para gerar imagens no Modo Criar." });
       }
 
-      // Definir cotas e tipos de uso de acordo com a origem ('create' para Modo Criar, 'chat' para Chat)
-      const isCreateSource = source === 'create';
-      const quotaType = isCreateSource ? 'create_image' : 'image';
+      const quotaType = 'create_image';
       const quotaLimit = 3;
 
-      // 2. Verificar limite de cotas de imagem nas últimas 12 horas (janela rolante de 12h)
+      // 2. Verificar limite de cotas do Modo Criar nas últimas 12 horas
       if (adminClient && userId) {
         const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
-
         try {
           const { count, error: countError } = await adminClient
             .from('user_ai_usage')
@@ -825,22 +830,19 @@ ou
             .gte('created_at', twelveHoursAgo);
 
           if (countError) {
-            console.error("[Quota Backend] Erro computando uso diário:", countError);
+            console.error("[Modo Criar] Erro computando uso diário:", countError);
           } else if (count !== null && count >= quotaLimit) {
-            const displayLimitMsg = isCreateSource 
-              ? `Você atingiu o seu limite diário de ${quotaLimit} imagens no Modo Criar. Sua cota recarrega em 12 horas.`
-              : `Você atingiu o seu limite diário de ${quotaLimit} imagens no Chat. Sua cota recarrega em 12 horas.`;
-            return res.status(429).json({ error: displayLimitMsg });
+            return res.status(429).json({ error: `Você atingiu o seu limite diário de ${quotaLimit} imagens no Modo Criar. Sua cota recarrega em 12 horas.` });
           }
         } catch (dbErr) {
-          console.error("[Quota Backend] Falha inesperada ao consultar cotas:", dbErr);
+          console.error("[Modo Criar] Falha inesperada ao consultar cotas:", dbErr);
         }
       }
 
       // 3. Obter chaves do Google / Gemini e prompt mestre do Banco de Dados / Ambiente
       let googleKey = (process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || "").trim();
       let googleKey2 = (process.env.GOOGLE_API_KEY_2 || process.env.GEMINI_API_KEY_2 || process.env.VITE_GEMINI_API_KEY_2 || "").trim();
-      let systemPromptMaster = "Você SÓ PODE responder sobre a Bíblia. Use markdown limpo. As versões oficiais de Bíblia integradas no aplicativo são: Almeida (ARC/Almeida 1980), Bíblia Livre (BLivre 2018), King James Version (KJV), Bible in Basic English (BBE) e World English Bible (WEB). Responda e cite versículos fielmente utilizando estritamente estas versões.";
+      let systemPromptMaster = "Você SÓ PODE responder sobre a Bíblia. Use markdown limpo.";
 
       if (adminClient) {
         try {
@@ -857,7 +859,7 @@ ou
             if (dbMaster && dbMaster.trim()) systemPromptMaster = dbMaster.trim();
           }
         } catch (dbErr) {
-          console.warn("[Quota Backend] Erro de rede ao buscar chaves no banco:", dbErr);
+          console.warn("[Modo Criar] Erro de rede ao buscar chaves no banco:", dbErr);
         }
       }
 
@@ -865,83 +867,32 @@ ou
       let enhancedPrompt = prompt;
       let isBlocked = false;
 
-      // Local safety and Biblical context filter (fail-fast first layer)
       if (isPromptForbiddenByTerms(prompt)) {
         return res.status(400).json({ error: "Imagem não pode ser gerada pois contém conteúdo fora do contexto bíblico ou impróprio." });
       }
 
-      // 1. Extração e Sanitização de Estilo Visual (Etapa Harmonizada)
-      let extractedStyle = "";
-      const styleMatch = prompt.match(/\[Estilo:\s*([^\]]+)\]/i);
-      if (styleMatch && styleMatch[1]) {
-        let styleAddon = styleMatch[1];
-        if (styleAddon.includes("-")) {
-          styleAddon = styleAddon.split("-").slice(1).join("-").trim();
-        }
-        extractedStyle = styleAddon.trim();
-      }
-
-      // Limpar tags do texto base do usuário
-      const cleanUserSubject = prompt
-        .replace(/\[Estilo:\s*[^\]]+\]/gi, '')
-        .replace(/\[Modo:\s*[^\]]+\]/gi, '')
-        .replace(/\[Foco:\s*[^\]]+\]/gi, '')
-        .trim() || "biblical scene";
-
       const systemInstruction = `REGRAS MESTRAS: ${systemPromptMaster}
 
-Você é um Diretor de Arte Cinematográfica Bíblica de nível mundial e Engenheiro Especialista em Prompts para modelos de ponta como Flux 1.0, Midjourney v6 e SDXL.
+REGRAS DE SEGURANÇA E DECÊNCIA (OBRIGATÓRIO):
+1. SEGURANÇA E VESTIMENTAS: É terminantemente proibido qualquer conteúdo de nudez, sensualidade ou trajes sumários. Personagens bíblicos (especialmente Adão e Eva) DEVEM SEMPRE estar completamente vestidos com trajes modestos bíblicos ("wearing modest ancient biblical garments, fully clothed"). Nunca gere personagens despidos ou sem roupas.
+2. ESCOPO BÍBLICO E CRISTÃO: O conteúdo deve ser 100% bíblico e cristão. Bloqueie feitiçaria, ocultismo, deuses pagãos e temas seculares mundanos. Se violar, responda unicamente: "BLOQUEADO".
 
-SUA MISSÃO SAGRADA E ABSOLUTA:
-Gerar um PROMPT EM INGLÊS primoroso, focado em RIGOR HISTÓRICO E TEOLÓGICO, ZERO ELEMENTOS ALEATÓRIOS E FIDELIDADE TOTAL AO QUE O USUÁRIO PEDIU.
-
-REGRA MESTRE 1 (POSICIONAMENTO ESPACIAL E MÚLTIPLOS PERSONAGENS):
-Se houver mais de um personagem na cena (como Adão e Eva, Jesus e os apóstolos, etc.):
-- POSICIONAMENTO ESPACIAL ESTRITO: SEMPRE descreva-os com distância física visível e posicionamento espacial estrito (por exemplo: um homem claramente posicionado à esquerda no enquadramento, uma mulher claramente posicionada à direita no enquadramento, com separação e espaço físico nítido entre seus corpos).
-- NUNCA sobreponha os personagens e NUNCA cole-os sem distinção visual.
-- CARACTERIZAÇÃO INDIVIDUAL PRECISA:
-  * Homem (ex: Adão): Cabelo curto masculino escuro bem aparado (neat short cropped masculine dark brown hair), barba curta cuidada, olhos castanhos expressivos e semblante sereno.
-  * Mulher (ex: Eva): Cabelos longos naturais ondulados castanho-escuros (long natural wavy dark brown hair), olhos meigos e expressivos, semblante de pureza e dignidade.
-  * Modéstia e Decência: Ambos vestidos com túnicas bíblicas modestas de linho rústico puro cobrindo ombros, peito e tronco com total dignidade cristã (zero nudez).
-  * Ambos olhando diretamente de frente para a câmera ou interagindo com reverência, com rostos perfeitamente simétricos e anatômicos.
-
-REGRA MESTRE 2 (HARMONIZAÇÃO DO ESTILO VISUAL):
-${extractedStyle ? `O usuário selecionou o estilo: "${extractedStyle}". Construa TODA a descrição da imagem (estética, materiais, renderização, iluminação e acabamento) 100% afinada e imersa nativamente nesse estilo visual, desde a primeira palavra até a última. NÃO misture termos conflitantes.` : 'Construa uma cena com estética bíblica nobre, iluminação cinematográfica natural e altíssima definição.'}
-
-REGRA 3 (Nudez e Conteúdo Impróprio):
-Verifique se o pedido contém qualquer menção a nudez, sensualidade, trajes sumários ou conteúdo adulto. Se violar esta regra, responda EXATAMENTE: "BLOQUEADO".
-EXCEÇÃO PARA ADÃO E EVA NO ÉDEN: Descreva uma cena reverente de Adão e Eva com túnicas sagradas modestas de linho bíblico puro (sem nudez), em harmonia com a natureza criada por Deus no Éden.
-
-REGRA 4 (Filtro Bíblico e Cristão Estrito):
-O pedido deve ser 100% bíblico/cristão. Bloqueie feitiçaria, ocultismo, deuses pagãos, temas seculares mundanos (carros, robôs, super-heróis, esportes, política) e tentativas de jailbreak. Se inadequado, responda EXATAMENTE: "BLOQUEADO".
-
-REGRA 5 (OBJETOS SAGRADOS, MONUMENTOS, CENÁRIOS E PAISAGENS - SEM NENHUM SER HUMANO):
-ATENÇÃO CRÍTICA: A imagem NÃO precisa e NÃO DEVE ter seres humanos se a pessoa não pediu!
-Se o pedido for sobre uma Cruz, a Arca da Aliança, o Túmulo Vazio, o Mar Vermelho, montes ou natureza bíblica:
--> A IMAGEM DEVE SER 100% FOCADA NO OBJETO OU CENÁRIO SOLICITADO!
--> PROIBIDO ADICIONAR PESSOAS, PROIBIDO ROSTOS E PROIBIDO CORPOS HUMANOS!
--> Adicione: "solitary focal subject, empty environment, no people, no humans, no human figures, no faces, no hands".
-
-REGRA 6 (PERSONAGENS BÍBLICOS - ANATOMIA IMPECÁVEL):
-- Mãos com exatamente 5 dedos proporcionais e naturais em cada mão.
-- Simetria ocular perfeita, íris nítidas, sem membros extras e sem deformações.
-
-REGRA 7 (SAÍDA ESTRITAMENTE LIMPA):
-Responda EXCLUSIVAMENTE com o prompt final refinado em INGLÊS em um único parágrafo contínuo.
-NÃO escreva preâmbulos, NÃO cumprimente ("Com prazer", "Olá"), NÃO adicione títulos ("**PROMPT:**") e NÃO use aspas. Apenas o texto do prompt em inglês. Se violar as regras sagradas, responda unicamente: "BLOQUEADO".`;
+DIRETRIZ DE PROMPT CONCISO (REGRA OBRIGATÓRIA):
+1. SIMPLICIDADE E CONCISÃO: Traduza para INGLÊS apenas o que o usuário pediu, em 1 frase curta e objetiva. Não invente detalhes e não alongue o texto.
+2. PROIBIÇÃO DE PALAVRAS DE QUALIDADE: É expressamente proibido usar termos de qualidade técnica ou clichês que borram a imagem no modelo de difusão (NUNCA use: "8k", "uhd", "photorealistic", "ultra-realistic", "hyperrealistic", "tack-sharp", "extreme zoom clarity", "intricate textures", "masterpiece", "dramatic lighting", "cinematic lighting", "high visual contrast", "full bleed", etc.). Descreva apenas o sujeito bíblico simples de forma limpa.
+3. SAÍDA DIRETA: Retorne exclusivamente o prompt simples em inglês, sem saudações, sem preâmbulos e sem aspas.`;
 
       let promptGenerated = false;
 
-      // 2. Resolução Imediata de Objetos/Cenários Sagrados Sem Pessoas (Cruz, Sepulcro, Mar Vermelho)
-      const situationMatch = resolveBiblicalSituationSubject(cleanUserSubject);
-      if (situationMatch && !situationMatch.requiresHuman) {
+      // Resolução imediata de situações bíblicas predefinidas
+      const situationMatch = resolveBiblicalSituationSubject(prompt);
+      if (situationMatch) {
         enhancedPrompt = situationMatch.englishSubject;
         promptGenerated = true;
-        console.log(`[Gemini Imagem] Situação bíblica de cenário/objeto resolvida com sucesso (${situationMatch.matchedSituation}): "${enhancedPrompt.substring(0, 80)}..."`);
+        console.log(`[Modo Criar - Gemini] Situação bíblica resolvida (${situationMatch.matchedSituation}): "${enhancedPrompt.substring(0, 80)}..."`);
       }
 
-      // 3. SISTEMA GEMINI DE OTIMIZAÇÃO E ENGENHARIA DE PROMPT VISUAL
-      // Utiliza o Google Gemini diretamente para rápida interpretação, moderação e criação de prompt de imagem impecável
+      // Gemini para otimização do prompt
       const keysToTry = [googleKey, googleKey2, process.env.GOOGLE_API_KEY, process.env.GEMINI_API_KEY].filter(Boolean) as string[];
       const uniqueKeys = Array.from(new Set(keysToTry));
 
@@ -962,10 +913,10 @@ NÃO escreva preâmbulos, NÃO cumprimente ("Com prazer", "Olá"), NÃO adicione
 
             const response = await ai.models.generateContent({
               model: modelId,
-              contents: `${systemInstruction}\n\nATENÇÃO MÁXIMA: O ASSUNTO PRINCIPAL DEVE SER A PRIMEIRA FRASE DO PARÁGRAFO. SE HOUVER MAIS DE UM PERSONAGEM, APLIQUE RIGOROSAMENTE A REGRA MESTRE DE POSICIONAMENTO ESPACIAL COM SEPARAÇÃO FÍSICA VISÍVEL ENTRE ELES.\n\nPedido do usuário: "${cleanUserSubject}"${extractedStyle ? `\nEstilo visual selecionado: "${extractedStyle}"` : ''}`,
+              contents: `${systemInstruction}\n\nPedido simples do usuário: "${prompt}"`,
               config: {
-                temperature: 0.2,
-                maxOutputTokens: 600
+                temperature: 0.1,
+                maxOutputTokens: 80
               }
             });
 
@@ -973,19 +924,16 @@ NÃO escreva preâmbulos, NÃO cumprimente ("Com prazer", "Olá"), NÃO adicione
             if (text) {
               let trimmedText = text.trim();
 
-              // Se o modelo gerou bloco de código ```, extrair unicamente o conteúdo do bloco
               const codeBlockMatch = trimmedText.match(/```(?:[a-z]*\n)?([\s\S]+?)```/i);
               if (codeBlockMatch && codeBlockMatch[1]) {
                 trimmedText = codeBlockMatch[1].trim();
               }
 
-              // Extrair com precisão caso o modelo retorne cabeçalhos do tipo **PROMPT:** ou prompt:
               const promptMarker = trimmedText.match(/(?:\*\*|#+)?\s*(?:flux\s+image\s+model\s+prompt|prompt)\s*(?:\*\*|#+)?\s*:\s*([\s\S]+)/i);
               if (promptMarker && promptMarker[1]) {
                 trimmedText = promptMarker[1].trim();
               }
 
-              // Remover preâmbulos conversacionais
               trimmedText = trimmedText
                 .replace(/^(?:com prazer|com certeza|certamente|olá|aqui está|eis o|claro|perfeito|diretor de arte)[\s\S]*?(?:prompt:|\n\n)/i, '')
                 .replace(/^(?:here is|sure|certainly|below is|as requested|okay)[\s\S]*?(?:prompt:|\n\n)/i, '')
@@ -993,7 +941,6 @@ NÃO escreva preâmbulos, NÃO cumprimente ("Com prazer", "Olá"), NÃO adicione
                 .replace(/```/g, '')
                 .trim();
 
-              // Remover aspas ou asteriscos envolventes
               trimmedText = trimmedText.replace(/^["'*]+|["'*]+$/g, '').trim();
 
               if (trimmedText.toUpperCase().includes("BLOQUEADO")) {
@@ -1002,11 +949,11 @@ NÃO escreva preâmbulos, NÃO cumprimente ("Com prazer", "Olá"), NÃO adicione
                 enhancedPrompt = trimmedText;
               }
               promptGenerated = true;
-              console.log(`[Gemini Imagem] Prompt otimizado com sucesso via Gemini (${modelId}): "${enhancedPrompt.substring(0, 80)}..."`);
+              console.log(`[Modo Criar - Gemini] Prompt otimizado com sucesso (${modelId}): "${enhancedPrompt.substring(0, 80)}..."`);
               break;
             }
           } catch (geminiErr: any) {
-            console.warn(`[Gemini Imagem] Tentativa com modelo ${modelId} falhou:`, geminiErr?.message || geminiErr);
+            console.warn(`[Modo Criar - Gemini] Falha no modelo ${modelId}:`, geminiErr?.message || geminiErr);
           }
         }
       }
@@ -1015,43 +962,42 @@ NÃO escreva preâmbulos, NÃO cumprimente ("Com prazer", "Olá"), NÃO adicione
         return res.status(400).json({ error: "A descrição fornecida contém termos que violam as diretrizes de conteúdo visual." });
       }
 
-      // 4. SUBJECT-FIRST COMPOSITION (Sem sobreposição ou textos conflitantes)
+      // Extração de Estilo Visual
+      let extractedStyle = "";
+      const styleMatch = prompt.match(/\[Estilo:\s*([^\]]+)\]/i);
+      if (styleMatch && styleMatch[1]) {
+        let styleAddon = styleMatch[1];
+        if (styleAddon.includes("-")) {
+          styleAddon = styleAddon.split("-").slice(1).join("-").trim();
+        }
+        extractedStyle = styleAddon;
+      }
+
+      // Assunto principal: MODO CRIAR é exclusivamente para paisagens e cenários sagrados da natureza bíblica
       let cleanSubject = enhancedPrompt.replace(/\[Estilo:\s*[^\]]+\]/gi, '').trim();
       if (!cleanSubject) {
-        cleanSubject = cleanUserSubject;
+        cleanSubject = prompt.replace(/\[Estilo:\s*[^\]]+\]/gi, '').trim() || "biblical scene";
       }
 
-      // 5. Se o Gemini já concebeu o prompt harmonicamente, respeitar sua saída nativa
-      let finalPrompt = cleanSubject;
-      const isAnimeOrPixel = /anime|manga|ghibli|pixel art|16-bit/i.test(prompt + " " + extractedStyle);
+      cleanSubject = cleanSubject
+        .replace(/\b(facing the camera|direct eye contact|looking directly into the camera|looking forward at the viewer|noble reverent serene Semitic facial features|facial features|modest sacred ancient biblical pure unbleached linen garments|garments|linen|attire|natural skin textures|anatomically correct hands|anatomically flawless hands|5 fingers|five proportional fingers|natural eye symmetry|no extra limbs|no deformed fingers)\b/gi, '')
+        .replace(/\b(man|men|woman|women|person|people|shepherd|prophet|apostle|disciple|crowd|multitude)\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
 
-      // Se por contingência o Gemini não rodou e sobrou só o texto original, anexar o estilo
-      if (finalPrompt === cleanUserSubject && extractedStyle) {
-        finalPrompt = `${extractedStyle}, ${finalPrompt}`;
+      let finalPrompt = `${cleanSubject}, majestic biblical landscape, sacred natural scenery, peaceful empty environment, solitary landscape view, untouched nature, no people, no humans, no man, no woman, no child, no human figures, no silhouettes, no faces, no hands, completely devoid of humans, unpopulated scenic view`;
+
+      if (extractedStyle) {
+        finalPrompt += `, ${extractedStyle}`;
       }
 
-      // Adicionar apenas refinamentos de nitidez se não estiverem presentes
-      if (!finalPrompt.toLowerCase().includes("8k") && !finalPrompt.toLowerCase().includes("uhd")) {
-        if (isAnimeOrPixel) {
-          finalPrompt += `, tack-sharp clean lines, vibrant luminous colors, masterwork quality, 8k resolution`;
-        } else {
-          finalPrompt += `, tack-sharp focus, dramatic volumetric lighting, 8k uhd resolution`;
-        }
-      }
-
-      // Remove termos que induzem tarjas pretas de cinema e garante cobertura total do quadro (full bleed)
       finalPrompt = finalPrompt
-        .replace(/\bmovie still\b/gi, "cinematic photography")
-        .replace(/\bfilm still\b/gi, "cinematic photography")
-        .replace(/\bwidescreen\b/gi, "full frame")
-        .replace(/\bletterbox\b/gi, "")
-        .replace(/\bblack bars\b/gi, "");
+        .replace(/\b(ultra-high definition|ultra high definition|tack-sharp focus|tack-sharp|extreme zoom clarity|zoom clarity|intricate textures|8k uhd resolution|8k resolution|8k|uhd|full bleed edge-to-edge shot|full bleed|no black bars|no letterbox|masterwork quality|altíssima definição e atmosfera grandiosa)\b/gi, '')
+        .replace(/,\s*,+/g, ',')
+        .replace(/^\s*,\s*|\s*,\s*$/g, '')
+        .trim();
 
-      if (!finalPrompt.toLowerCase().includes("full bleed")) {
-        finalPrompt += `, full bleed edge-to-edge shot, filling entire frame, seamless, no black bars, no letterbox, no borders, no margins, no frame`;
-      }
-
-      // Dimensões de alta fidelidade e resolução nítida para excelente nitidez mesmo com zoom
+      // Dimensões do Modo Criar
       let width = 1440;
       let height = 1440;
       if (aspectRatio === 'story') {
@@ -1063,16 +1009,16 @@ NÃO escreva preâmbulos, NÃO cumprimente ("Com prazer", "Olá"), NÃO adicione
       }
 
       const seed = Math.floor(Math.random() * 2000000000);
-      const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=${width}&height=${height}&seed=${seed}&model=flux&nologo=true`;
+      const serverNegativePrompt = "nudity, naked, nude, topless, bare breasts, bare shoulders, cleavage, unclothed, sensual, revealing clothes, erotic";
+      const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=${width}&height=${height}&seed=${seed}&model=flux&nologo=true&negative=${encodeURIComponent(serverNegativePrompt)}`;
 
-      console.log("[BACKEND] Prompt Enviado ao Flux:", finalPrompt);
-      console.log(`[Proxy] Gerando imagem via Pollinations.ai para o usuário ${userId}... URL: ${pollinationsUrl}`);
+      console.log("[Modo Criar - Pollinations Flux] Prompt:", finalPrompt);
+      console.log(`[Modo Criar - Pollinations Flux] Gerando para o usuário ${userId}... URL: ${pollinationsUrl}`);
 
       let base64Image = "";
       const pollinationsApiKey = (process.env.POLILINATIONS_IA_API_KEY || process.env.POLLINATIONS_IA_API_KEY || "").trim();
 
       if (isComplex && pollinationsApiKey) {
-        console.log(`[Proxy] Geração em Modo Complexo ativada. Buscando imagem de Pollinations.ai no servidor com API Key...`);
         try {
           const imageResponse = await fetch(pollinationsUrl, {
             headers: {
@@ -1084,41 +1030,285 @@ NÃO escreva preâmbulos, NÃO cumprimente ("Com prazer", "Olá"), NÃO adicione
             const arrayBuffer = await imageResponse.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
             base64Image = `data:image/jpeg;base64,${buffer.toString('base64')}`;
-            console.log(`[Proxy] Imagem obtida com sucesso e convertida para base64.`);
-          } else {
-            console.warn(`[Proxy] Falha ao obter imagem da API Pollinations (Status: ${imageResponse.status}). Usando fallback no client.`);
+            console.log(`[Modo Criar] Imagem Pollinations obtida via API Key com sucesso.`);
           }
         } catch (fetchErr) {
-          console.error(`[Proxy] Erro ao obter imagem do Pollinations no servidor:`, fetchErr);
+          console.error(`[Modo Criar] Erro ao obter imagem do Pollinations no servidor:`, fetchErr);
         }
       }
-      
-      // 6. Registrar consumo de cota diária no banco se gerado com sucesso
+
+      // Registrar cota diária do Modo Criar
       if (adminClient && userId) {
         try {
-          const { error: insertError } = await adminClient
-             .from('user_ai_usage')
-             .insert({
-               user_id: userId,
-               tipo_uso: quotaType,
-               created_at: new Date().toISOString()
-             });
-
-          if (insertError) {
-            console.error("[Quota Backend] Erro ao gravar uso de IA no banco de dados:", insertError);
-          } else {
-            console.log(`[Quota Backend] Cota de IA (1 imagem do tipo ${quotaType}) debitada com sucesso para o usuário ${userId}`);
-          }
+          await adminClient
+            .from('user_ai_usage')
+            .insert({
+              user_id: userId,
+              tipo_uso: quotaType,
+              created_at: new Date().toISOString()
+            });
+          console.log(`[Modo Criar] Cota debitada com sucesso para o usuário ${userId}`);
         } catch (dbInsertErr) {
-          console.error("[Quota Backend] Erro excepcional ao registrar consumo de cota:", dbInsertErr);
+          console.error("[Modo Criar] Erro ao registrar cota:", dbInsertErr);
         }
       }
 
-      console.log(`[Proxy] URL do Pollinations.ai gerada e enviada para o cliente do usuário ${userId}: ${pollinationsUrl}`);
-      res.json({ success: true, pollinationsUrl: pollinationsUrl, base64Image: base64Image || undefined });
+      return res.json({ success: true, pollinationsUrl, base64Image: base64Image || undefined });
     } catch (err: any) {
-      console.error("[Proxy Imagen CRITICAL]", err);
-      res.status(500).json({ error: err.message || "Erro interno do servidor." });
+      console.error("[Modo Criar CRITICAL]", err);
+      return res.status(500).json({ error: err.message || "Erro interno do servidor no Modo Criar." });
+    }
+  }
+
+  // ROTA DEDICADA E ISOLADA DO MODO CRIAR (POLLINATIONS FLUX)
+  app.post("/api/create-mode/generate-image", handleCreateModeImageGeneration);
+
+  // ROTA PRINCIPAL DE IMAGENS:
+  // - Modo Criar: delegada para handleCreateModeImageGeneration (Pollinations AI)
+  // - Modo Chat: executada EXCLUSIVAMENTE via Cloudflare Workers AI (sem usar Pollinations)
+  app.post("/api/generate-image", async (req, res) => {
+    try {
+      const { prompt: rawPrompt, source = 'chat' } = req.body;
+
+      // Se a solicitação for do Modo Criar, delega para a função dedicada e blindada
+      if (source === 'create') {
+        return handleCreateModeImageGeneration(req, res);
+      }
+
+      // ============================================================================
+      // ROTA EXCLUSIVA DO CHAT (CLOUDFLARE WORKERS AI - SEM POLLINATIONS)
+      // ============================================================================
+      if (!rawPrompt) {
+        return res.status(400).json({ error: "O prompt é obrigatório." });
+      }
+
+      const { cleanPrompt: prompt } = sanitizeUserPrompt(rawPrompt);
+      if (!prompt) {
+        return res.status(400).json({ error: "O prompt enviado não possui conteúdo válido após desinfecção de dados." });
+      }
+
+      // 1. Validar Token de Autenticação do Usuário (Supabase JWT)
+      let userId: string | null = null;
+      const authHeader = req.headers.authorization;
+      const adminClient = getSupabaseAdmin();
+
+      if (authHeader && adminClient) {
+        const token = authHeader.replace(/^Bearer\s+/i, "");
+        try {
+          const { data: { user }, error: authError } = await adminClient.auth.getUser(token);
+          if (!authError && user) {
+            userId = user.id;
+          }
+        } catch (authErr) {
+          console.error("[Chat Image] Erro de autenticação JWT:", authErr);
+        }
+      }
+
+      if (!userId) {
+        return res.status(401).json({ error: "Sessão inválida ou expirada. Por favor, faça login para gerar imagens." });
+      }
+
+      const quotaType = 'image';
+      const quotaLimit = 3;
+
+      // Cloudflare Workers AI credentials (para geração de imagens no Chat)
+      let cfAccountId = (process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CLOUDFLARE_PROJECT_ID || "").trim();
+      let cfApiToken = (process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_KEY || process.env.CLOUDFLARE_TOKEN || "").trim();
+
+      // 2. Verificar limite de cotas de imagem do Chat nas últimas 12 horas
+      if (adminClient && userId) {
+        const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+        try {
+          const { count, error: countError } = await adminClient
+            .from('user_ai_usage')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('tipo_uso', quotaType)
+            .gte('created_at', twelveHoursAgo);
+
+          if (countError) {
+            console.error("[Chat Image Quota] Erro computando uso diário:", countError);
+          } else if (count !== null && count >= quotaLimit) {
+            return res.status(429).json({ error: `Você atingiu o seu limite diário de ${quotaLimit} imagens no Chat. Sua cota recarrega em 12 horas.` });
+          }
+        } catch (dbErr) {
+          console.error("[Chat Image Quota] Falha inesperada ao consultar cotas:", dbErr);
+        }
+      }
+
+      // 3. Obter configurações de Cloudflare no Banco caso não estejam no ambiente
+      if (adminClient && (!cfAccountId || !cfApiToken)) {
+        try {
+          const { data, error } = await adminClient
+            .from('ai_settings')
+            .select('config_key, config_value')
+            .in('config_key', ['cloudflare_account_id', 'cloudflare_api_token']);
+          if (!error && data) {
+            const dbCfAccount = data.find(d => d.config_key === 'cloudflare_account_id')?.config_value;
+            const dbCfToken = data.find(d => d.config_key === 'cloudflare_api_token')?.config_value;
+            if (dbCfAccount && dbCfAccount.trim()) cfAccountId = dbCfAccount.trim();
+            if (dbCfToken && dbCfToken.trim()) cfApiToken = dbCfToken.trim();
+          }
+        } catch (dbErr) {
+          console.warn("[Chat Image] Erro ao buscar credenciais Cloudflare no banco:", dbErr);
+        }
+      }
+
+      // Validação de credenciais do motor de imagens para o Chat
+      if (!cfAccountId || !cfApiToken) {
+        return res.status(400).json({
+          error: "O serviço de geração de imagens do Chat está temporariamente indisponível. Por favor, tente novamente mais tarde."
+        });
+      }
+
+      // Extração de estilo artístico
+      let extractedStyle = "";
+      const styleMatch = prompt.match(/\[Estilo:\s*([^\]]+)\]/i);
+      if (styleMatch && styleMatch[1]) {
+        let styleAddon = styleMatch[1];
+        if (styleAddon.includes("-")) {
+          styleAddon = styleAddon.split("-").slice(1).join("-").trim();
+        }
+        extractedStyle = styleAddon;
+      }
+
+      let cleanPrompt = prompt
+        .replace(/\[Estilo:\s*[^\]]+\]/gi, '')
+        .replace(/\[Modo:[^\]]+\]/gi, '')
+        .trim();
+      if (!cleanPrompt) cleanPrompt = "biblical scene";
+
+      let translatedPrompt = cleanPrompt
+        .replace(/\bad[aã]o\b/gi, 'Adam')
+        .replace(/\beva\b/gi, 'Eve')
+        .replace(/\bjardim\s+do\s+[eé]den\b/gi, 'Garden of Eden')
+        .replace(/\bpara[ií]so\b/gi, 'Paradise Eden')
+        .replace(/\bmar\s+vermelho\b/gi, 'Red Sea')
+        .replace(/\bmois[eé]s\b/gi, 'Moses')
+        .replace(/\bdavi\s+e\s+golias\b/gi, 'David and Goliath')
+        .replace(/\bdavi\b/gi, 'David')
+        .replace(/\bgolias\b/gi, 'Goliath')
+        .replace(/\barca\s+de\s+no[eé]\b/gi, "Noah's Ark")
+        .replace(/\bno[eé]\b/gi, 'Noah')
+        .replace(/\bjesus(\s+cristo)?\b/gi, 'Jesus Christ');
+
+      let finalChatPrompt = translatedPrompt;
+      if (extractedStyle) {
+        finalChatPrompt += `, ${extractedStyle}`;
+      }
+
+      // Proteção de Decência e Modéstia: Adão e Eva e personagens bíblicos SEMPRE vestidos
+      const isAdamAndEve = (/ad[aã]o|adam/i.test(cleanPrompt) && /eva|eve/i.test(cleanPrompt)) ||
+        /\b(ad[aã]o|adam)\b.*\b(eva|eve)\b|\b(eva|eve)\b.*\b(ad[aã]o|adam)\b/i.test(cleanPrompt) ||
+        (/adam/i.test(translatedPrompt) && /eve/i.test(translatedPrompt));
+
+      if (isAdamAndEve && !/clothed|garment|tunic|robe|veste|roupa|vestid/i.test(finalChatPrompt)) {
+        finalChatPrompt += ", both fully clothed wearing modest ancient biblical linen tunics";
+      }
+
+      const finalNegativePrompt = "nudity, naked, nude, topless, bare breasts, bare shoulders, cleavage, unclothed, sensual, revealing clothes, erotic";
+
+      console.log(`[Chat Image Engine] Gerando para o usuário ${userId}...`);
+      console.log(`[Chat Image Engine] Prompt: "${finalChatPrompt}"`);
+
+      const cfModels = [
+        "@cf/stabilityai/stable-diffusion-xl-base-1.0",
+        "@cf/bytedance/stable-diffusion-xl-lightning",
+        "@cf/black-forest-labs/flux-1-schnell"
+      ];
+
+      let base64Image = "";
+      let lastError = "";
+
+      for (const model of cfModels) {
+        try {
+          console.log(`[Chat Image Engine] Chamando ${model}...`);
+          const cfUrl = `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/ai/run/${model}`;
+          
+          const isFlux = model.includes("flux");
+          const isLightning = model.includes("lightning");
+          const requestBody: Record<string, any> = { prompt: finalChatPrompt };
+          
+          if (!isFlux) {
+            if (finalNegativePrompt) {
+              requestBody.negative_prompt = finalNegativePrompt;
+            }
+            requestBody.num_steps = isLightning ? 8 : 20;
+            requestBody.guidance = 7.5;
+          }
+
+          const cfRes = await fetch(cfUrl, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${cfApiToken}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(requestBody)
+          });
+
+          if (!cfRes.ok) {
+            const errText = await cfRes.text();
+            console.warn(`[Chat Image Engine] Falha no modelo ${model} (HTTP ${cfRes.status}):`, errText);
+            lastError = `Status ${cfRes.status}: ${errText}`;
+            continue;
+          }
+
+          const contentType = cfRes.headers.get("content-type") || "";
+          if (contentType.includes("application/json")) {
+            const json = await cfRes.json();
+            const imgData = json.result?.image || json.image;
+            if (imgData) {
+              base64Image = imgData.startsWith("data:") ? imgData : `data:image/jpeg;base64,${imgData}`;
+              console.log(`[Chat Image Engine] Imagem obtida com sucesso (${model})!`);
+              break;
+            } else {
+              lastError = JSON.stringify(json.errors || json);
+              continue;
+            }
+          } else {
+            const arrayBuffer = await cfRes.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            const mime = contentType.includes("png") ? "image/png" : "image/jpeg";
+            base64Image = `data:${mime};base64,${buffer.toString("base64")}`;
+            console.log(`[Chat Image Engine] Imagem obtida via stream (${model})!`);
+            break;
+          }
+        } catch (cfErr: any) {
+          console.error(`[Chat Image Engine] Erro ao chamar ${model}:`, cfErr);
+          lastError = cfErr.message || String(cfErr);
+        }
+      }
+
+      if (!base64Image) {
+        return res.status(500).json({
+          error: "Não foi possível gerar a imagem no momento. Por favor, tente novamente mais tarde."
+        });
+      }
+
+      // Registrar cota do Chat
+      if (adminClient && userId) {
+        try {
+          await adminClient
+            .from('user_ai_usage')
+            .insert({
+              user_id: userId,
+              tipo_uso: quotaType,
+              created_at: new Date().toISOString()
+            });
+          console.log(`[Chat Image] Cota debitada com sucesso para o usuário ${userId}`);
+        } catch (dbInsertErr) {
+          console.error("[Chat Image] Erro ao registrar cota:", dbInsertErr);
+        }
+      }
+
+      return res.json({ 
+        success: true, 
+        base64Image, 
+        imageUrl: base64Image 
+      });
+    } catch (err: any) {
+      console.error("[Chat Image CRITICAL]", err);
+      return res.status(500).json({ error: err.message || "Erro interno ao gerar imagem no Chat." });
     }
   });
 

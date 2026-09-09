@@ -202,7 +202,7 @@ const AccountPage = () => {
       setNotificationsEnabled(isGranted && localStorage.getItem(NOTIFICATIONS_KEY) === "true");
       setOfflineEnabled(localStorage.getItem(OFFLINE_KEY) === "true");
     }
-  }, [authCtx.loading, authCtx.user, toast]);
+  }, [authCtx, toast]);
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
