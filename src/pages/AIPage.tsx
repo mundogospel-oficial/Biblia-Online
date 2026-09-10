@@ -26,6 +26,7 @@ import { encryptConversationMessages, decryptConversationMessages } from "@/lib/
 import { maskPiiInText } from "@/lib/security/privacyGuard";
 import { validateImageContent } from "@/services/imageModerationService";
 import { analyzeLetterbox } from "@/lib/imageCropUtils";
+import { ImageGeneratingMatrixSquare } from "@/components/ImageGeneratingMatrixSquare";
 import { formatFriendlyErrorMessage } from "@/lib/errorUtils";
 
 const formatMessageForDisplay = (text: string): string => {
@@ -400,116 +401,9 @@ const ThinkingSpinner = ({ engine = "simples", mode = "chat" }: ThinkingSpinnerP
   );
 };
 
+
 const ImageGeneratingBubble = () => {
-  const [stepIndex, setStepIndex] = useState(0);
-  const phrases = [
-    "Iniciando o motor de renderização da imagem...",
-    "Compondo cena e elementos bíblicos...",
-    "Renderizando iluminação e atmosfera sagrada...",
-    "Finalizando a geração da imagem..."
-  ];
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setStepIndex((prev) => (prev + 1) % phrases.length);
-    }, 2800);
-    return () => clearInterval(timer);
-  }, [phrases.length]);
-
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-sky-400/35 dark:border-sky-400/25 bg-gradient-to-br from-slate-950/95 via-slate-900/90 to-blue-950/95 backdrop-blur-2xl p-3.5 sm:p-4 shadow-[0_12px_36px_-6px_rgba(2,132,199,0.35)] min-w-[280px] sm:min-w-[360px]">
-      {/* Liquid Glass Specular Highlight */}
-      <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-sky-400/20 via-sky-500/5 to-transparent rounded-t-2xl pointer-events-none" />
-
-      {/* Floating Ambient Aurora Light Orbs */}
-      <motion.div
-        animate={{
-          x: [-12, 16, -12],
-          y: [-8, 8, -8],
-          scale: [0.9, 1.2, 0.9],
-        }}
-        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute -top-8 -left-8 w-32 h-32 rounded-full bg-sky-500/25 blur-2xl pointer-events-none"
-      />
-      <motion.div
-        animate={{
-          x: [12, -14, 12],
-          y: [8, -8, 8],
-          scale: [1.15, 0.85, 1.15],
-        }}
-        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute -bottom-8 -right-8 w-32 h-32 rounded-full bg-blue-600/30 blur-2xl pointer-events-none"
-      />
-
-      {/* Modern Laser Scan Top Border Accent */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden bg-sky-950/40">
-        <motion.div
-          animate={{ x: ["-100%", "200%"] }}
-          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-          className="w-1/2 h-full bg-gradient-to-r from-transparent via-sky-400 to-transparent shadow-[0_0_12px_rgba(56,189,248,0.9)]"
-        />
-      </div>
-
-      <div className="flex items-center gap-3.5 relative z-10">
-        {/* Holographic Icon Badge */}
-        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-950/80 to-blue-900/60 border border-sky-400/40 shadow-[0_4px_20px_rgba(2,132,199,0.3)] backdrop-blur-md">
-          {/* Animated Dual Orbit Rings */}
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
-            className="absolute -inset-0.5 rounded-2xl p-[1px] bg-gradient-to-tr from-sky-400 via-cyan-300 to-indigo-400 opacity-80"
-          />
-          <motion.div
-            animate={{ rotate: -360 }}
-            transition={{ duration: 9, repeat: Infinity, ease: "linear" }}
-            className="absolute inset-0 rounded-2xl border border-dashed border-sky-300/60"
-          />
-          <Wand2 className="h-5 w-5 text-sky-300 animate-pulse drop-shadow-[0_0_10px_rgba(56,189,248,0.9)] z-10" />
-        </div>
-
-        <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <span className="font-bold text-xs sm:text-sm text-sky-100 flex items-center gap-1.5 tracking-tight drop-shadow-sm">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-400" />
-              </span>
-              Gerando Imagem com IA
-            </span>
-            {/* Modern Step Indicators */}
-            <div className="flex items-center gap-1">
-              {phrases.map((_, i) => (
-                <motion.div
-                  key={i}
-                  animate={{
-                    opacity: stepIndex === i ? 1 : 0.35,
-                    scale: stepIndex === i ? 1.15 : 1,
-                    backgroundColor: stepIndex === i ? "#38bdf8" : "#0284c7"
-                  }}
-                  className="h-1.5 w-3 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(56,189,248,0.5)]"
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="h-4 relative overflow-hidden">
-            <AnimatePresence mode="wait">
-              <motion.span
-                key={stepIndex}
-                initial={{ opacity: 0, y: 7, filter: "blur(4px)" }}
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                exit={{ opacity: 0, y: -7, filter: "blur(4px)" }}
-                transition={{ duration: 0.35, ease: "easeOut" }}
-                className="text-[11px] sm:text-xs text-sky-200/90 truncate block font-medium tracking-wide"
-              >
-                {phrases[stepIndex]}
-              </motion.span>
-            </AnimatePresence>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return <ImageGeneratingMatrixSquare />;
 };
 
 interface ResilientImageProps {
@@ -1410,7 +1304,7 @@ const AIPage = () => {
       }
     } catch (error: any) {
       console.error("Erro na verificação de cotas:", error);
-      toast({ title: "Aviso", description: error.message || "Não foi possível verificar suas cotas de uso.", variant: "destructive" });
+      toast({ title: "Aviso", description: formatFriendlyErrorMessage(error, "Não foi possível verificar suas cotas de uso."), variant: "destructive" });
       setIsLoading(false);
       return;
     }
@@ -1648,7 +1542,7 @@ Estilo Pixel Art:
       }
     } catch (error: any) {
       console.error("Erro na verificação de cotas:", error);
-      toast({ title: "Aviso", description: error.message || "Não foi possível verificar suas cotas de uso.", variant: "destructive" });
+      toast({ title: "Aviso", description: formatFriendlyErrorMessage(error, "Não foi possível verificar suas cotas de uso."), variant: "destructive" });
       setIsLoading(false);
       return;
     }
@@ -2006,27 +1900,52 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
       );
     };
 
+    const renderImageCard = (imgUrl: string, key?: any) => (
+      <div 
+        key={key} 
+        className="relative w-[280px] sm:w-[320px] aspect-square rounded-2xl overflow-hidden border border-white/15 bg-card/60 shadow-2xl group select-none my-1"
+      >
+        <ResilientImage 
+          src={imgUrl} 
+          alt="Imagem bíblica gerada" 
+          className="absolute inset-0 w-full h-full object-cover cursor-pointer transition-transform duration-300 group-hover:scale-[1.02]" 
+          onClick={() => setLightboxImage(imgUrl)} 
+        />
+        {/* Botões dentro do aro e sem fundo pesado */}
+        <div className="absolute inset-x-0 bottom-0 pt-10 pb-2.5 px-3 bg-gradient-to-t from-black/80 via-black/35 to-transparent flex items-center justify-end gap-2.5 pointer-events-none z-10">
+          <button 
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              downloadImage(imgUrl);
+            }}
+            title="Baixar imagem"
+            aria-label="Baixar imagem"
+            className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full text-white/85 hover:text-white hover:scale-110 active:scale-95 transition-all drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] focus:outline-none"
+          >
+            <Download className="h-4.5 w-4.5" />
+          </button>
+          <button 
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              shareBibleImage(imgUrl);
+            }}
+            title="Compartilhar imagem"
+            aria-label="Compartilhar imagem"
+            className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full text-white/85 hover:text-white hover:scale-110 active:scale-95 transition-all drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] focus:outline-none"
+          >
+            <Share2 className="h-4.5 w-4.5" />
+          </button>
+        </div>
+      </div>
+    );
+
     const topImage = msg.image || extractImageUrl(msg.content);
 
     return (
       <div className="space-y-1">
-        {topImage && (
-          <Fragment>
-            <div className="mb-2 relative w-full max-w-[280px] sm:max-w-[320px] aspect-square overflow-hidden rounded-xl bg-muted border border-border shadow-md">
-              <ResilientImage src={topImage} alt="Imagem bíblica gerada" onClick={() => setLightboxImage(topImage)} />
-            </div>
-            <div className="mt-1.5 flex gap-2">
-              <button onClick={() => downloadImage(topImage)}
-                className="flex items-center gap-1.5 rounded-lg bg-accent/15 px-3 py-1.8 text-[11px] font-semibold text-accent hover:bg-accent/25 transition-all liquid-btn">
-                <Download className="h-3.5 w-3.5" /> Baixar
-              </button>
-              <button onClick={() => shareBibleImage(topImage)}
-                className="flex items-center gap-1.5 rounded-lg bg-primary/15 px-3 py-1.8 text-[11px] font-semibold text-primary hover:bg-primary/25 transition-all liquid-btn">
-                <Share2 className="h-3.5 w-3.5" /> Compartilhar
-              </button>
-            </div>
-          </Fragment>
-        )}
+        {topImage && renderImageCard(topImage)}
         {lines.map((line, i) => {
           const lineImgUrl = extractImageUrl(line);
           if (lineImgUrl) {
@@ -2034,23 +1953,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
             if (topImage && (lineImgUrl === topImage || line.trim() === lineImgUrl || line.trim().startsWith("!["))) {
               return null;
             }
-            return (
-              <Fragment key={i}>
-                <div className="mb-2 mt-2 relative w-full max-w-[280px] sm:max-w-[320px] aspect-square overflow-hidden rounded-xl bg-muted border border-border shadow-md">
-                  <ResilientImage src={lineImgUrl} alt="Imagem bíblica gerada" onClick={() => setLightboxImage(lineImgUrl)} />
-                </div>
-                <div className="mt-1.5 flex gap-2">
-                  <button onClick={() => downloadImage(lineImgUrl)}
-                    className="flex items-center gap-1.5 rounded-lg bg-accent/15 px-3 py-1.8 text-[11px] font-semibold text-accent hover:bg-accent/25 transition-all liquid-btn">
-                    <Download className="h-3.5 w-3.5" /> Baixar
-                  </button>
-                  <button onClick={() => shareBibleImage(lineImgUrl)}
-                    className="flex items-center gap-1.5 rounded-lg bg-primary/15 px-3 py-1.8 text-[11px] font-semibold text-primary hover:bg-primary/25 transition-all liquid-btn">
-                    <Share2 className="h-3.5 w-3.5" /> Compartilhar
-                  </button>
-                </div>
-              </Fragment>
-            );
+            return renderImageCard(lineImgUrl, i);
           }
           if (line.startsWith("**") && line.endsWith("**")) {
             return <p key={i} className="text-xs font-bold text-foreground mt-1.5">{line.slice(2, -2)}</p>;
@@ -2734,18 +2637,26 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
             </div>
           )}
 
-          {messages.map((m, i) => (
-            <motion.div key={i} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
-              className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
-            >
-              {m.role === "assistant" && (
-                <div className="mr-1.5 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-primary">
-                  {aiEngine === "simples" ? <Zap className="h-3.5 w-3.5 text-primary-foreground" /> : <Bot className="h-3.5 w-3.5 text-primary-foreground" />}
-                </div>
-              )}
-              <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
-                m.role === "user" ? "bg-primary text-primary-foreground rounded-br-md" : "glass-card rounded-bl-md"
-              }`}>
+          {messages.map((m, i) => {
+            const hasImg = Boolean(m.image || extractImageUrl(m.content));
+            const isImageOnly = m.role === "assistant" && hasImg && (!m.content || m.content.trim() === (m.image || "") || m.content.trim().startsWith("![") || !m.content.replace(/!\[.*?\]\(.*?\)/g, '').trim());
+
+            return (
+              <motion.div key={i} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
+                className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                {m.role === "assistant" && (
+                  <div className="mr-1.5 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-primary">
+                    {aiEngine === "simples" ? <Zap className="h-3.5 w-3.5 text-primary-foreground" /> : <Bot className="h-3.5 w-3.5 text-primary-foreground" />}
+                  </div>
+                )}
+                <div className={`max-w-[85%] ${
+                  m.role === "user" 
+                    ? "bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-2.5" 
+                    : isImageOnly 
+                      ? "p-0 bg-transparent border-0 shadow-none w-fit" 
+                      : "glass-card rounded-2xl rounded-bl-md px-4 py-2.5"
+                }`}>
                 {m.role === "user" && getFilesForMessage(m).length > 0 && (
                   <div className="flex flex-col gap-1.5 mb-2 mt-0.5">
                     {getFilesForMessage(m).map((file, idx) => {
@@ -2883,7 +2794,8 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                 )}
               </div>
             </motion.div>
-          ))}
+          );
+        })}
 
           {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
@@ -3192,8 +3104,8 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     {input.length}/2000
                   </span>
                 )}
-                {/* Botão do Aprimorador de Prompts (mantém o cenário intacto) */}
-                {input.trim() && !isLoading && (
+                {/* Botão do Aprimorador de Prompts (apenas para o modo gerar imagens) */}
+                {activeMode === "image" && input.trim() && !isLoading && (
                   <button
                     type="button"
                     onClick={handleRefineCurrentPrompt}
@@ -3252,17 +3164,12 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
               initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -20, opacity: 0 }}
-              className="w-full max-w-lg flex items-center justify-between bg-zinc-900/90 border border-white/10 rounded-full px-4 py-2 shadow-xl shrink-0 z-50"
+              className="w-full max-w-sm flex items-center justify-between bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-full px-4 py-2 shadow-xl shrink-0 z-50"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center gap-2 text-white font-medium text-xs sm:text-sm">
                 <Sparkles className="h-4 w-4 text-accent" />
                 <span>Visualizador de Imagem</span>
-                {zoomScale > 1 && (
-                  <span className="text-[10px] font-mono bg-accent/20 text-accent px-2 py-0.5 rounded-full border border-accent/30 font-bold">
-                    {Math.round(zoomScale * 100)}%
-                  </span>
-                )}
               </div>
 
               <button
@@ -3315,34 +3222,38 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
               />
             </motion.div>
 
-            {/* Painel de Ações Inferior */}
+            {/* Painel de Ações Inferior (Mesmo comprimento e estilo da barra superior) */}
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
               transition={{ delay: 0.05 }}
-              className="w-full max-w-lg flex items-center justify-between gap-2 sm:gap-3 bg-zinc-900/95 border border-white/15 rounded-2xl p-2.5 sm:px-4 sm:py-3 shadow-2xl shrink-0 z-50"
+              className="w-full max-w-sm flex items-center justify-between bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-full px-4 py-2 shadow-2xl shrink-0 z-50"
               onClick={(e) => e.stopPropagation()}
             >
-              <button
-                type="button"
-                onClick={() => downloadImage(lightboxImage)}
-                className="flex flex-1 items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-accent hover:bg-accent/90 py-2.5 px-3 text-xs sm:text-sm font-bold text-white transition-all hover:scale-[1.02] active:scale-95 shadow-md whitespace-nowrap"
-              >
-                <Download className="h-4 w-4 shrink-0" />
-                <span>Baixar Imagem</span>
-              </button>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <button
+                  type="button"
+                  onClick={() => downloadImage(lightboxImage)}
+                  title="Baixar imagem"
+                  aria-label="Baixar imagem"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white/90 hover:text-white border border-white/10 hover:border-white/25 transition-all hover:scale-105 active:scale-95"
+                >
+                  <Download className="h-4 w-4 shrink-0" />
+                </button>
 
-              <button
-                type="button"
-                onClick={() => shareBibleImage(lightboxImage)}
-                className="flex flex-1 items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-accent/80 hover:bg-accent py-2.5 px-3 text-xs sm:text-sm font-bold text-white transition-all hover:scale-[1.02] active:scale-95 shadow-md whitespace-nowrap"
-              >
-                <Share2 className="h-4 w-4 shrink-0" />
-                <span>Compartilhar</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => shareBibleImage(lightboxImage)}
+                  title="Compartilhar imagem"
+                  aria-label="Compartilhar imagem"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white/90 hover:text-white border border-white/10 hover:border-white/25 transition-all hover:scale-105 active:scale-95"
+                >
+                  <Share2 className="h-4 w-4 shrink-0" />
+                </button>
+              </div>
 
-              <div className="flex items-center gap-1 border-l border-white/10 pl-1.5 sm:pl-2 shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   type="button"
                   onClick={() => {
@@ -3353,8 +3264,8 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                       setZoomScale(2);
                     }
                   }}
-                  className={`flex h-9 px-2 items-center justify-center rounded-xl text-xs font-mono font-bold transition-all active:scale-95 border border-white/10 ${
-                    zoomScale > 1 ? "bg-accent text-white" : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                  className={`flex h-9 px-2.5 items-center justify-center rounded-full text-xs font-mono font-bold transition-all active:scale-95 border border-white/10 ${
+                    zoomScale > 1 ? "bg-accent text-white" : "bg-white/[0.08] hover:bg-white/[0.16] text-zinc-300"
                   }`}
                   title="Alternar Zoom Rápido 2x"
                 >
@@ -3374,7 +3285,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     });
                   }}
                   disabled={zoomScale <= 1}
-                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white disabled:opacity-30 transition-all active:scale-95 border border-white/10"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white disabled:opacity-30 transition-all active:scale-95 border border-white/10"
                   title="Diminuir Zoom"
                 >
                   <ZoomOut className="h-4 w-4" />
@@ -3386,7 +3297,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     setZoomScale(prev => Math.min(prev + 0.5, 4.5));
                   }}
                   disabled={zoomScale >= 4.5}
-                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white disabled:opacity-30 transition-all active:scale-95 border border-white/10"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white disabled:opacity-30 transition-all active:scale-95 border border-white/10"
                   title="Aumentar Zoom"
                 >
                   <ZoomIn className="h-4 w-4" />

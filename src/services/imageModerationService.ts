@@ -244,7 +244,7 @@ Responda EXATAMENTE E APENAS "INAPROPRIADO" se a imagem contiver QUALQUER um dos
 
 Caso seja uma imagem respeitosa, neutra, uma paisagem, Bíblia, igreja, texto ou foto de pessoa com roupa comum, responda EXATAMENTE E APENAS "APROPRIADO".`;
 
-    const modelsToTry = ["gemini-2.5-flash", "gemini-3.6-flash"];
+    const modelsToTry = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-flash-latest"];
 
     for (const key of keysToTry) {
       for (const model of modelsToTry) {
@@ -300,4 +300,39 @@ Caso seja uma imagem respeitosa, neutra, uma paisagem, Bíblia, igreja, texto ou
     return true;
   }
 }
+
+/**
+ * Validação Inteligente de Prompts de Geração de Imagem (Modo Criar e Chat)
+ * Confiada exclusivamente à inteligência semântica da IA (OpenRouter / OPENROUTER_IMAGENS) no servidor,
+ * sem bloqueios rígidos baseados em listas estáticas de palavras que geravam falsos positivos.
+ */
+export async function validateImagePrompt(prompt: string, context: string = "image"): Promise<{ isAppropriate: boolean; isBlocked?: boolean; reason?: string }> {
+  const clean = (prompt || "").trim();
+  if (!clean) return { isAppropriate: true, isBlocked: false };
+
+  // Verificação semântica inteligente via Servidor (OpenRouter IA)
+  try {
+    const res = await fetch('/api/moderate-prompt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: clean, context })
+    });
+
+    if (res.ok) {
+      const data = await res.json().catch(() => null);
+      if (data && (data.isBlocked === true || data.isAppropriate === false)) {
+        return {
+          isAppropriate: false,
+          isBlocked: true,
+          reason: data.reason || "A descrição fornecida contém elementos que violam as diretrizes de conteúdo visual e bíblico."
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("[validateImagePrompt] Verificação semântica indisponível, liberando fluxo:", err);
+  }
+
+  return { isAppropriate: true, isBlocked: false };
+}
+
 

@@ -15,6 +15,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { resolveBiblicalSituationSubject } from '@/data/biblicalSituations';
+import { validateImagePrompt } from './imageModerationService';
 
 export interface CreateModeImageOptions {
   signal?: AbortSignal;
@@ -46,6 +47,14 @@ export const generateCreateModeImage = async (
     .trim();
 
   const displayPrompt = cleanPrompt.replace(/\[Estilo:\s*[^\]]+\]/gi, '').trim() || cleanPrompt;
+
+  // Verificação rápida de segurança e escopo bíblico (Filtros Combinados)
+  const security = await validateImagePrompt(cleanPrompt, 'create');
+  if (security.isBlocked || !security.isAppropriate) {
+    const blockedError = new Error(security.reason || "A descrição fornecida contém termos que violam as diretrizes de conteúdo visual e bíblico.");
+    (blockedError as any).isServerError = true;
+    throw blockedError;
+  }
 
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -117,16 +126,6 @@ export const generateCreateModeImage = async (
         throw new Error("Você atingiu o seu limite diário de 3 imagens no Modo Criar. Sua cota recarrega em 12 horas.");
       }
 
-      // Validação de segurança básica local
-      const strictlyHarmfulTerms = [
-        'nude', 'nudity', 'pelad', 'nuas', 'nus', 'nua', 'sexy', 'porn', 'porno', 'sexo', 'erotic', 'erotico', 
-        'drogas', 'cocaina', 'crack', 'mutilacao', 'gore', 'prostituicao', 'prostituta'
-      ];
-      const lower = cleanPrompt.toLowerCase();
-      if (strictlyHarmfulTerms.some(term => new RegExp(`(?:^|[^a-z0-9_])${term}(?:$|[^a-z0-9_])`, 'i').test(lower))) {
-        throw new Error("A descrição fornecida contém termos que violam as diretrizes de conteúdo visual.");
-      }
-
       // Extração de estilo
       let extractedStyle = "";
       const styleMatch = cleanPrompt.match(/\[Estilo:\s*([^\]]+)\]/i);
@@ -145,14 +144,19 @@ export const generateCreateModeImage = async (
         cleanSubject = situationMatch.englishSubject;
       }
 
-      // Limpar termos de pessoas do Modo Criar (Modo Criar foca em cenários e paisagens sagradas)
+      // Limpar termos de pessoas e estátuas do Modo Criar (Modo Criar é terminantemente proibido humanos e estátuas/esculturas, foca em cenários e paisagens sagradas)
       cleanSubject = cleanSubject
         .replace(/\b(facing the camera|direct eye contact|looking directly into the camera|noble reverent serene Semitic facial features|facial features|modest sacred ancient biblical pure unbleached linen garments|garments|linen|attire|natural skin textures|anatomically correct hands|5 fingers|natural eye symmetry)\b/gi, '')
-        .replace(/\b(man|men|woman|women|person|people|shepherd|prophet|apostle|disciple|crowd|multitude)\b/gi, '')
+        .replace(/\b(homem|homens|mulher|mulheres|pessoa|pessoas|gente|criança|crianças|bebê|bebês|menino|menina|pastor|pastores|profeta|profetas|apóstolo|apóstolos|discípulo|discípulos|multidão|multidões|rosto|rostos|face|faces|silhueta|silhuetas|figura\s+humana|figuras\s+humanas|figura|figuras|man|men|woman|women|person|people|child|children|baby|human|humans|shepherd|prophet|apostle|disciple|crowd|multitude|face|faces|silhouette|silhouettes|figure|figures|pedestrian|pedestrians|portrait|portraits)\b/gi, '')
+        .replace(/\b(estátua\s+grega|estátuas\s+gregas|estatua\s+grega|estatuas\s+gregas|estátua\s+romana|estátuas\s+romanas|estatua\s+romana|estatuas\s+romanas|estátua|estátuas|estatua|estatuas|escultura|esculturas|busto|bustos|mármore|marmore|ídolo|ídolos|idolo|idolos|monumento\s+de\s+pedra|estatueta|estatuetas|statue|statues|greek\s+statue|greek\s+statues|roman\s+statue|roman\s+statues|sculpture|sculptures|bust|busts|marble\s+statue|marble\s+statues|marble\s+sculpture|marble\s+sculptures|stone\s+statue|stone\s+statues|stone\s+figure|stone\s+figures|classical\s+statue|classical\s+sculpture|ancient\s+greek|ancient\s+roman|idol|idols|pagan\s+statue|pagan\s+statues)\b/gi, '')
         .replace(/\s+/g, ' ')
         .trim();
 
-      let finalPrompt = `${cleanSubject}, majestic biblical landscape, sacred natural scenery, peaceful empty environment, solitary landscape view, untouched nature, no people, no humans, no man, no woman, no child, no human figures, no silhouettes, no faces, no hands, completely devoid of humans, unpopulated scenic view`;
+      if (!cleanSubject || cleanSubject.length < 3) {
+        cleanSubject = "majestic tranquil sacred biblical landscape, holy nature and celestial light";
+      }
+
+      let finalPrompt = `${cleanSubject}, majestic biblical landscape, sacred natural scenery, peaceful empty environment, solitary landscape view, untouched nature, no people, no humans, no man, no woman, no child, no human figures, no silhouettes, no faces, no hands, no statues, no greek statues, no roman statues, no sculptures, no marble statues, no busts, no stone idols, no carved figures, completely devoid of humans and statues, unpopulated scenic view, completely textless, clean image, no text, no words, no letters, no logos, no watermark, no typography, no writing, no labels, no title, no subtitles`;
 
       if (extractedStyle) {
         finalPrompt += `, ${extractedStyle}`;
@@ -174,7 +178,7 @@ export const generateCreateModeImage = async (
         height = 1080;
       }
 
-      const clientNegativePrompt = "nudity, naked, nude, topless, bare breasts, bare shoulders, cleavage, unclothed, sensual, revealing clothes, erotic";
+      const clientNegativePrompt = "people, humans, human, person, man, woman, child, boy, girl, baby, face, silhouette, crowd, pedestrians, figures, human body, hands, arms, legs, portraits, characters, model, photo of person, statue, statues, greek statue, greek statues, roman statue, roman statues, marble statue, marble statues, sculpture, sculptures, bust, busts, stone idol, idols, carved figure, stone carving, monument of human, classical sculpture, ancient greek statue, roman sculpture, figurine, mannequin, idol worship, pagan statue, text, words, letters, typography, font, watermark, signature, username, title, caption, subtitles, writing, label, banner, logo, watermark text, fake words, gibberish text, script, latin words, quote, nudity, naked, nude, topless, bare breasts, bare shoulders, cleavage, unclothed, sensual, revealing clothes, erotic";
       const seed = Math.floor(Math.random() * 2000000000);
       const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=${width}&height=${height}&seed=${seed}&model=flux&nologo=true&enhance=false&negative=${encodeURIComponent(clientNegativePrompt)}`;
 
@@ -240,7 +244,10 @@ export const generateCreateModeImage = async (
       throw new Error("Não foi possível conectar ao serviço de imagens do Modo Criar.");
     }
 
-    const data = await response.json();
+    const data = await response.json().catch(() => null);
+    if (!data) {
+      throw new Error("Não foi possível processar a resposta do servidor de imagens.");
+    }
     const pollinationsUrl = data.pollinationsUrl;
     const base64Image = data.base64Image || data.imageUrl;
 

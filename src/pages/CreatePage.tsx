@@ -551,9 +551,9 @@ const CreatePage = () => {
 
       let fullPrompt = "";
       if (customAiPrompt.trim()) {
-        fullPrompt = `[Estilo: ${styleName}] Paisagem bíblica sagrada e majestosa inspirada no versículo sagrado: "${verseText}"${refInfo}. Detalhes do cenário e natureza: "${customAiPrompt.trim()}". REGRA MANDATÓRIA: Esta imagem é exclusivamente uma paisagem ou cenário natural bíblico. É ESTRITAMENTE PROIBIDO incluir seres humanos, pessoas, rostos, silhuetas ou figuras humanas. Foque unicamente na grandiosidade de montanhas majestosas, vales, céus com luz dourada celestial, oliveiras, caminhos tranquilos, águas serenas ou elementos da criação divina da natureza.`;
+        fullPrompt = `[Estilo: ${styleName}] Paisagem bíblica sagrada inspirada no versículo: "${verseText}"${refInfo}. Detalhes do cenário: ${customAiPrompt.trim()}. REGRA OBRIGATÓRIA DO MODO CRIAR: Proibido humanos, pessoas ou estátuas (incluindo estátuas gregas, romanas ou esculturas de pedra/mármore). Apenas paisagem natural sagrada deserta.`;
       } else {
-        fullPrompt = `[Estilo: ${styleName}] Paisagem bíblica sagrada e majestosa inspirada no versículo sagrado: "${verseText}"${refInfo}. Estilo estético: ${styleDetails}. REGRA MANDATÓRIA: Esta imagem é exclusivamente uma paisagem ou cenário natural bíblico. É ESTRITAMENTE PROIBIDO incluir seres humanos, pessoas, rostos, silhuetas ou figuras humanas. Foque unicamente na grandiosidade da natureza bíblica, montanhas sagradas, céus ao amanhecer ou entardecer, vales tranquilos, oliveiras e luz celestial inspirados no versículo.`;
+        fullPrompt = `[Estilo: ${styleName}] Paisagem bíblica sagrada inspirada no versículo: "${verseText}"${refInfo}. Cenário natural bíblico com iluminação celestial e beleza divina. REGRA OBRIGATÓRIA DO MODO CRIAR: Proibido humanos, pessoas ou estátuas (incluindo estátuas gregas, romanas ou esculturas de pedra/mármore). Apenas paisagem natural sagrada deserta.`;
       }
 
       const imageUrl = await generateCreateModeImage(fullPrompt, {
@@ -944,7 +944,7 @@ const CreatePage = () => {
 
                         <div>
                           <div className="flex items-center justify-between mb-1">
-                            <label className="text-[10px] text-muted-foreground block">Descreva exatamente o que deseja ver na imagem (opcional):</label>
+                            <label className="text-[10px] text-muted-foreground block">Descreva o cenário bíblico (apenas natureza, proibido pessoas e estátuas):</label>
                             <span className="text-[9px] text-muted-foreground font-mono">{customAiPrompt.length}/300</span>
                           </div>
                           <input
@@ -979,7 +979,7 @@ const CreatePage = () => {
                             ))}
                           </div>
                           <p className="text-[9px] text-muted-foreground/70 mt-1">
-                            O Modo Criar gera exclusivamente paisagens e cenários bíblicos sagrados (sem humanos ou pessoas), ideal para destacar com clareza o versículo sagrado.
+                            O Modo Criar gera exclusivamente paisagens e cenários bíblicos sagrados (sem pessoas ou estátuas gregas/esculturas), ideal para destacar com clareza o versículo sagrado.
                           </p>
                         </div>
 

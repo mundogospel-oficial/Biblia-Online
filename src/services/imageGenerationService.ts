@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { APP_WHITE_LOGO_DATA_URL } from '@/assets/appLogoWhite';
 import { generateCreateModeImage } from './createModeImageService';
+import { validateImagePrompt } from './imageModerationService';
 
 /**
  * ============================================================================
@@ -156,6 +157,12 @@ export const generateBiblicalImage = async (
   const displayPrompt = cleanPrompt.replace(/\[Estilo:\s*[^\]]+\]/gi, '').trim() || cleanPrompt;
   const shouldWatermark = true;
 
+  // Verificação de segurança prévia (Filtros Combinados)
+  const security = await validateImagePrompt(cleanPrompt, 'chat');
+  if (security.isBlocked || !security.isAppropriate) {
+    throw new Error(security.reason || "A descrição fornecida contém termos que violam as diretrizes de conteúdo visual e bíblico.");
+  }
+
   try {
     const { data: { session } } = await supabase.auth.getSession();
     const headers: Record<string, string> = {
@@ -194,7 +201,10 @@ export const generateBiblicalImage = async (
       throw new Error(errMessage);
     }
 
-    const data = await response.json();
+    const data = await response.json().catch(() => null);
+    if (!data) {
+      throw new Error("Não foi possível processar a resposta do servidor de imagens.");
+    }
     const base64Image = data.base64Image || data.imageUrl;
 
     if (!base64Image) {

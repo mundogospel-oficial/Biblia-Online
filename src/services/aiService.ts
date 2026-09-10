@@ -470,9 +470,8 @@ REGRAS OBRIGATÓRIAS (RIGOROSAS):
 
   const geminiModels = [
     'gemini-3.6-flash',
-    'gemini-flash-latest',
-    'gemini-2.5-flash',
-    'gemini-1.5-flash'
+    'gemini-3.8-flash',
+    'gemini-flash-latest'
   ];
 
   const keysToTry = [googleKey, googleKey2].filter(Boolean) as string[];

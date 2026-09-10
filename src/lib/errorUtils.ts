@@ -79,10 +79,17 @@ export function formatFriendlyErrorMessage(
     return "Sua sessão expirou. Por favor, faça login novamente.";
   }
 
-  // 6. Se a mensagem contiver dados técnicos brutos (HTTP, status codes, JSON, nomes de servidores), limpa e simplifica
+  // 6. Se a mensagem contiver dados técnicos brutos (HTTP, status codes, JSON, nomes de servidores, erros de parse), limpa e simplifica
   const containsTechnicalJargon =
     /http\s*[0-9]{3}/i.test(rawMessage) ||
     /status\s*[0-9]{3}/i.test(rawMessage) ||
+    lowered.includes("unexpected token") ||
+    lowered.includes("<!doctype") ||
+    lowered.includes("is not valid json") ||
+    lowered.includes("json.parse") ||
+    lowered.includes("bad gateway") ||
+    lowered.includes("internal server") ||
+    lowered.includes("service unavailable") ||
     lowered.includes("cloudflare") ||
     lowered.includes("openrouter") ||
     lowered.includes("workers ai") ||
@@ -92,9 +99,11 @@ export function formatFriendlyErrorMessage(
     lowered.includes("postgrest") ||
     lowered.includes("typeerror") ||
     lowered.includes("syntaxerror") ||
-    lowered.includes("json.parse") ||
+    lowered.includes("<html") ||
+    lowered.includes("</html>") ||
     rawMessage.includes("{") ||
     rawMessage.includes("}") ||
+    rawMessage.includes("<") ||
     rawMessage.length > 200;
 
   if (containsTechnicalJargon) {
