@@ -17,6 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { downloadBibleImage, shareBibleImage } from "@/lib/downloadUtils";
 import { generateCreateModeImage } from "@/services/createModeImageService";
 import { APP_WHITE_LOGO_DATA_URL } from "@/assets/appLogoWhite";
+import { formatFriendlyErrorMessage } from "@/lib/errorUtils";
 
 const formats: { key: CardFormat; label: string; dim: string; icon: React.ReactNode }[] = [
   { key: "square", label: "Quadrado", dim: "1080 × 1080 (1:1)", icon: <Square className="h-4 w-4" /> },
@@ -570,23 +571,13 @@ const CreatePage = () => {
       throw new Error("O modelo não retornou uma imagem. Tente novamente.");
     } catch (e: any) {
       console.error("AI Image Error:", e);
-      const errMsg = e.message || "";
-      if (
-        errMsg.toLowerCase().includes("improprio") || 
-        errMsg.toLowerCase().includes("impróprio") || 
-        errMsg.toLowerCase().includes("bloqueado") || 
-        errMsg.toLowerCase().includes("inapropriad") ||
-        errMsg.toLowerCase().includes("diretrizes") ||
-        errMsg.toLowerCase().includes("termos") ||
-        errMsg.toLowerCase().includes("conteúdo visual")
-      ) {
-        toast({ title: "Conteúdo Bloqueado", description: "A descrição fornecida contém termos que violam as diretrizes de conteúdo visual.", variant: "destructive" });
-      } else {
-        const formattedMsg = errMsg.includes("Failed to fetch") 
-          ? "Erro de conexão com o servidor. Verifique sua internet e tente novamente." 
-          : (errMsg || "Tente novamente mais tarde.");
-        toast({ title: "Erro na IA", description: formattedMsg, variant: "destructive" });
-      }
+      const friendly = formatFriendlyErrorMessage(e, "Não foi possível gerar a imagem no momento. Tente novamente.");
+      const isBlocked = friendly.includes("diretrizes") || friendly.includes("conteúdo visual");
+      toast({ 
+        title: isBlocked ? "Conteúdo Bloqueado" : "Aviso", 
+        description: friendly, 
+        variant: "destructive" 
+      });
     } finally {
       await checkCreateUsage();
       setAiImageLoading(false);

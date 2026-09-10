@@ -9,6 +9,7 @@ import helmet from "helmet";
 import fs from "fs";
 import { sanitizeUserPrompt, buildPrivacyEnhancedSystemRule } from "./src/lib/security/privacyGuard.js";
 import { resolveBiblicalSituationSubject } from "./src/data/biblicalSituations.js";
+import { resolveBiblicalBackground, buildUltraRealisticChatPrompt } from "./src/data/biblicalBackgrounds.js";
 
 // --- ESM & CJS COMPATIBLE RUNTIME RESOLUTION ---
 
@@ -27,6 +28,11 @@ const getSupabaseAdmin = () => {
     }
   });
 };
+
+// Sincronizar chaves do Gemini/Google AI para consistência em todos os módulos e bibliotecas
+if (process.env.GEMINI_API_KEY && (!process.env.GOOGLE_API_KEY || process.env.GOOGLE_API_KEY !== process.env.GEMINI_API_KEY)) {
+  process.env.GOOGLE_API_KEY = process.env.GEMINI_API_KEY;
+}
 
 const app = express();
 
@@ -251,7 +257,16 @@ function startServer() {
       clean === "::ffff:127.0.0.1" ||
       clean.startsWith("10.") ||
       clean.startsWith("172.") ||
-      clean.startsWith("192.168.")
+      clean.startsWith("192.168.") ||
+      clean.startsWith("169.254.") ||
+      clean.startsWith("::ffff:169.254.") ||
+      clean.startsWith("::ffff:10.") ||
+      clean.startsWith("::ffff:172.") ||
+      clean.startsWith("::ffff:192.168.") ||
+      clean.startsWith("fc00:") ||
+      clean.startsWith("fe80:") ||
+      clean.includes("localhost") ||
+      clean.includes("run.app")
     );
   };
 
@@ -368,7 +383,11 @@ function startServer() {
         origin.endsWith('.vercel.app') || 
         origin.endsWith('.run.app') || 
         origin.includes('online-biblia') ||
-        origin.includes('bibliaonline')
+        origin.includes('bibliaonline') ||
+        origin.includes('localhost') ||
+        origin.includes('127.0.0.1') ||
+        origin.includes('ai.studio') ||
+        origin.includes('google.com')
       ) {
         callback(null, true);
       } else {
@@ -386,6 +405,19 @@ function startServer() {
 
   // 1. Detecção de padrões de ataque (SQLi, XSS, Path Traversal)
   const detectAttacks = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    // Pula rotas de IA, geração de imagens e chat onde o body contém linguagem natural / prompts bíblicos
+    const path = req.path || "";
+    if (
+      path.includes('/generate-image') || 
+      path.includes('/create-mode') || 
+      path.includes('/chat') || 
+      path.includes('/gemini') || 
+      path.includes('/moderate-image') ||
+      path.includes('/security/report')
+    ) {
+      return next();
+    }
+
     try {
       let url = req.originalUrl || "";
       try {
@@ -400,7 +432,7 @@ function startServer() {
         SQL_INJECTION:  /(\bselect\b|\bunion\b|\binsert\b|\bdrop\b).{0,50}(\bfrom\b|\bwhere\b|\binto\b)/i,
         XSS_ATTEMPT:    /(<script|javascript:|onerror\s*=|alert\s*\()/i,
         PATH_TRAVERSAL: /\.\.[/\\]/,
-        COMMAND_INJECT: /[;&|`$()].*(?:cmd|bash|sh|powershell|wget|curl)/i,
+        COMMAND_INJECT: /[;&|`$()].*\b(?:cmd(?:\.exe)?|bash|powershell|wget|curl)\b/i,
         NOSQL_INJECT:   /\$(?:where|gt|lt|ne|in|nin|exists|regex)\b/,
       };
 
@@ -408,8 +440,11 @@ function startServer() {
         if (regex.test(combined)) {
           console.warn(`[Sentinel] Ataque detectado: ${name} - IP: ${req.ip} - URL: ${req.originalUrl}`);
           
-          // Se for um ataque claro do tipo SQLi ou XSS, bane o IP imediatamente de forma persistente
-          if (req.ip) banEntity(req.ip, `Detecção automática pelo Sentinel no endpoint: ${req.originalUrl} (${name})`);
+          // Se não for IP interno protegido, pode registrar aviso
+          const ip = req.ip;
+          if (ip && !isProtectedOrInternalIdentity(ip)) {
+            banEntity(ip, `Detecção automática pelo Sentinel no endpoint: ${req.originalUrl} (${name})`);
+          }
           
           return res.status(400).json({ error: 'MALICIOUS_REQUEST_DETECTED', type: name });
         }
@@ -490,6 +525,14 @@ function startServer() {
   // API Health check
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // Version route (no-cache to guarantee production updates instantly)
+  app.get(["/version.json", "/api/version"], (req, res) => {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    res.json({ version: "2.5.1" });
   });
 
   // --- PROXY DE VERIFICAÇÃO DE SENHAS VAZADAS (HAVEIBEENPWNED k-ANONYMITY) ---
@@ -840,7 +883,8 @@ ou
       }
 
       // 3. Obter chaves do Google / Gemini e prompt mestre do Banco de Dados / Ambiente
-      let googleKey = (process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || "").trim();
+      const envGeminiKey = (process.env.GEMINI_API_KEY || "").trim();
+      let googleKey = envGeminiKey || (process.env.GOOGLE_API_KEY || process.env.VITE_GEMINI_API_KEY || "").trim();
       let googleKey2 = (process.env.GOOGLE_API_KEY_2 || process.env.GEMINI_API_KEY_2 || process.env.VITE_GEMINI_API_KEY_2 || "").trim();
       let systemPromptMaster = "Você SÓ PODE responder sobre a Bíblia. Use markdown limpo.";
 
@@ -854,13 +898,17 @@ ou
             const dbGoogle = data.find(d => d.config_key === 'google_ai_key')?.config_value;
             const dbGoogle2 = data.find(d => d.config_key === 'google_ai_key_2')?.config_value;
             const dbMaster = data.find(d => d.config_key === 'system_prompt_master')?.config_value;
-            if (dbGoogle && dbGoogle.trim()) googleKey = dbGoogle.trim();
+            if (!googleKey && dbGoogle && dbGoogle.trim()) googleKey = dbGoogle.trim();
             if (dbGoogle2 && dbGoogle2.trim()) googleKey2 = dbGoogle2.trim();
             if (dbMaster && dbMaster.trim()) systemPromptMaster = dbMaster.trim();
           }
         } catch (dbErr) {
           console.warn("[Modo Criar] Erro de rede ao buscar chaves no banco:", dbErr);
         }
+      }
+
+      if (googleKey) {
+        process.env.GOOGLE_API_KEY = googleKey;
       }
 
       // 4. Refinamento de prompt, tradução para inglês e moderação de conteúdo no Servidor
@@ -874,7 +922,7 @@ ou
       const systemInstruction = `REGRAS MESTRAS: ${systemPromptMaster}
 
 REGRAS DE SEGURANÇA E DECÊNCIA (OBRIGATÓRIO):
-1. SEGURANÇA E VESTIMENTAS: É terminantemente proibido qualquer conteúdo de nudez, sensualidade ou trajes sumários. Personagens bíblicos (especialmente Adão e Eva) DEVEM SEMPRE estar completamente vestidos com trajes modestos bíblicos ("wearing modest ancient biblical garments, fully clothed"). Nunca gere personagens despidos ou sem roupas.
+1. SEGURANÇA E VESTIMENTAS: É terminantemente proibido qualquer conteúdo de nudez, sensualidade ou trajes sumários. Personagens bíblicos DEVEM SEMPRE estar completamente vestidos com trajes modestos bíblicos ("wearing modest ancient biblical garments, fully clothed"). Quando for Adão e Eva, SEM ALTERAR O FUNDO, os personagens devem obrigatoriamente aparecer vestidos com roupas, retratando um homem de cabelo curto e uma mulher. Nunca gere personagens despidos ou sem roupas.
 2. ESCOPO BÍBLICO E CRISTÃO: O conteúdo deve ser 100% bíblico e cristão. Bloqueie feitiçaria, ocultismo, deuses pagãos e temas seculares mundanos. Se violar, responda unicamente: "BLOQUEADO".
 
 DIRETRIZ DE PROMPT CONCISO (REGRA OBRIGATÓRIA):
@@ -892,68 +940,90 @@ DIRETRIZ DE PROMPT CONCISO (REGRA OBRIGATÓRIA):
         console.log(`[Modo Criar - Gemini] Situação bíblica resolvida (${situationMatch.matchedSituation}): "${enhancedPrompt.substring(0, 80)}..."`);
       }
 
-      // Gemini para otimização do prompt
-      const keysToTry = [googleKey, googleKey2, process.env.GOOGLE_API_KEY, process.env.GEMINI_API_KEY].filter(Boolean) as string[];
-      const uniqueKeys = Array.from(new Set(keysToTry));
+      // Aprimorador de Prompts do Modo Criar via OPENROUTER_IMAGENS (sem Gemini)
+      let orKeyCriar = (process.env.OPENROUTER_IMAGENS || process.env.OPEN_ROUTER_IMAGENS || process.env.OPENROUTER_API_KEY || "").trim();
+      if (!orKeyCriar && adminClient) {
+        try {
+          const { data } = await adminClient
+            .from('ai_settings')
+            .select('config_key, config_value')
+            .in('config_key', ['openrouter_imagens', 'open_router_imagens', 'openrouter_api_key']);
+          if (data) {
+            const dbVal = data.find(d => d.config_key === 'openrouter_imagens' || d.config_key === 'open_router_imagens')?.config_value;
+            if (dbVal && dbVal.trim()) orKeyCriar = dbVal.trim();
+          }
+        } catch (dbErr) {
+          console.warn("[Modo Criar - Aprimorador] Erro lendo chaves:", dbErr);
+        }
+      }
 
-      for (const key of uniqueKeys) {
-        if (promptGenerated) break;
-        for (const modelId of ['gemini-3.8-flash', 'gemini-2.5-flash']) {
+      if (!promptGenerated && orKeyCriar) {
+        const modelsToTry = ["openai/gpt-4o-mini", "deepseek/deepseek-chat"];
+        for (const modelId of modelsToTry) {
           if (promptGenerated) break;
           try {
-            const { GoogleGenAI } = await import("@google/genai");
-            const ai = new GoogleGenAI({
-              apiKey: key,
-              httpOptions: {
-                headers: {
-                  'User-Agent': 'aistudio-build'
-                }
-              }
-            });
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-            const response = await ai.models.generateContent({
-              model: modelId,
-              contents: `${systemInstruction}\n\nPedido simples do usuário: "${prompt}"`,
-              config: {
+            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${orKeyCriar}`,
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://mundogospel.app",
+                "X-Title": "Aprimorador de Prompts"
+              },
+              body: JSON.stringify({
+                model: modelId,
+                messages: [
+                  { role: "system", content: systemInstruction },
+                  { role: "user", content: `Pedido do usuário: "${prompt}"` }
+                ],
                 temperature: 0.1,
-                maxOutputTokens: 80
-              }
+                max_tokens: 80
+              }),
+              signal: controller.signal
             });
 
-            const text = response.text || "";
-            if (text) {
-              let trimmedText = text.trim();
+            clearTimeout(timeoutId);
 
-              const codeBlockMatch = trimmedText.match(/```(?:[a-z]*\n)?([\s\S]+?)```/i);
-              if (codeBlockMatch && codeBlockMatch[1]) {
-                trimmedText = codeBlockMatch[1].trim();
+            if (response.ok) {
+              const data = await response.json();
+              const text = data?.choices?.[0]?.message?.content || "";
+              if (text) {
+                let trimmedText = text.trim();
+
+                const codeBlockMatch = trimmedText.match(/```(?:[a-z]*\n)?([\s\S]+?)```/i);
+                if (codeBlockMatch && codeBlockMatch[1]) {
+                  trimmedText = codeBlockMatch[1].trim();
+                }
+
+                const promptMarker = trimmedText.match(/(?:\*\*|#+)?\s*(?:flux\s+image\s+model\s+prompt|prompt)\s*(?:\*\*|#+)?\s*:\s*([\s\S]+)/i);
+                if (promptMarker && promptMarker[1]) {
+                  trimmedText = promptMarker[1].trim();
+                }
+
+                trimmedText = trimmedText
+                  .replace(/^(?:com prazer|com certeza|certamente|olá|aqui está|eis o|claro|perfeito|diretor de arte)[\s\S]*?(?:prompt:|\n\n)/i, '')
+                  .replace(/^(?:here is|sure|certainly|below is|as requested|okay)[\s\S]*?(?:prompt:|\n\n)/i, '')
+                  .replace(/```[a-z]*\n?/gi, '')
+                  .replace(/```/g, '')
+                  .trim();
+
+                trimmedText = trimmedText.replace(/^["'*]+|["'*]+$/g, '').trim();
+
+                if (trimmedText.toUpperCase().includes("BLOQUEADO")) {
+                  isBlocked = true;
+                } else {
+                  enhancedPrompt = trimmedText;
+                }
+                promptGenerated = true;
+                console.log(`[Modo Criar - Aprimorador OpenRouter] Prompt otimizado com sucesso (${modelId}): "${enhancedPrompt.substring(0, 80)}..."`);
+                break;
               }
-
-              const promptMarker = trimmedText.match(/(?:\*\*|#+)?\s*(?:flux\s+image\s+model\s+prompt|prompt)\s*(?:\*\*|#+)?\s*:\s*([\s\S]+)/i);
-              if (promptMarker && promptMarker[1]) {
-                trimmedText = promptMarker[1].trim();
-              }
-
-              trimmedText = trimmedText
-                .replace(/^(?:com prazer|com certeza|certamente|olá|aqui está|eis o|claro|perfeito|diretor de arte)[\s\S]*?(?:prompt:|\n\n)/i, '')
-                .replace(/^(?:here is|sure|certainly|below is|as requested|okay)[\s\S]*?(?:prompt:|\n\n)/i, '')
-                .replace(/```[a-z]*\n?/gi, '')
-                .replace(/```/g, '')
-                .trim();
-
-              trimmedText = trimmedText.replace(/^["'*]+|["'*]+$/g, '').trim();
-
-              if (trimmedText.toUpperCase().includes("BLOQUEADO")) {
-                isBlocked = true;
-              } else {
-                enhancedPrompt = trimmedText;
-              }
-              promptGenerated = true;
-              console.log(`[Modo Criar - Gemini] Prompt otimizado com sucesso (${modelId}): "${enhancedPrompt.substring(0, 80)}..."`);
-              break;
             }
-          } catch (geminiErr: any) {
-            console.warn(`[Modo Criar - Gemini] Falha no modelo ${modelId}:`, geminiErr?.message || geminiErr);
+          } catch (orErr: any) {
+            console.warn(`[Modo Criar - Aprimorador OpenRouter] Falha no modelo ${modelId}:`, orErr?.message || orErr);
           }
         }
       }
@@ -1063,9 +1133,230 @@ DIRETRIZ DE PROMPT CONCISO (REGRA OBRIGATÓRIA):
   // ROTA DEDICADA E ISOLADA DO MODO CRIAR (POLLINATIONS FLUX)
   app.post("/api/create-mode/generate-image", handleCreateModeImageGeneration);
 
+  /**
+   * ============================================================================
+   * APRIMORADOR DE PROMPTS VIA OPENROUTER (OPENROUTER_IMAGENS)
+   * ============================================================================
+   * Analisa o prompt do usuário antes do envio para enriquecer clareza, iluminação,
+   * composição visual e reverência bíblica, mantendo ESTRITAMENTE o cenário e o
+   * contexto bíblico intactos ("não deve mexer no cenário, deve deixar como está").
+   * Usa a API OPENROUTER_IMAGENS sem utilizar Gemini.
+   * ============================================================================
+   */
+  const promptRefineCache = new Map<string, { refinedPrompt: string; originalPrompt: string; isBlocked?: boolean }>();
+
+  async function refinePromptWithAprimorador(
+    prompt: string,
+    options: {
+      mode?: string;
+      style?: string;
+      preserveScenario?: boolean;
+    } = {}
+  ): Promise<{ refinedPrompt: string; originalPrompt: string; isBlocked?: boolean }> {
+    const cleanInput = (prompt || "").trim();
+    if (!cleanInput) {
+      return { refinedPrompt: cleanInput, originalPrompt: cleanInput };
+    }
+
+    const cacheKey = `${cleanInput}__${options.style || ''}__${options.mode || ''}`;
+    if (promptRefineCache.has(cacheKey)) {
+      return promptRefineCache.get(cacheKey)!;
+    }
+
+    // Validação de termos estritamente impróprios
+    if (isPromptForbiddenByTerms(cleanInput)) {
+      return { refinedPrompt: "", originalPrompt: cleanInput, isBlocked: true };
+    }
+
+    const applyBiblicalRules = (promptText: string): string => {
+      let result = promptText;
+      const isAdamEve = /\b(ad[aã]o|adam|eva|eve)\b/i.test(cleanInput) || /\b(ad[aã]o|adam|eva|eve)\b/i.test(result);
+      if (isAdamEve) {
+        if (!/cabelo curto|short hair/i.test(result)) {
+          result += ", retratando um homem de cabelo curto e uma mulher, ambos vestidos com roupas bíblicas de linho";
+        }
+        if (!/vestid|roupa|clothed|garment|tunic/i.test(result)) {
+          result += ", obrigatoriamente vestidos com roupas modestas, sem nenhuma nudez";
+        }
+      }
+      return result;
+    };
+
+    // Obter chaves OPENROUTER_IMAGENS / OpenRouter (prioridade solicitada pelo usuário)
+    let orKey = (process.env.OPENROUTER_IMAGENS || process.env.OPEN_ROUTER_IMAGENS || "").trim();
+    let fallbackOrKey1 = (process.env.OPENROUTER_API_KEY || "").trim();
+    let fallbackOrKey2 = (process.env.OPENROUTER_API_KEY_2 || "").trim();
+
+    const adminClient = getSupabaseAdmin();
+    if (adminClient && !orKey) {
+      try {
+        const { data } = await adminClient
+          .from('ai_settings')
+          .select('config_key, config_value')
+          .in('config_key', ['openrouter_imagens', 'open_router_imagens', 'openrouter_api_key', 'openrouter_api_key_2']);
+        if (data) {
+          const dbKey = data.find(d => d.config_key === 'openrouter_imagens' || d.config_key === 'open_router_imagens')?.config_value;
+          const dbKey2 = data.find(d => d.config_key === 'openrouter_api_key')?.config_value;
+          if (dbKey && dbKey.trim()) orKey = dbKey.trim();
+          if (dbKey2 && dbKey2.trim() && !fallbackOrKey1) fallbackOrKey1 = dbKey2.trim();
+        }
+      } catch (e) {
+        console.warn("[Aprimorador de Prompts] Erro ao consultar chaves no banco:", e);
+      }
+    }
+
+    const keysToTry = Array.from(new Set([orKey, fallbackOrKey1, fallbackOrKey2].filter(Boolean)));
+
+    if (keysToTry.length === 0) {
+      console.warn("[Aprimorador de Prompts] Sem chave OPENROUTER_IMAGENS disponível, aplicando regras locais.");
+      const fallbackResult = { refinedPrompt: applyBiblicalRules(cleanInput), originalPrompt: cleanInput };
+      return fallbackResult;
+    }
+
+    const styleInfo = options.style ? `Estilo estético desejado: "${options.style}".` : '';
+
+    const systemInstruction = `Você é o Aprimorador de Prompts de elite para inteligência artificial bíblica e cristã.
+Sua missão é analisar o prompt fornecido pelo usuário e aprimorá-lo para máxima clareza, riqueza de detalhes visuais, texturas naturais, iluminação cinematográfica e fidelidade bíblica e histórica.
+
+🛑 REGRA ABSOLUTA E INVIOLÁVEL: NÃO ALTERE O CENÁRIO!
+- O cenário, ambiente, lugar geográfico bíblico, paisagem e evento histórico relatado pelo usuário NÃO PODEM SER ALTERADOS.
+- O cenário deve ser mantido EXATAMENTE como está agora ("sem alterar cenário ele não deve mexer deve deixar como está agora").
+- Se o usuário solicitou um cenário específico (ex: Mar Vermelho, Jardim do Éden, Monte Sinai, Rio Jordão, Deserto da Judeia, Barco na tempestade, etc.), MANTENHA EXATAMENTE ESTE CENÁRIO.
+- Apenas enriqueça a descrição visual, texturas, iluminação e solenidade reverente DENTRO do cenário pedido pelo usuário.
+
+🛡️ DECÊNCIA E VESTIMENTAS BÍBLICAS OBRIGATÓRIAS (ESPECIALMENTE ADÃO E EVA):
+- REGRA CRÍTICA PARA ADÃO E EVA: Quando o pedido for sobre Adão e Eva, SEM ALTERAR O CENÁRIO OU O FUNDO (deixe o cenário e o fundo intactos como estão):
+  1. Os personagens DEVEM OBRIGATORIAMENTE aparecer vestidos com roupas ("vestindo túnicas bíblicas modestas de linho, completamente vestidos, sem nenhuma nudez").
+  2. Deve aparecer OBRIGATORIAMENTE um homem de cabelo curto (Adão com cabelo curto bem alinhado) e uma mulher (Eva), ambos vestidos com roupas bíblicas modestas.
+- Todas as figuras bíblicas DEVEM OBRIGATORIAMENTE estar descritas com roupas antigas dignas e modestas. Nudez é estritamente proibida.
+
+🚫 MODERAÇÃO:
+- Se o pedido contiver conteúdo profano, secular mundano, pornográfico ou violar a fé cristã, responda unicamente: BLOQUEADO.
+
+FORMATO DE SAÍDA:
+- Retorne EXCLUSIVAMENTE o prompt melhorado em texto objetivo, em português ou inglês fluido.
+- NÃO inclua explicações, preâmbulos, comentários adicionais ou aspas.`;
+
+    const modelsToTry = [
+      "openai/gpt-4o-mini",
+      "deepseek/deepseek-chat",
+      "meta-llama/llama-3.3-70b-instruct"
+    ];
+
+    for (const key of keysToTry) {
+      for (const modelId of modelsToTry) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+          const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${key}`,
+              "Content-Type": "application/json",
+              "HTTP-Referer": "https://mundogospel.app",
+              "X-Title": "Aprimorador de Prompts"
+            },
+            body: JSON.stringify({
+              model: modelId,
+              messages: [
+                { role: "system", content: systemInstruction },
+                { role: "user", content: `${styleInfo ? styleInfo + "\n\n" : ""}Prompt original a aprimorar sem alterar o cenário:\n"${cleanInput}"` }
+              ],
+              temperature: 0.3,
+              max_tokens: 400
+            }),
+            signal: controller.signal
+          });
+
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            const errText = await response.text();
+            console.warn(`[Aprimorador de Prompts - OpenRouter] HTTP ${response.status} (${modelId}):`, errText.substring(0, 100));
+            continue;
+          }
+
+          const data = await response.json();
+          const text = data?.choices?.[0]?.message?.content || "";
+
+          if (text && text.trim()) {
+            let refined = text.trim();
+
+            const codeBlock = refined.match(/```(?:[a-z]*\n)?([\s\S]+?)```/i);
+            if (codeBlock && codeBlock[1]) {
+              refined = codeBlock[1].trim();
+            }
+
+            const promptMarker = refined.match(/(?:\*\*|#+)?\s*(?:prompt|prompt\s+aprimorado|improved\s+prompt)\s*(?:\*\*|#+)?\s*:\s*([\s\S]+)/i);
+            if (promptMarker && promptMarker[1]) {
+              refined = promptMarker[1].trim();
+            }
+
+            refined = refined
+              .replace(/^(?:aqui está|olá|com certeza|certamente|eis o prompt|prompt aprimorado:)[\s\S]*?\n\n/i, '')
+              .replace(/^["'*]+|["'*]+$/g, '')
+              .trim();
+
+            if (refined.toUpperCase().includes("BLOQUEADO")) {
+              const blockedResult = { refinedPrompt: "", originalPrompt: cleanInput, isBlocked: true };
+              if (promptRefineCache.size > 200) promptRefineCache.clear();
+              promptRefineCache.set(cacheKey, blockedResult);
+              return blockedResult;
+            }
+
+            refined = applyBiblicalRules(refined);
+
+            console.log(`[Aprimorador de Prompts - OpenRouter] Sucesso (${modelId}): "${refined.substring(0, 80)}..."`);
+            const finalResult = { refinedPrompt: refined, originalPrompt: cleanInput };
+            if (promptRefineCache.size > 200) promptRefineCache.clear();
+            promptRefineCache.set(cacheKey, finalResult);
+            return finalResult;
+          }
+        } catch (orErr: any) {
+          console.warn(`[Aprimorador de Prompts - OpenRouter] Falha no modelo ${modelId}:`, orErr?.message || orErr);
+        }
+      }
+    }
+
+    const fallback = { refinedPrompt: applyBiblicalRules(cleanInput), originalPrompt: cleanInput };
+    if (promptRefineCache.size > 200) promptRefineCache.clear();
+    promptRefineCache.set(cacheKey, fallback);
+    return fallback;
+  }
+
+  // ROTA DO APRIMORADOR DE PROMPTS VIA OPENROUTER (OPENROUTER_IMAGENS)
+  app.post("/api/prompt/refine", async (req, res) => {
+    try {
+      const { prompt: rawPrompt, mode = 'image', style = '' } = req.body || {};
+      if (!rawPrompt || typeof rawPrompt !== 'string' || !rawPrompt.trim()) {
+        return res.status(400).json({ error: "O prompt é obrigatório para análise." });
+      }
+
+      const { cleanPrompt: prompt } = sanitizeUserPrompt(rawPrompt);
+      const result = await refinePromptWithAprimorador(prompt, { mode, style, preserveScenario: true });
+
+      if (result.isBlocked) {
+        return res.status(400).json({ 
+          error: "O conteúdo solicitado viola as diretrizes de decência e escopo bíblico.",
+          isBlocked: true 
+        });
+      }
+
+      return res.json({
+        success: true,
+        originalPrompt: prompt,
+        refinedPrompt: result.refinedPrompt
+      });
+    } catch (err: any) {
+      console.error("[Aprimorador de Prompts API Error]:", err);
+      return res.status(500).json({ error: err.message || "Erro ao aprimorar prompt com Gemini." });
+    }
+  });
+
   // ROTA PRINCIPAL DE IMAGENS:
   // - Modo Criar: delegada para handleCreateModeImageGeneration (Pollinations AI)
-  // - Modo Chat: executada EXCLUSIVAMENTE via Cloudflare Workers AI (sem usar Pollinations)
+  // - Modo Chat: executada EXCLUSIVAMENTE via motor de imagens dedicado (sem usar Pollinations)
   app.post("/api/generate-image", async (req, res) => {
     try {
       const { prompt: rawPrompt, source = 'chat' } = req.body;
@@ -1076,7 +1367,7 @@ DIRETRIZ DE PROMPT CONCISO (REGRA OBRIGATÓRIA):
       }
 
       // ============================================================================
-      // ROTA EXCLUSIVA DO CHAT (CLOUDFLARE WORKERS AI - SEM POLLINATIONS)
+      // ROTA EXCLUSIVA DO CHAT (MOTOR DEDICADO - SEM POLLINATIONS)
       // ============================================================================
       if (!rawPrompt) {
         return res.status(400).json({ error: "O prompt é obrigatório." });
@@ -1111,9 +1402,22 @@ DIRETRIZ DE PROMPT CONCISO (REGRA OBRIGATÓRIA):
       const quotaType = 'image';
       const quotaLimit = 3;
 
-      // Cloudflare Workers AI credentials (para geração de imagens no Chat)
-      let cfAccountId = (process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CLOUDFLARE_PROJECT_ID || "").trim();
-      let cfApiToken = (process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_KEY || process.env.CLOUDFLARE_TOKEN || "").trim();
+      // Credenciais oficiais do motor de imagens do Chat configuradas nos Secrets
+      let cfAccountId = (
+        process.env.CLOUDFLARE_ACCOUNT_ID ||
+        process.env.CLOUDFLARE_ACCOUNT ||
+        process.env.CLOUDFLARE_ID ||
+        process.env.CLOUDFLARE_PROJECT_ID ||
+        ""
+      ).replace(/^["']|["']$/g, '').trim();
+
+      let cfApiToken = (
+        process.env.CLOUDFLARE_API_TOKEN ||
+        process.env.CLOUDFLARE_TOKEN ||
+        process.env.CLOUDFLARE_API_KEY ||
+        process.env.CLOUDFLARE_KEY ||
+        ""
+      ).replace(/^["']|["']$/g, '').replace(/^Bearer\s+/i, '').trim();
 
       // 2. Verificar limite de cotas de imagem do Chat nas últimas 12 horas
       if (adminClient && userId) {
@@ -1136,32 +1440,42 @@ DIRETRIZ DE PROMPT CONCISO (REGRA OBRIGATÓRIA):
         }
       }
 
-      // 3. Obter configurações de Cloudflare no Banco caso não estejam no ambiente
-      if (adminClient && (!cfAccountId || !cfApiToken)) {
+      // 3. Obter configurações de Cloudflare no Banco caso disponíveis para suplementar ou atualizar
+      let cfGatewayId = (process.env.CLOUDFLARE_GATEWAY_ID || "").trim();
+      if (adminClient) {
         try {
           const { data, error } = await adminClient
             .from('ai_settings')
             .select('config_key, config_value')
-            .in('config_key', ['cloudflare_account_id', 'cloudflare_api_token']);
+            .in('config_key', ['cloudflare_account_id', 'cloudflare_api_token', 'cloudflare_account', 'cloudflare_token', 'cloudflare_gateway_id', 'cf_gateway']);
           if (!error && data) {
-            const dbCfAccount = data.find(d => d.config_key === 'cloudflare_account_id')?.config_value;
-            const dbCfToken = data.find(d => d.config_key === 'cloudflare_api_token')?.config_value;
-            if (dbCfAccount && dbCfAccount.trim()) cfAccountId = dbCfAccount.trim();
-            if (dbCfToken && dbCfToken.trim()) cfApiToken = dbCfToken.trim();
+            const dbCfAccount = data.find(d => d.config_key === 'cloudflare_account_id' || d.config_key === 'cloudflare_account')?.config_value;
+            const dbCfToken = data.find(d => d.config_key === 'cloudflare_api_token' || d.config_key === 'cloudflare_token')?.config_value;
+            const dbCfGateway = data.find(d => d.config_key === 'cloudflare_gateway_id' || d.config_key === 'cf_gateway')?.config_value;
+            
+            if (dbCfAccount && dbCfAccount.trim()) {
+              cfAccountId = dbCfAccount.replace(/^["']|["']$/g, '').trim();
+            }
+            if (dbCfToken && dbCfToken.trim()) {
+              cfApiToken = dbCfToken.replace(/^["']|["']$/g, '').replace(/^Bearer\s+/i, '').trim();
+            }
+            if (dbCfGateway && dbCfGateway.trim()) {
+              cfGatewayId = dbCfGateway.replace(/^["']|["']$/g, '').trim();
+            }
           }
         } catch (dbErr) {
           console.warn("[Chat Image] Erro ao buscar credenciais Cloudflare no banco:", dbErr);
         }
       }
 
-      // Validação de credenciais do motor de imagens para o Chat
+      // Validação de credenciais do motor de geração de imagens do Chat
       if (!cfAccountId || !cfApiToken) {
-        return res.status(400).json({
-          error: "O serviço de geração de imagens do Chat está temporariamente indisponível. Por favor, tente novamente mais tarde."
+        return res.status(503).json({
+          error: "As credenciais da Cloudflare (CLOUDFLARE_ACCOUNT_ID e CLOUDFLARE_API_TOKEN) não foram encontradas. Configure-as nos Secrets."
         });
       }
 
-      // Extração de estilo artístico
+      // Extração e mapeamento de estilo artístico para o Chat
       let extractedStyle = "";
       const styleMatch = prompt.match(/\[Estilo:\s*([^\]]+)\]/i);
       if (styleMatch && styleMatch[1]) {
@@ -1172,116 +1486,169 @@ DIRETRIZ DE PROMPT CONCISO (REGRA OBRIGATÓRIA):
         extractedStyle = styleAddon;
       }
 
+      let styleEn = "";
+      if (extractedStyle) {
+        const lowerStyle = extractedStyle.toLowerCase();
+        if (lowerStyle.includes("fotorealismo") || lowerStyle.includes("photorealism")) {
+          styleEn = "ultra photorealistic, authentic realistic photography, real life natural lighting, high dynamic range photo";
+        } else if (lowerStyle.includes("desenho") || lowerStyle.includes("drawing")) {
+          styleEn = "hand-drawn illustration, artistic line drawing, detailed clean drawing style";
+        } else if (lowerStyle.includes("pixel")) {
+          styleEn = "16-bit retro pixel art, clean pixel grid aesthetic";
+        } else if (lowerStyle.includes("cinematogr") || lowerStyle.includes("cinematic")) {
+          styleEn = "cinematic lighting, dramatic cinematic atmosphere, film still aesthetic";
+        } else {
+          styleEn = extractedStyle;
+        }
+      } else {
+        // Estilo padrão do Chat é cinematográfico
+        styleEn = "cinematic lighting, dramatic cinematic atmosphere, film still aesthetic";
+      }
+
       let cleanPrompt = prompt
         .replace(/\[Estilo:\s*[^\]]+\]/gi, '')
         .replace(/\[Modo:[^\]]+\]/gi, '')
         .trim();
       if (!cleanPrompt) cleanPrompt = "biblical scene";
 
-      let translatedPrompt = cleanPrompt
-        .replace(/\bad[aã]o\b/gi, 'Adam')
-        .replace(/\beva\b/gi, 'Eve')
-        .replace(/\bjardim\s+do\s+[eé]den\b/gi, 'Garden of Eden')
-        .replace(/\bpara[ií]so\b/gi, 'Paradise Eden')
-        .replace(/\bmar\s+vermelho\b/gi, 'Red Sea')
-        .replace(/\bmois[eé]s\b/gi, 'Moses')
-        .replace(/\bdavi\s+e\s+golias\b/gi, 'David and Goliath')
-        .replace(/\bdavi\b/gi, 'David')
-        .replace(/\bgolias\b/gi, 'Goliath')
-        .replace(/\barca\s+de\s+no[eé]\b/gi, "Noah's Ark")
-        .replace(/\bno[eé]\b/gi, 'Noah')
-        .replace(/\bjesus(\s+cristo)?\b/gi, 'Jesus Christ');
+      // 1. APRIMORADOR DE PROMPTS (OPENROUTER_IMAGENS) MANTENDO O CENÁRIO INTACTO (evitando redundância se já refinado)
+      const isAlreadyRefined = Boolean(req.body.isAlreadyRefined);
+      let promptForGeneration = cleanPrompt;
 
-      let finalChatPrompt = translatedPrompt;
-      if (extractedStyle) {
-        finalChatPrompt += `, ${extractedStyle}`;
+      if (!isAlreadyRefined) {
+        console.log(`[Image Generation] Aprimorador de Prompts (OpenRouter) analisando prompt antes do envio...`);
+        const refinedData = await refinePromptWithAprimorador(cleanPrompt, {
+          style: styleEn,
+          mode: 'image',
+          preserveScenario: true
+        });
+
+        if (refinedData.isBlocked) {
+          return res.status(400).json({ error: "O conteúdo solicitado viola as diretrizes de decência ou escopo bíblico." });
+        }
+
+        if (refinedData.refinedPrompt) {
+          promptForGeneration = refinedData.refinedPrompt;
+        }
+      } else {
+        console.log(`[Image Generation] Prompt já refinado previamente pelo cliente, prosseguindo diretamente...`);
       }
 
-      // Proteção de Decência e Modéstia: Adão e Eva e personagens bíblicos SEMPRE vestidos
-      const isAdamAndEve = (/ad[aã]o|adam/i.test(cleanPrompt) && /eva|eve/i.test(cleanPrompt)) ||
-        /\b(ad[aã]o|adam)\b.*\b(eva|eve)\b|\b(eva|eve)\b.*\b(ad[aã]o|adam)\b/i.test(cleanPrompt) ||
-        (/adam/i.test(translatedPrompt) && /eve/i.test(translatedPrompt));
+      // 2. Leitura da definição de fundos bíblicos ultra-realistas ancorando o cenário original
+      const { finalPrompt: richChatPrompt, matchedStory, isAdamAndEve } = buildUltraRealisticChatPrompt(promptForGeneration, styleEn);
+      let finalChatPrompt = richChatPrompt;
 
-      if (isAdamAndEve && !/clothed|garment|tunic|robe|veste|roupa|vestid/i.test(finalChatPrompt)) {
-        finalChatPrompt += ", both fully clothed wearing modest ancient biblical linen tunics";
+      const isAdamEvePrompt = isAdamAndEve || /\b(ad[aã]o|adam|eva|eve)\b/i.test(cleanPrompt) || /\b(ad[aã]o|adam|eva|eve)\b/i.test(promptForGeneration);
+      if (isAdamEvePrompt) {
+        if (!/short hair/i.test(finalChatPrompt)) {
+          finalChatPrompt += ", depicting a man with neat short hair (Adam) and a woman (Eve), both mandatorily fully clothed wearing modest ancient biblical linen tunics, zero nudity, 100% clothed";
+        }
       }
 
-      const finalNegativePrompt = "nudity, naked, nude, topless, bare breasts, bare shoulders, cleavage, unclothed, sensual, revealing clothes, erotic";
+      let finalNegativePrompt = "nudity, naked, nude, topless, bare breasts, bare shoulders, cleavage, unclothed, sensual, revealing clothes, erotic";
+      if (isAdamEvePrompt) {
+        finalNegativePrompt += ", long hair on man, man with long hair, unclothed, bare chest, shirtless";
+      }
 
-      console.log(`[Chat Image Engine] Gerando para o usuário ${userId}...`);
-      console.log(`[Chat Image Engine] Prompt: "${finalChatPrompt}"`);
+      console.log(`[Image Generation] Gerando para o usuário ${userId}...`);
+      console.log(`[Image Generation] Tema Bíblico Identificado: "${matchedStory}"`);
+      console.log(`[Image Generation] Prompt com Fundo Ultra-Realista: "${finalChatPrompt}"`);
+
+      const maskedToken = cfApiToken ? `${cfApiToken.substring(0, 8)}...${cfApiToken.substring(cfApiToken.length - 6)} (tam: ${cfApiToken.length})` : "ausente";
+      console.log(`[Image Generation] Usando Cloudflare Account: "${cfAccountId}", Token: ${maskedToken}${cfGatewayId ? `, Gateway: "${cfGatewayId}"` : ""}`);
 
       const cfModels = [
-        "@cf/stabilityai/stable-diffusion-xl-base-1.0",
+        "@cf/black-forest-labs/flux-1-schnell",
         "@cf/bytedance/stable-diffusion-xl-lightning",
-        "@cf/black-forest-labs/flux-1-schnell"
+        "@cf/stabilityai/stable-diffusion-xl-base-1.0",
+        "@cf/runwayml/stable-diffusion-v1-5",
+        "@cf/lykon/dreamshaper-8-lcm"
       ];
 
       let base64Image = "";
       let lastError = "";
 
       for (const model of cfModels) {
-        try {
-          console.log(`[Chat Image Engine] Chamando ${model}...`);
-          const cfUrl = `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/ai/run/${model}`;
-          
-          const isFlux = model.includes("flux");
-          const isLightning = model.includes("lightning");
-          const requestBody: Record<string, any> = { prompt: finalChatPrompt };
-          
-          if (!isFlux) {
-            if (finalNegativePrompt) {
-              requestBody.negative_prompt = finalNegativePrompt;
-            }
-            requestBody.num_steps = isLightning ? 8 : 20;
-            requestBody.guidance = 7.5;
-          }
+        if (!cfAccountId || !cfApiToken) break;
+        
+        // Montar URLs candidatas: Direto e via AI Gateway (se configurado)
+        const candidateUrls = [
+          `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/ai/run/${model}`
+        ];
+        if (cfGatewayId) {
+          candidateUrls.push(`https://gateway.ai.cloudflare.com/v1/${cfAccountId}/${cfGatewayId}/workers-ai/${model}`);
+        }
 
-          const cfRes = await fetch(cfUrl, {
-            method: "POST",
-            headers: {
+        const isFlux = model.includes("flux");
+        const isLightning = model.includes("lightning");
+        const requestBody: Record<string, any> = { prompt: finalChatPrompt };
+        
+        if (isFlux) {
+          requestBody.steps = 4;
+        } else {
+          if (finalNegativePrompt) {
+            requestBody.negative_prompt = finalNegativePrompt;
+          }
+          requestBody.num_steps = isLightning ? 8 : 20;
+          requestBody.guidance = 7.5;
+        }
+
+        for (const cfUrl of candidateUrls) {
+          try {
+            console.log(`[Image Generation] Renderizando com modelo ${model} via ${cfUrl.includes("gateway") ? "AI Gateway" : "API Direta"}...`);
+            
+            const headers: Record<string, string> = {
               "Authorization": `Bearer ${cfApiToken}`,
               "Content-Type": "application/json"
-            },
-            body: JSON.stringify(requestBody)
-          });
+            };
+            if (cfUrl.includes("gateway")) {
+              headers["cf-aig-authorization"] = `Bearer ${cfApiToken}`;
+            }
 
-          if (!cfRes.ok) {
-            const errText = await cfRes.text();
-            console.warn(`[Chat Image Engine] Falha no modelo ${model} (HTTP ${cfRes.status}):`, errText);
-            lastError = `Status ${cfRes.status}: ${errText}`;
-            continue;
-          }
+            const cfRes = await fetch(cfUrl, {
+              method: "POST",
+              headers,
+              body: JSON.stringify(requestBody)
+            });
 
-          const contentType = cfRes.headers.get("content-type") || "";
-          if (contentType.includes("application/json")) {
-            const json = await cfRes.json();
-            const imgData = json.result?.image || json.image;
-            if (imgData) {
-              base64Image = imgData.startsWith("data:") ? imgData : `data:image/jpeg;base64,${imgData}`;
-              console.log(`[Chat Image Engine] Imagem obtida com sucesso (${model})!`);
-              break;
-            } else {
-              lastError = JSON.stringify(json.errors || json);
+            if (!cfRes.ok) {
+              const errText = await cfRes.text();
+              console.warn(`[Image Generation] Falha no modelo ${model} (HTTP ${cfRes.status}):`, errText);
+              lastError = `Status ${cfRes.status}: ${errText}`;
               continue;
             }
-          } else {
-            const arrayBuffer = await cfRes.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-            const mime = contentType.includes("png") ? "image/png" : "image/jpeg";
-            base64Image = `data:${mime};base64,${buffer.toString("base64")}`;
-            console.log(`[Chat Image Engine] Imagem obtida via stream (${model})!`);
-            break;
+
+            const contentType = cfRes.headers.get("content-type") || "";
+            if (contentType.includes("application/json")) {
+              const json = await cfRes.json();
+              const imgData = json.result?.image || json.image;
+              if (imgData) {
+                base64Image = imgData.startsWith("data:") ? imgData : `data:image/jpeg;base64,${imgData}`;
+                console.log(`[Image Generation] Imagem obtida com sucesso via Cloudflare Workers AI (${model})!`);
+                break;
+              } else {
+                lastError = JSON.stringify(json.errors || json);
+                continue;
+              }
+            } else {
+              const arrayBuffer = await cfRes.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+              const mime = contentType.includes("png") ? "image/png" : "image/jpeg";
+              base64Image = `data:${mime};base64,${buffer.toString("base64")}`;
+              console.log(`[Image Generation] Imagem obtida via stream da Cloudflare Workers AI (${model})!`);
+              break;
+            }
+          } catch (cfErr: any) {
+            console.error(`[Image Generation] Erro ao renderizar no modelo ${model}:`, cfErr);
+            lastError = cfErr.message || String(cfErr);
           }
-        } catch (cfErr: any) {
-          console.error(`[Chat Image Engine] Erro ao chamar ${model}:`, cfErr);
-          lastError = cfErr.message || String(cfErr);
         }
+        if (base64Image) break;
       }
 
       if (!base64Image) {
         return res.status(500).json({
-          error: "Não foi possível gerar a imagem no momento. Por favor, tente novamente mais tarde."
+          error: "Não foi possível gerar a imagem no momento pelo motor da Cloudflare Workers AI. Por favor, verifique as credenciais ou tente novamente em alguns instantes."
         });
       }
 

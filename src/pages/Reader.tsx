@@ -11,7 +11,7 @@ import Header from "@/components/Header";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft, ChevronRight, Sparkles, Loader2, Heart,
-  Highlighter, StickyNote, X, Languages, BookOpen, WifiOff, Download, Share2, AlertCircle
+  Highlighter, StickyNote, X, Languages, BookOpen, WifiOff, Download, Share2, AlertCircle, RotateCw
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,6 +55,7 @@ const Reader = () => {
   const [dictLoading, setDictLoading] = useState(false);
   const [dictMode, setDictMode] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [retryCount, setRetryCount] = useState(0);
   const chapterStripRef = useRef<HTMLDivElement | null>(null);
 
   const scrollStrip = (direction: 'left' | 'right') => {
@@ -129,7 +130,7 @@ const Reader = () => {
       .finally(() => setLoading(false));
 
     loadHighlightsAndNotes();
-  }, [abbrev, chapter, translation, loadHighlightsAndNotes]);
+  }, [abbrev, chapter, translation, loadHighlightsAndNotes, retryCount]);
 
   // Observador de interseção para carregar mais versículos de forma incremental (evita micro-lags em dispositivos móveis)
   useEffect(() => {
@@ -565,19 +566,37 @@ const Reader = () => {
                 <div className="space-y-2">
                   <h3 className="font-serif text-xl font-bold text-foreground">Modo Offline</h3>
                   <p className="mx-auto max-w-xs text-sm text-muted-foreground">
-                    Sem conexão e sem dados offline baixados. Para ler sem internet, baixe a Biblia.
+                    Sem conexão e sem dados offline baixados. Para ler sem internet, baixe a Bíblia.
                   </p>
                 </div>
-                <button
-                  onClick={() => navigate("/conta")}
-                  className="inline-flex items-center gap-2 rounded-xl bg-accent px-6 py-2.5 text-sm font-semibold text-accent-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
-                >
-                  <Download className="h-4 w-4" />
-                  Baixar Biblia Offline
-                </button>
+                <div className="flex flex-wrap justify-center gap-3">
+                  <button
+                    onClick={() => setRetryCount(c => c + 1)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-semibold text-foreground shadow-sm transition-transform hover:scale-105 active:scale-95"
+                  >
+                    <RotateCw className="h-4 w-4" />
+                    Tentar Novamente
+                  </button>
+                  <button
+                    onClick={() => navigate("/conta")}
+                    className="inline-flex items-center gap-2 rounded-xl bg-accent px-6 py-2.5 text-sm font-semibold text-accent-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
+                  >
+                    <Download className="h-4 w-4" />
+                    Baixar Bíblia Offline
+                  </button>
+                </div>
               </div>
             ) : (
-              <p className="text-muted-foreground">{error}</p>
+              <div className="space-y-4">
+                <p className="text-muted-foreground">{error}</p>
+                <button
+                  onClick={() => setRetryCount(c => c + 1)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-semibold text-foreground shadow-sm transition-transform hover:scale-105 active:scale-95"
+                >
+                  <RotateCw className="h-4 w-4" />
+                  Tentar Novamente
+                </button>
+              </div>
             )}
           </div>
         ) : (

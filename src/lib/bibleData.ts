@@ -168,53 +168,85 @@ const chapterCache = new Map<string, ChapterResponse>();
 
 // ── Bíblia Livre JSON cache ──
 let bibliaLivreData: any[] | null = null;
+let bibliaLivreLoadingPromise: Promise<any[]> | null = null;
+
 async function loadBibliaLivre(): Promise<any[]> {
   if (bibliaLivreData) return bibliaLivreData;
-  
-  const url = 'https://raw.githubusercontent.com/eversondeveloper/bibialivrejson/main/biblialivrecorrecao1.json';
-  let res: Response | undefined;
-  try {
-    // Tenta carregar normalmente (o navegador gerencia o cache HTTP)
-    res = await fetch(url);
-  } catch (err) {
-    console.warn("Fetch failed, likely offline:", err);
-  }
+  if (bibliaLivreLoadingPromise) return bibliaLivreLoadingPromise;
 
-  if (!res || !res.ok) {
-    // Se falhar (offline), tenta o cache manual do PWA
+  bibliaLivreLoadingPromise = (async () => {
+    const LOCAL_URL = '/data/biblia-livre.json';
+    const GITHUB_URL = 'https://raw.githubusercontent.com/eversondeveloper/bibialivrejson/main/biblialivrecorrecao1.json';
+    
+    let rawText = '';
+
+    // 1. Tenta carregar do arquivo local do próprio app (alta velocidade, mesmo domínio)
     try {
-      const cache = await caches.open('biblia-offline-data');
-      if (cache) {
-        const cached = await cache.match(url, { ignoreSearch: true });
-        if (cached) {
-          res = cached;
+      const localRes = await fetch(LOCAL_URL);
+      if (localRes.ok) {
+        rawText = await localRes.text();
+        // Garante no cache do ServiceWorker para leitura offline permanente
+        if (typeof window !== 'undefined' && 'caches' in window) {
+          caches.open('biblia-offline-data').then(c => {
+            const resp = new Response(rawText, { headers: { 'Content-Type': 'application/json' } });
+            c.put(LOCAL_URL, resp.clone());
+            c.put(GITHUB_URL, resp);
+          }).catch(() => {});
         }
       }
-    } catch (cacheErr) {
-      console.error("Error accessing offline cache:", cacheErr);
+    } catch (err) {
+      console.warn("Aviso: Falha ao carregar /data/biblia-livre.json diretamente:", err);
     }
-  }
 
-  if (!res || !res.ok) {
-    throw new Error('OFFLINE_DATA_MISSING: Sem conexão e dados offline não encontrados.');
-  }
+    // 2. Se offline ou falha de rede, tenta os caches locais do navegador (PWA / CacheStorage)
+    if (!rawText && typeof window !== 'undefined' && 'caches' in window) {
+      try {
+        const cache = await caches.open('biblia-offline-data');
+        const cached = (await cache.match(LOCAL_URL, { ignoreSearch: true })) ||
+                       (await cache.match(GITHUB_URL, { ignoreSearch: true }));
+        if (cached) {
+          rawText = await cached.text();
+        }
+      } catch (cacheErr) {
+        console.warn("Aviso ao acessar cache offline do navegador:", cacheErr);
+      }
+    }
 
-  let text = '';
-  try {
-    text = await res.text();
-    const data = JSON.parse(text);
-    // As in the original source, index 0 is metadata, so we slice(1).
-    const books = Array.isArray(data) ? data.slice(1) : data;
-    bibliaLivreData = books.map((b: any, index: number) => ({
-      abrev: bibleBooks[index]?.abbrev || b.abrev,
-      nome: b.nome || b.name || b.book || '',
-      capitulos: b.capitulos || b.chapters
-    })).filter((item: any) => item.capitulos && item.abrev);
-    return bibliaLivreData;
-  } catch (e) {
-    console.error("Erro ao fazer parse da Bíblia Livre:", e);
-    throw new Error('Formato de dados inválido para Bíblia Livre.');
-  }
+    // 3. Fallback externo (GitHub raw)
+    if (!rawText) {
+      try {
+        const gitRes = await fetch(GITHUB_URL);
+        if (gitRes.ok) {
+          rawText = await gitRes.text();
+        }
+      } catch (gitErr) {
+        console.warn("Aviso: Falha ao carregar Bíblia Livre do GitHub:", gitErr);
+      }
+    }
+
+    if (!rawText) {
+      throw new Error('OFFLINE_DATA_MISSING: Sem conexão e dados offline não encontrados.');
+    }
+
+    try {
+      const data = JSON.parse(rawText);
+      const books = Array.isArray(data) ? (data[0]?.abrev ? data : data.slice(1)) : data;
+      bibliaLivreData = books.map((b: any, index: number) => ({
+        abrev: (bibleBooks[index]?.abbrev || b.abrev || '').toLowerCase().replace(/\s+/g, ''),
+        nome: bibleBooks[index]?.name || b.nome || b.name || b.book || '',
+        capitulos: b.capitulos || b.chapters
+      })).filter((item: any) => item.capitulos && item.abrev);
+
+      return bibliaLivreData;
+    } catch (e) {
+      console.error("Erro ao fazer parse da Bíblia Livre:", e);
+      throw new Error('OFFLINE_DATA_MISSING: Sem conexão e dados offline não encontrados.');
+    } finally {
+      bibliaLivreLoadingPromise = null;
+    }
+  })();
+
+  return bibliaLivreLoadingPromise;
 }
 
 // ── Bíblia Livre fetch ──
@@ -223,15 +255,22 @@ async function fetchFromBibliaLivre(
   chapter: number
 ): Promise<ChapterResponse> {
   const data = await loadBibliaLivre();
-  const bookEntry = data.find((b: any) => b.abrev === abbrev);
-  if (!bookEntry) throw new Error('Livro não encontrado na Bíblia Livre');
+  const cleanKey = abbrev.toLowerCase().replace(/\s+/g, '');
+  
+  const bookEntry = data.find((b: any) => 
+    b.abrev === cleanKey || 
+    b.nome?.toLowerCase() === cleanKey
+  );
+  if (!bookEntry) throw new Error(`Livro ${abbrev} não encontrado na Bíblia Livre`);
 
   const chapterIndex = chapter - 1;
   const verses = bookEntry.capitulos[chapterIndex];
   if (!verses?.length) throw new Error('Capítulo não encontrado');
 
-  const book = bibleBooks.find(b => b.abbrev === abbrev);
+  const book = bibleBooks.find(b => b.abbrev.toLowerCase() === cleanKey);
   const bookName = book?.name || bookEntry.nome;
+
+  const cleanHtml = (str: string) => (str || '').replace(/<[^>]*>/g, '').trim();
 
   return {
     reference: `${bookName} ${chapter}`,
@@ -239,9 +278,9 @@ async function fetchFromBibliaLivre(
       book_name: bookName,
       chapter,
       verse: i + 1,
-      text,
+      text: cleanHtml(text),
     })),
-    text: verses.join(' '),
+    text: verses.map((t: string) => cleanHtml(t)).join(' '),
   };
 }
 
@@ -278,7 +317,7 @@ async function fetchFromBibleApi(
     }
   }
 
-  throw new Error('bible-api failed');
+  throw new Error('Não foi possível carregar versículos');
 }
 
 // ── Fallback: bolls.life (ACF — Almeida Corrigida Fiel) ──
@@ -293,12 +332,14 @@ async function fetchFromBolls(
   const bookName = book?.name || abbrev;
 
   try {
-    const url = `https://bolls.life/get-text/ARC/${bookId}/${chapter}/`;
+    const url = `https://bolls.life/get-text/ARC09/${bookId}/${chapter}/`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`Status HTTP: ${res.status}`);
+    if (!res.ok) throw new Error('Não foi possível carregar o capítulo');
 
     const data: Array<{ verse: number; text: string }> = await res.json();
-    if (!data?.length) throw new Error('No verses');
+    if (!data?.length) throw new Error('Capítulo não encontrado');
+
+    const cleanHtml = (str: string) => (str || '').replace(/<[^>]*>/g, '').trim();
 
     return {
       reference: `${bookName} ${chapter}`,
@@ -306,13 +347,13 @@ async function fetchFromBolls(
         book_name: bookName,
         chapter,
         verse: v.verse,
-        text: v.text,
+        text: cleanHtml(v.text),
       })),
-      text: data.map(v => v.text).join(' '),
+      text: data.map(v => cleanHtml(v.text)).join(' '),
     };
   } catch (err: any) {
     console.error('[Bolls API Error]:', err.message);
-    throw new Error(`Erro ao conectar com bolls.life: ${err.message}`);
+    throw new Error('Erro ao carregar versículos da Bíblia.');
   }
 }
 
@@ -326,41 +367,53 @@ export async function fetchChapter(
   const cached = chapterCache.get(cacheKey);
   if (cached) return cached;
 
-  // Bíblia Livre uses local JSON
+  // Se o usuário solicitou Bíblia Livre (offline first):
   if (translation === 'blivre') {
     try {
       const result = await fetchFromBibliaLivre(abbrev, chapter);
       chapterCache.set(cacheKey, result);
       return result;
-    } catch (e) {
-      console.error(e);
-      throw new Error(`Não foi possível carregar ${abbrev} ${chapter} na Bíblia Livre.`);
+    } catch (e: any) {
+      console.warn(`[fetchChapter] Bíblia Livre local falhou (${e?.message}), tentando redundância online:`);
+      try {
+        const result = await fetchFromBibleApi(abbrev, chapter, 'almeida');
+        chapterCache.set(cacheKey, result);
+        return result;
+      } catch {
+        try {
+          const result = await fetchFromBolls(abbrev, chapter);
+          chapterCache.set(cacheKey, result);
+          return result;
+        } catch {}
+      }
+      throw new Error('OFFLINE_DATA_MISSING: Sem conexão e dados offline não encontrados.');
     }
   }
 
-  // For Portuguese translations, try bible-api.com first, then bolls.life
-  // For English translations, only bible-api.com
+  // Para outras traduções (Almeida, KJV, etc):
   const isPortuguese = translation === 'almeida';
 
+  // 1ª Camada: bible-api.com
   try {
     const result = await fetchFromBibleApi(abbrev, chapter, translation);
     chapterCache.set(cacheKey, result);
     return result;
   } catch {
-    // Primary failed
+    // Falha na API primária
   }
 
+  // 2ª Camada: bolls.life (ARC09) para português
   if (isPortuguese) {
     try {
       const result = await fetchFromBolls(abbrev, chapter);
       chapterCache.set(cacheKey, result);
       return result;
     } catch {
-      // Fallback also failed
+      // Falha na API secundária
     }
   }
 
-  // If all online sources failed, try offline Bíblia Livre as last resort
+  // 3ª Camada: Bíblia Livre offline (banco de dados completo local)
   try {
     const result = await fetchFromBibliaLivre(abbrev, chapter);
     chapterCache.set(cacheKey, result);

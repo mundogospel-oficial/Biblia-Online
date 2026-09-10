@@ -104,9 +104,12 @@ const AccountPage = () => {
   }, [authCtx.loading]);
 
   useEffect(() => {
-    fetch('/version.json', { cache: 'no-store' })
+    fetch(`/version.json?t=${Date.now()}`, { 
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+    })
       .then(res => res.json())
-      .then(data => setAppVersion(data.version))
+      .then(data => setAppVersion(data.version || "2.5.1"))
       .catch(() => setAppVersion("2.5.1"));
 
     const loadProfile = async () => {
@@ -1007,6 +1010,7 @@ const AccountPage = () => {
         '/devocionais',
         '/devocional',
         '/conta',
+        '/data/biblia-livre.json',
         'https://raw.githubusercontent.com/eversondeveloper/bibialivrejson/main/biblialivrecorrecao1.json',
         ...activeScripts,
         ...activeStyles,

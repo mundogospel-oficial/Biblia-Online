@@ -20,12 +20,13 @@ import { askBibleAI, AIAttachment } from "@/services/aiService";
 import { checkAndIncrementUsage, checkQuotaOnly, getUserUsage, refundUsage } from "@/services/usageService";
 import { saveAIHistory } from "@/services/userDataService";
 import { syncKeyToSupabase } from "@/services/userSyncService";
-import { generateBiblicalImage } from "@/services/imageGenerationService";
+import { generateBiblicalImage, refinePromptWithAI } from "@/services/imageGenerationService";
 import { APP_WHITE_LOGO_DATA_URL } from "@/assets/appLogoWhite";
 import { encryptConversationMessages, decryptConversationMessages } from "@/lib/security/cryptoService";
 import { maskPiiInText } from "@/lib/security/privacyGuard";
 import { validateImageContent } from "@/services/imageModerationService";
 import { analyzeLetterbox } from "@/lib/imageCropUtils";
+import { formatFriendlyErrorMessage } from "@/lib/errorUtils";
 
 const formatMessageForDisplay = (text: string): string => {
   if (!text) return "";
@@ -402,7 +403,7 @@ const ThinkingSpinner = ({ engine = "simples", mode = "chat" }: ThinkingSpinnerP
 const ImageGeneratingBubble = () => {
   const [stepIndex, setStepIndex] = useState(0);
   const phrases = [
-    "Conectando ao motor de inteligência artificial...",
+    "Iniciando o motor de renderização da imagem...",
     "Compondo cena e elementos bíblicos...",
     "Renderizando iluminação e atmosfera sagrada...",
     "Finalizando a geração da imagem..."
@@ -591,6 +592,7 @@ type ModeKey = "image" | "video" | "learning" | "music";
 type AIEngine = "complexo" | "simples";
 
 const modes: { key: ModeKey; icon: React.ReactNode; label: string; prefix: string }[] = [
+  { key: "image", icon: <Image className="h-4 w-4" />, label: "Gerar Imagens", prefix: "[Modo: Gerar Imagem] " },
   { key: "video", icon: <Video className="h-4 w-4" />, label: "Roteiros de Vídeo", prefix: "[Modo: Gerar Vídeo] " },
   { key: "learning", icon: <GraduationCap className="h-4 w-4" />, label: "Aprendizado", prefix: "[Modo: Aprendizado] " },
   { key: "music", icon: <Music className="h-4 w-4" />, label: "Criar Músicas", prefix: "[Modo: Criar Música] " },
@@ -609,35 +611,28 @@ const IMAGE_STYLES: ImageStyleOption[] = [
     id: "cinematic",
     label: "Cinematográfico",
     badge: "Cinematográfico",
-    promptAddon: "",
+    promptAddon: "cinematic lighting, dramatic cinematic atmosphere, anamorphic lens, film still aesthetic",
     description: "Estilo cinematográfico natural"
   },
   {
-    id: "animation",
-    label: "Animação 3D",
-    badge: "Animação 3D",
-    promptAddon: "3D stylized animation render",
-    description: "Estilo 3D moderno e expressivo"
+    id: "drawing",
+    label: "Desenho",
+    badge: "Desenho",
+    promptAddon: "hand-drawn illustration, artistic line drawing, detailed clean drawing style",
+    description: "Ilustração e desenho artístico"
   },
   {
-    id: "painting",
-    label: "Pintura a Óleo",
-    badge: "Pintura a Óleo",
-    promptAddon: "Classic oil painting on canvas",
-    description: "Pintura clássica em tela"
-  },
-  {
-    id: "anime",
-    label: "Anime / Desenho",
-    badge: "Anime",
-    promptAddon: "Clean anime illustration style",
-    description: "Ilustração estilo desenho e anime"
+    id: "photorealism",
+    label: "Fotorealismo",
+    badge: "Fotorealismo",
+    promptAddon: "ultra photorealistic, authentic realistic photography, real life natural lighting, high dynamic range photo",
+    description: "Fotografia realista de alta fidelidade"
   },
   {
     id: "pixel",
     label: "Pixel Art",
     badge: "Pixel Art",
-    promptAddon: "16-bit retro pixel art",
+    promptAddon: "16-bit retro pixel art, clean pixel grid aesthetic",
     description: "Arte clássica em pixel art"
   },
 ];
@@ -660,6 +655,7 @@ const AIPage = () => {
   const [showModes, setShowModes] = useState(false);
   const [selectedImageStyle, setSelectedImageStyle] = useState<ImageStyleOption | null>(() => IMAGE_STYLES.find(s => s.id === "cinematic") || IMAGE_STYLES[0]);
   const [showStylePicker, setShowStylePicker] = useState(false);
+  const [isRefiningPrompt, setIsRefiningPrompt] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [historySearchQuery, setHistorySearchQuery] = useState("");
   const [historyFilterCategory, setHistoryFilterCategory] = useState<"all" | "simple" | "complex" | "image">("all");
@@ -1429,7 +1425,7 @@ const AIPage = () => {
     setIsLoading(true);
     setShowModes(false);
 
-    // MODO IMAGEM: MOTOR INTERNO DE IMAGENS
+    // MODO IMAGEM: MOTOR DEDICADO DO CHAT
     if (mode === 'image') {
       try {
         let cleanPrompt = text.replace(/\[Modo:.*?\]\s*/g, "").trim();
@@ -1437,7 +1433,35 @@ const AIPage = () => {
           cleanPrompt = `${cleanPrompt} [Estilo: ${selectedImageStyle.label}]`;
         }
 
-        const imageUrl = await generateBiblicalImage(cleanPrompt, controller.signal, 'square', true, 'chat', true);
+        // 1. Gemini analisa e melhora o prompt mantendo rigorosamente o cenário intacto
+        let promptToSend = cleanPrompt;
+        let isAlreadyRefined = false;
+        try {
+          const refineResult = await refinePromptWithAI(cleanPrompt, 'image', selectedImageStyle?.label, controller.signal);
+          if (refineResult.isBlocked) {
+            toast({
+              title: "Conteúdo Bloqueado",
+              description: "A descrição fornecida contém termos fora do contexto bíblico ou das diretrizes.",
+              variant: "destructive"
+            });
+            setIsLoading(false);
+            setAbortController(null);
+            setMessages(prev => prev.slice(0, -1));
+            return;
+          }
+          if (refineResult.refinedPrompt && refineResult.refinedPrompt !== cleanPrompt) {
+            promptToSend = refineResult.refinedPrompt;
+            isAlreadyRefined = true;
+          }
+        } catch (refineErr: any) {
+          if (refineErr?.name === 'AbortError' || controller.signal.aborted || refineErr?.message?.toLowerCase().includes('abort')) {
+            throw refineErr;
+          }
+          console.warn("[AIPage] Refinamento prévio não bloqueante:", refineErr);
+        }
+
+        // 2. Depois manda para o motor de geração de imagens
+        const imageUrl = await generateBiblicalImage(promptToSend, controller.signal, 'square', true, 'chat', true, isAlreadyRefined);
 
         const assistantMsg: Msg = { 
           role: "assistant", 
@@ -1449,14 +1473,17 @@ const AIPage = () => {
         saveConversation(finalMessages);
         fetchUsage();
         
-        saveAIHistory(text, `[Imagem Bíblica Gerada: ${cleanPrompt}]`, 'image').catch(console.error);
+        saveAIHistory(text, `[Imagem Bíblica Gerada: ${promptToSend}]`, 'image').catch(console.error);
       } catch (imgErr: any) {
-        if (imgErr.name === 'AbortError') {
+        const isAbort = imgErr?.name === 'AbortError' || 
+                        controller?.signal?.aborted || 
+                        imgErr?.message?.toLowerCase().includes('abort');
+        if (isAbort) {
           toast({ description: "Geração interrompida." });
         } else {
           toast({ 
-            title: "Erro na geração da imagem", 
-            description: imgErr.message || "Não foi possível gerar a imagem no momento.", 
+            title: "Aviso", 
+            description: formatFriendlyErrorMessage(imgErr, "Não foi possível gerar a imagem no momento. Tente novamente."), 
             variant: "destructive" 
           });
         }
@@ -1507,25 +1534,21 @@ NUNCA use # para títulos, use **negrito**.`;
 
 DIRETRIZES DE ESTILOS DE IMAGEM:
 
-Estilo Animação 3D:
-- Ilustração artística em estilo animação 3D moderna e estilizada com renderização limpa.
-- Cores vivas e vibrantes, iluminação suave e personagens com traços expressivos e calorosos.
-- Visual polido de arte digital 3D, texturas suaves e estética cinematográfica animada.
+Estilo Cinematográfico:
+- Estética cinematográfica realista, iluminação dramática natural e enquadramento de filme épico.
+- Atmosfera solene e reverente, profundidade de campo suave e cores autênticas de cinema.
 
-Estilo Pintura a Óleo:
-- Pintura a óleo clássica em tela com técnicas tradicionais de belas artes em museu.
-- Pinceladas visíveis e ricas, iluminação chiaroscuro dramática e paleta de cores atemporal.
-- Textura autêntica de tela envelhecida, profundidade artística e composição solene.
+Estilo Desenho:
+- Ilustração artística e desenho manual expressivo com traços limpos e definidos.
+- Estética elegante de livro de arte e gravura artística, com cores ricas e contornos nítidos.
 
-Estilo Anime / Desenho:
-- Ilustração em estilo anime de alta qualidade com traço limpo inspirado em animações de renome.
-- Linhas artísticas nítidas, iluminação suave atmosférica e paleta de cores harmoniosa.
-- Estética detalhada de desenho artístico, composição emotiva e visual límpido.
+Estilo Fotorealismo:
+- Fotografia documental de altíssima fidelidade, iluminação natural e texturas autênticas de vida real.
+- Detalhes nítidos, proporções perfeitas e ausência total de filtros artificiais ou elementos fantásticos.
 
 Estilo Pixel Art:
-- Arte retrô em pixel art com precisão de grade limpa nostálgica estilo 16-bit.
-- Paleta de cores vibrantes, contornos definidos e alto contraste visual.
-- Composição equilibrada de clássicos de videogame com renderização nítida sem borrões.`;
+- Arte retrô em pixel art com precisão de grade nostálgica estilo 16-bit.
+- Paleta de cores vibrantes, contornos definidos e alto contraste visual sem borrões.`;
 
     const systemPrompt = 
       mode === 'video' 
@@ -1676,26 +1699,14 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
       if (error.name === 'AbortError' || error.message?.includes('abort') || error.message?.includes('The user aborted a request')) {
         toast({ description: "Geração interrompida." });
       } else {
-        const errMsg = error?.message || "";
-        if (
-          errMsg.toLowerCase().includes("improprio") || 
-          errMsg.toLowerCase().includes("impróprio") || 
-          errMsg.toLowerCase().includes("bloqueado") || 
-          errMsg.toLowerCase().includes("inapropriad") ||
-          errMsg.toLowerCase().includes("diretrizes") ||
-          errMsg.toLowerCase().includes("termos") ||
-          errMsg.toLowerCase().includes("conteúdo visual")
-        ) {
-          toast({ title: "Conteúdo Bloqueado", description: "A descrição fornecida contém termos que violam as diretrizes de conteúdo visual.", variant: "destructive" });
-        } else {
-          const formattedMsg = errMsg.includes("Failed to fetch") 
-            ? "Erro de conexão com o servidor. Verifique sua internet e tente novamente." 
-            : (errMsg || "Tente novamente mais tarde.");
-          toast({ title: "Erro na IA", description: formattedMsg, variant: "destructive" });
-        }
-        if (
-          activeMode !== "image"
-        ) {
+        const friendly = formatFriendlyErrorMessage(error, "Não foi possível gerar a resposta no momento. Tente novamente em instantes.");
+        const isBlocked = friendly.includes("diretrizes") || friendly.includes("conteúdo visual");
+        toast({ 
+          title: isBlocked ? "Conteúdo Bloqueado" : "Aviso", 
+          description: friendly, 
+          variant: "destructive" 
+        });
+        if (activeMode !== "image") {
           refundUsage(aiEngine === "complexo" ? "complex" : "simple").catch(console.error);
         }
       }
@@ -1712,6 +1723,47 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
       setAbortController(null);
       setIsLoading(false);
       toast({ description: "Resposta interrompida." });
+    }
+  };
+
+  const handleRefineCurrentPrompt = async () => {
+    if (!input.trim() || isRefiningPrompt || !isOnline) return;
+    setIsRefiningPrompt(true);
+    try {
+      const result = await refinePromptWithAI(
+        input,
+        activeMode || "general",
+        selectedImageStyle?.label
+      );
+      if (result.isBlocked) {
+        toast({
+          title: "Conteúdo Bloqueado",
+          description: "A descrição contém termos fora do contexto bíblico ou das diretrizes.",
+          variant: "destructive"
+        });
+        return;
+      }
+      if (result.refinedPrompt && result.refinedPrompt !== input) {
+        setInput(result.refinedPrompt);
+        toast({
+          title: "✨ Aprimorador de Prompts",
+          description: "Prompt enriquecido mantendo o cenário intacto!",
+        });
+      } else {
+        toast({
+          title: "Aprimorador de Prompts",
+          description: "O prompt já possui boa clareza mantendo o cenário intacto.",
+        });
+      }
+    } catch (err: any) {
+      console.error("Erro no Aprimorador de Prompts:", err);
+      toast({
+        title: "Aprimorador de Prompts",
+        description: "Não foi possível aprimorar no momento. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsRefiningPrompt(false);
     }
   };
 
@@ -3139,6 +3191,23 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                   <span className="text-[10px] text-muted-foreground font-mono shrink-0 px-1">
                     {input.length}/2000
                   </span>
+                )}
+                {/* Botão do Aprimorador de Prompts (mantém o cenário intacto) */}
+                {input.trim() && !isLoading && (
+                  <button
+                    type="button"
+                    onClick={handleRefineCurrentPrompt}
+                    disabled={isRefiningPrompt || limitReached || !isOnline}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary/80 hover:bg-accent/20 text-accent hover:text-accent transition-all liquid-btn disabled:opacity-50 mr-0.5"
+                    title="Aprimorador de Prompts"
+                    aria-label="Aprimorador de Prompts"
+                  >
+                    {isRefiningPrompt ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-accent" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 text-accent" />
+                    )}
+                  </button>
                 )}
                 {isLoading ? (
                   <button

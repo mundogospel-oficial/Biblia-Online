@@ -6,7 +6,7 @@
  * 
  * DIRETRIZ PERMANENTE:
  * - A Pollinations IA é usada APENAS E EXCLUSIVAMENTE para o Modo Criar.
- * - NENHUMA outra IA de imagens (ex: Chat) deve interferir
+ * - NENHUMA outra IA de imagens (ex: IA do Chat) deve interferir
  *   ou alterar o Modo Criar.
  * - Ao alterar ou configurar qualquer outra IA de imagens do app, DEIXAR ESTE
  *   MODO CRIAR INTACTO.
@@ -296,6 +296,12 @@ export const generateCreateModeImage = async (
       return `![${displayPrompt}](${pollinationsUrl})`;
     }
   } catch (error: any) {
+    const isAbort = error?.name === 'AbortError' || signal?.aborted || error?.message?.toLowerCase().includes('abort');
+    if (isAbort) {
+      const abortError = new Error("Geração interrompida.");
+      abortError.name = "AbortError";
+      throw abortError;
+    }
     console.error("[Modo Criar - Erro ao gerar imagem]:", error);
     const msg = error.message || "Erro ao acionar o serviço do Modo Criar.";
     if (msg.includes("Failed to fetch") || msg.includes("fetch failed") || msg.includes("NetworkError")) {

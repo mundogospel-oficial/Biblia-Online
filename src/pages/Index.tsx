@@ -9,7 +9,7 @@ import { ChevronRight, ChevronLeft, Sun, Youtube, Loader2, BookOpen, Sparkles, I
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<'old' | 'new'>('old');
-  const [dailyVerse, setDailyVerse] = useState<DailyVerseEntry | null>(null);
+  const [dailyVerse, setDailyVerse] = useState<DailyVerseEntry | null>(() => getDailyVerseReference());
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
 

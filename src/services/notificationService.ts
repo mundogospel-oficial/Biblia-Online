@@ -115,15 +115,15 @@ export const checkScheduledNotifications = () => {
 
 export const sendLocalNotification = async (title: string, body: string): Promise<void> => {
   if (!("Notification" in window)) {
-    throw new Error("Suporte a notificações não encontrado no navegador (Notification API indisponível).");
+    throw new Error("Seu navegador não suporta notificações.");
   }
 
   if (Notification.permission !== "granted") {
-    throw new Error(`Permissão de notificação não concedida (Status atual: '${Notification.permission}'). Por favor, habilite as notificações nas configurações do seu navegador.`);
+    throw new Error("Permissão de notificação não concedida. Por favor, ative as notificações nas configurações do seu navegador.");
   }
 
   if (!window.isSecureContext) {
-    throw new Error("Notificações em navegadores requerem um ambiente seguro (HTTPS ou localhost).");
+    throw new Error("Notificações requerem uma conexão segura (HTTPS).");
   }
 
   const isInIframe = window.self !== window.top;
@@ -151,7 +151,7 @@ export const sendLocalNotification = async (title: string, body: string): Promis
         });
         return;
       } else {
-        throw new Error("O Service Worker ativo não suporta a API de notificações (showNotification).");
+        throw new Error("O Service Worker ativo não suporta notificações.");
       }
     } catch (err: any) {
       console.warn("[Notification] SW showNotification falhou, tentando fallback direto:", err);
@@ -162,7 +162,7 @@ export const sendLocalNotification = async (title: string, body: string): Promis
           tag: "biblia-notification",
         });
       } catch (fallbackErr: any) {
-        throw new Error(`Falha no Service Worker e no Fallback. Erro SW: ${err?.message || err}. Erro Fallback: ${fallbackErr?.message || fallbackErr}`);
+        throw new Error("Não foi possível exibir a notificação. Verifique as permissões do seu dispositivo.");
       }
     }
   } else {
@@ -174,7 +174,7 @@ export const sendLocalNotification = async (title: string, body: string): Promis
         tag: "biblia-notification",
       });
     } catch (err: any) {
-      throw new Error(`Falha ao disparar notificação direta: ${err?.message || err}`);
+      throw new Error("Não foi possível exibir a notificação. Verifique as permissões do seu dispositivo.");
     }
   }
 };

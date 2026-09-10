@@ -1,4 +1,4 @@
-const CACHE_NAME = 'biblia-online-v13';
+const CACHE_NAME = 'biblia-online-v2.5.1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -33,9 +33,11 @@ const STATIC_ASSETS = [
   '/icons/logo2.png',
   '/icons/logo3.png',
   '/icons/logo4.png',
-  '/placeholder.svg'
+  '/placeholder.svg',
+  '/data/biblia-livre.json'
 ];
 
+const BIBLE_LOCAL_URL = '/data/biblia-livre.json';
 const BIBLE_DATA_URL = 'https://raw.githubusercontent.com/eversondeveloper/bibialivrejson/main/biblialivrecorrecao1.json';
 
 // Install Event - Pre-cache essential static assets and the offline Bible database
@@ -53,12 +55,18 @@ self.addEventListener('install', (event) => {
         }
       }
 
-      // Pre-cache Bible database
+      // Pre-cache Bible database (Local first, then remote fallback)
       try {
-        await cache.add(new Request(BIBLE_DATA_URL, { mode: 'cors' }));
-        console.log('[SW] Bible database pre-cached successfully!');
+        await cache.add(BIBLE_LOCAL_URL);
+        console.log('[SW] Local Bible database pre-cached successfully!');
       } catch (err) {
-        console.warn('[SW] Bible database pre-cache failed, will cache on next fetch:', err);
+        console.warn('[SW] Local Bible pre-cache notice, trying remote fallback:', err);
+        try {
+          await cache.add(new Request(BIBLE_DATA_URL, { mode: 'cors' }));
+          console.log('[SW] Remote Bible database pre-cached successfully!');
+        } catch (rErr) {
+          console.warn('[SW] Remote Bible database pre-cache failed:', rErr);
+        }
       }
 
       return self.skipWaiting();
@@ -137,6 +145,7 @@ self.addEventListener('fetch', (event) => {
         if (
           url.pathname.endsWith('.css') || 
           url.pathname.endsWith('.js') || 
+          url.pathname.includes('biblia-livre.json') ||
           event.request.url === BIBLE_DATA_URL
         ) {
           fetch(event.request).then((networkResponse) => {

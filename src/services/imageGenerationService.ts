@@ -4,11 +4,11 @@ import { generateCreateModeImage } from './createModeImageService';
 
 /**
  * ============================================================================
- * SERVIÇO DE IMAGEM DO CHAT
+ * SERVIÇO DE GERAÇÃO DE IMAGENS DO CHAT
  * ============================================================================
  * DIRETRIZ PERMANENTE:
  * - A Pollinations IA é de uso EXCLUSIVO do Modo Criar (createModeImageService).
- * - O Chat utiliza exclusivamente o serviço interno de imagens via backend.
+ * - O Chat utiliza exclusivamente o motor de IA via backend.
  * - NUNCA acionar Pollinations IA para o Chat.
  * ============================================================================
  */
@@ -125,7 +125,7 @@ export const ensureWatermarkedImage = async (imageUrl: string): Promise<string> 
 /**
  * Geração de Imagens Bíblicas:
  * - Se source === 'create', delega 100% para o serviço dedicado do Modo Criar (Pollinations IA).
- * - Se source === 'chat', aciona exclusivamente o motor de imagem no backend.
+ * - Se source === 'chat', aciona exclusivamente o motor de IA dedicado no backend.
  */
 export const generateBiblicalImage = async (
   userPrompt: string, 
@@ -133,7 +133,8 @@ export const generateBiblicalImage = async (
   aspectRatio: 'square' | 'story' | 'landscape' = 'square',
   returnRawUrl: boolean = false,
   source: 'chat' | 'create' = 'chat',
-  isComplex: boolean = false
+  isComplex: boolean = false,
+  isAlreadyRefined: boolean = false
 ): Promise<string> => {
   // Se a chamada for destinada ao Modo Criar, delega para o serviço dedicado
   if (source === 'create') {
@@ -171,14 +172,25 @@ export const generateBiblicalImage = async (
         prompt: cleanPrompt,
         aspectRatio,
         source: 'chat',
-        isComplex
+        isComplex,
+        isAlreadyRefined
       }),
       signal
     });
 
     if (!response.ok) {
-      const errData = await response.json().catch(() => null);
-      const errMessage = errData?.error || errData?.message || `Erro HTTP ${response.status} ao gerar imagem.`;
+      let errMessage = "Não foi possível gerar a imagem no momento. Tente novamente em instantes.";
+      try {
+        const errData = await response.json();
+        if (errData && (errData.error || errData.message)) {
+          const raw = errData.error || errData.message;
+          if (typeof raw === 'string' && !raw.includes("HTTP") && !raw.includes("status") && !raw.includes("{" ) && raw.length < 150) {
+            errMessage = raw;
+          }
+        }
+      } catch {
+        // Ignora erros de parsing e usa mensagem amigável padrão
+      }
       throw new Error(errMessage);
     }
 
@@ -186,7 +198,7 @@ export const generateBiblicalImage = async (
     const base64Image = data.base64Image || data.imageUrl;
 
     if (!base64Image) {
-      throw new Error("O servidor não retornou os dados da imagem gerada.");
+      throw new Error("Não foi possível carregar a imagem. Tente novamente.");
     }
 
     const watermarkedBase64 = shouldWatermark ? await ensureWatermarkedImage(base64Image) : base64Image;
@@ -195,11 +207,77 @@ export const generateBiblicalImage = async (
     }
     return `Aqui está a imagem gerada para: "${displayPrompt}"\n\n![${displayPrompt}](${watermarkedBase64})`;
   } catch (error: any) {
+    const isAbort = error?.name === 'AbortError' || signal?.aborted || error?.message?.toLowerCase().includes('abort');
+    if (isAbort) {
+      const abortError = new Error("Geração interrompida.");
+      abortError.name = "AbortError";
+      throw abortError;
+    }
     console.error("[Chat - Erro ao gerar imagem]:", error);
-    const msg = error.message || "Erro de comunicação ao acionar o serviço de imagens.";
+    let msg = error.message || "Não foi possível gerar a imagem. Tente novamente.";
     if (msg.includes("Failed to fetch") || msg.includes("fetch failed") || msg.includes("NetworkError")) {
-      throw new Error("Erro de conexão de rede. Verifique sua internet e tente novamente em instantes.");
+      msg = "Erro de conexão de rede. Verifique sua internet e tente novamente em instantes.";
+    } else if (msg.includes("HTTP") || msg.includes("Status ") || msg.includes("status") || msg.includes("{")) {
+      msg = "Não foi possível gerar a imagem no momento. Tente novamente em instantes.";
     }
     throw new Error(msg);
   }
 };
+
+/**
+ * Aprimorador de Prompts bíblicos usando OpenRouter (OPENROUTER_IMAGENS) no servidor.
+ * Analisa e enriquece clareza, riqueza de detalhes visuais e iluminação
+ * mantendo RIGOROSAMENTE o cenário original e o contexto bíblico intactos.
+ */
+export const refinePromptWithAI = async (
+  prompt: string,
+  mode: string = 'image',
+  style?: string,
+  signal?: AbortSignal
+): Promise<{ refinedPrompt: string; isBlocked?: boolean }> => {
+  const clean = (prompt || "").trim();
+  if (!clean) return { refinedPrompt: "" };
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+
+    const response = await fetch('/api/prompt/refine', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        prompt: clean,
+        mode,
+        style
+      }),
+      signal
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data?.refinedPrompt) {
+        return { refinedPrompt: data.refinedPrompt, isBlocked: false };
+      }
+    } else {
+      const err = await response.json().catch(() => ({}));
+      if (err?.isBlocked || (err?.error && err.error.includes("diretrizes"))) {
+        return { refinedPrompt: "", isBlocked: true };
+      }
+    }
+  } catch (error: any) {
+    if (error?.name === 'AbortError' || signal?.aborted || error?.message?.toLowerCase().includes('abort')) {
+      const abortError = new Error("Refinamento interrompido.");
+      abortError.name = "AbortError";
+      throw abortError;
+    }
+    console.warn("[refinePromptWithAI] Falha na comunicação com o servidor:", error);
+  }
+
+  return { refinedPrompt: clean, isBlocked: false };
+};
+
