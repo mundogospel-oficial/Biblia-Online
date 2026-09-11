@@ -340,24 +340,29 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({ onNavi
   if (!hasAccess) {
     return (
       <div className="space-y-6">
-        {/* Header com Badge Beta */}
-        <div className="glass-card rounded-2xl p-6 sm:p-8 border border-border bg-card/60 shadow-xl relative overflow-hidden">
+        {/* Header com Badge Beta no canto superior direito */}
+        <div className="relative glass-card rounded-2xl p-6 sm:p-8 border border-border bg-card/60 shadow-xl overflow-hidden">
           <div className="absolute top-0 right-0 w-80 h-80 bg-accent/10 rounded-full blur-3xl -z-10 pointer-events-none" />
           
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          {/* Badge Beta no canto superior direito */}
+          <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/20 border border-accent/35 text-accent text-xs font-black uppercase tracking-wider shadow-sm">
+              <Sparkles className="h-3.5 w-3.5" /> Beta
+            </span>
+          </div>
+
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pr-16 sm:pr-20">
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/15 border border-accent/30 text-accent text-xs font-bold uppercase tracking-wider">
-                <Sparkles className="h-3.5 w-3.5" /> Recurso Exclusivo Beta
-              </div>
-              <h2 className="font-serif text-2xl sm:text-3xl font-bold text-foreground">
-                Mapas Bíblicos Realistas & Atlas da Terra Santa
+              <h2 className="font-serif text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-2.5">
+                <Compass className="h-7 w-7 text-accent shrink-0" />
+                <span>Mapas Bíblicos Realistas & Atlas da Terra Santa</span>
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl leading-relaxed">
                 Explore as rotas históricas dos apóstolos, o êxodo no deserto, os reinos de Israel e as terras bíblicas com imagens de satélite e relevo topográfico em alta resolução.
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
               <button
                 onClick={() => navigate("/minha-conta")}
                 className="flex items-center justify-center gap-2 rounded-xl bg-accent text-accent-foreground px-5 py-3 text-xs font-bold shadow-lg hover:bg-accent/90 transition-transform active:scale-98 cursor-pointer"
@@ -430,25 +435,30 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({ onNavi
 
   return (
     <div className="space-y-6">
-      {/* Header with Title & Beta Badge */}
-      <div className="glass-card rounded-2xl p-5 sm:p-6 border border-border bg-card/60 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-accent/20 border border-accent/30 text-accent text-[11px] font-black uppercase tracking-wider">
-              <Sparkles className="h-3 w-3" /> Beta
-            </span>
-            <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
-              <Compass className="h-5 w-5 text-accent" />
+      {/* Header with Title & Beta Badge in Top Right */}
+      <div className="relative glass-card rounded-2xl p-5 sm:p-6 border border-border bg-card/60 shadow-md flex flex-col gap-4">
+        {/* Top Header Row with Clean Title, Description and Top-Right Beta Badge */}
+        <div className="flex items-start justify-between gap-4 pr-16 sm:pr-20">
+          <div className="space-y-1 max-w-2xl">
+            <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2.5 tracking-tight">
+              <Compass className="h-5 w-5 sm:h-6 sm:w-6 text-accent shrink-0" />
               <span>Mapas Bíblicos Realistas & Interativos</span>
             </h2>
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+              Geografia sagrada em alta resolução com satélite realista, relevo topográfico, atlas histórico e contextualização bíblica versículo por versículo.
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Geografia sagrada em alta resolução com satélite realista, relevo topográfico, atlas histórico e contextualização bíblica versículo por versículo.
-          </p>
+
+          {/* Badge BETA no canto superior direito */}
+          <div className="absolute top-4 right-4 sm:top-5 sm:right-6">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-accent/20 border border-accent/35 text-accent text-[11px] font-black uppercase tracking-wider shadow-sm">
+              <Sparkles className="h-3 w-3" /> Beta
+            </span>
+          </div>
         </div>
 
         {/* Map Theme Selector Pill Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full themed-scrollbar">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full themed-scrollbar pt-2 border-t border-border/40">
           {biblicalMaps.map((mapItem) => {
             const isSelected = mapItem.id === selectedMapId;
             return (
@@ -458,14 +468,14 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({ onNavi
                   setSelectedMapId(mapItem.id);
                   setSelectedLocationId(mapItem.locations[0]?.id || null);
                 }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 border cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 border cursor-pointer ${
                   isSelected
                     ? "bg-accent text-accent-foreground border-accent shadow-sm"
                     : "bg-secondary/60 text-muted-foreground hover:text-foreground border-border/60 hover:bg-secondary"
                 }`}
               >
                 <span>{mapItem.title}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isSelected ? "bg-black/20 text-white" : "bg-muted text-muted-foreground"}`}>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${isSelected ? "bg-black/25 text-white" : "bg-muted text-muted-foreground"}`}>
                   {mapItem.locations.length}
                 </span>
               </button>
