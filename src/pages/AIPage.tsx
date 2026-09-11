@@ -2875,7 +2875,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                   ? "Estudos e explicações bíblicas aprofundadas com a IA."
                   : aiEngine === "simples"
                   ? "Perguntas diretas sobre a Bíblia, com resposta rápida e resumida."
-                  : "Respostas completas, estudos teológicos aprofundados e áudios."}
+                  : "Respostas completas e estudos teológicos aprofundados."}
               </p>
 
               <div className="mb-2.5 sm:mb-3.5 md:mb-4">

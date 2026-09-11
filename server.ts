@@ -78,7 +78,14 @@ function startServer() {
           "data:",
           "blob:",
           "https:", // Permite imagens seguras de qualquer site para avatares/logos
-          "http:" // Fallback para URLs legado de imagens
+          "http:", // Fallback para URLs legado de imagens
+          "https://*.arcgisonline.com",
+          "https://server.arcgisonline.com",
+          "https://services.arcgisonline.com",
+          "https://*.basemaps.cartocdn.com",
+          "https://*.tile.openstreetmap.org",
+          "https://tile.openstreetmap.org",
+          "https://*.tile.osm.org"
         ],
         connectSrc: [
           "'self'",
@@ -102,6 +109,15 @@ function startServer() {
           "https://*.os-content.com",
           "https://api.pwnedpasswords.com",
           "https://*.pwnedpasswords.com",
+          "https://*.arcgisonline.com",
+          "https://server.arcgisonline.com",
+          "https://services.arcgisonline.com",
+          "https://*.basemaps.cartocdn.com",
+          "https://*.tile.openstreetmap.org",
+          "https://tile.openstreetmap.org",
+          "https://*.tile.osm.org",
+          "https://*.openai.com",
+          "https://chatgpt.com",
           "wss:",
           "ws:"
         ],
@@ -353,20 +369,36 @@ function startServer() {
       lower.includes('gptbot') ||
       lower.includes('chatgpt') ||
       lower.includes('openai') ||
+      lower.includes('oai-searchbot') ||
       lower.includes('google-extended') ||
       lower.includes('googlebot') ||
+      lower.includes('google') ||
       lower.includes('gemini') ||
+      lower.includes('vertex') ||
       lower.includes('claudebot') ||
       lower.includes('claude-web') ||
       lower.includes('anthropic') ||
       lower.includes('perplexity') ||
+      lower.includes('perplexitybot') ||
       lower.includes('bingbot') ||
+      lower.includes('msnbot') ||
+      lower.includes('bingpreview') ||
       lower.includes('cohere') ||
       lower.includes('meta-externalagent') ||
       lower.includes('applebot') ||
       lower.includes('bytespider') ||
       lower.includes('facebookbot') ||
-      lower.includes('twitterbot')
+      lower.includes('twitterbot') ||
+      lower.includes('duckduckgo') ||
+      lower.includes('yandex') ||
+      lower.includes('baiduspider') ||
+      lower.includes('python') ||
+      lower.includes('curl') ||
+      lower.includes('wget') ||
+      lower.includes('http-client') ||
+      lower.includes('postman') ||
+      lower.includes('axios') ||
+      lower.includes('node-fetch')
     );
   };
 
@@ -374,8 +406,17 @@ function startServer() {
   const checkBanned = (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const userAgent = (req.headers['user-agent'] as string) || '';
 
-    // Permite que robôs de IA autorizados, a interface do app e recursos estáticos sempre carreguem
-    if (isAuthorizedAIBot(userAgent) || (req.method === 'GET' && !req.path.startsWith('/api'))) {
+    // Permite que qualquer requisição GET, robôs de IA, crawlers e rotas públicas sempre carreguem livremente (sem 403)
+    if (
+      req.method === 'GET' || 
+      req.method === 'HEAD' || 
+      req.method === 'OPTIONS' || 
+      isAuthorizedAIBot(userAgent) || 
+      !req.path.startsWith('/api') ||
+      req.path === '/api/health' ||
+      req.path === '/api/version' ||
+      req.path === '/api/llms.txt'
+    ) {
       return next();
     }
 
@@ -386,41 +427,23 @@ function startServer() {
     const isFpBanned = !isProtectedOrInternalIdentity(fingerprint) && bannedEntities.has(fingerprint);
 
     if (isIpBanned || isFpBanned) {
-      console.error(`[Sentinel] Acesso bloqueado para entidade banida: IP=${ip} / FP=${fingerprint}`);
+      console.warn(`[Sentinel] Acesso bloqueado para entidade banida: IP=${ip} / FP=${fingerprint}`);
       return res.status(403).json({ 
-        error: 'ACCESS_PERMANENTLY_REVOKED', 
-        message: 'Acesso bloqueado por violação de termos de segurança.' 
+        error: 'ACCESS_RESTRICTED', 
+        message: 'Acesso restrito por políticas de segurança.' 
       });
     }
     next();
   };
 
-  const allowedOrigins = [
-    'https://ais-dev-6l6a4lokvoyyiqlu26cadl-511815758067.us-east1.run.app',
-    'https://ais-pre-6l6a4lokvoyyiqlu26cadl-511815758067.us-east1.run.app'
-  ];
-
   app.use(cors({
     origin: (origin, callback) => {
-      // Permite requisições sem origin (como mobile apps ou curl se não bloqueado), as listadas e domínios Vercel/produção correlacionados
-      if (
-        !origin || 
-        allowedOrigins.includes(origin) || 
-        origin.endsWith('.vercel.app') || 
-        origin.endsWith('.run.app') || 
-        origin.includes('online-biblia') ||
-        origin.includes('bibliaonline') ||
-        origin.includes('localhost') ||
-        origin.includes('127.0.0.1') ||
-        origin.includes('ai.studio') ||
-        origin.includes('google.com')
-      ) {
-        callback(null, true);
-      } else {
-        console.warn(`[CORS] Bloqueado acesso de origem não autorizada: ${origin}`);
-        callback(new Error('Not allowed by CORS'));
-      }
-    }
+      // Permite todas as origens para garantir leitura universal por IA, apps e navegadores
+      callback(null, true);
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Sentinel-Token", "X-User-Id", "X-Requested-With", "Accept", "Origin"]
   }));
   app.use(express.json({ limit: "15mb" }));
   app.use(express.urlencoded({ extended: true, limit: "15mb" }));
@@ -469,15 +492,9 @@ function startServer() {
 
       for (const [name, regex] of Object.entries(patterns)) {
         if (regex.test(combined)) {
-          console.warn(`[Sentinel] Ataque detectado: ${name} - IP: ${req.ip} - URL: ${req.originalUrl}`);
-          
-          // Se não for IP interno protegido, pode registrar aviso
-          const ip = req.ip;
-          if (ip && !isProtectedOrInternalIdentity(ip)) {
-            banEntity(ip, `Detecção automática pelo Sentinel no endpoint: ${req.originalUrl} (${name})`);
-          }
-          
-          return res.status(400).json({ error: 'MALICIOUS_REQUEST_DETECTED', type: name });
+          console.warn(`[Sentinel] Padrão suspeito observado: ${name} - URL: ${req.originalUrl}`);
+          // Não bloqueia nem bane IP para evitar falsos positivos em buscas bíblicas ou leitores de IA
+          return next();
         }
       }
     } catch (err) {
@@ -537,12 +554,9 @@ function startServer() {
         console.log(`Reasons: ${reasonsList.join(', ')}`);
       }
 
-      // Banimento Automático de Alta Confiança
+      // Monitoramento e log de risco sem bloqueio cego de IP público
       if (safeScore >= 90) {
-        console.error(`[Sentinel] BANIMENTO AUTOMÁTICO: ${req.ip} / FP: ${fingerprint}`);
-        const reasonText = `Score de risco Sentinel alto ou violação severa: ${safeScore}/100. Motivo: ${reasonsList.join(', ') || 'Nenhum informado'}`;
-        if (req.ip) banEntity(req.ip, reasonText);
-        if (fingerprint) banEntity(fingerprint, reasonText);
+        console.warn(`[Sentinel] Alerta de segurança registrado para análise: ${req.ip} / FP: ${fingerprint}`);
       }
       
       return res.json({ status: "received", incidentId: Date.now() });
