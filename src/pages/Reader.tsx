@@ -11,7 +11,8 @@ import Header from "@/components/Header";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft, ChevronRight, Sparkles, Loader2, Heart,
-  Highlighter, StickyNote, X, Languages, BookOpen, WifiOff, Download, Share2, AlertCircle, RotateCw, Presentation
+  Highlighter, StickyNote, X, Languages, BookOpen, WifiOff, Download, Share2, AlertCircle, RotateCw, Presentation,
+  Volume2, VolumeX, Play, Pause, Square, SkipForward, SkipBack, Type, Minus, Plus
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +34,9 @@ const Reader = () => {
   const { user: authUser } = useAuth();
   const { t } = useLanguage();
 
+  const book = getBookByAbbrev(abbrev || "");
+  const chapterNum = parseInt(chapter || "1");
+
   const [verses, setVerses] = useState<VerseData[]>([]);
   const [bilingualVerses, setBilingualVerses] = useState<VerseData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +56,148 @@ const Reader = () => {
   // Modo Púlpito (Apresentação Sagrada & Projeção)
   const [showPulpitMode, setShowPulpitMode] = useState(false);
   const [pulpitStartVerse, setPulpitStartVerse] = useState<number>(1);
+
+  // Tamanho da Fonte (Acessibilidade)
+  type ReaderFontSize = "sm" | "md" | "lg" | "xl" | "2xl";
+  const fontOrder: ReaderFontSize[] = ["sm", "md", "lg", "xl", "2xl"];
+  const [fontSize, setFontSize] = useState<ReaderFontSize>(() => {
+    const saved = localStorage.getItem("biblia_reader_font_size") as ReaderFontSize;
+    return ["sm", "md", "lg", "xl", "2xl"].includes(saved) ? saved : "md";
+  });
+  const [showFontMenu, setShowFontMenu] = useState(false);
+
+  const changeFontSize = (delta: number) => {
+    const currentIndex = fontOrder.indexOf(fontSize);
+    const newIndex = Math.max(0, Math.min(fontOrder.length - 1, currentIndex + delta));
+    const newSize = fontOrder[newIndex];
+    setFontSize(newSize);
+    localStorage.setItem("biblia_reader_font_size", newSize);
+  };
+
+  const selectFontSize = (size: ReaderFontSize) => {
+    setFontSize(size);
+    localStorage.setItem("biblia_reader_font_size", size);
+    setShowFontMenu(false);
+  };
+
+  // Leitura Falada (Text-to-Speech / Áudio)
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [isAudioPaused, setIsAudioPaused] = useState(false);
+  const [audioVerseNum, setAudioVerseNum] = useState<number | null>(null);
+  const [audioRate, setAudioRate] = useState<number>(1.0);
+
+  const stopAudioReading = useCallback(() => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsPlayingAudio(false);
+    setIsAudioPaused(false);
+    setAudioVerseNum(null);
+  }, []);
+
+  const speakVerse = useCallback((verseIdx: number, allVerses: VerseData[], langCode: string, rate: number) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      toast({ title: t("audio_reader_unsupported"), variant: "destructive" });
+      return;
+    }
+
+    if (verseIdx >= allVerses.length) {
+      stopAudioReading();
+      toast({ title: "Capítulo concluído" });
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const targetVerse = allVerses[verseIdx];
+    setAudioVerseNum(targetVerse.verse);
+
+    // Auto-scroll target verse into view
+    const el = document.getElementById(`verse-item-${targetVerse.verse}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    const textToSpeak = `${targetVerse.verse}. ${targetVerse.text.trim()}`;
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    utterance.lang = langCode;
+    utterance.rate = rate;
+
+    utterance.onend = () => {
+      speakVerse(verseIdx + 1, allVerses, langCode, rate);
+    };
+
+    utterance.onerror = (e) => {
+      if (e.error !== "canceled" && e.error !== "interrupted") {
+        console.warn("Speech error:", e);
+        stopAudioReading();
+      }
+    };
+
+    window.speechSynthesis.speak(utterance);
+  }, [stopAudioReading, toast, t]);
+
+  const startAudioReading = (startVerseNumber?: number) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      toast({ title: t("audio_reader_unsupported"), variant: "destructive" });
+      return;
+    }
+
+    if (isPlayingAudio && !isAudioPaused) {
+      window.speechSynthesis.pause();
+      setIsAudioPaused(true);
+      return;
+    }
+
+    if (isPlayingAudio && isAudioPaused) {
+      window.speechSynthesis.resume();
+      setIsAudioPaused(false);
+      return;
+    }
+
+    const langCode = (translation === "kjv" || translation === "web" || translation === "bbe") ? "en-US" : "pt-BR";
+    const startIdx = startVerseNumber
+      ? Math.max(0, verses.findIndex(v => v.verse === startVerseNumber))
+      : 0;
+
+    setIsPlayingAudio(true);
+    setIsAudioPaused(false);
+    speakVerse(startIdx, verses, langCode, audioRate);
+  };
+
+  const handleSkipAudio = (direction: "prev" | "next") => {
+    if (!isPlayingAudio || audioVerseNum === null) return;
+    const currentIdx = verses.findIndex(v => v.verse === audioVerseNum);
+    if (currentIdx === -1) return;
+
+    const newIdx = direction === "next" ? currentIdx + 1 : Math.max(0, currentIdx - 1);
+    if (newIdx < verses.length) {
+      const langCode = (translation === "kjv" || translation === "web" || translation === "bbe") ? "en-US" : "pt-BR";
+      setIsAudioPaused(false);
+      speakVerse(newIdx, verses, langCode, audioRate);
+    } else {
+      stopAudioReading();
+    }
+  };
+
+  const handleChangeAudioRate = (newRate: number) => {
+    setAudioRate(newRate);
+    if (isPlayingAudio && audioVerseNum !== null) {
+      const currentIdx = verses.findIndex(v => v.verse === audioVerseNum);
+      const langCode = (translation === "kjv" || translation === "web" || translation === "bbe") ? "en-US" : "pt-BR";
+      setIsAudioPaused(false);
+      speakVerse(currentIdx !== -1 ? currentIdx : 0, verses, langCode, newRate);
+    }
+  };
+
+  // Cleanup speech on chapter change or unmount
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [abbrev, chapterNum]);
 
   const [activeVerse, setActiveVerse] = useState<number | null>(null);
   const [noteText, setNoteText] = useState("");
@@ -83,9 +229,6 @@ const Reader = () => {
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
-
-  const book = getBookByAbbrev(abbrev || "");
-  const chapterNum = parseInt(chapter || "1");
 
   useEffect(() => {
     if (chapterStripRef.current) {
@@ -527,6 +670,90 @@ const Reader = () => {
               <BookOpen className="h-3.5 w-3.5" />
               {t("dictionary")}
             </button>
+
+            {/* Leitura Falada / TTS */}
+            <button
+              onClick={() => startAudioReading(selectedVerses.size > 0 ? Math.min(...Array.from(selectedVerses)) : 1)}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium border border-border/80 transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer shadow-xs ${
+                isPlayingAudio
+                  ? "bg-accent text-accent-foreground font-semibold border-accent shadow-[0_0_14px_hsl(var(--accent)/0.4)] animate-pulse"
+                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:text-accent hover:border-accent/50 hover:shadow-[0_0_14px_hsl(var(--accent)/0.25)]"
+              }`}
+              title={t("audio_reader_btn")}
+            >
+              {isPlayingAudio ? (
+                isAudioPaused ? <VolumeX className="h-3.5 w-3.5 text-accent-foreground" /> : <Volume2 className="h-3.5 w-3.5 text-accent-foreground animate-bounce" />
+              ) : (
+                <Volume2 className="h-3.5 w-3.5 text-accent" />
+              )}
+              <span>{isPlayingAudio ? (isAudioPaused ? t("audio_reader_paused") : t("audio_reader_playing")) : t("audio_reader_btn")}</span>
+            </button>
+
+            {/* Tamanho da Fonte (Aumentar / Diminuir) */}
+            <div className="relative">
+              <div className="flex items-center rounded-lg border border-border/80 bg-secondary px-1 py-0.5 shadow-xs">
+                <button
+                  onClick={() => changeFontSize(-1)}
+                  disabled={fontSize === "sm"}
+                  className="rounded px-1.5 py-0.5 text-xs font-bold text-secondary-foreground hover:bg-background/80 hover:text-accent disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+                  title="Diminuir fonte (A-)"
+                >
+                  <span className="text-[11px] font-serif font-bold">A-</span>
+                </button>
+                <button
+                  onClick={() => setShowFontMenu(!showFontMenu)}
+                  className="flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-bold text-foreground hover:text-accent transition-colors"
+                  title={t("font_size_btn")}
+                >
+                  <Type className="h-3 w-3 text-accent" />
+                  <span>{fontSize === "sm" ? "14px" : fontSize === "md" ? "16px" : fontSize === "lg" ? "18px" : fontSize === "xl" ? "22px" : "26px"}</span>
+                </button>
+                <button
+                  onClick={() => changeFontSize(1)}
+                  disabled={fontSize === "2xl"}
+                  className="rounded px-1.5 py-0.5 text-xs font-bold text-secondary-foreground hover:bg-background/80 hover:text-accent disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+                  title="Aumentar fonte (A+)"
+                >
+                  <span className="text-[11px] font-serif font-bold">A+</span>
+                </button>
+              </div>
+
+              {/* Menu de Tamanhos de Fonte */}
+              <AnimatePresence>
+                {showFontMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 5, scale: 0.95 }}
+                    className="absolute left-0 top-full z-50 mt-1.5 w-44 rounded-xl border border-border bg-card p-1.5 shadow-xl backdrop-blur-lg"
+                  >
+                    <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/40 mb-1">
+                      {t("font_size_btn")}
+                    </div>
+                    {[
+                      { key: "sm", label: t("font_size_sm") },
+                      { key: "md", label: t("font_size_md") },
+                      { key: "lg", label: t("font_size_lg") },
+                      { key: "xl", label: t("font_size_xl") },
+                      { key: "2xl", label: t("font_size_2xl") },
+                    ].map((f) => (
+                      <button
+                        key={f.key}
+                        onClick={() => selectFontSize(f.key as ReaderFontSize)}
+                        className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs font-medium transition-colors ${
+                          fontSize === f.key
+                            ? "bg-accent/15 font-bold text-accent"
+                            : "text-foreground hover:bg-secondary"
+                        }`}
+                      >
+                        <span>{f.label}</span>
+                        {fontSize === f.key && <span className="text-[10px] text-accent">✓</span>}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
           {/* Row 3: Chapters Strip (Fixed inside Sticky Top Bar) */}
@@ -713,9 +940,20 @@ const Reader = () => {
               const hl = highlightsMap[v.verse];
               const note = notesMap[v.verse];
               const bilingualVerse = bilingualVerses.find((ev) => ev.verse === v.verse);
+              const isSpoken = isPlayingAudio && audioVerseNum === v.verse;
+
+              const fontSizeClass = fontSize === "sm" 
+                ? "text-sm leading-relaxed" 
+                : fontSize === "lg" 
+                ? "text-lg leading-relaxed" 
+                : fontSize === "xl" 
+                ? "text-xl leading-loose" 
+                : fontSize === "2xl" 
+                ? "text-2xl leading-loose" 
+                : "text-base leading-relaxed";
 
               return (
-                <div key={v.verse} className="group" style={{ touchAction: 'pan-y' }}>
+                <div key={v.verse} id={`verse-item-${v.verse}`} className="group scroll-mt-28" style={{ touchAction: 'pan-y' }}>
                   <div className="flex items-start gap-1">
                     <button
                       onClick={() => {
@@ -726,8 +964,10 @@ const Reader = () => {
                         }
                       }}
                       style={{ touchAction: 'manipulation' }}
-                      className={`flex-1 rounded-lg px-3 py-2 text-left transition-colors ${
-                        selectedVerses.has(v.verse)
+                      className={`flex-1 rounded-lg px-3 py-2 text-left transition-all duration-200 ${
+                        isSpoken
+                          ? "bg-accent/25 ring-2 ring-accent shadow-md shadow-accent/20 scale-[1.01]"
+                          : selectedVerses.has(v.verse)
                           ? "bg-accent/15 ring-1 ring-accent/30"
                           : dictVerse === v.verse
                           ? "bg-accent/10 ring-1 ring-accent/20"
@@ -736,10 +976,11 @@ const Reader = () => {
                           : "hover:bg-secondary"
                       }`}
                     >
-                      <span className="mr-2 font-sans text-xs font-bold text-accent">
+                      <span className="mr-2 inline-flex items-center font-sans text-xs font-bold text-accent">
+                        {isSpoken && <Volume2 className="h-3.5 w-3.5 text-accent mr-1 animate-pulse" />}
                         {v.verse}
                       </span>
-                      <span className="font-serif text-base leading-relaxed text-foreground">
+                      <span className={`font-serif ${fontSizeClass} text-foreground transition-all duration-150`}>
                         {v.text.trim()}
                       </span>
                       {bilingual && (
@@ -968,7 +1209,101 @@ const Reader = () => {
         )}
       </div>
 
-      {selectedVerses.size > 0 && (
+      {/* FLOATING AUDIO PLAYER DOCK */}
+      <AnimatePresence>
+        {isPlayingAudio && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none"
+          >
+            <div className="pointer-events-auto flex items-center gap-2 sm:gap-3 rounded-full bg-card/95 backdrop-blur-xl border border-accent/40 px-4 py-2.5 shadow-2xl shadow-accent/20 max-w-lg w-full justify-between">
+              {/* Left: Info */}
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent">
+                  {isAudioPaused ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4 animate-pulse" />}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-foreground truncate">
+                      {book?.name} {chapterNum}:{audioVerseNum || 1}
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-accent/20 text-accent">
+                      {isAudioPaused ? "Pausado" : "Ouvindo"}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {translation.toUpperCase()} • {audioRate}x
+                  </p>
+                </div>
+              </div>
+
+              {/* Center/Right: Playback controls */}
+              <div className="flex items-center gap-1 sm:gap-2">
+                {/* Prev */}
+                <button
+                  onClick={() => handleSkipAudio("prev")}
+                  className="rounded-full p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                  title="Versículo anterior"
+                >
+                  <SkipBack className="h-4 w-4" />
+                </button>
+
+                {/* Play/Pause */}
+                <button
+                  onClick={() => startAudioReading(audioVerseNum || 1)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-md transition-transform hover:scale-105 active:scale-95"
+                  title={isAudioPaused ? "Continuar" : "Pausar"}
+                >
+                  {isAudioPaused ? <Play className="h-4 w-4 fill-current ml-0.5" /> : <Pause className="h-4 w-4 fill-current" />}
+                </button>
+
+                {/* Stop */}
+                <button
+                  onClick={stopAudioReading}
+                  className="rounded-full p-1.5 text-muted-foreground hover:bg-secondary hover:text-destructive transition-colors"
+                  title="Parar áudio"
+                >
+                  <Square className="h-4 w-4" />
+                </button>
+
+                {/* Next */}
+                <button
+                  onClick={() => handleSkipAudio("next")}
+                  className="rounded-full p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                  title="Próximo versículo"
+                >
+                  <SkipForward className="h-4 w-4" />
+                </button>
+
+                {/* Speed toggle */}
+                <button
+                  onClick={() => {
+                    const nextRate = audioRate === 0.8 ? 1.0 : audioRate === 1.0 ? 1.25 : audioRate === 1.25 ? 1.5 : 0.8;
+                    handleChangeAudioRate(nextRate);
+                  }}
+                  className="hidden sm:inline-flex items-center justify-center rounded-full bg-secondary/80 px-2 py-1 text-[11px] font-mono font-bold text-secondary-foreground hover:bg-secondary transition-colors"
+                  title="Ajustar velocidade da narração"
+                >
+                  {audioRate}x
+                </button>
+
+                {/* Close */}
+                <button
+                  onClick={stopAudioReading}
+                  className="rounded-full p-1 text-muted-foreground hover:text-foreground transition-colors ml-1"
+                  title="Fechar player"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {selectedVerses.size > 0 && !isPlayingAudio && (
         <div className="fixed bottom-6 left-0 right-0 z-50 flex justify-center pointer-events-none px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}

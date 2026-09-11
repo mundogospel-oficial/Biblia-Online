@@ -21,13 +21,15 @@ import {
   HeartHandshake,
   ArrowRight,
   Filter,
-  Clock
+  Clock,
+  MapPin
 } from "lucide-react";
 import { devotionals, Devotional } from "@/lib/devotionalsData";
 import { readingPlans } from "@/lib/readingPlansData";
 import { getFavoritePlanIds, toggleFavoritePlan } from "@/services/readingPlanService";
 import { shareBibleText } from "@/lib/downloadUtils";
 import { ReadingPlansSection } from "@/components/ReadingPlansSection";
+import { BiblicalMapsSection } from "@/components/BiblicalMapsSection";
 
 // Helper function to get the icon associated with a category
 const getCategoryIcon = (category: string) => {
@@ -48,7 +50,7 @@ const getCategoryIcon = (category: string) => {
 };
 
 const DevotionalPage = () => {
-  const [activeTab, setActiveTab] = useState<"hoje" | "planos" | "explorar" | "favoritos">("hoje");
+  const [activeTab, setActiveTab] = useState<"hoje" | "planos" | "mapas" | "explorar" | "favoritos">("hoje");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("Todas");
   const [expandedDevotionalId, setExpandedDevotionalId] = useState<number | null>(null);
@@ -159,6 +161,7 @@ const DevotionalPage = () => {
             {[
               { id: "hoje", label: "Devocional de Hoje", icon: Sparkles },
               { id: "planos", label: "Planos de Leitura", icon: BookOpen },
+              { id: "mapas", label: "Mapas Bíblicos", icon: MapPin, isBeta: true },
               { id: "explorar", label: `Explorar Devocionais (${devotionals.length})`, icon: Compass },
               { id: "favoritos", label: `Meus Favoritos (${favoritedIds.length + favoritedPlanIds.length})`, icon: Heart },
             ].map((tab) => {
@@ -184,6 +187,13 @@ const DevotionalPage = () => {
                   <span className="relative z-10 flex items-center gap-1.5">
                     <Icon className="h-3.5 w-3.5" />
                     {tab.label}
+                    {tab.isBeta && (
+                      <span className={`px-1 py-0.2 rounded text-[9px] font-bold uppercase ${
+                        isActive ? "bg-primary-foreground/20 text-primary-foreground" : "bg-accent/20 text-accent"
+                      }`}>
+                        Beta
+                      </span>
+                    )}
                   </span>
                 </button>
               );
@@ -321,7 +331,19 @@ const DevotionalPage = () => {
               </motion.div>
             )}
 
-            {/* 3. EXPLORAR ALL TAB */}
+            {/* 3. MAPAS BÍBLICOS (BETA) TAB */}
+            {activeTab === "mapas" && (
+              <motion.div
+                key="mapas-tab"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                <BiblicalMapsSection />
+              </motion.div>
+            )}
+
+            {/* 4. EXPLORAR ALL TAB */}
             {activeTab === "explorar" && (
               <motion.div
                 key="explorar-tab"
