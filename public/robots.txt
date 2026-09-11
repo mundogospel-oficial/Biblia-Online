@@ -1,14 +1,59 @@
+# ==============================================================================
+# Bíblia Online - Robots.txt & AI Crawler Access Policy
+# Open access for Search Engines & AI Models (OpenAI, Gemini, Claude, Perplexity, etc.)
+# ==============================================================================
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
 User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
 Allow: /
 
 User-agent: Bingbot
 Allow: /
 
+User-agent: cohere-ai
+Allow: /
+
+User-agent: Meta-ExternalAgent
+Allow: /
+
+User-agent: FacebookBot
+Allow: /
+
 User-agent: Twitterbot
 Allow: /
 
-User-agent: facebookexternalhit
+User-agent: Applebot
+Allow: /
+
+User-agent: Bytespider
 Allow: /
 
 User-agent: *
 Allow: /
+
+# Sitemaps and AI App Summaries
+Sitemap: https://online-biblia.vercel.app/sitemap.xml
+Sitemap: https://ais-pre-6l6a4lokvoyyiqlu26cadl-511815758067.us-east1.run.app/sitemap.xml

@@ -42,8 +42,54 @@
     
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.supabase.in https://*.supabase.net https://*.google.com https://*.vercel.app https://*.vercel.live https://challenges.cloudflare.com https://*.onesignal.com https://onesignal.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.onesignal.com https://onesignal.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: https://img.os-content.com https://*.os-content.com; frame-src 'self' https://*.vercel.live https://challenges.cloudflare.com; worker-src 'self' blob: https://*.onesignal.com https://onesignal.com; child-src 'self' https://*.onesignal.com https://onesignal.com; connect-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com https://*.supabase.co https://*.supabase.in https://*.supabase.net https://*.googleapis.com wss://*.supabase.co wss://*.supabase.in https://raw.githubusercontent.com https://bible-api.com https://bolls.life https://openrouter.ai https://*.cloudflare.com https://*.vercel.live https://*.onesignal.com https://onesignal.com https://img.os-content.com https://*.os-content.com https://api.ipify.org https://*.ipify.org https://ipapi.co https://*.ipapi.co;">
     <title>Biblia Online</title>
-    <meta name="description" content="Um aplicativo completo para leitura, estudo e pesquisa bíblica com o apoio de Inteligência Artificial.">
+    <meta name="description" content="Um aplicativo completo para leitura, estudo e pesquisa bíblica com o apoio de Inteligência Artificial. Bilingual Portuguese/English Bible application.">
     <meta name="author" content="Mundo Gospel" />
+
+    <!-- AI Crawler and Search Engine Authorization Meta Tags -->
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large" />
+    <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large" />
+    <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml" />
+    <link rel="help" href="/llms.txt" title="LLM & AI Application Summary" />
+
+    <!-- Open Graph & Social Media -->
+    <meta property="og:title" content="Biblia Online" />
+    <meta property="og:description" content="Um aplicativo completo para leitura, estudo e pesquisa bíblica com o apoio de Inteligência Artificial." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://online-biblia.vercel.app/" />
+    <meta property="og:image" content="/icons/logo3.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Biblia Online" />
+    <meta name="twitter:description" content="Um aplicativo completo para leitura, estudo e pesquisa bíblica com o apoio de Inteligência Artificial." />
+    <meta name="twitter:image" content="/icons/logo3.png" />
+
+    <!-- Schema.org JSON-LD Structured Metadata for AI bots & Search Engines -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Bíblia Online",
+      "alternateName": ["Biblia Online", "Online Holy Bible"],
+      "url": "https://online-biblia.vercel.app/",
+      "applicationCategory": "EducationalApplication",
+      "operatingSystem": "All",
+      "inLanguage": ["pt-BR", "en-US"],
+      "description": "Plataforma bilíngue de leitura, pesquisa e estudo bíblico com Inteligência Artificial, modo telão para púlpito, dicionário teológico e anotações.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "BRL"
+      },
+      "featureList": [
+        "Leitura dos 66 livros da Bíblia Sagrada (1.189 capítulos)",
+        "Modo Bilíngue com tradução em tempo real assistida por IA",
+        "Modo Telão e Púlpito em tela cheia com alta legibilidade",
+        "Dicionário Bíblico e Exegese de versículos com Inteligência Artificial",
+        "Criador de imagens e versículos para redes sociais",
+        "Modo Offline PWA e Sincronização em Nuvem"
+      ]
+    }
+    </script>
 
     <script>
       const isAllowedHost = 

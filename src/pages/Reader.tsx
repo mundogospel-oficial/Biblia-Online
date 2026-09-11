@@ -11,10 +11,13 @@ import Header from "@/components/Header";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft, ChevronRight, Sparkles, Loader2, Heart,
-  Highlighter, StickyNote, X, Languages, BookOpen, WifiOff, Download, Share2, AlertCircle, RotateCw
+  Highlighter, StickyNote, X, Languages, BookOpen, WifiOff, Download, Share2, AlertCircle, RotateCw, Presentation
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { PulpitMode } from "@/components/PulpitMode";
+import { BetaGate } from "@/components/BetaGate";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const DICT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bible-chat`;
 
@@ -28,6 +31,7 @@ const Reader = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user: authUser } = useAuth();
+  const { t } = useLanguage();
 
   const [verses, setVerses] = useState<VerseData[]>([]);
   const [bilingualVerses, setBilingualVerses] = useState<VerseData[]>([]);
@@ -44,6 +48,10 @@ const Reader = () => {
   // Controle de paginação suave/on-demand para carregar capítulos por demanda
   const [visibleLimit, setVisibleLimit] = useState(25);
   const loaderRef = useRef<HTMLDivElement | null>(null);
+
+  // Modo Púlpito (Apresentação Sagrada & Projeção)
+  const [showPulpitMode, setShowPulpitMode] = useState(false);
+  const [pulpitStartVerse, setPulpitStartVerse] = useState<number>(1);
 
   const [activeVerse, setActiveVerse] = useState<number | null>(null);
   const [noteText, setNoteText] = useState("");
@@ -437,12 +445,12 @@ const Reader = () => {
             <div className="w-16" />
           </div>
 
-          {/* Row 2: Controls (Translation, Bilingual, Dictionary) */}
+          {/* Row 2: Controls (Translation, Presentation, Bilingual, Dictionary) */}
           <div className="flex flex-wrap items-center gap-2">
             <select
               value={translation}
               onChange={(e) => setTranslation(e.target.value)}
-              className="rounded-lg border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              className="rounded-lg border border-border/80 bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground hover:border-accent/40 focus:outline-none focus:ring-1 focus:ring-accent transition-all cursor-pointer shadow-xs"
             >
               {translations.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -450,9 +458,26 @@ const Reader = () => {
                 </option>
               ))}
             </select>
+            <BetaGate>
+              <button
+                onClick={() => {
+                  const firstSelected = selectedVerses.size > 0 ? Math.min(...Array.from(selectedVerses)) : (activeVerse || 1);
+                  setPulpitStartVerse(firstSelected);
+                  setShowPulpitMode(true);
+                }}
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium bg-secondary text-secondary-foreground border border-border/80 hover:bg-secondary/80 hover:text-accent hover:border-accent/50 transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer shadow-xs hover:shadow-[0_0_14px_hsl(var(--accent)/0.25)]"
+                title={t("present_desc")}
+              >
+                <Presentation className="h-3.5 w-3.5 text-accent" />
+                <span>{t("present")}</span>
+                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-accent/20 text-accent leading-none">
+                  Beta
+                </span>
+              </button>
+            </BetaGate>
             <button
               onClick={() => {
-                if (!authUser) { toast({ title: "Faça login para usar o modo bilíngue" }); return; }
+                if (!authUser) { toast({ title: t("bilingual_login_needed") }); return; }
                 if (bilingual) {
                   setBilingual(false);
                   setBilingualLimitReached(false);
@@ -461,28 +486,28 @@ const Reader = () => {
                   setBilingual(true);
                 }
               }}
-              className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium border border-border/80 transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer shadow-xs ${
                 bilingual
-                  ? "bg-accent text-accent-foreground font-semibold"
-                  : "bg-secondary text-secondary-foreground hover:bg-muted"
+                  ? "bg-accent text-accent-foreground font-semibold border-accent shadow-[0_0_12px_hsl(var(--accent)/0.35)]"
+                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:text-accent hover:border-accent/50 hover:shadow-[0_0_14px_hsl(var(--accent)/0.25)]"
               }`}
             >
               <Languages className="h-3.5 w-3.5" />
-              Bilíngue
+              {t("bilingual")}
             </button>
             {bilingual && (
               <div className="flex flex-col gap-0.5">
                 <div className="flex items-center gap-1.5">
                   {bilingualLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />}
                   <span className="text-[10px] text-muted-foreground">
-                    {bilingualLoading ? "Traduzindo com IA..." : "Tradução IA ativa"}
+                    {bilingualLoading ? t("bilingual_translating") : t("bilingual_active")}
                   </span>
                 </div>
               </div>
             )}
             <button
               onClick={() => {
-                if (!authUser) { toast({ title: "Faça login para usar o dicionário" }); return; }
+                if (!authUser) { toast({ title: t("dictionary_login_needed") }); return; }
                 if (dictMode) {
                   setDictMode(false);
                   setDictLimitReached(false);
@@ -493,14 +518,14 @@ const Reader = () => {
                   setDictMode(true);
                 }
               }}
-              className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium border border-border/80 transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer shadow-xs ${
                 dictMode
-                  ? "bg-accent text-accent-foreground font-semibold"
-                  : "bg-secondary text-secondary-foreground hover:bg-muted"
+                  ? "bg-accent text-accent-foreground font-semibold border-accent shadow-[0_0_12px_hsl(var(--accent)/0.35)]"
+                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:text-accent hover:border-accent/50 hover:shadow-[0_0_14px_hsl(var(--accent)/0.25)]"
               }`}
             >
               <BookOpen className="h-3.5 w-3.5" />
-              Dicionário
+              {t("dictionary")}
             </button>
           </div>
 
@@ -816,7 +841,7 @@ const Reader = () => {
                           maxLength={1000}
                           value={noteText}
                           onChange={(e) => setNoteText(e.target.value.slice(0, 1000))}
-                          placeholder="Escreva sua anotação... (máx. 1000 caracteres)"
+                          placeholder={t("note_placeholder")}
                           rows={2}
                           className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none custom-scrollbar"
                         />
@@ -825,13 +850,13 @@ const Reader = () => {
                             onClick={() => handleSaveNote(v.verse)}
                             className="rounded-lg bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
                           >
-                            Salvar
+                            {t("save")}
                           </button>
                           <button
                             onClick={() => setShowNoteInput(null)}
                             className="rounded-lg px-3 py-1 text-xs text-muted-foreground hover:text-foreground"
                           >
-                            Cancelar
+                            {t("cancel")}
                           </button>
                         </div>
                       </motion.div>
@@ -851,23 +876,23 @@ const Reader = () => {
                           <div className="flex items-center justify-between gap-1.5 mb-2.5">
                             <div className="flex items-center gap-1.5">
                               <BookOpen className="h-3.5 w-3.5 text-accent" />
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-accent">Dicionário Bíblico IA</span>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-accent">{t("dict_title")}</span>
                             </div>
                             <span className="text-[9px] text-muted-foreground/60 italic">
-                              IA com auxílio de erudição bíblica
+                              {t("dict_subtitle")}
                             </span>
                           </div>
                           {!isOnline ? (
                             <div className="flex flex-col items-center gap-1.5 text-center py-3">
                               <WifiOff className="h-6 w-6 text-red-500 animate-pulse" />
-                              <span className="text-xs font-bold text-foreground">Você precisa de internet para usar o Dicionário com IA</span>
-                              <span className="text-[10px] text-muted-foreground">Por favor, reconecte-se e tente novamente.</span>
+                              <span className="text-xs font-bold text-foreground">{t("dict_offline_title")}</span>
+                              <span className="text-[10px] text-muted-foreground">{t("dict_offline_desc")}</span>
                             </div>
                           ) : dictLoading ? (
                             <div className="space-y-2 py-1.5">
                               <div className="flex items-center gap-2 text-accent text-xs font-semibold animate-pulse">
                                 <Sparkles className="h-3.5 w-3.5 animate-spin text-accent" />
-                                <span>Analisando versículo e contexto histórico...</span>
+                                <span>{t("dict_analyzing")}</span>
                               </div>
                               <div className="space-y-1.5 pt-1">
                                 <div className="h-2.5 w-3/4 rounded-full bg-accent/20 animate-pulse" />
@@ -893,14 +918,14 @@ const Reader = () => {
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center justify-between gap-1">
                                     <p className="text-xs font-bold text-rose-200 tracking-tight">
-                                      Limite do Dicionário Atingido
+                                      {t("dict_limit_title")}
                                     </p>
                                     <span className="shrink-0 rounded-full bg-rose-500/25 px-1.5 py-0.5 text-[9px] font-bold text-rose-300 border border-rose-500/30">
-                                      3/3 hoje
+                                      3/3
                                     </span>
                                   </div>
                                   <p className="text-[10px] text-rose-300/80 leading-snug mt-0.5">
-                                    Você atingiu o limite de 3 consultas ao Dicionário por dia no modo gratuito. Cota recarrega em 12 horas.
+                                    {t("dict_limit_desc")}
                                   </p>
                                 </div>
                               </div>
@@ -936,7 +961,7 @@ const Reader = () => {
                 className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg py-5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
               >
                 <Loader2 className="h-4 w-4 animate-spin text-accent" />
-                <span>Carregando mais versículos de forma incremental... ou clique para exibir mais</span>
+                <span>{t("loading_more_verses")}</span>
               </div>
             )}
           </motion.div>
@@ -955,7 +980,7 @@ const Reader = () => {
               className="flex items-center gap-2 rounded-full bg-accent px-5 py-3 font-sans text-xs sm:text-sm font-semibold text-accent-foreground shadow-md transition-transform hover:scale-105 active:scale-95 whitespace-nowrap"
             >
               <Sparkles className="h-4 w-4 shrink-0" />
-              Criar imagem ({selectedVerses.size})
+              {t("create_image")} ({selectedVerses.size})
             </button>
 
             <button
@@ -963,7 +988,7 @@ const Reader = () => {
               className="flex items-center gap-2 rounded-full bg-secondary border border-border px-5 py-3 font-sans text-xs sm:text-sm font-semibold text-secondary-foreground shadow-md transition-transform hover:scale-105 active:scale-95 whitespace-nowrap"
             >
               <Share2 className="h-4 w-4 text-accent shrink-0" />
-              Compartilhar texto
+              {t("share_text")}
             </button>
           </motion.div>
         </div>
@@ -977,7 +1002,7 @@ const Reader = () => {
               className="group pointer-events-auto flex items-center gap-1.5 rounded-full bg-card/90 backdrop-blur-md border border-border/80 hover:border-accent/50 hover:bg-accent/10 px-4 py-2 text-xs sm:text-sm font-medium text-foreground shadow-lg shadow-black/20 transition-all duration-200 active:scale-95"
             >
               <ChevronLeft className="h-4 w-4 text-accent transition-transform duration-200 group-hover:-translate-x-0.5" />
-              <span>Cap. {chapterNum - 1}</span>
+              <span>{t("chapter_short")} {chapterNum - 1}</span>
             </Link>
           ) : <div />}
           {chapterNum < book.chapters ? (
@@ -985,12 +1010,28 @@ const Reader = () => {
               to={`/livro/${abbrev}/${chapterNum + 1}`}
               className="group pointer-events-auto ml-auto flex items-center gap-1.5 rounded-full bg-card/90 backdrop-blur-md border border-border/80 hover:border-accent/50 hover:bg-accent/10 px-4 py-2 text-xs sm:text-sm font-medium text-foreground shadow-lg shadow-black/20 transition-all duration-200 active:scale-95"
             >
-              <span>Cap. {chapterNum + 1}</span>
+              <span>{t("chapter_short")} {chapterNum + 1}</span>
               <ChevronRight className="h-4 w-4 text-accent transition-transform duration-200 group-hover:translate-x-0.5" />
             </Link>
           ) : <div />}
         </div>
       )}
+
+      {/* MODO PÚLPITO — APRESENTAÇÃO SAGRADA & TELÃO (EXCLUSIVO PROGRAMA BETA) */}
+      <BetaGate>
+        <PulpitMode
+          isOpen={showPulpitMode}
+          onClose={() => setShowPulpitMode(false)}
+          initialBookAbbrev={abbrev || "gn"}
+          initialChapter={chapterNum}
+          initialVerseNumber={pulpitStartVerse}
+          translation={translation}
+          onTranslationChange={(newTr) => setTranslation(newTr)}
+          onNavigateChapter={(newAbbrev, newChapter) => {
+            navigate(`/livro/${newAbbrev}/${newChapter}`, { replace: true });
+          }}
+        />
+      </BetaGate>
     </div>
   );
 };

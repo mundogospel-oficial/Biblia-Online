@@ -8,7 +8,7 @@ import {
   History, ChevronLeft, Zap, Bot, Paperclip, AlertCircle, MessageSquarePlus, Square, Share2,
   Loader2, ImageOff, FileText, ZoomIn, ZoomOut, WifiOff, Palette, ChevronDown, Check,
   Search, Edit3, Clock, ArrowRight, ShieldAlert, Wand2,
-  ThumbsUp, ThumbsDown, RotateCcw, Copy
+  ThumbsUp, ThumbsDown, RotateCcw, Copy, PanelLeft, PanelLeftClose
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +20,15 @@ import { askBibleAI, AIAttachment } from "@/services/aiService";
 import { checkAndIncrementUsage, checkQuotaOnly, getUserUsage, refundUsage } from "@/services/usageService";
 import { saveAIHistory } from "@/services/userDataService";
 import { syncKeyToSupabase } from "@/services/userSyncService";
+import {
+  safeSaveToLocalStorage,
+  loadFromLocalStorage,
+  saveHistoryToServer,
+  fetchHistoryFromServer,
+  deleteConversationOnServer,
+  clearAllHistoryOnServer,
+  mergeChatConversations
+} from "@/services/chatHistoryService";
 import { generateBiblicalImage, refinePromptWithAI } from "@/services/imageGenerationService";
 import { APP_WHITE_LOGO_DATA_URL } from "@/assets/appLogoWhite";
 import { encryptConversationMessages, decryptConversationMessages } from "@/lib/security/cryptoService";
@@ -546,6 +555,18 @@ const AIPage = () => {
   }, [searchParams]);
   const [isLoading, setIsLoading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isSidebarOpen) {
+        setIsSidebarOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isSidebarOpen]);
+
   const [showModes, setShowModes] = useState(false);
   const [selectedImageStyle, setSelectedImageStyle] = useState<ImageStyleOption | null>(() => IMAGE_STYLES.find(s => s.id === "cinematic") || IMAGE_STYLES[0]);
   const [showStylePicker, setShowStylePicker] = useState(false);
@@ -575,6 +596,11 @@ const AIPage = () => {
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [lightboxPrompt, setLightboxPrompt] = useState<string>("");
+  const [lightboxMsgIndex, setLightboxMsgIndex] = useState<number | null>(null);
+  const [lightboxLocalFeedback, setLightboxLocalFeedback] = useState<"like" | "dislike" | null>(null);
+  const [isChangeInputOpen, setIsChangeInputOpen] = useState(false);
+  const [changePromptText, setChangePromptText] = useState("");
   const [lightboxLetterboxScale, setLightboxLetterboxScale] = useState(1);
   const [zoomScale, setZoomScale] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
@@ -590,6 +616,10 @@ const AIPage = () => {
       setZoomScale(1);
       setPanOffset({ x: 0, y: 0 });
       setLightboxLetterboxScale(1);
+      setIsChangeInputOpen(false);
+      setChangePromptText("");
+      setLightboxMsgIndex(null);
+      setLightboxLocalFeedback(null);
     }
   }, [lightboxImage]);
 
@@ -739,8 +769,20 @@ const AIPage = () => {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const currentChatIdRef = useRef<string | null>(null); // NOVO: Referência para manter o ID da conversa atual
   
+  const scrollToBottom = (smooth = true) => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: smooth ? "smooth" : "auto",
+      });
+    } else {
+      bottomRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
+    }
+  };
+
   const { toast } = useToast();
 
   const [chatUsed, setChatUsed] = useState(0);
@@ -764,41 +806,47 @@ const AIPage = () => {
   }, []);
 
   useEffect(() => {
-    const isMobileScreen = () => window.innerWidth < 768;
+    // Lock body/html scroll while inside AIPage so that only the chat list scrolls
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    window.scrollTo(0, 0);
 
     const handleFocusIn = (e: FocusEvent) => {
-      if (!isMobileScreen()) return;
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
-        setIsKeyboardOpen(true);
-        if (window.visualViewport) {
+        if (window.visualViewport && window.visualViewport.height < window.innerHeight * 0.85) {
+          setIsKeyboardOpen(true);
           setViewportHeight(window.visualViewport.height);
         }
         window.scrollTo(0, 0);
         setTimeout(() => {
-          bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+          scrollToBottom(true);
         }, 150);
       }
     };
 
     const handleFocusOut = () => {
-      if (!isMobileScreen()) return;
-      setIsKeyboardOpen(false);
-      setViewportHeight(null);
+      setTimeout(() => {
+        if (window.visualViewport) {
+          const isKeyboard = window.visualViewport.height < window.innerHeight * 0.85;
+          setIsKeyboardOpen(isKeyboard);
+          setViewportHeight(isKeyboard ? window.visualViewport.height : null);
+        } else {
+          setIsKeyboardOpen(false);
+          setViewportHeight(null);
+        }
+      }, 100);
       window.scrollTo(0, 0);
     };
 
     const handleViewportResize = () => {
-      if (!isMobileScreen()) {
-        setIsKeyboardOpen(false);
-        setViewportHeight(null);
-        return;
-      }
       if (window.visualViewport) {
         const currentHeight = window.visualViewport.height;
-        const isSmall = currentHeight < window.innerHeight * 0.85;
-        setIsKeyboardOpen(isSmall);
-        if (isSmall) {
+        const isKeyboard = currentHeight < window.innerHeight * 0.85;
+        setIsKeyboardOpen(isKeyboard);
+        if (isKeyboard) {
           setViewportHeight(currentHeight);
           window.scrollTo(0, 0);
         } else {
@@ -815,6 +863,8 @@ const AIPage = () => {
     }
 
     return () => {
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
       window.removeEventListener("focusin", handleFocusIn);
       window.removeEventListener("focusout", handleFocusOut);
       if (window.visualViewport) {
@@ -856,69 +906,89 @@ const AIPage = () => {
   };
 
   useEffect(() => {
+    let isMounted = true;
+
     async function loadSavedConversations() {
       const userSecret = user?.sub;
       const userKey = getConversationsKey(userSecret);
 
+      // 1. Carrega imediatamente do LocalStorage para renderização instantânea
+      const localSaved = loadFromLocalStorage(userKey) as Conversation[];
+      if (localSaved.length > 0 && isMounted) {
+        setConversations(localSaved);
+      }
+
       // Se o usuário está logado, mescla conversas criadas no modo visitante se existirem
       if (userSecret) {
         const guestKey = "ia-biblica-conversations_guest";
-        const guestData = localStorage.getItem(guestKey);
-        if (guestData) {
+        const guestSaved = loadFromLocalStorage(guestKey) as Conversation[];
+        if (guestSaved.length > 0) {
           try {
-            const guestConvs: Conversation[] = JSON.parse(guestData);
-            if (guestConvs.length > 0) {
-              const localData = localStorage.getItem(userKey);
-              let localConvs: Conversation[] = localData ? JSON.parse(localData) : [];
-              const existingIds = new Set(localConvs.map(c => c.id));
-              const merged = [...guestConvs.filter(c => !existingIds.has(c.id)), ...localConvs];
-              localStorage.setItem(userKey, JSON.stringify(merged));
-              localStorage.removeItem(guestKey);
-            }
+            const existingIds = new Set(localSaved.map(c => c.id));
+            const merged = [...guestSaved.filter(c => !existingIds.has(c.id)), ...localSaved];
+            safeSaveToLocalStorage(userKey, merged);
+            localStorage.removeItem(guestKey);
+            if (isMounted) setConversations(merged);
           } catch (e) {
             console.error("Erro ao mesclar conversas de visitante:", e);
           }
         }
-
-        try {
-          await loadKeyFromSupabase("AI_CONVERSATIONS", userKey);
-        } catch (e) {
-          console.warn("Não foi possível buscar do Supabase, mantendo dados locais:", e);
-        }
       }
 
+      // 2. Busca histórico sincronizado do SERVIDOR
       try {
-        const saved = localStorage.getItem(userKey);
-        if (saved) {
-          const parsed: Conversation[] = JSON.parse(saved);
-          const decryptedConversations = await Promise.all(
-            parsed.map(async (c) => {
-              const msgs = userSecret ? await decryptConversationMessages(c.messages, userSecret) : c.messages;
-              const assistantMsg = msgs.find(m => m.role === 'assistant');
-              const firstUserMsg = msgs.find(m => m.role === 'user')?.content || "";
+        const serverConvs = await fetchHistoryFromServer(userSecret) as Conversation[];
+        if (serverConvs && serverConvs.length > 0 && isMounted) {
+          const currentLocal = loadFromLocalStorage(userKey) as Conversation[];
+          const merged = mergeChatConversations(currentLocal, serverConvs) as Conversation[];
+          
+          // Formata títulos amigáveis se necessário
+          const formattedMerged = merged.map(c => {
+            const assistantMsg = c.messages?.find(m => m.role === 'assistant');
+            const firstUserMsg = c.messages?.find(m => m.role === 'user')?.content || "";
+            let finalTitle = c.title;
+            if (assistantMsg && (!c.title || c.title === "Conversa" || c.title === firstUserMsg || c.title === formatMessageForDisplay(firstUserMsg).slice(0, 50))) {
+              finalTitle = generateTitleFromAI(c.messages);
+            }
+            return {
+              ...c,
+              title: finalTitle || "Conversa Bíblica"
+            };
+          });
 
-              let finalTitle = c.title;
-              if (assistantMsg && (!c.title || c.title === "Conversa" || c.title === firstUserMsg || c.title === formatMessageForDisplay(firstUserMsg).slice(0, 50))) {
-                finalTitle = generateTitleFromAI(msgs);
-              }
-
-              return {
-                ...c,
-                title: finalTitle || "Conversa Bíblica",
-                messages: msgs
-              };
-            })
-          );
-          setConversations(decryptedConversations);
-        } else {
-          setConversations([]);
+          setConversations(formattedMerged);
+          safeSaveToLocalStorage(userKey, formattedMerged);
+          return;
         }
       } catch (err) {
-        console.warn("Erro ao carregar histórico de conversas:", err);
-        setConversations([]);
+        console.warn("[ChatHistory] Falha ao sincronizar com servidor, dados locais mantidos:", err);
+      }
+
+      // 3. Fallback adicional do Supabase legado se o servidor ainda não possuía
+      if (userSecret) {
+        try {
+          await loadKeyFromSupabase("AI_CONVERSATIONS", userKey);
+          const fromSupa = loadFromLocalStorage(userKey) as Conversation[];
+          if (fromSupa.length > 0 && isMounted) {
+            const decryptedConversations = await Promise.all(
+              fromSupa.map(async (c) => {
+                const msgs = userSecret ? await decryptConversationMessages(c.messages, userSecret) : c.messages;
+                return {
+                  ...c,
+                  messages: msgs
+                };
+              })
+            );
+            setConversations(decryptedConversations);
+            safeSaveToLocalStorage(userKey, decryptedConversations);
+            saveHistoryToServer(userSecret, decryptedConversations);
+          }
+        } catch (_) {}
       }
     }
+
     loadSavedConversations();
+    return () => { isMounted = false; };
   }, [user?.sub]);
 
   const fetchUsage = useCallback(async () => {
@@ -952,7 +1022,9 @@ const AIPage = () => {
   }, [aiEngine, activeMode, usageStats]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length > 0) {
+      scrollToBottom(true);
+    }
   }, [messages]);
 
   if (!user) {
@@ -1041,7 +1113,7 @@ const AIPage = () => {
     );
   }
 
-  // Lógica criptografada de persistência com título gerado pela IA
+  // Lógica robusta de persistência no servidor e local storage com título gerado pela IA
   const saveConversation = (msgs: Msg[], explicitTitle?: string, preserveTimestamp?: boolean) => {
     if (msgs.length < 2) return;
     const userSecret = user?.sub;
@@ -1073,19 +1145,13 @@ const AIPage = () => {
         updated = [conv, ...prev];
       }
 
-      // 1. Salva imediatamente o estado no localStorage (funciona logado ou visitante) com proteção contra estouro de cota
-      try {
-        localStorage.setItem(userKey, JSON.stringify(updated));
-      } catch (e) {
-        console.warn("Storage quota atingida ao salvar localmente. Podando conversas antigas...", e);
-        try {
-          // Mantém as 6 conversas mais recentes para evitar exceder o limite de 5MB
-          const pruned = updated.slice(0, 6);
-          localStorage.setItem(userKey, JSON.stringify(pruned));
-        } catch (_) {}
-      }
+      // 1. Salva de forma ultra-segura no LocalStorage (protegido contra estouro de cota)
+      safeSaveToLocalStorage(userKey, updated);
 
-      // 2. Se o usuário estiver logado, criptografa e sincroniza com o Supabase em segundo plano
+      // 2. Salva no SERVIDOR de forma assíncrona garantida
+      saveHistoryToServer(userSecret, updated);
+
+      // 3. Sincroniza adicionalmente com Supabase se o usuário estiver autenticado
       if (userSecret) {
         Promise.all(
           updated.map(async (c) => ({
@@ -1094,17 +1160,10 @@ const AIPage = () => {
           }))
         ).then(async (encryptedConversations) => {
           const jsonStr = JSON.stringify(encryptedConversations);
-          try {
-            localStorage.setItem(userKey, jsonStr);
-          } catch (storageErr) {
-            console.warn("Storage quota atingida ao salvar versão criptografada. Podando...", storageErr);
-            try {
-              const pruned = encryptedConversations.slice(0, 6);
-              localStorage.setItem(userKey, JSON.stringify(pruned));
-            } catch (_) {}
-          }
           await syncKeyToSupabase("AI_CONVERSATIONS", jsonStr);
-        }).catch(console.error);
+        }).catch(err => {
+          console.debug("[ChatHistory] Sincronização secundária com Supabase ignorada:", err);
+        });
       }
 
       return updated;
@@ -1124,6 +1183,7 @@ const AIPage = () => {
     currentChatIdRef.current = conv.id; // Atualiza a referência para continuar o mesmo chat
     setMessages(conv.messages);
     setShowHistory(false);
+    setIsSidebarOpen(false);
     const initialFeedback: Record<number, "like" | "dislike"> = {};
     conv.messages.forEach((msg, idx) => {
       if (msg.feedback) {
@@ -1140,12 +1200,13 @@ const AIPage = () => {
     const userSecret = user?.sub;
     const userKey = getConversationsKey(userSecret);
 
-    try {
-      localStorage.setItem(userKey, JSON.stringify(updated));
-    } catch (e) {
-      console.error("Erro ao remover no localStorage:", e);
-    }
+    // 1. Salva localmente
+    safeSaveToLocalStorage(userKey, updated);
 
+    // 2. Remove do servidor
+    deleteConversationOnServer(userSecret, id);
+
+    // 3. Sincroniza remoção no Supabase se logado
     if (userSecret) {
       Promise.all(
         updated.map(async (c) => ({
@@ -1154,9 +1215,10 @@ const AIPage = () => {
         }))
       ).then(async (encryptedConversations) => {
         const jsonStr = JSON.stringify(encryptedConversations);
-        localStorage.setItem(userKey, jsonStr);
         await syncKeyToSupabase("AI_CONVERSATIONS", jsonStr);
-      }).catch(console.error);
+      }).catch(err => {
+        console.debug("[ChatHistory] Sincronização de delete no Supabase:", err);
+      });
     }
 
     if (currentChatIdRef.current === id) {
@@ -1278,7 +1340,15 @@ const AIPage = () => {
     });
   };
 
-  const sendSpecialMode = async (text: string, mode: ModeKey, attachments?: AIAttachment[], attachedFileName?: string | null, attachedFilesList?: Array<{ name: string; size?: number; type?: string }>) => {
+  const sendSpecialMode = async (
+    text: string, 
+    mode: ModeKey, 
+    attachments?: AIAttachment[], 
+    attachedFileName?: string | null, 
+    attachedFilesList?: Array<{ name: string; size?: number; type?: string }>,
+    previousPrompt?: string,
+    changeRequested?: string
+  ) => {
     if (!user) return;
     
     // Imagem usa a cota de imagem; outros modos especiais utilizam a cota de chat complexo
@@ -1327,11 +1397,18 @@ const AIPage = () => {
           cleanPrompt = `${cleanPrompt} [Estilo: ${selectedImageStyle.label}]`;
         }
 
-        // 1. Gemini analisa e melhora o prompt mantendo rigorosamente o cenário intacto
+        // 1. OPENROUTER_IMAGENS analisa o prompt anterior, incorpora o ajuste pedido e enriquece a cena mantendo o cenário
         let promptToSend = cleanPrompt;
         let isAlreadyRefined = false;
         try {
-          const refineResult = await refinePromptWithAI(cleanPrompt, 'image', selectedImageStyle?.label, controller.signal);
+          const refineResult = await refinePromptWithAI(
+            cleanPrompt, 
+            'image', 
+            selectedImageStyle?.label, 
+            controller.signal,
+            previousPrompt,
+            changeRequested
+          );
           if (refineResult.isBlocked) {
             toast({
               title: "Conteúdo Bloqueado",
@@ -1521,8 +1598,62 @@ Estilo Pixel Art:
       setAttachedFiles([]);
     }
 
-    if (activeMode && activeMode !== "learning" && ["video", "music", "image"].includes(activeMode)) {
-      return sendSpecialMode(finalText, activeMode, attachments, fileNamesStr, filesListForMsg.length > 0 ? filesListForMsg : undefined);
+    const isImageModIntent = /^(?:modifique|altere|ajuste|mude|troque|refa[çc]a)\s+(?:a\s+)?(?:imagem|ilustra[çc][ãa]o)\b/i.test(finalText) ||
+      /\b(?:modifique|altere|mude)\s+a\s+imagem\s+anterior\b/i.test(finalText) ||
+      /mantendo o contexto b[íi]blico de/i.test(finalText);
+
+    const isImageGenIntent = activeMode === "image" ||
+      isImageModIntent ||
+      /^\[Modo:\s*(?:Gerar\s*)?Imagem\]/i.test(finalText) ||
+      /^(?:gere|crie|desenhe|ilustre|fa[çc]a)\s+(?:uma\s+)?(?:imagem|ilustra[çc][ãa]o|foto|arte|pintura)\b/i.test(finalText);
+
+    if (isImageGenIntent || (activeMode && activeMode !== "learning" && ["video", "music", "image"].includes(activeMode))) {
+      const targetMode: ModeKey = (activeMode && ["video", "music"].includes(activeMode) && !isImageGenIntent) ? activeMode : "image";
+      
+      let extractedPrevPrompt: string | undefined;
+      let extractedChange: string | undefined;
+
+      const modPattern1 = /mantendo o contexto b[íi]blico de "([^"]+)",?\s*com a seguinte altera[çc][ãa]o:\s*(.*)/i.exec(finalText);
+      const modPattern2 = /de "([^"]+)",?\s*alterando:\s*(.*)/i.exec(finalText);
+      const modPattern3 = /(?:com a seguinte altera[çc][ãa]o|alterando):\s*(.*)/i.exec(finalText);
+
+      if (modPattern1) {
+        extractedPrevPrompt = modPattern1[1].trim();
+        extractedChange = modPattern1[2].trim();
+      } else if (modPattern2) {
+        extractedPrevPrompt = modPattern2[1].trim();
+        extractedChange = modPattern2[2].trim();
+      } else if (modPattern3) {
+        extractedChange = modPattern3[1].trim();
+      }
+
+      // Se é intenção de modificação e não foi extraído prompt anterior do texto, localiza a última imagem do histórico
+      if (!extractedPrevPrompt && isImageModIntent) {
+        for (let i = messages.length - 1; i >= 0; i--) {
+          if (messages[i].image) {
+            for (let j = i - 1; j >= 0; j--) {
+              if (messages[j].role === "user") {
+                extractedPrevPrompt = messages[j].content
+                  .replace(/\[Modo:.*?\]/g, "")
+                  .replace(/\[Estilo:.*?\]/g, "")
+                  .trim();
+                break;
+              }
+            }
+            break;
+          }
+        }
+      }
+
+      return sendSpecialMode(
+        finalText, 
+        targetMode, 
+        attachments, 
+        fileNamesStr, 
+        filesListForMsg.length > 0 ? filesListForMsg : undefined,
+        extractedPrevPrompt,
+        extractedChange
+      );
     }
 
     // Check quota before loading
@@ -1875,7 +2006,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
         const len = inputEl.value.length;
         inputEl.setSelectionRange(len, len);
       }
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      scrollToBottom(true);
     }, 50);
     toast({
       title: "Editar pergunta",
@@ -1883,9 +2014,164 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
     });
   };
 
-  const renderAssistantContent = (msg: Msg) => {
+  const openLightbox = (imgUrl: string, prompt?: string, msgIdx?: number) => {
+    setLightboxImage(imgUrl);
+    setLightboxPrompt(prompt || "");
+    setLightboxMsgIndex(typeof msgIdx === "number" ? msgIdx : null);
+    setLightboxLocalFeedback(null);
+    setIsChangeInputOpen(false);
+    setChangePromptText("");
+    setZoomScale(1);
+    setPanOffset({ x: 0, y: 0 });
+  };
+
+  const effectiveLightboxMsgIndex = typeof lightboxMsgIndex === "number"
+    ? lightboxMsgIndex
+    : messages.findIndex(m => m.image === lightboxImage || (m.content && m.content.includes(lightboxImage || "")));
+
+  const currentLightboxFeedback = effectiveLightboxMsgIndex >= 0
+    ? (messages[effectiveLightboxMsgIndex]?.feedback || messageFeedback[effectiveLightboxMsgIndex])
+    : lightboxLocalFeedback;
+
+  const handleLightboxLike = () => {
+    if (effectiveLightboxMsgIndex >= 0) {
+      handleToggleLike(effectiveLightboxMsgIndex);
+    } else {
+      setLightboxLocalFeedback(prev => prev === "like" ? null : "like");
+      toast({
+        title: "Obrigado pelo feedback!",
+        description: "Avaliação positiva registrada.",
+      });
+    }
+  };
+
+  const handleLightboxDislike = () => {
+    if (effectiveLightboxMsgIndex >= 0) {
+      handleToggleDislike(effectiveLightboxMsgIndex);
+    } else {
+      setLightboxLocalFeedback(prev => prev === "dislike" ? null : "dislike");
+      toast({
+        title: "Feedback registrado",
+        description: "Retorno salvo para aprimoramento.",
+      });
+    }
+  };
+
+  const handleRegenerateImage = (prompt?: string) => {
+    if (isLoading) {
+      toast({ description: "Aguarde a IA concluir a resposta atual." });
+      return;
+    }
+    const resolvedPrompt = prompt || (activeMode === "image" ? input.trim() : "") || "Cena bíblica em alta definição ultra-realista";
+    setActiveMode("image");
+    toast({
+      title: "Regenerando imagem",
+      description: "Criando uma nova versão da sua arte bíblica...",
+    });
+    sendSpecialMode(resolvedPrompt, "image");
+  };
+
+  const handleRequestImageChange = (prompt?: string) => {
+    setActiveMode("image");
+    const cleanPrompt = prompt ? prompt.trim() : "";
+    if (cleanPrompt) {
+      setInput(`Modifique a imagem anterior de "${cleanPrompt}", alterando: `);
+    } else {
+      setInput("Modifique a imagem bíblica anterior, alterando: ");
+    }
+    setTimeout(() => {
+      const inputEl = document.getElementById("ai-prompt-input") as HTMLInputElement | null;
+      if (inputEl) {
+        inputEl.focus();
+        const len = inputEl.value.length;
+        inputEl.setSelectionRange(len, len);
+      }
+      scrollToBottom(true);
+    }, 100);
+    toast({
+      title: "Pedir mudança",
+      description: "Descreva o que deseja mudar na imagem e envie a mensagem.",
+    });
+  };
+
+  const handleRegenerateFromLightbox = () => {
+    if (isLoading) {
+      toast({ description: "Aguarde a IA concluir a resposta atual." });
+      return;
+    }
+    const promptToUse = lightboxPrompt || (activeMode === "image" ? input.trim() : "") || "Cena bíblica em alta definição ultra-realista";
+    setLightboxImage(null);
+    setIsChangeInputOpen(false);
+    setActiveMode("image");
+    toast({
+      title: "Regenerando imagem",
+      description: "Criando uma nova versão da sua arte bíblica...",
+    });
+    sendSpecialMode(promptToUse, "image");
+  };
+
+  const handleApplyImageChange = () => {
+    if (!changePromptText.trim()) return;
+    const change = changePromptText.trim();
+    const base = lightboxPrompt ? lightboxPrompt.trim() : "";
+
+    let newPrompt = "";
+    if (base) {
+      newPrompt = `Modifique a imagem anterior mantendo o contexto bíblico de "${base}", com a seguinte alteração: ${change}`;
+    } else {
+      newPrompt = `Modifique a imagem bíblica anterior com a seguinte alteração: ${change}`;
+    }
+
+    setLightboxImage(null);
+    setIsChangeInputOpen(false);
+    setChangePromptText("");
+    setActiveMode("image");
+
+    toast({
+      title: "Aplicando alterações",
+      description: "Gerando nova versão da imagem bíblica com os detalhes solicitados...",
+    });
+
+    sendSpecialMode(newPrompt, "image", undefined, undefined, undefined, base, change);
+  };
+
+  const handleRequestImageChangeInChat = (prompt?: string) => {
+    setLightboxImage(null);
+    setIsChangeInputOpen(false);
+    handleRequestImageChange(prompt);
+  };
+
+  const renderAssistantContent = (msg: Msg, msgIndex?: number) => {
     const formattedContent = (msg.content || "").replace(/\[Arquivo:\s*(.*?)\]/gi, "**$1**");
     const lines = formattedContent.split("\n");
+
+    // Localiza o prompt do usuário associado a esta imagem
+    let associatedPrompt = "";
+    if (typeof msgIndex === "number" && msgIndex > 0) {
+      for (let k = msgIndex - 1; k >= 0; k--) {
+        if (messages[k]?.role === "user") {
+          associatedPrompt = formatMessageForDisplay(cleanImageLinksFromText(messages[k].content))
+            .replace(/\[Modo:.*?\]/g, "")
+            .replace(/\[Estilo:.*?\]/g, "")
+            .trim();
+          break;
+        }
+      }
+    }
+    if (!associatedPrompt) {
+      const idx = messages.indexOf(msg);
+      if (idx > 0) {
+        for (let k = idx - 1; k >= 0; k--) {
+          if (messages[k]?.role === "user") {
+            associatedPrompt = formatMessageForDisplay(cleanImageLinksFromText(messages[k].content))
+              .replace(/\[Modo:.*?\]/g, "")
+              .replace(/\[Estilo:.*?\]/g, "")
+              .trim();
+            break;
+          }
+        }
+      }
+    }
 
     const parseInlineBold = (text: string) => {
       const parts = text.split(/(\*\*[^*]+\*\*)/g);
@@ -1909,9 +2195,9 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
           src={imgUrl} 
           alt="Imagem bíblica gerada" 
           className="absolute inset-0 w-full h-full object-cover cursor-pointer transition-transform duration-300 group-hover:scale-[1.02]" 
-          onClick={() => setLightboxImage(imgUrl)} 
+          onClick={() => openLightbox(imgUrl, associatedPrompt, msgIndex)} 
         />
-        {/* Botões dentro do aro e sem fundo pesado */}
+        {/* Botões de ação (Baixar, Compartilhar e Regenerar) dentro da imagem */}
         <div className="absolute inset-x-0 bottom-0 pt-10 pb-2.5 px-3 bg-gradient-to-t from-black/80 via-black/35 to-transparent flex items-center justify-end gap-2.5 pointer-events-none z-10">
           <button 
             type="button"
@@ -1936,6 +2222,18 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
             className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full text-white/85 hover:text-white hover:scale-110 active:scale-95 transition-all drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] focus:outline-none"
           >
             <Share2 className="h-4.5 w-4.5" />
+          </button>
+          <button 
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRegenerateImage(associatedPrompt);
+            }}
+            title="Regenerar imagem"
+            aria-label="Regenerar imagem"
+            className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full text-white/85 hover:text-white hover:scale-110 active:scale-95 transition-all drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] focus:outline-none"
+          >
+            <RotateCcw className="h-4.5 w-4.5" />
           </button>
         </div>
       </div>
@@ -1994,7 +2292,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
   const imageRemaining = LIMIT_IMAGE - usageStats.image;
   const geminiRemaining = LIMIT_SIMPLE - usageStats.simple;
 
-  if (showHistory) {
+  // Histórico de conversas (agora exibido no Menu Lateral)
     const filteredConversations = conversations.filter(conv => {
       const categoryInfo = getConversationCategoryInfo(conv);
       if (historyFilterCategory !== "all" && categoryInfo.category !== historyFilterCategory) {
@@ -2021,377 +2319,40 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
       setConversations(updated);
       setEditingTitleId(null);
 
-      Promise.all(
-        updated.map(async (c) => ({
-          ...c,
-          messages: await encryptConversationMessages(c.messages, user?.sub)
-        }))
-      ).then(encryptedConversations => {
-        const jsonStr = JSON.stringify(encryptedConversations);
-        const userKey = getConversationsKey(user?.sub);
-        try {
-          localStorage.setItem(userKey, jsonStr);
-        } catch (e) {
-          console.warn("Storage quota ao renomear conversa:", e);
-        }
-        syncKeyToSupabase("AI_CONVERSATIONS", jsonStr);
-      }).catch(console.error);
+      const userKey = getConversationsKey(user?.sub);
+      safeSaveToLocalStorage(userKey, updated);
+      saveHistoryToServer(user?.sub, updated);
+
+      if (user?.sub) {
+        Promise.all(
+          updated.map(async (c) => ({
+            ...c,
+            messages: await encryptConversationMessages(c.messages, user?.sub)
+          }))
+        ).then(encryptedConversations => {
+          const jsonStr = JSON.stringify(encryptedConversations);
+          syncKeyToSupabase("AI_CONVERSATIONS", jsonStr);
+        }).catch(err => {
+          console.debug("[ChatHistory] Erro ao sincronizar renomeação com Supabase:", err);
+        });
+      }
     };
 
     const handleClearAllHistory = () => {
       setConversations([]);
       const userKey = getConversationsKey(user?.sub);
       localStorage.removeItem(userKey);
+      clearAllHistoryOnServer(user?.sub);
       syncKeyToSupabase("AI_CONVERSATIONS", "[]");
       setShowClearAllModal(false);
       startNewChat();
       toast({ title: "Histórico Limpo", description: "Todas as conversas foram apagadas com sucesso." });
     };
 
-    return (
-      <div className="flex h-[100dvh] flex-col bg-background relative overflow-hidden">
-        <Header />
-
-        <div className="flex-1 flex flex-col min-h-0 container mx-auto max-w-4xl px-3 sm:px-4 pb-4">
-          
-          {/* Header Superior do Histórico */}
-          <div className="flex items-center justify-between py-3 border-b border-border/60 shrink-0">
-            <div className="flex items-center gap-2.5">
-              <button 
-                onClick={() => setShowHistory(false)} 
-                className="flex items-center justify-center p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/60 rounded-xl transition-all liquid-btn"
-                title="Voltar ao Chat"
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-              
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-accent/15 text-accent border border-accent/20">
-                  <History className="h-4 w-4" />
-                </div>
-                <div>
-                  <h2 className="font-serif text-base font-bold text-foreground leading-tight">Histórico de Conversas</h2>
-                  <p className="text-[10px] text-muted-foreground">{conversations.length} {conversations.length === 1 ? 'conversa salva' : 'conversas salvas'}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => {
-                  setShowHistory(false);
-                  startNewChat();
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground text-xs font-semibold transition-all shadow-xs active:scale-95 liquid-btn"
-              >
-                <MessageSquarePlus className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Nova Conversa</span>
-              </button>
-
-              {conversations.length > 0 && (
-                <button
-                  onClick={() => setShowClearAllModal(true)}
-                  className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl transition-all"
-                  title="Apagar todo o histórico"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Cards de Uso Diário / Cota */}
-          <div className="glass-card rounded-2xl p-3.5 mt-3 shrink-0 border border-accent/20 bg-gradient-to-r from-secondary/40 via-background/60 to-secondary/40 shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-accent flex items-center gap-1">
-                <Zap className="h-3 w-3" /> Cota Diária de Uso
-              </span>
-              <span className="text-[10px] text-muted-foreground">Recarrega a cada 12h</span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <div className="flex flex-col items-center justify-center rounded-xl bg-background/80 border border-border/50 p-2 text-center transition-all hover:border-accent/30">
-                <p className="text-base sm:text-lg font-bold text-foreground leading-none mb-0.5">{Math.max(0, chatRemaining)}</p>
-                <p className="text-[9px] font-medium text-muted-foreground">IA Complexa</p>
-              </div>
-
-              <div className="flex flex-col items-center justify-center rounded-xl bg-background/80 border border-border/50 p-2 text-center transition-all hover:border-accent/30">
-                <p className="text-base sm:text-lg font-bold text-foreground leading-none mb-0.5">{Math.max(0, geminiRemaining)}</p>
-                <p className="text-[9px] font-medium text-muted-foreground">IA Simples</p>
-              </div>
-
-              <div className="flex flex-col items-center justify-center rounded-xl bg-background/80 border border-border/50 p-2 text-center transition-all hover:border-accent/30">
-                <p className="text-base sm:text-lg font-bold text-foreground leading-none mb-0.5">{Math.max(0, imageRemaining)}</p>
-                <p className="text-[9px] font-medium text-muted-foreground">Imagens</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Barra de Pesquisa e Filtros com Efeito Liquid Glass */}
-          <div className="mt-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
-            {/* Input de Busca Liquid Glass */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground z-10 pointer-events-none" />
-              <input
-                type="text"
-                value={historySearchQuery}
-                onChange={(e) => setHistorySearchQuery(e.target.value)}
-                placeholder="Buscar no histórico de conversas..."
-                className="w-full liquid-glass-input rounded-xl pl-9 pr-8 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none transition-all"
-              />
-              {historySearchQuery && (
-                <button
-                  onClick={() => setHistorySearchQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground rounded-full z-10 transition-colors"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-
-            {/* Categorias de Filtro Liquid Glass */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 [scrollbar-width:none]">
-              {[
-                { key: "all", label: "Todos" },
-                { key: "simple", label: "IA Simples" },
-                { key: "complex", label: "IA Complexa" },
-                { key: "image", label: "Imagens" },
-              ].map((cat) => (
-                <button
-                  key={cat.key}
-                  onClick={() => setHistoryFilterCategory(cat.key as any)}
-                  className={`px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all whitespace-nowrap liquid-btn ${
-                    historyFilterCategory === cat.key
-                      ? "liquid-glass-pill-active font-semibold shadow-md"
-                      : "liquid-glass-pill text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Lista de Conversas do Histórico */}
-          <div className="flex-1 min-h-0 overflow-y-auto py-3 space-y-2.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            {filteredConversations.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-                <div className="h-14 w-14 rounded-2xl bg-secondary/60 flex items-center justify-center text-muted-foreground mb-3 border border-border/60">
-                  <Bot className="h-7 w-7" />
-                </div>
-                <p className="text-sm font-bold text-foreground mb-1">
-                  {historySearchQuery ? "Nenhuma conversa encontrada" : "Nenhuma conversa salva"}
-                </p>
-                <p className="text-xs text-muted-foreground max-w-xs mb-4">
-                  {historySearchQuery
-                    ? `Não encontramos resultados para "${historySearchQuery}". Tente outro termo.`
-                    : "Suas mensagens e ensinamentos da IA ficam salvos aqui de forma privada e criptografada."}
-                </p>
-                {!historySearchQuery ? (
-                  <button
-                    onClick={() => {
-                      setShowHistory(false);
-                      startNewChat();
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-accent-foreground text-xs font-bold transition-all shadow-xs active:scale-95"
-                  >
-                    <Sparkles className="h-3.5 w-3.5" /> Iniciar conversa com IA
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setHistorySearchQuery("")}
-                    className="px-3 py-1.5 rounded-xl bg-secondary text-xs font-medium text-foreground hover:bg-secondary/80 transition-colors"
-                  >
-                    Limpar filtro de pesquisa
-                  </button>
-                )}
-              </div>
-            ) : (
-              <AnimatePresence mode="popLayout">
-                {filteredConversations.map((conv, idx) => {
-                  const categoryInfo = getConversationCategoryInfo(conv);
-                  const CategoryIcon = categoryInfo.icon;
-                  const previewText = getConversationPreview(conv);
-                  const isEditing = editingTitleId === conv.id;
-
-                  return (
-                    <motion.div
-                      key={conv.id ? `${conv.id}-${idx}` : `conv-${idx}`}
-                      layout
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                      className="glass-card group relative flex flex-col rounded-2xl p-3.5 border border-border/70 hover:border-accent/40 bg-card/80 hover:bg-card transition-all shadow-xs hover:shadow-md"
-                    >
-                      {/* Top Bar Card */}
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${categoryInfo.badgeBg}`}>
-                            <CategoryIcon className="h-3 w-3" />
-                            {categoryInfo.label}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                            <Clock className="h-3 w-3 text-muted-foreground/70" />
-                            {formatRelativeDate(conv.timestamp)}
-                          </span>
-                          {conv.messages.some(m => m.feedback === "like") && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/25" title="Contém resposta com Gostei">
-                              <ThumbsUp className="h-2.5 w-2.5" />
-                              {conv.messages.filter(m => m.feedback === "like").length > 1 && (
-                                <span>{conv.messages.filter(m => m.feedback === "like").length}</span>
-                              )}
-                            </span>
-                          )}
-                          {conv.messages.some(m => m.feedback === "dislike") && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-rose-500/15 text-rose-400 border border-rose-500/25" title="Contém resposta com Não gostei">
-                              <ThumbsDown className="h-2.5 w-2.5" />
-                              {conv.messages.filter(m => m.feedback === "dislike").length > 1 && (
-                                <span>{conv.messages.filter(m => m.feedback === "dislike").length}</span>
-                              )}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Ações */}
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingTitleId(conv.id);
-                              setEditingTitleInput(conv.title || "");
-                            }}
-                            className="p-1.5 text-muted-foreground hover:text-accent rounded-lg hover:bg-accent/10 transition-colors"
-                            title="Renomear título"
-                          >
-                            <Edit3 className="h-3.5 w-3.5" />
-                          </button>
-
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteConversation(conv.id);
-                            }}
-                            className="p-1.5 text-muted-foreground hover:text-destructive rounded-lg hover:bg-destructive/10 transition-colors"
-                            title="Excluir conversa"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Título e Edição */}
-                      {isEditing ? (
-                        <div className="flex items-center gap-2 my-1" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="text"
-                            value={editingTitleInput}
-                            onChange={(e) => setEditingTitleInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveTitle(conv.id);
-                              if (e.key === 'Escape') setEditingTitleId(null);
-                            }}
-                            autoFocus
-                            className="flex-1 bg-secondary/80 border border-accent rounded-lg px-2.5 py-1 text-xs text-foreground focus:outline-none"
-                          />
-                          <button
-                            onClick={() => handleSaveTitle(conv.id)}
-                            className="p-1.5 bg-accent text-accent-foreground rounded-lg text-xs font-medium"
-                          >
-                            <Check className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setEditingTitleId(null)}
-                            className="p-1.5 bg-secondary text-muted-foreground rounded-lg text-xs"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => loadConversation(conv)}
-                          className="text-left w-full group-hover:text-accent transition-colors cursor-pointer"
-                        >
-                          <h3 className="text-sm font-bold text-foreground leading-snug line-clamp-1 mb-1">
-                            {conv.title || "Conversa Bíblica"}
-                          </h3>
-
-                          {/* Prévia da Resposta da IA */}
-                          <p className="text-xs text-muted-foreground/90 line-clamp-2 leading-relaxed">
-                            {previewText}
-                          </p>
-                        </button>
-                      )}
-
-                      {/* Indicador de Abertura no Rodapé */}
-                      <div 
-                        onClick={() => loadConversation(conv)}
-                        className="mt-2.5 pt-2 border-t border-border/40 flex items-center justify-between text-[11px] font-semibold text-accent/80 group-hover:text-accent transition-colors cursor-pointer"
-                      >
-                        <span className="flex items-center gap-1">
-                          Continuar conversa <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
-                        </span>
-                        <span className="text-[10px] text-muted-foreground font-normal">
-                          Criptografia local ativada
-                        </span>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
-            )}
-          </div>
-        </div>
-
-        {/* Modal de Confirmação para Apagar Todo o Histórico */}
-        <AnimatePresence>
-          {showClearAllModal && (
-            <motion.div
-              key="clear-all-modal"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs"
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className="glass-card max-w-sm w-full p-5 rounded-2xl bg-card border border-border shadow-xl text-center"
-              >
-                <div className="h-12 w-12 rounded-2xl bg-destructive/15 text-destructive flex items-center justify-center mx-auto mb-3">
-                  <ShieldAlert className="h-6 w-6" />
-                </div>
-                <h3 className="font-serif text-base font-bold text-foreground mb-2">Apagar Todo o Histórico?</h3>
-                <p className="text-xs text-muted-foreground mb-5 leading-relaxed">
-                  Esta ação excluirá permanentemente todas as conversas e respostas salvas da IA. Não é possível desfazer.
-                </p>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setShowClearAllModal(false)}
-                    className="flex-1 py-2 rounded-xl bg-secondary text-xs font-semibold text-foreground hover:bg-secondary/80 transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleClearAllHistory}
-                    className="flex-1 py-2 rounded-xl bg-destructive text-destructive-foreground text-xs font-bold transition-all hover:bg-destructive/90 shadow-xs"
-                  >
-                    Sim, Apagar Tudo
-                  </button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    );
-  }
 
   if (!isOnline) {
     return (
-      <div className="flex h-[100dvh] flex-col bg-background relative">
+      <div className="flex fixed inset-0 flex-col bg-background overflow-hidden">
         <Header />
         <div className="flex flex-1 flex-col items-center justify-center p-6 text-center container mx-auto max-w-md">
           <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-amber-500/10 text-amber-500 shadow-lg shadow-amber-500/5 border border-amber-500/20">
@@ -2417,11 +2378,9 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
 
   return (
     <div 
-      className={`flex flex-col bg-background relative w-full overflow-hidden transition-[height,max-height,padding] duration-300 ease-out ${
-        isKeyboardOpen ? "fixed inset-0 z-30 md:relative md:inset-auto md:z-auto md:h-[100dvh]" : "h-[100dvh]"
-      }`}
+      className="flex flex-col bg-background fixed inset-0 w-full overflow-hidden"
       style={
-        isKeyboardOpen && viewportHeight && window.innerWidth < 768
+        isKeyboardOpen && viewportHeight
           ? { height: `${viewportHeight}px`, maxHeight: `${viewportHeight}px` }
           : undefined
       }
@@ -2430,25 +2389,360 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
       onDrop={handleDrop}
     >
       <Header />
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden container mx-auto max-w-4xl px-3">
+
+      {/* Menu Lateral com Histórico de Conversas e Nova Conversa */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <>
+            {/* Backdrop com desfoque */}
+            <motion.div
+              key="sidebar-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setIsSidebarOpen(false)}
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs"
+              aria-hidden="true"
+            />
+
+            {/* Painel Lateral (Drawer) */}
+            <motion.aside
+              key="sidebar-panel"
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              className="fixed inset-y-0 left-0 z-50 flex flex-col w-[85vw] max-w-[340px] sm:w-[320px] bg-card border-r border-border shadow-2xl safe-area-top safe-area-bottom overflow-hidden"
+            >
+              {/* Header do Menu Lateral com Logo */}
+              <div className="flex items-center justify-between p-3.5 border-b border-border/70 shrink-0 bg-background/50">
+                <div className="flex items-center gap-2.5 p-1 rounded-xl select-none text-left">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-primary shadow-xs shrink-0">
+                    <Bot className="h-4.5 w-4.5 text-primary-foreground" />
+                  </div>
+                  
+                  <div className="flex flex-col">
+                    <span className="font-serif text-sm font-bold text-foreground leading-tight">
+                      IA Bíblia
+                    </span>
+                    <p className="text-[10px] text-muted-foreground leading-tight">
+                      {conversations.length} {conversations.length === 1 ? "conversa salva" : "conversas salvas"}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+                  title="Fechar menu lateral"
+                  aria-label="Fechar menu lateral"
+                >
+                  <PanelLeftClose className="h-4.5 w-4.5" />
+                </button>
+              </div>
+
+              {/* Botão de Nova Conversa */}
+              <div className="p-3 pb-2 shrink-0">
+                <button
+                  onClick={() => {
+                    startNewChat();
+                    setIsSidebarOpen(false);
+                    toast({
+                      title: "Nova Conversa",
+                      description: "Conversa reiniciada. Faça sua pergunta para a IA Bíblica.",
+                    });
+                  }}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground font-bold text-xs shadow-xs transition-all active:scale-98 liquid-btn cursor-pointer"
+                >
+                  <MessageSquarePlus className="h-4 w-4" />
+                  <span>Nova Conversa</span>
+                </button>
+              </div>
+
+              {/* Resumo de Cota Diária */}
+              <div className="px-3 pb-2 shrink-0">
+                <div className="glass-card rounded-xl p-2 bg-secondary/40 border border-border/60">
+                  <div className="flex items-center justify-between mb-1.5 px-0.5">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-accent flex items-center gap-1">
+                      <Zap className="h-2.5 w-2.5" /> Cotas Restantes
+                    </span>
+                    <span className="text-[9px] text-muted-foreground">12h</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5 text-center">
+                    <div className="bg-background/70 rounded-lg p-1 border border-border/40">
+                      <p className="text-xs font-bold text-foreground leading-none">{Math.max(0, chatRemaining)}</p>
+                      <p className="text-[8px] text-muted-foreground mt-0.5 truncate">Complexa</p>
+                    </div>
+                    <div className="bg-background/70 rounded-lg p-1 border border-border/40">
+                      <p className="text-xs font-bold text-foreground leading-none">{Math.max(0, geminiRemaining)}</p>
+                      <p className="text-[8px] text-muted-foreground mt-0.5 truncate">Simples</p>
+                    </div>
+                    <div className="bg-background/70 rounded-lg p-1 border border-border/40">
+                      <p className="text-xs font-bold text-foreground leading-none">{Math.max(0, imageRemaining)}</p>
+                      <p className="text-[8px] text-muted-foreground mt-0.5 truncate">Imagens</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Campo de Busca e Filtros com efeito Liquid Glass */}
+              <div className="px-3 pb-2 shrink-0 space-y-2">
+                <div className="relative flex items-center group">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-accent/80 group-focus-within:text-accent group-focus-within:scale-105 transition-all duration-200 pointer-events-none z-10 shrink-0" />
+                  <input
+                    type="text"
+                    value={historySearchQuery}
+                    onChange={(e) => setHistorySearchQuery(e.target.value)}
+                    placeholder="Buscar histórico..."
+                    className="w-full liquid-glass-input rounded-xl pl-9 pr-8 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none transition-all"
+                  />
+                  {historySearchQuery && (
+                    <button
+                      onClick={() => setHistorySearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground hover:bg-white/10 rounded-full transition-colors cursor-pointer z-10"
+                      title="Limpar busca"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
+                  {[
+                    { key: "all", label: "Todas" },
+                    { key: "simple", label: "Simples" },
+                    { key: "complex", label: "Complexa" },
+                    { key: "image", label: "Imagens" },
+                  ].map((cat) => (
+                    <button
+                      key={cat.key}
+                      onClick={() => setHistoryFilterCategory(cat.key as any)}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] transition-all whitespace-nowrap cursor-pointer ${
+                        historyFilterCategory === cat.key
+                          ? "liquid-glass-pill-active font-semibold shadow-xs"
+                          : "liquid-glass-pill text-muted-foreground hover:text-foreground font-medium"
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Lista do Histórico de Conversas com efeito Liquid Glass */}
+              <div className="flex-1 min-h-0 overflow-y-auto px-3 py-1 space-y-2.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                {filteredConversations.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 px-2 text-center text-muted-foreground">
+                    <div className="h-10 w-10 rounded-xl liquid-glass-card flex items-center justify-center mb-2">
+                      <Bot className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <p className="text-xs font-semibold text-foreground mb-1">
+                      {historySearchQuery ? "Nenhuma conversa encontrada" : "Sem conversas salvas"}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed max-w-[200px]">
+                      {historySearchQuery
+                        ? `Nenhum resultado para "${historySearchQuery}".`
+                        : "Suas conversas anteriores aparecem aqui de forma privada."}
+                    </p>
+                  </div>
+                ) : (
+                  <AnimatePresence mode="popLayout">
+                    {filteredConversations.map((conv, idx) => {
+                      const categoryInfo = getConversationCategoryInfo(conv);
+                      const CategoryIcon = categoryInfo.icon;
+                      const isEditing = editingTitleId === conv.id;
+                      const isActive = currentChatIdRef.current === conv.id;
+
+                      return (
+                        <motion.div
+                          key={conv.id ? `${conv.id}-${idx}` : `conv-${idx}`}
+                          layout
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          onClick={() => !isEditing && loadConversation(conv)}
+                          className={`group relative flex flex-col rounded-xl p-3 transition-all cursor-pointer overflow-hidden ${
+                            isActive 
+                              ? "liquid-glass-card liquid-glass-card-active" 
+                              : "liquid-glass-card"
+                          }`}
+                        >
+                          {/* Reflexo de luz na borda superior (Liquid Glass Specular Highlight) */}
+                          <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
+
+                          <div className="flex items-center justify-between gap-1 mb-1.5">
+                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold border backdrop-blur-md ${categoryInfo.badgeBg}`}>
+                              <CategoryIcon className="h-2.5 w-2.5" />
+                              {categoryInfo.label}
+                            </span>
+                            <span className="text-[9px] text-muted-foreground flex items-center gap-1 font-medium">
+                              <Clock className="h-2.5 w-2.5 text-muted-foreground/70" />
+                              {formatRelativeDate(conv.timestamp)}
+                            </span>
+                          </div>
+
+                          {isEditing ? (
+                            <div className="flex items-center gap-1 mt-1" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="text"
+                                value={editingTitleInput}
+                                onChange={(e) => setEditingTitleInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleSaveTitle(conv.id);
+                                  if (e.key === "Escape") setEditingTitleId(null);
+                                }}
+                                className="flex-1 liquid-glass-input rounded-lg px-2.5 py-1 text-xs text-foreground focus:outline-none"
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => handleSaveTitle(conv.id)}
+                                className="p-1.5 rounded-lg bg-accent text-accent-foreground hover:bg-accent/90 cursor-pointer transition-colors"
+                              >
+                                <Check className="h-3 w-3" />
+                              </button>
+                              <button
+                                onClick={() => setEditingTitleId(null)}
+                                className="p-1.5 rounded-lg bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-start justify-between gap-1.5">
+                              <div className="text-left flex-1 min-w-0">
+                                <h4 className="text-xs font-semibold text-foreground line-clamp-1 group-hover:text-accent transition-colors">
+                                  {conv.title || "Conversa Bíblica"}
+                                </h4>
+                                <p className="text-[10px] text-muted-foreground/90 line-clamp-1 mt-0.5">
+                                  {getConversationPreview(conv)}
+                                </p>
+                              </div>
+
+                              <div 
+                                className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity shrink-0"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  onClick={() => {
+                                    setEditingTitleId(conv.id);
+                                    setEditingTitleInput(conv.title || "");
+                                  }}
+                                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors cursor-pointer"
+                                  title="Renomear título"
+                                >
+                                  <Edit3 className="h-3 w-3" />
+                                </button>
+                                <button
+                                  onClick={() => deleteConversation(conv.id)}
+                                  className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/15 transition-colors cursor-pointer"
+                                  title="Excluir conversa"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
+                )}
+              </div>
+
+              {/* Rodapé do Menu Lateral com Limpar Todo Histórico */}
+              {conversations.length > 0 && (
+                <div className="p-3 border-t border-border/70 shrink-0 bg-background/40">
+                  <button
+                    onClick={() => setShowClearAllModal(true)}
+                    className="flex items-center justify-center gap-1.5 w-full py-1.5 px-3 rounded-xl border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-medium transition-all cursor-pointer"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Limpar todo o histórico</span>
+                  </button>
+                </div>
+              )}
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Confirmação para Apagar Todo o Histórico */}
+      <AnimatePresence>
+        {showClearAllModal && (
+          <motion.div
+            key="clear-all-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="glass-card max-w-sm w-full p-5 rounded-2xl bg-card border border-border shadow-xl text-center"
+            >
+              <div className="h-12 w-12 rounded-2xl bg-destructive/15 text-destructive flex items-center justify-center mx-auto mb-3">
+                <ShieldAlert className="h-6 w-6" />
+              </div>
+              <h3 className="font-serif text-base font-bold text-foreground mb-2">Apagar Todo o Histórico?</h3>
+              <p className="text-xs text-muted-foreground mb-5 leading-relaxed">
+                Esta ação excluirá permanentemente todas as conversas e respostas salvas da IA. Não é possível desfazer.
+              </p>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowClearAllModal(false)}
+                  className="flex-1 py-2 rounded-xl bg-secondary text-xs font-semibold text-foreground hover:bg-secondary/80 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleClearAllHistory}
+                  className="flex-1 py-2 rounded-xl bg-destructive text-destructive-foreground text-xs font-bold transition-all hover:bg-destructive/90 shadow-xs cursor-pointer"
+                >
+                  Sim, Apagar Tudo
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="flex min-w-0 flex-1 min-h-0 flex-col overflow-hidden container mx-auto max-w-4xl px-3">
         <div className="flex shrink-0 items-center justify-between gap-1.5 sm:gap-2 py-2.5 sm:py-3">
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <button onClick={() => setShowHistory(true)} className="flex items-center justify-center rounded-lg bg-secondary p-1.5 sm:p-2 text-muted-foreground hover:text-foreground transition-colors liquid-btn" title="Histórico">
-              <History className="h-4 w-4 sm:h-5 sm:w-5" />
+            {/* Botão de Menu Lateral com o Ícone da IA Bíblica que exibe o ícone de menu ao passar o mouse */}
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="group relative flex items-center justify-center rounded-lg bg-gradient-to-br from-accent to-primary p-1.5 sm:p-2 text-primary-foreground shadow-xs hover:shadow-md hover:brightness-110 active:scale-95 transition-all duration-200 liquid-btn cursor-pointer shrink-0"
+              title="Menu lateral e histórico"
+              aria-label="Abrir menu lateral e histórico"
+            >
+              <div className="relative flex items-center justify-center h-4 w-4 sm:h-5 sm:w-5">
+                {/* Ícone da IA Bíblica (visível por padrão, desaparece no hover) */}
+                <Bot className="h-4 w-4 sm:h-5 sm:w-5 text-primary-foreground transition-all duration-200 group-hover:opacity-0 group-hover:scale-75 group-hover:rotate-[-8deg] pointer-events-none" />
+                {/* Ícone de Menu Lateral (surge ao passar o mouse) */}
+                <PanelLeft className="absolute inset-0 h-4 w-4 sm:h-5 sm:w-5 text-primary-foreground transition-all duration-200 opacity-0 scale-75 rotate-[8deg] group-hover:opacity-100 group-hover:scale-100 group-hover:rotate-0 pointer-events-none" />
+              </div>
             </button>
             
-            {/* NOVO BOTÃO PARA INICIAR NOVA CONVERSA */}
-            <button onClick={startNewChat} className="flex items-center justify-center rounded-lg bg-secondary p-1.5 sm:p-2 text-muted-foreground hover:text-foreground transition-colors liquid-btn" title="Nova Conversa">
+            {/* Botão de Nova Conversa rápido */}
+            <button
+              onClick={() => {
+                startNewChat();
+                toast({
+                  title: "Nova Conversa",
+                  description: "Conversa reiniciada. Faça sua pergunta para a IA Bíblica.",
+                });
+              }}
+              className="flex items-center justify-center rounded-lg bg-secondary p-1.5 sm:p-2 text-muted-foreground hover:text-foreground transition-colors liquid-btn cursor-pointer shrink-0"
+              title="Nova Conversa"
+              aria-label="Nova conversa"
+            >
               <MessageSquarePlus className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
-
-            {/* Título posicionado no lado esquerdo junto com os botões */}
-            <div className="flex items-center gap-1.5 sm:gap-2 ml-0.5 sm:ml-1">
-              <div className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-primary shrink-0">
-                <Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary-foreground" />
-              </div>
-              <h1 className="font-serif text-xs sm:text-base font-bold text-foreground whitespace-nowrap">IA Bíblia</h1>
-            </div>
           </div>
 
           <div className="relative flex shrink-0 items-center rounded-xl border border-border bg-secondary/50 p-0.5 sm:p-1">
@@ -2521,26 +2815,26 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
           <motion.div 
             initial={{ opacity: 0, y: -6, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            className="shrink-0 mb-3 flex items-center justify-between gap-3 rounded-2xl border border-rose-500/25 bg-rose-500/10 p-3 backdrop-blur-md shadow-sm"
+            className="shrink-0 mb-3 flex items-center justify-between gap-2.5 sm:gap-3.5 rounded-2xl border border-rose-500/25 bg-rose-500/10 p-3 sm:p-3.5 backdrop-blur-md shadow-sm w-full"
           >
-            <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
               <motion.div 
                 animate={{ scale: [1, 1.15, 1], rotate: [0, -6, 6, 0] }}
                 transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-500/15 text-rose-400 border border-rose-500/20"
+                className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl bg-rose-500/15 text-rose-400 border border-rose-500/20 mt-0.5 sm:mt-0"
               >
-                <AlertCircle className="h-4 w-4" />
+                <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5" />
               </motion.div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-xs font-semibold text-rose-200 truncate">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <p className="text-xs sm:text-sm font-bold text-rose-200">
                     {activeMode === "image" ? "Limite de Imagens Atingido" : "Limite Diário Atingido"}
                   </p>
-                  <span className="shrink-0 rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-medium text-rose-300 border border-rose-500/30">
+                  <span className="shrink-0 rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-rose-300 border border-rose-500/30">
                     Cota Esgotada
                   </span>
                 </div>
-                <p className="text-[11px] text-rose-300/80 truncate mt-0.5">
+                <p className="text-[11px] sm:text-xs text-rose-300/90 mt-0.5 leading-snug">
                   {activeMode === "image"
                     ? "Sua cota diária de 3 imagens no Chat acabou. Recarga em até 12 horas."
                     : "A cota para este modo foi atingida. Recarga em até 12 horas."}
@@ -2548,15 +2842,15 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
               </div>
             </div>
 
-            <div className="hidden sm:flex shrink-0 items-center gap-1.5 rounded-xl bg-rose-950/40 px-2.5 py-1 text-[11px] text-rose-300 border border-rose-500/20 font-medium">
+            <div className="hidden sm:flex shrink-0 items-center gap-1.5 rounded-xl bg-rose-950/40 px-3 py-1.5 text-xs text-rose-300 border border-rose-500/20 font-medium">
               <span>Recarga 00:00</span>
             </div>
           </motion.div>
         )}
 
-        <div className="flex-1 space-y-2.5 overflow-y-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div ref={messagesContainerRef} className="flex-1 min-h-0 space-y-2.5 overflow-y-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {messages.length === 0 && (
-            <div className="py-6 flex flex-col items-center text-center">
+            <div className="py-2 sm:py-3 md:py-4 flex flex-col items-center text-center">
               <h2 className="text-base font-bold text-foreground mb-1">
                 {activeMode === "image"
                   ? "Gerador de Imagens Bíblicas"
@@ -2570,7 +2864,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                   ? "IA Simples"
                   : "IA Complexa"}
               </h2>
-              <p className="text-xs text-muted-foreground mb-3 max-w-sm leading-relaxed">
+              <p className="text-xs text-muted-foreground mb-2 sm:mb-3 max-w-sm leading-relaxed px-2">
                 {activeMode === "image"
                   ? "Gere imagens e cenas bíblicas realistas com inteligência artificial."
                   : activeMode === "video"
@@ -2584,7 +2878,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                   : "Respostas completas, estudos teológicos aprofundados e áudios."}
               </p>
 
-              <div className="mb-5">
+              <div className="mb-2.5 sm:mb-3.5 md:mb-4">
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-accent text-white px-4 py-1.5 text-xs font-bold shadow-md border border-accent/40">
                   {activeMode === "image" ? (
                     <Image className="h-3.5 w-3.5 text-white shrink-0" />
@@ -2615,7 +2909,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                 {activeSuggestions.map((s) => (
                   <motion.button key={s} whileTap={{ scale: 0.97 }} onClick={() => !limitReached && send(s)}
                     disabled={limitReached}
-                    className="glass-card rounded-xl p-3 text-left text-xs text-card-foreground transition-colors hover:!border-accent liquid-btn disabled:opacity-50 disabled:cursor-not-allowed flex flex-col justify-between"
+                    className="glass-card rounded-xl p-2.5 sm:p-3 text-left text-xs text-card-foreground transition-colors hover:!border-accent liquid-btn disabled:opacity-50 disabled:cursor-not-allowed flex flex-col justify-between min-h-[68px]"
                   >
                     <div className="flex items-center gap-1.5 mb-1 text-accent">
                       {activeMode === "image" ? (
@@ -2630,7 +2924,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                         <Sparkles className="h-3.5 w-3.5" />
                       )}
                     </div>
-                    <span>{s}</span>
+                    <span className="line-clamp-2 text-[11px] sm:text-xs leading-snug">{s}</span>
                   </motion.button>
                 ))}
               </div>
@@ -2650,12 +2944,12 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     {aiEngine === "simples" ? <Zap className="h-3.5 w-3.5 text-primary-foreground" /> : <Bot className="h-3.5 w-3.5 text-primary-foreground" />}
                   </div>
                 )}
-                <div className={`max-w-[85%] ${
+                <div className={`max-w-[88%] sm:max-w-[85%] break-words min-w-0 ${
                   m.role === "user" 
-                    ? "bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-2.5" 
+                    ? "bg-primary text-primary-foreground rounded-2xl rounded-br-md px-3.5 sm:px-4 py-2 sm:py-2.5" 
                     : isImageOnly 
                       ? "p-0 bg-transparent border-0 shadow-none w-fit" 
-                      : "glass-card rounded-2xl rounded-bl-md px-4 py-2.5"
+                      : "glass-card rounded-2xl rounded-bl-md px-3.5 sm:px-4 py-2 sm:py-2.5"
                 }`}>
                 {m.role === "user" && getFilesForMessage(m).length > 0 && (
                   <div className="flex flex-col gap-1.5 mb-2 mt-0.5">
@@ -2683,7 +2977,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                 )}
                 {m.role === "assistant" ? (
                   <div className="space-y-1">
-                    {renderAssistantContent(m)}
+                    {renderAssistantContent(m, i)}
                     {activeMode !== "image" && !m.image && !extractImageUrl(m.content) && m.content && (() => {
                       const currentFb = m.feedback || messageFeedback[i];
                       return (
@@ -2821,7 +3115,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
           <div ref={bottomRef} />
         </div>
 
-        <div className={`shrink-0 bg-background pt-2 transition-all duration-300 ease-out ${isKeyboardOpen ? 'pb-2 md:pb-3' : 'pb-16 md:pb-3'}`}>
+        <div className={`shrink-0 bg-background pt-1.5 sm:pt-2 transition-all duration-300 ease-out safe-area-bottom ${isKeyboardOpen ? 'pb-2 md:pb-2.5' : 'pb-16 md:pb-3'}`}>
           <AnimatePresence>
             {activeModeInfo && (
               <motion.div
@@ -2829,18 +3123,18 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                 initial={{ opacity: 0, y: -4, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                className="mb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 rounded-2xl border border-accent/40 bg-card/95 p-2.5 sm:px-3.5 sm:py-2 shadow-md backdrop-blur-xl"
+                className="mb-2 flex items-center justify-between gap-2.5 rounded-2xl border border-accent/40 bg-card/95 p-2.5 sm:px-4 sm:py-2.5 shadow-md backdrop-blur-xl w-full"
               >
-                <div className="flex items-center gap-2 text-xs font-semibold text-accent min-w-0">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/20 text-accent shrink-0">
+                <div className="flex items-center gap-2.5 text-xs sm:text-sm font-semibold text-accent min-w-0 flex-1">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent/20 text-accent shrink-0">
                     {activeModeInfo.icon}
                   </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-xs truncate">
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-xs sm:text-sm truncate font-medium">
                       Modo Ativo: <strong className="font-bold text-foreground">{activeModeInfo.label}</strong>
                     </span>
-                    <span className="text-[10px] text-muted-foreground font-normal truncate">
-                      Ao fechar este modo, um novo chat é iniciado para alternar os tópicos.
+                    <span className="text-[11px] sm:text-xs text-muted-foreground font-normal truncate">
+                      Ao fechar este modo, uma nova conversa é iniciada.
                     </span>
                   </div>
                 </div>
@@ -2859,11 +3153,12 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                       });
                     }
                   }}
-                  className="flex h-7 px-2.5 items-center gap-1.5 rounded-xl bg-secondary hover:bg-destructive hover:text-destructive-foreground text-[11px] font-semibold text-muted-foreground transition-all shrink-0 self-end sm:self-center"
+                  className="flex h-8 px-2.5 sm:px-3 items-center gap-1.5 rounded-xl bg-secondary hover:bg-destructive hover:text-destructive-foreground text-xs font-semibold text-muted-foreground transition-all shrink-0"
                   title="Sair do modo"
                 >
-                  <span>Sair do Modo</span>
-                  <X className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Sair do Modo</span>
+                  <span className="sm:hidden">Sair</span>
+                  <X className="h-4 w-4" />
                 </button>
               </motion.div>
             )}
@@ -2969,16 +3264,21 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="p-2 px-3 border-b border-border/60 mb-1 flex items-center justify-between bg-accent/15 rounded-xl border border-accent/30 backdrop-blur-md"
+                    className="p-1.5 px-2.5 sm:p-2 sm:px-3 border-b border-border/60 mb-1 flex items-center justify-between bg-accent/15 rounded-xl border border-accent/30 backdrop-blur-md w-full"
                   >
-                    <div className="flex items-center gap-2 text-xs text-accent font-semibold truncate pr-2">
+                    <div 
+                      role="button"
+                      onClick={() => setShowStylePicker(!showStylePicker)}
+                      className="flex items-center gap-1.5 sm:gap-2 text-xs text-accent font-semibold min-w-0 flex-1 cursor-pointer select-none"
+                    >
                       <Palette className="h-3.5 w-3.5 shrink-0 text-accent" />
-                      <span className="truncate">Estilo selecionado: <strong className="font-bold text-foreground">{selectedImageStyle.label}</strong></span>
+                      <span className="truncate">Estilo: <strong className="font-bold text-foreground">{selectedImageStyle.label}</strong></span>
+                      <span className="text-[10px] text-accent/80 underline font-normal shrink-0 ml-1 md:hidden">trocar</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setSelectedImageStyle(null)}
-                      className="text-muted-foreground hover:text-foreground text-xs p-1 hover:bg-secondary/80 rounded-lg transition-colors shrink-0"
+                      className="text-muted-foreground hover:text-foreground text-xs p-1 hover:bg-secondary/80 rounded-lg transition-colors shrink-0 ml-1"
                       title="Remover estilo"
                     >
                       <X className="h-3.5 w-3.5" />
@@ -2988,12 +3288,12 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
               </AnimatePresence>
 
               {/* Input row */}
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 pl-0.5">
+              <div className="flex items-center gap-1 sm:gap-2 w-full min-w-0">
+                <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
                   {aiEngine !== "simples" && (
                     <button type="button" onClick={() => setShowModes(!showModes)}
                       title="Alternar modos e ferramentas"
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors liquid-btn ${showModes ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
+                      className={`flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full transition-colors liquid-btn ${showModes ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
                     >
                       <Plus className="h-4 w-4" />
                     </button>
@@ -3001,26 +3301,26 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                   <button type="button" onClick={() => fileInputRef.current?.click()}
                     disabled={limitReached}
                     title="Anexar arquivos ou imagens"
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground active:scale-95 transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground active:scale-95 transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Upload size={17} className="stroke-[2.2]" />
+                    <Upload size={16} className="stroke-[2.2]" />
                   </button>
                   <input ref={fileInputRef} type="file" className="hidden" accept="image/*,.pdf,.doc,.docx" multiple onChange={handleFileAttach} />
 
                   {/* Botão de Estilo de Imagem (Modo Gerar Imagens) */}
                   {activeMode === "image" && (
-                    <div className="relative">
+                    <div className="relative shrink-0">
                       <button
                         type="button"
                         onClick={() => setShowStylePicker(!showStylePicker)}
-                        className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-all liquid-btn border border-border/80 bg-secondary/80 text-muted-foreground hover:text-foreground`}
+                        className={`flex h-8 w-8 sm:h-9 sm:w-auto sm:px-2.5 items-center justify-center gap-1 rounded-full text-xs font-semibold transition-all liquid-btn border border-border/80 bg-secondary/80 text-muted-foreground hover:text-foreground shrink-0`}
                         title="Escolher estilo da imagem"
                       >
-                        <Palette className="h-4 w-4 shrink-0 text-accent" />
-                        <span className="text-[11px] font-semibold max-w-[95px] truncate">
-                          {selectedImageStyle ? selectedImageStyle.label : "Cinematográfico"}
+                        <Palette className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-accent" />
+                        <span className="text-[11px] font-semibold max-w-[85px] truncate hidden md:inline">
+                          {selectedImageStyle ? selectedImageStyle.label : "Estilo"}
                         </span>
-                        <ChevronDown className={`h-3 w-3 shrink-0 transition-transform duration-200 ${showStylePicker ? "rotate-180" : ""}`} />
+                        <ChevronDown className={`h-3 w-3 shrink-0 transition-transform duration-200 hidden md:block ${showStylePicker ? "rotate-180" : ""}`} />
                       </button>
 
                       <AnimatePresence>
@@ -3029,7 +3329,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                             initial={{ opacity: 0, y: 8, scale: 0.95 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                            className="absolute bottom-full left-0 mb-2 w-64 rounded-2xl border border-border bg-card/95 p-1.5 shadow-xl backdrop-blur-md z-50 flex flex-col gap-1"
+                            className="absolute bottom-full left-0 mb-2 w-64 max-w-[calc(100vw-32px)] rounded-2xl border border-border bg-card/95 p-1.5 shadow-xl backdrop-blur-md z-50 flex flex-col gap-1"
                           >
                             <div className="px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/50 flex items-center justify-between">
                               <span>Estilo da Imagem</span>
@@ -3076,28 +3376,28 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                   onFocus={() => {
                     window.scrollTo(0, 0);
                     setTimeout(() => {
-                      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+                      scrollToBottom(true);
                     }, 120);
                   }}
                   placeholder={
                     !isOnline
-                      ? "Necessário internet para IA"
+                      ? "Sem internet"
                       : limitReached
-                      ? "Limite diário atingido"
+                      ? "Limite atingido"
                       : activeMode === "image"
-                      ? "Descreva a imagem bíblica que deseja gerar..."
+                      ? "Descreva a imagem bíblica..."
                       : activeMode === "video"
                       ? "Descreva seu roteiro de vídeo..."
                       : activeMode === "learning"
                       ? "Descreva o que quer aprender..."
                       : activeMode === "music"
-                      ? "Descreva a letra da música..."
+                      ? "Descreva a música..."
                       : aiEngine === "simples"
-                      ? "Pergunta Bíblica simples..."
+                      ? "Pergunta bíblica simples..."
                       : "Pergunte qualquer tema bíblico..."
                   }
                   disabled={isLoading || limitReached || !isOnline}
-                  className="flex-1 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 min-w-0 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed truncate"
                 />
                 {input.length > 1000 && (
                   <span className="text-[10px] text-muted-foreground font-mono shrink-0 px-1">
@@ -3110,14 +3410,14 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     type="button"
                     onClick={handleRefineCurrentPrompt}
                     disabled={isRefiningPrompt || limitReached || !isOnline}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary/80 hover:bg-accent/20 text-accent hover:text-accent transition-all liquid-btn disabled:opacity-50 mr-0.5"
+                    className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full bg-secondary/80 hover:bg-accent/20 text-accent hover:text-accent transition-all liquid-btn disabled:opacity-50"
                     title="Aprimorador de Prompts"
                     aria-label="Aprimorador de Prompts"
                   >
                     {isRefiningPrompt ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-accent" />
+                      <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin text-accent" />
                     ) : (
-                      <Sparkles className="h-4 w-4 text-accent" />
+                      <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-accent" />
                     )}
                   </button>
                 )}
@@ -3125,19 +3425,19 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                   <button
                     type="button"
                     onClick={handleStopResponse}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-white transition-colors liquid-btn mr-0.5"
+                    className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full bg-accent text-white transition-colors liquid-btn"
                     title="Parar resposta"
                   >
-                    <Square size={16} fill="currentColor" />
+                    <Square size={14} fill="currentColor" />
                   </button>
                 ) : (
                   <button
                     type="submit"
                     disabled={!input.trim() || limitReached || !isOnline}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground transition-colors liquid-btn disabled:opacity-50 disabled:cursor-not-allowed mr-0.5 shadow-sm"
+                    className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground transition-colors liquid-btn disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                     title="Enviar"
                   >
-                    <ArrowUp size={18} className="stroke-[2.5]" />
+                    <ArrowUp size={17} className="stroke-[2.5]" />
                   </button>
                 )}
               </div>
@@ -3220,88 +3520,226 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                 onTouchEnd={handleTouchEnd}
                 onDoubleClick={handleDoubleClick}
               />
+
+              {/* Overlay Flutuante de Pedir Mudança POR CIMA da visualização da imagem */}
+              <AnimatePresence>
+                {isChangeInputOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 25, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                    transition={{ type: "spring", damping: 25, stiffness: 320 }}
+                    className="absolute bottom-3 sm:bottom-4 z-50 w-full max-w-sm px-3 select-text pointer-events-auto"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="w-full bg-zinc-900/95 backdrop-blur-2xl border border-white/20 rounded-2xl p-3.5 shadow-2xl space-y-2.5 text-left ring-1 ring-black/60">
+                      <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
+                          <Wand2 className="h-3.5 w-3.5 text-accent" />
+                          <span>O que deseja mudar na imagem?</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIsChangeInputOpen(false)}
+                          className="h-6 w-6 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                          title="Fechar"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Sugestões rápidas de melhoria */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        {["Mais realista", "Pôr do sol", "Mais luz", "Mudar roupas", "Adicionar flores"].map((chip) => (
+                          <button
+                            key={chip}
+                            type="button"
+                            onClick={() => {
+                              setChangePromptText(prev => prev ? `${prev}, ${chip.toLowerCase()}` : chip);
+                            }}
+                            className="shrink-0 px-2.5 py-1 rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-[11px] text-white/90 hover:text-white border border-white/10 transition-colors font-medium active:scale-95"
+                          >
+                            +{chip}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 bg-black/60 border border-white/15 rounded-xl p-1.5 focus-within:border-accent transition-colors">
+                        <input
+                          type="text"
+                          value={changePromptText}
+                          onChange={(e) => setChangePromptText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && changePromptText.trim()) {
+                              e.preventDefault();
+                              handleApplyImageChange();
+                            }
+                          }}
+                          placeholder="Ex: Mude a iluminação, adicione ovelhas ao fundo..."
+                          className="flex-1 bg-transparent text-xs text-white placeholder:text-white/40 px-2 py-1 outline-none min-w-0"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={handleApplyImageChange}
+                          disabled={!changePromptText.trim()}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-accent hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold shadow-md transition-all active:scale-95 shrink-0"
+                        >
+                          <Sparkles className="h-3.5 w-3.5" />
+                          <span>Aplicar</span>
+                        </button>
+                      </div>
+
+                      <div className="flex justify-end pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => handleRequestImageChangeInChat(lightboxPrompt)}
+                          className="text-[11px] text-accent/90 hover:text-accent hover:underline flex items-center gap-1 transition-colors font-medium"
+                        >
+                          Digitar no campo do chat principal <ArrowRight className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
 
-            {/* Painel de Ações Inferior (Mesmo comprimento e estilo da barra superior) */}
+            {/* Painel de Ações Inferior com Ferramentas e Feedback (Mesmo tamanho max-w-sm da barra superior) */}
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
               transition={{ delay: 0.05 }}
-              className="w-full max-w-sm flex items-center justify-between bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-full px-4 py-2 shadow-2xl shrink-0 z-50"
+              className="w-full max-w-sm flex items-center justify-end shrink-0 z-50 select-text"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <button
-                  type="button"
-                  onClick={() => downloadImage(lightboxImage)}
-                  title="Baixar imagem"
-                  aria-label="Baixar imagem"
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white/90 hover:text-white border border-white/10 hover:border-white/25 transition-all hover:scale-105 active:scale-95"
-                >
-                  <Download className="h-4 w-4 shrink-0" />
-                </button>
+              {/* Barra de Ferramentas da Imagem alinhada à direita, mesmo tamanho max-w-sm do topo */}
+              <div className="w-full flex items-center justify-end gap-1 sm:gap-1.5 bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-full px-3 py-1.5 shadow-2xl">
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => lightboxImage && downloadImage(lightboxImage)}
+                    title="Baixar imagem"
+                    aria-label="Baixar imagem"
+                    className="flex h-7.5 w-7.5 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white/90 hover:text-white border border-white/10 hover:border-white/25 transition-all hover:scale-105 active:scale-95 shrink-0"
+                  >
+                    <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => shareBibleImage(lightboxImage)}
-                  title="Compartilhar imagem"
-                  aria-label="Compartilhar imagem"
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white/90 hover:text-white border border-white/10 hover:border-white/25 transition-all hover:scale-105 active:scale-95"
-                >
-                  <Share2 className="h-4 w-4 shrink-0" />
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => lightboxImage && shareBibleImage(lightboxImage)}
+                    title="Compartilhar imagem"
+                    aria-label="Compartilhar imagem"
+                    className="flex h-7.5 w-7.5 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white/90 hover:text-white border border-white/10 hover:border-white/25 transition-all hover:scale-105 active:scale-95 shrink-0"
+                  >
+                    <Share2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                  </button>
 
-              <div className="flex items-center gap-1.5 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (zoomScale > 1) {
-                      setZoomScale(1);
-                      setPanOffset({ x: 0, y: 0 });
-                    } else {
-                      setZoomScale(2);
-                    }
-                  }}
-                  className={`flex h-9 px-2.5 items-center justify-center rounded-full text-xs font-mono font-bold transition-all active:scale-95 border border-white/10 ${
-                    zoomScale > 1 ? "bg-accent text-white" : "bg-white/[0.08] hover:bg-white/[0.16] text-zinc-300"
-                  }`}
-                  title="Alternar Zoom Rápido 2x"
-                >
-                  {zoomScale > 1 ? `${Math.round(zoomScale * 10) / 10}x` : "2x"}
-                </button>
+                  <button
+                    type="button"
+                    onClick={handleRegenerateFromLightbox}
+                    title="Regenerar imagem"
+                    aria-label="Regenerar imagem"
+                    className="flex h-7.5 w-7.5 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white/90 hover:text-white border border-white/10 hover:border-white/25 transition-all hover:scale-105 active:scale-95 shrink-0"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-accent" />
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setZoomScale(prev => {
-                      const next = prev - 0.5;
-                      if (next <= 1) {
+                  <button
+                    type="button"
+                    onClick={() => setIsChangeInputOpen(prev => !prev)}
+                    title="Pedir mudança"
+                    aria-label="Pedir mudança"
+                    className={`flex h-7.5 w-7.5 sm:h-8 sm:w-8 items-center justify-center rounded-full transition-all hover:scale-105 active:scale-95 border shrink-0 ${
+                      isChangeInputOpen
+                        ? "bg-accent text-white border-accent shadow-md shadow-accent/30"
+                        : "bg-white/[0.08] hover:bg-white/[0.16] text-white/90 hover:text-white border-white/10 hover:border-white/25"
+                    }`}
+                  >
+                    <Wand2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-accent" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleLightboxLike}
+                    title="Gostei"
+                    aria-label="Gostei"
+                    className={`flex h-7.5 w-7.5 sm:h-8 sm:w-8 items-center justify-center rounded-full transition-all hover:scale-105 active:scale-95 border shrink-0 ${
+                      currentLightboxFeedback === "like"
+                        ? "bg-emerald-500/25 text-emerald-400 border-emerald-500/50"
+                        : "bg-white/[0.08] hover:bg-white/[0.16] text-white/90 hover:text-white border-white/10 hover:border-white/25"
+                    }`}
+                  >
+                    <ThumbsUp className={`h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 ${currentLightboxFeedback === "like" ? "fill-current text-emerald-400" : ""}`} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleLightboxDislike}
+                    title="Não gostei"
+                    aria-label="Não gostei"
+                    className={`flex h-7.5 w-7.5 sm:h-8 sm:w-8 items-center justify-center rounded-full transition-all hover:scale-105 active:scale-95 border shrink-0 ${
+                      currentLightboxFeedback === "dislike"
+                        ? "bg-rose-500/25 text-rose-400 border-rose-500/50"
+                        : "bg-white/[0.08] hover:bg-white/[0.16] text-white/90 hover:text-white border-white/10 hover:border-white/25"
+                    }`}
+                  >
+                    <ThumbsDown className={`h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 ${currentLightboxFeedback === "dislike" ? "fill-current text-rose-400" : ""}`} />
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 pl-1 border-l border-white/10 ml-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (zoomScale > 1) {
+                        setZoomScale(1);
                         setPanOffset({ x: 0, y: 0 });
-                        return 1;
+                      } else {
+                        setZoomScale(2);
                       }
-                      return next;
-                    });
-                  }}
-                  disabled={zoomScale <= 1}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white disabled:opacity-30 transition-all active:scale-95 border border-white/10"
-                  title="Diminuir Zoom"
-                >
-                  <ZoomOut className="h-4 w-4" />
-                </button>
+                    }}
+                    className={`flex h-7.5 sm:h-8 px-1.5 sm:px-2 items-center justify-center rounded-full text-[11px] sm:text-xs font-mono font-bold transition-all active:scale-95 border border-white/10 ${
+                      zoomScale > 1 ? "bg-accent text-white" : "bg-white/[0.08] hover:bg-white/[0.16] text-zinc-300"
+                    }`}
+                    title="Alternar Zoom Rápido 2x"
+                  >
+                    {zoomScale > 1 ? `${Math.round(zoomScale * 10) / 10}x` : "2x"}
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setZoomScale(prev => Math.min(prev + 0.5, 4.5));
-                  }}
-                  disabled={zoomScale >= 4.5}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white disabled:opacity-30 transition-all active:scale-95 border border-white/10"
-                  title="Aumentar Zoom"
-                >
-                  <ZoomIn className="h-4 w-4" />
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setZoomScale(prev => {
+                        const next = prev - 0.5;
+                        if (next <= 1) {
+                          setPanOffset({ x: 0, y: 0 });
+                          return 1;
+                        }
+                        return next;
+                      });
+                    }}
+                    disabled={zoomScale <= 1}
+                    className="flex h-7.5 w-7.5 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white disabled:opacity-30 transition-all active:scale-95 border border-white/10 shrink-0"
+                    title="Diminuir Zoom"
+                  >
+                    <ZoomOut className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setZoomScale(prev => Math.min(prev + 0.5, 4.5));
+                    }}
+                    disabled={zoomScale >= 4.5}
+                    className="flex h-7.5 w-7.5 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white disabled:opacity-30 transition-all active:scale-95 border border-white/10 shrink-0"
+                    title="Aumentar Zoom"
+                  >
+                    <ZoomIn className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

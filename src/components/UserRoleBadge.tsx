@@ -1,5 +1,6 @@
 import React from "react";
 import { Sparkles, Crown, ShieldCheck } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface UserRoleBadgeProps {
   role?: string | null;
@@ -10,6 +11,7 @@ export const UserRoleBadge: React.FC<UserRoleBadgeProps> = ({
   role = "padrao",
   className = "",
 }) => {
+  const { t } = useLanguage();
   const cleanRole = (role || "").trim().toLowerCase();
 
   // Não exibe nada para o papel comum 'padrao' ou vazio
@@ -34,7 +36,7 @@ export const UserRoleBadge: React.FC<UserRoleBadgeProps> = ({
           </span>
           <Crown className="h-3.5 w-3.5 text-amber-300 drop-shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
           <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-300 to-yellow-100 font-mono">
-            Conta Administrador
+            {t("role_admin")}
           </span>
         </div>
       ) : isBeta ? (
@@ -49,7 +51,7 @@ export const UserRoleBadge: React.FC<UserRoleBadgeProps> = ({
           </span>
           <Sparkles className="h-3.5 w-3.5 text-emerald-300 drop-shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
           <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-transparent bg-clip-text bg-gradient-to-r from-emerald-200 via-emerald-300 to-teal-100 font-mono">
-            Conta Beta
+            {t("role_beta")}
           </span>
         </div>
       ) : (

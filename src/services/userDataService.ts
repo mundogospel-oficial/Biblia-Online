@@ -3,48 +3,62 @@ import { generateChatTitle } from './aiService';
 import { encryptPayload, decryptPayload } from '@/lib/security/cryptoService';
 
 export const saveAIHistory = async (prompt: string, response: string, complexity: string) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-  // Gera o título elegante via IA antes de criptografar
-  const generatedTitle = await generateChatTitle(prompt, response);
+    // Gera o título elegante via IA com fallback rápido
+    let generatedTitle = prompt.length > 30 ? prompt.substring(0, 30) + "..." : prompt;
+    try {
+      const aiTitle = await generateChatTitle(prompt, response);
+      if (aiTitle) generatedTitle = aiTitle;
+    } catch (_) {}
 
-  // Criptografa o prompt e a resposta com chave derivada do ID do usuário para privacidade total
-  const encryptedPrompt = await encryptPayload(prompt, user.id);
-  const encryptedResponse = await encryptPayload(response, user.id);
+    // Criptografa o prompt e a resposta com chave derivada do ID do usuário para privacidade total
+    const encryptedPrompt = await encryptPayload(prompt, user.id);
+    const encryptedResponse = await encryptPayload(response, user.id);
 
-  // Salva no banco de dados com dados criptografados em repouso
-  await supabase.from('user_ai_history').insert({ 
-    user_id: user.id, 
-    prompt: encryptedPrompt, 
-    response: encryptedResponse, 
-    complexity: complexity,
-    title: generatedTitle
-  });
+    // Salva no banco de dados se a tabela existir
+    await supabase.from('user_ai_history').insert({ 
+      user_id: user.id, 
+      prompt: encryptedPrompt, 
+      response: encryptedResponse, 
+      complexity: complexity,
+      title: generatedTitle
+    });
+  } catch (err) {
+    // Falha silenciosa para não quebrar a persistência principal do chat
+    console.debug("[UserDataService] Aviso ao salvar em user_ai_history:", err);
+  }
 };
 
 export const getAIHistory = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
 
-  const { data, error } = await supabase
-    .from('user_ai_history')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('user_ai_history')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
 
-  if (error || !data) return [];
+    if (error || !data) return [];
 
-  // Descriptografa os registros de forma transparente
-  const decryptedHistory = await Promise.all(
-    data.map(async (row) => ({
-      ...row,
-      prompt: await decryptPayload(row.prompt, user.id),
-      response: await decryptPayload(row.response, user.id)
-    }))
-  );
+    // Descriptografa os registros de forma transparente
+    const decryptedHistory = await Promise.all(
+      data.map(async (row) => ({
+        ...row,
+        prompt: await decryptPayload(row.prompt, user.id),
+        response: await decryptPayload(row.response, user.id)
+      }))
+    );
 
-  return decryptedHistory;
+    return decryptedHistory;
+  } catch (err) {
+    console.debug("[UserDataService] Aviso ao obter user_ai_history:", err);
+    return [];
+  }
 };
 
 export const toggleFavoriteVerse = async (verseReference: string, verseText: string) => {

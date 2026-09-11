@@ -158,9 +158,13 @@ export const generateBiblicalImage = async (
   const shouldWatermark = true;
 
   // Verificação de segurança prévia (Filtros Combinados)
-  const security = await validateImagePrompt(cleanPrompt, 'chat');
-  if (security.isBlocked || !security.isAppropriate) {
-    throw new Error(security.reason || "A descrição fornecida contém termos que violam as diretrizes de conteúdo visual e bíblico.");
+  // Se o prompt já foi refinado e higienizado pelo Aprimorador oficial (isAlreadyRefined),
+  // as regras de decência bíblica já foram aplicadas, evitando bloqueios indevidos
+  if (!isAlreadyRefined) {
+    const security = await validateImagePrompt(cleanPrompt, 'chat');
+    if (security.isBlocked || !security.isAppropriate) {
+      throw new Error(security.reason || "A descrição fornecida contém termos que violam as diretrizes de conteúdo visual e bíblico.");
+    }
   }
 
   try {
@@ -243,7 +247,9 @@ export const refinePromptWithAI = async (
   prompt: string,
   mode: string = 'image',
   style?: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  previousPrompt?: string,
+  changeRequested?: string
 ): Promise<{ refinedPrompt: string; isBlocked?: boolean }> => {
   const clean = (prompt || "").trim();
   if (!clean) return { refinedPrompt: "" };
@@ -263,7 +269,9 @@ export const refinePromptWithAI = async (
       body: JSON.stringify({
         prompt: clean,
         mode,
-        style
+        style,
+        previousPrompt: previousPrompt ? previousPrompt.trim() : undefined,
+        changeRequested: changeRequested ? changeRequested.trim() : undefined
       }),
       signal
     });

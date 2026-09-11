@@ -77,7 +77,7 @@ const Header = () => {
   return (
     <>
       {/* Desktop Header - Full-width Glass Bar with Oval Pills */}
-      <header className="sticky top-0 z-50 hidden md:block glass-card !rounded-none border-b border-border/50 safe-area-top">
+      <header className="sticky top-0 z-50 hidden md:block glass-card !rounded-none border-b border-border/50 safe-area-top shrink-0">
         <div className="container mx-auto flex items-center justify-between px-4 py-2.5">
           <Link to="/" className="flex items-center gap-2.5 group shrink-0 select-none">
             <img
@@ -125,7 +125,7 @@ const Header = () => {
       </header>
 
       {/* Mobile Top Header - Clean Glass Bar */}
-      <header className="sticky top-0 z-50 md:hidden glass-card !rounded-none border-b border-border/50 safe-area-top">
+      <header className="sticky top-0 z-50 md:hidden glass-card !rounded-none border-b border-border/50 safe-area-top shrink-0">
         <div className="flex items-center justify-center px-4 py-2.5">
           <Link to="/" className="flex items-center gap-2 select-none">
             <img

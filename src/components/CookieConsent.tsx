@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheck, X, Settings, Check } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const COOKIE_KEY = 'biblia-online-cookies-v1';
 
 export const CookieConsent = () => {
+  const { t } = useLanguage();
   const [show, setShow] = useState(false);
   const [isConfiguring, setIsConfiguring] = useState(false);
   const [preferences, setPreferences] = useState({
@@ -84,10 +86,10 @@ export const CookieConsent = () => {
                     <div className="h-7 w-7 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
                       <ShieldCheck className="h-4 w-4 sm:h-6 sm:w-6 text-accent" />
                     </div>
-                    <h2 className="font-serif text-sm sm:text-lg md:text-xl font-bold text-foreground">Privacidade e Cookies (LGPD)</h2>
+                    <h2 className="font-serif text-sm sm:text-lg md:text-xl font-bold text-foreground">{t("cookie_title")}</h2>
                   </div>
                   <p className="text-[11px] sm:text-xs md:text-sm text-muted-foreground leading-snug sm:leading-relaxed line-clamp-2 sm:line-clamp-none">
-                    Visando a máxima transparência e conformidade legal, informamos que utilizamos cookies para oferecer uma experiência personalizada, otimizar a navegação e analisar o tráfego do site. Respeitamos os seus direitos conforme a <span className="font-semibold text-foreground">Lei Geral de Proteção de Dados (Lei 13.709/2018)</span> e garantimos a você o total controle sobre as suas preferências de privacidade.
+                    {t("cookie_desc")}
                   </p>
                 </div>
                 
@@ -97,27 +99,27 @@ export const CookieConsent = () => {
                       onClick={handleAcceptAll}
                       className="w-full rounded-xl bg-accent py-2 sm:py-3 px-4 sm:px-6 text-xs sm:text-sm font-bold text-accent-foreground shadow-lg transition-all hover:scale-[1.02] active:scale-95"
                     >
-                      Aceitar Todos
+                      {t("cookie_accept_all")}
                     </button>
                     <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
                       <button 
                         onClick={handleRejectNonEssential}
                         className="rounded-xl bg-secondary/50 py-1.5 sm:py-2.5 px-2.5 sm:px-4 text-[11px] sm:text-xs font-medium text-foreground transition-all hover:bg-secondary"
                       >
-                        Rejeitar Não-Essenciais
+                        {t("cookie_reject_non_essential")}
                       </button>
                       <button 
                         onClick={() => setIsConfiguring(true)}
                         className="rounded-xl border border-white/10 bg-transparent py-1.5 sm:py-2.5 px-2.5 sm:px-4 text-[11px] sm:text-xs font-medium text-foreground transition-all hover:bg-white/5"
                       >
-                        Configurar
+                        {t("cookie_configure")}
                       </button>
                     </div>
                   </div>
                 ) : (
                   <div className="w-full md:w-[350px] space-y-4 bg-white/5 p-4 rounded-2xl border border-white/5">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Personalizar</span>
+                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t("cookie_customize")}</span>
                       <button onClick={() => setIsConfiguring(false)} className="text-muted-foreground hover:text-foreground">
                         <X className="h-4 w-4" />
                       </button>
@@ -126,16 +128,16 @@ export const CookieConsent = () => {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-xs font-bold">Essenciais</p>
-                          <p className="text-[10px] text-muted-foreground">Necessários para o funcionamento</p>
+                          <p className="text-xs font-bold">{t("cookie_essential")}</p>
+                          <p className="text-[10px] text-muted-foreground">{t("cookie_essential_desc")}</p>
                         </div>
                         <Check className="h-4 w-4 text-accent" />
                       </div>
                       
                       <div className="flex items-center justify-between group cursor-pointer" onClick={() => setPreferences(p => ({...p, analytics: !p.analytics}))}>
                         <div>
-                          <p className="text-xs font-bold">Análise e Performance</p>
-                          <p className="text-[10px] text-muted-foreground">Melhoram nossa entrega</p>
+                          <p className="text-xs font-bold">{t("cookie_analytics")}</p>
+                          <p className="text-[10px] text-muted-foreground">{t("cookie_analytics_desc")}</p>
                         </div>
                         <div className={`h-4 w-4 rounded border ${preferences.analytics ? 'bg-accent border-accent' : 'border-white/20'} flex items-center justify-center`}>
                           {preferences.analytics && <Check className="h-3 w-3 text-accent-foreground" />}
@@ -144,8 +146,8 @@ export const CookieConsent = () => {
 
                       <div className="flex items-center justify-between group cursor-pointer" onClick={() => setPreferences(p => ({...p, personalization: !p.personalization}))}>
                         <div>
-                          <p className="text-xs font-bold">Funcionais</p>
-                          <p className="text-[10px] text-muted-foreground">Lembram suas preferências</p>
+                          <p className="text-xs font-bold">{t("cookie_functional")}</p>
+                          <p className="text-[10px] text-muted-foreground">{t("cookie_functional_desc")}</p>
                         </div>
                         <div className={`h-4 w-4 rounded border ${preferences.personalization ? 'bg-accent border-accent' : 'border-white/20'} flex items-center justify-center`}>
                           {preferences.personalization && <Check className="h-3 w-3 text-accent-foreground" />}
@@ -157,7 +159,7 @@ export const CookieConsent = () => {
                       onClick={handleSavePreferences}
                       className="w-full rounded-xl bg-accent/20 py-2.5 text-xs font-bold text-accent transition-all hover:bg-accent hover:text-accent-foreground"
                     >
-                      Salvar Preferências
+                      {t("cookie_save_preferences")}
                     </button>
                   </div>
                 )}
