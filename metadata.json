@@ -1,5 +1,5 @@
 {
-  "name": "Biblia Online",
+  "name": "Biblia Online - A bíblia com IA integrada",
   "description": "Um aplicativo completo para leitura, estudo e pesquisa bíblica com o apoio de Inteligência Artificial.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
