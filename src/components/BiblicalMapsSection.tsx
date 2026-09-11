@@ -26,6 +26,7 @@ import {
 import { biblicalMaps, BiblicalMapTheme, MapLocation } from "@/data/biblicalMapsData";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface BiblicalMapsSectionProps {
   onNavigateToVerse?: (bookAbbrev: string, chapter: number, verseNum?: number) => void;
@@ -78,6 +79,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({ onNavi
   const navigate = useNavigate();
   const { isBeta, isAdmin, role } = useFeatureGate();
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const [selectedMapId, setSelectedMapId] = useState<string>("viagens-paulo");
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>("loc-jerusalem");
@@ -91,6 +93,40 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({ onNavi
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersRef = useRef<Record<string, L.Marker>>({});
   const polylineRef = useRef<L.Polyline | null>(null);
+  const lastToastTimeRef = useRef<number>(0);
+
+  const notifyMapError = useCallback(() => {
+    const now = Date.now();
+    if (now - lastToastTimeRef.current > 7000) {
+      lastToastTimeRef.current = now;
+      toast({
+        title: "Aviso",
+        description: "Erro, tente novamente mais tarde",
+        variant: "destructive"
+      });
+    }
+  }, [toast]);
+
+  const createSafeTileLayer = useCallback((config: TileConfig) => {
+    const layer = L.tileLayer(config.url, {
+      attribution: config.attribution,
+      maxZoom: config.maxZoom || 18,
+      subdomains: config.subdomains || "abc",
+      crossOrigin: true
+    });
+
+    layer.on("tileerror", (errorEvent: any) => {
+      // Cleanly hide broken tile image without displaying logos or placeholders
+      if (errorEvent && errorEvent.tile) {
+        errorEvent.tile.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+        errorEvent.tile.style.opacity = "0";
+        errorEvent.tile.style.visibility = "hidden";
+      }
+      notifyMapError();
+    });
+
+    return layer;
+  }, [notifyMapError]);
 
   const hasAccess = isBeta || isAdmin || role === "beta" || role === "admin" || role === "vip";
 
@@ -143,26 +179,9 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({ onNavi
         minZoom: 3
       });
 
-      // Add Tile Layer with fallback
+      // Add Tile Layer with safe error handler
       const initialTile = TILE_SERVERS[tileStyle];
-      const tileLayer = L.tileLayer(initialTile.url, {
-        attribution: initialTile.attribution,
-        maxZoom: initialTile.maxZoom || 18,
-        subdomains: initialTile.subdomains || "abc",
-        crossOrigin: true
-      }).addTo(map);
-
-      tileLayer.on("tileerror", () => {
-        // Fallback to OSM if satellite or custom tile fails
-        if (tileStyle !== "osm" && mapInstanceRef.current) {
-          console.warn("[Map] Falha no tile server principal, ativando fallback OSM...");
-          const fallbackTile = L.tileLayer(TILE_SERVERS.osm.url, {
-            maxZoom: 19,
-            crossOrigin: true
-          });
-          fallbackTile.addTo(mapInstanceRef.current);
-        }
-      });
+      const tileLayer = createSafeTileLayer(initialTile).addTo(map);
 
       tileLayerRef.current = tileLayer;
       mapInstanceRef.current = map;
@@ -237,7 +256,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({ onNavi
     } catch (err) {
       console.error("[Map] Erro ao instanciar Leaflet:", err);
     }
-  }, [hasAccess, currentMap, selectedMapId, tileStyle, selectedLocation?.id]);
+  }, [hasAccess, currentMap, selectedMapId, tileStyle, selectedLocation?.id, createSafeTileLayer]);
 
   // Update Tile Layer when tileStyle changes
   useEffect(() => {
@@ -246,14 +265,9 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({ onNavi
       tileLayerRef.current.remove();
     }
     const currentTile = TILE_SERVERS[tileStyle];
-    const newTile = L.tileLayer(currentTile.url, {
-      attribution: currentTile.attribution,
-      maxZoom: currentTile.maxZoom || 18,
-      subdomains: currentTile.subdomains || "abc",
-      crossOrigin: true
-    }).addTo(mapInstanceRef.current);
+    const newTile = createSafeTileLayer(currentTile).addTo(mapInstanceRef.current);
     tileLayerRef.current = newTile;
-  }, [tileStyle, hasAccess]);
+  }, [tileStyle, hasAccess, createSafeTileLayer]);
 
   // Invalidate map size on fullscreen toggle
   useEffect(() => {
@@ -467,6 +481,23 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({ onNavi
           <div className={`relative rounded-2xl overflow-hidden border border-border shadow-xl bg-slate-950 transition-all duration-300 ${
             isFullscreen ? "fixed inset-4 z-50 rounded-2xl shadow-2xl" : "h-[440px] sm:h-[500px]"
           }`}>
+            {/* Custom style to eliminate broken images or logo placeholders */}
+            <style>{`
+              .leaflet-tile-container img {
+                border: 0 !important;
+                outline: 0 !important;
+              }
+              .leaflet-tile-container img:not([src]),
+              .leaflet-tile-container img[src*="data:image/gif"] {
+                opacity: 0 !important;
+                visibility: hidden !important;
+                display: none !important;
+              }
+              .leaflet-container {
+                background: #090e17 !important;
+              }
+            `}</style>
+
             {/* Map Container */}
             <div ref={mapContainerRef} className="w-full h-full z-0" />
 

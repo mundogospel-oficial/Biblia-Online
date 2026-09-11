@@ -1,8 +1,56 @@
 # ==============================================================================
-# Bíblia Online - Robots.txt & AI Crawler Access Policy
-# Open access for Search Engines & AI Models (OpenAI, Gemini, Claude, Perplexity, etc.)
+# Bíblia Online - Robots.txt & Comprehensive AI / Search Engine Policy
+# Open access for Google AI (Gemini / Google-Extended), OpenAI (ChatGPT), 
+# Anthropic (Claude), Perplexity, Apple, and all major Search Engines.
 # ==============================================================================
 
+# Google AI & Search Engines
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Mobile
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Googlebot-News
+Allow: /
+
+User-agent: Googlebot-Video
+Allow: /
+
+User-agent: Google-InspectionTool
+Allow: /
+
+User-agent: GoogleOther
+Allow: /
+
+User-agent: GoogleOther-Image
+Allow: /
+
+User-agent: GoogleOther-Video
+Allow: /
+
+User-agent: Google-Read-Aloud
+Allow: /
+
+User-agent: Storebot-Google
+Allow: /
+
+User-agent: Mediapartners-Google
+Allow: /
+
+User-agent: AdsBot-Google
+Allow: /
+
+User-agent: FeedFetcher-Google
+Allow: /
+
+# OpenAI / ChatGPT
 User-agent: GPTBot
 Allow: /
 
@@ -15,15 +63,7 @@ Allow: /
 User-agent: OpenAI-AsyncHttpClient
 Allow: /
 
-User-agent: Google-Extended
-Allow: /
-
-User-agent: Googlebot
-Allow: /
-
-User-agent: Googlebot-Image
-Allow: /
-
+# Anthropic / Claude
 User-agent: ClaudeBot
 Allow: /
 
@@ -33,12 +73,28 @@ Allow: /
 User-agent: anthropic-ai
 Allow: /
 
+# Perplexity AI
 User-agent: PerplexityBot
 Allow: /
 
+# Microsoft & Bing
 User-agent: Bingbot
 Allow: /
 
+User-agent: msnbot
+Allow: /
+
+User-agent: BingPreview
+Allow: /
+
+# Apple
+User-agent: Applebot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+# Other AI & Social Agents
 User-agent: cohere-ai
 Allow: /
 
@@ -51,15 +107,16 @@ Allow: /
 User-agent: Twitterbot
 Allow: /
 
-User-agent: Applebot
+User-agent: DuckDuckBot
 Allow: /
 
 User-agent: Bytespider
 Allow: /
 
+# All Web Crawlers & AI Agents
 User-agent: *
 Allow: /
 
-# Sitemaps and AI App Summaries
+# Sitemaps & Structured LLM Documents
 Sitemap: https://online-biblia.vercel.app/sitemap.xml
 Sitemap: https://ais-pre-6l6a4lokvoyyiqlu26cadl-511815758067.us-east1.run.app/sitemap.xml

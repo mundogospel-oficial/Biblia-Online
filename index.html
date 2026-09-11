@@ -40,53 +40,113 @@
     <meta name="msapplication-tap-highlight" content="no" />
     <meta name="msapplication-tooltip" content="Biblia Online" />
     
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.supabase.in https://*.supabase.net https://*.google.com https://*.vercel.app https://*.vercel.live https://challenges.cloudflare.com https://*.onesignal.com https://onesignal.com https://unpkg.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.onesignal.com https://onesignal.com https://unpkg.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https: http: https://*.arcgisonline.com https://server.arcgisonline.com https://services.arcgisonline.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://*.tile.osm.org https://img.os-content.com https://*.os-content.com; frame-src 'self' https://*.vercel.live https://challenges.cloudflare.com https://*.openai.com https://chatgpt.com https://*.google.com; worker-src 'self' blob: https://*.onesignal.com https://onesignal.com; child-src 'self' https://*.onesignal.com https://onesignal.com; connect-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com https://*.supabase.co https://*.supabase.in https://*.supabase.net https://*.googleapis.com wss://*.supabase.co wss://*.supabase.in https://raw.githubusercontent.com https://bible-api.com https://bolls.life https://openrouter.ai https://*.cloudflare.com https://*.vercel.live https://*.onesignal.com https://onesignal.com https://img.os-content.com https://*.os-content.com https://api.ipify.org https://*.ipify.org https://ipapi.co https://*.ipapi.co https://*.arcgisonline.com https://server.arcgisonline.com https://services.arcgisonline.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://*.tile.osm.org https://unpkg.com https://cdnjs.cloudflare.com https://*.openai.com https://chatgpt.com;">
-    <title>Biblia Online</title>
-    <meta name="description" content="Um aplicativo completo para leitura, estudo e pesquisa bíblica com o apoio de Inteligência Artificial. Bilingual Portuguese/English Bible application.">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.supabase.in https://*.supabase.net https://*.google.com https://*.vercel.app https://*.vercel.live https://challenges.cloudflare.com https://*.onesignal.com https://onesignal.com https://unpkg.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.onesignal.com https://onesignal.com https://unpkg.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https: http: https://*.arcgisonline.com https://server.arcgisonline.com https://services.arcgisonline.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://*.tile.osm.org https://img.os-content.com https://*.os-content.com; frame-src 'self' https://*.vercel.live https://challenges.cloudflare.com https://*.openai.com https://chatgpt.com https://*.google.com; worker-src 'self' blob: https://*.onesignal.com https://onesignal.com; child-src 'self' https://*.onesignal.com https://onesignal.com; connect-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com https://*.supabase.co https://*.supabase.in https://*.supabase.net https://*.googleapis.com wss://*.supabase.co wss://*.supabase.in https://raw.githubusercontent.com https://bible-api.com https://bolls.life https://openrouter.ai https://*.cloudflare.com https://*.vercel.live https://*.onesignal.com https://onesignal.com https://img.os-content.com https://*.os-content.com https://api.ipify.org https://*.ipify.org https://ipapi.co https://*.ipapi.co https://*.arcgisonline.com https://server.arcgisonline.com https://services.arcgisonline.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://*.tile.osm.org https://unpkg.com https://cdnjs.cloudflare.com https://*.openai.com https://chatgpt.com;" />
+    
+    <title>Bíblia Online - Leitura, Pesquisa e Estudo Sagrado com Inteligência Artificial</title>
+    <meta name="description" content="Plataforma bíblica completa e bilíngue (Português/Inglês). Leitura dos 66 livros da Bíblia Sagrada (1.189 capítulos), estudos teológicos com Inteligência Artificial, mapas bíblicos da Terra Santa, modo telão para púlpito, devocionais e pesquisa avançada.">
+    <meta name="keywords" content="biblia online, bíblia sagrada, estudo bíblico, inteligência artificial bíblica, almeida revista e corrigida, devocionais, mapas bíblicos, antigo testamento, novo testamento, versículo do dia">
     <meta name="author" content="Mundo Gospel" />
 
     <!-- AI Crawler and Search Engine Authorization Meta Tags -->
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large" />
+    <meta name="google-extended" content="index, follow" />
     <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large" />
+    <meta name="slurp" content="index, follow" />
+    <link rel="canonical" href="https://online-biblia.vercel.app/" />
     <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml" />
     <link rel="help" href="/llms.txt" title="LLM & AI Application Summary" />
 
     <!-- Open Graph & Social Media -->
-    <meta property="og:title" content="Biblia Online" />
-    <meta property="og:description" content="Um aplicativo completo para leitura, estudo e pesquisa bíblica com o apoio de Inteligência Artificial." />
+    <meta property="og:title" content="Bíblia Online - Leitura e Estudo Bíblico com IA" />
+    <meta property="og:description" content="Plataforma completa de leitura e pesquisa das Sagradas Escrituras com estudos teológicos assistidos por Inteligência Artificial." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://online-biblia.vercel.app/" />
-    <meta property="og:image" content="/icons/logo3.png" />
+    <meta property="og:image" content="https://online-biblia.vercel.app/icons/logo3.png" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:site_name" content="Bíblia Online" />
+    
+    <!-- Twitter Cards -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Biblia Online" />
-    <meta name="twitter:description" content="Um aplicativo completo para leitura, estudo e pesquisa bíblica com o apoio de Inteligência Artificial." />
-    <meta name="twitter:image" content="/icons/logo3.png" />
+    <meta name="twitter:site" content="@MundoGospel" />
+    <meta name="twitter:title" content="Bíblia Online - Leitura e Estudo Bíblico com IA" />
+    <meta name="twitter:description" content="Plataforma completa de leitura e pesquisa das Sagradas Escrituras com estudos teológicos assistidos por Inteligência Artificial." />
+    <meta name="twitter:image" content="https://online-biblia.vercel.app/icons/logo3.png" />
 
-    <!-- Schema.org JSON-LD Structured Metadata for AI bots & Search Engines -->
+    <!-- Schema.org JSON-LD Structured Metadata for Google AI, Gemini, ChatGPT & Search Engines -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "WebApplication",
-      "name": "Bíblia Online",
-      "alternateName": ["Biblia Online", "Online Holy Bible"],
-      "url": "https://online-biblia.vercel.app/",
-      "applicationCategory": "EducationalApplication",
-      "operatingSystem": "All",
-      "inLanguage": ["pt-BR", "en-US"],
-      "description": "Plataforma bilíngue de leitura, pesquisa e estudo bíblico com Inteligência Artificial, modo telão para púlpito, dicionário teológico e anotações.",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "BRL"
-      },
-      "featureList": [
-        "Leitura dos 66 livros da Bíblia Sagrada (1.189 capítulos)",
-        "Modo Bilíngue com tradução em tempo real assistida por IA",
-        "Modo Telão e Púlpito em tela cheia com alta legibilidade",
-        "Dicionário Bíblico e Exegese de versículos com Inteligência Artificial",
-        "Criador de imagens e versículos para redes sociais",
-        "Modo Offline PWA e Sincronização em Nuvem"
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://online-biblia.vercel.app/#website",
+          "url": "https://online-biblia.vercel.app/",
+          "name": "Bíblia Online",
+          "alternateName": ["Bíblia Sagrada Online", "Holy Bible Online"],
+          "description": "Aplicativo completo de leitura, estudo e pesquisa bíblica com Inteligência Artificial, modo bilíngue e telão para púlpito.",
+          "inLanguage": ["pt-BR", "en-US"],
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "https://online-biblia.vercel.app/pesquisar?q={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "WebApplication",
+          "@id": "https://online-biblia.vercel.app/#webapp",
+          "name": "Bíblia Online",
+          "url": "https://online-biblia.vercel.app/",
+          "applicationCategory": "EducationalApplication",
+          "operatingSystem": "All (Web, iOS, Android, Windows, macOS)",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "BRL"
+          },
+          "featureList": [
+            "Leitura integral dos 66 livros da Bíblia Sagrada (1.189 capítulos)",
+            "Modo Bilíngue com tradução em tempo real assistida por Inteligência Artificial",
+            "Modo Telão e Púlpito em tela cheia com tipografia de alta legibilidade",
+            "Dicionário Bíblico e Exegese de versículos com apoio de IA",
+            "Mapas Bíblicos Realistas e Atlas Geográfico da Terra Santa",
+            "Estúdio de criação de imagens e cartões comemorativos com versículos",
+            "Modo Offline PWA e Sincronização segura de favoritos e notas"
+          ]
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://online-biblia.vercel.app/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Quantos livros e capítulos estão disponíveis na Bíblia Online?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Estão disponíveis todos os 66 livros canônicos da Bíblia Sagrada, totalizando 1.189 capítulos e mais de 31.000 versículos no Antigo e Novo Testamento."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Quais traduções bíblicas estão disponíveis?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Em português oferecemos a Bíblia João Ferreira de Almeida (ARC/ARA) e a Bíblia Livre (BLIVRE). Em inglês disponibilizamos a King James Version (KJV), World English Bible (WEB) e a Bible in Basic English (BBE)."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Como funciona o apoio de Inteligência Artificial nos estudos bíblicos?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "A Inteligência Artificial atua como um assistente de exegese bíblica e teologia sistemática, oferecendo contexto histórico, etimologia hebraica e grega dos termos originais, temas correlatos e esclarecimento de passagens bíblicas."
+              }
+            }
+          ]
+        }
       ]
     }
     </script>
@@ -98,15 +158,12 @@
         window.location.hostname === "127.0.0.1";
 
       if (isAllowedHost) {
-        // Early cleanup of any non-OneSignal old service workers
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.getRegistrations().then(function(registrations) {
             registrations.forEach(function(registration) {
               const activeWorker = registration.active || registration.installing || registration.waiting;
               const scriptUrl = activeWorker ? activeWorker.scriptURL : '';
-              // Exclude our unified OneSignal script from cleanup
               if (scriptUrl && !scriptUrl.toLowerCase().includes('onesignal')) {
-                console.log('[OneSignal Early Cleanup] Unregistering old Service Worker:', scriptUrl);
                 registration.unregister().catch(function(err) {
                   console.warn('[OneSignal Early Cleanup] Error unregistering:', err);
                 });
@@ -116,21 +173,8 @@
             console.warn('[OneSignal Early Cleanup] Error getting registrations:', err);
           });
         }
-      } else {
-        console.warn('[OneSignal] Running on non-production origin:', window.location.hostname);
       }
     </script>
-
-    <meta property="og:type" content="website" />
-    
-    
-    <meta property="og:image" content="https://online-biblia.vercel.app/icons/logo3.png">
-
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@MundoGospel" />
-    
-    
-    <meta name="twitter:image" content="https://online-biblia.vercel.app/icons/logo3.png">
 
     <style>
       html, body { overflow-x: hidden; }
@@ -142,20 +186,177 @@
         overflow-y: auto; 
         background-color: #0b121f;
         margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        color: #f1f5f9;
+      }
+      .static-pre-render {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 24px 16px;
+        line-height: 1.6;
+      }
+      .static-pre-render h1 {
+        font-size: 28px;
+        color: #f8fafc;
+        margin-bottom: 8px;
+      }
+      .static-pre-render h2 {
+        font-size: 20px;
+        color: #38bdf8;
+        margin-top: 24px;
+        margin-bottom: 8px;
+      }
+      .static-pre-render p {
+        color: #94a3b8;
+        font-size: 15px;
+        margin-bottom: 12px;
+      }
+      .static-pre-render ul {
+        list-style-type: none;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 8px;
+      }
+      .static-pre-render li a {
+        display: block;
+        padding: 8px 12px;
+        background: #1e293b;
+        color: #38bdf8;
+        border-radius: 8px;
+        text-decoration: none;
+        font-size: 13px;
+        border: 1px solid rgba(255,255,255,0.08);
+      }
+      .static-verse-box {
+        background: rgba(56, 189, 248, 0.08);
+        border: 1px solid rgba(56, 189, 248, 0.2);
+        border-radius: 12px;
+        padding: 16px;
+        margin: 16px 0;
       }
     </style>
-    
-  
-  
-  
-  <meta property="og:title" content="Biblia Online">
-  <meta name="twitter:title" content="Biblia Online">
-  <meta property="og:description" content="A biblia com IA integrada!">
-  <meta name="twitter:description" content="A biblia com IA integrada!">
-</head>
+  </head>
 
   <body>
-    <div id="root"></div>
+    <!-- 
+      Conteúdo Semântico Pré-Renderizado e Acessível para IAs (Google Gemini, Googlebot, ChatGPT, Claude, Perplexity).
+      Quando o JavaScript do React é carregado pelo navegador do usuário, este nó é automaticamente hidratado/substituído pela interface dinâmica interativa.
+    -->
+    <div id="root">
+      <main class="static-pre-render" role="main">
+        <header>
+          <h1>Bíblia Online Sagrada</h1>
+          <p>Plataforma completa e bilíngue (Português e Inglês) para leitura, pesquisa e estudo bíblico com Inteligência Artificial.</p>
+        </header>
+
+        <section class="static-verse-box" aria-label="Versículo em Destaque">
+          <p><strong>João 3:16</strong> &mdash; <em>"Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito, para que todo aquele que nele crê não pereça, mas tenha a vida eterna."</em></p>
+        </section>
+
+        <section>
+          <h2>Recursos e Ferramentas</h2>
+          <p>Nossa plataforma reúne as melhores ferramentas para sua comunhão, ministério e crescimento na Palavra de Deus:</p>
+          <p>&bull; <strong>Leitura Integral:</strong> Os 66 livros canônicos do Antigo e Novo Testamento (1.189 capítulos).</p>
+          <p>&bull; <strong>Estudos Teológicos com IA:</strong> Respostas completas, exegese, contexto cultural e termos no hebraico e grego.</p>
+          <p>&bull; <strong>Modo Bilíngue:</strong> Tradução em tempo real e leitura paralela em português e inglês.</p>
+          <p>&bull; <strong>Modo Telão e Púlpito:</strong> Projeção em tela cheia com alta legibilidade para cultos e igrejas.</p>
+          <p>&bull; <strong>Mapas Bíblicos Realistas:</strong> Atlas geográfico da Terra Santa e rotas dos apóstolos com fotos de satélite.</p>
+          <p>&bull; <strong>Devocionais & Planos de Leitura:</strong> Meditações diárias e guias estruturados de estudo.</p>
+        </section>
+
+        <section>
+          <h2>Antigo Testamento (39 Livros)</h2>
+          <ul>
+            <li><a href="/livro/gn/1">Gênesis (Gn)</a></li>
+            <li><a href="/livro/ex/1">Êxodo (Ex)</a></li>
+            <li><a href="/livro/lv/1">Levítico (Lv)</a></li>
+            <li><a href="/livro/nm/1">Números (Nm)</a></li>
+            <li><a href="/livro/dt/1">Deuteronômio (Dt)</a></li>
+            <li><a href="/livro/js/1">Josué (Js)</a></li>
+            <li><a href="/livro/jz/1">Juízes (Jz)</a></li>
+            <li><a href="/livro/rt/1">Rute (Rt)</a></li>
+            <li><a href="/livro/1sm/1">1 Samuel (1Sm)</a></li>
+            <li><a href="/livro/2sm/1">2 Samuel (2Sm)</a></li>
+            <li><a href="/livro/1rs/1">1 Reis (1Rs)</a></li>
+            <li><a href="/livro/2rs/1">2 Reis (2Rs)</a></li>
+            <li><a href="/livro/1cr/1">1 Crônicas (1Cr)</a></li>
+            <li><a href="/livro/2cr/1">2 Crônicas (2Cr)</a></li>
+            <li><a href="/livro/ed/1">Esdras (Ed)</a></li>
+            <li><a href="/livro/ne/1">Neemias (Ne)</a></li>
+            <li><a href="/livro/et/1">Ester (Et)</a></li>
+            <li><a href="/livro/job/1">Jó (Jó)</a></li>
+            <li><a href="/livro/sl/1">Salmos (Sl)</a></li>
+            <li><a href="/livro/pv/1">Provérbios (Pv)</a></li>
+            <li><a href="/livro/ec/1">Eclesiastes (Ec)</a></li>
+            <li><a href="/livro/ct/1">Cânticos (Ct)</a></li>
+            <li><a href="/livro/is/1">Isaías (Is)</a></li>
+            <li><a href="/livro/jr/1">Jeremias (Jr)</a></li>
+            <li><a href="/livro/lm/1">Lamentações (Lm)</a></li>
+            <li><a href="/livro/ez/1">Ezequiel (Ez)</a></li>
+            <li><a href="/livro/dn/1">Daniel (Dn)</a></li>
+            <li><a href="/livro/os/1">Oséias (Os)</a></li>
+            <li><a href="/livro/jl/1">Joel (Jl)</a></li>
+            <li><a href="/livro/am/1">Amós (Am)</a></li>
+            <li><a href="/livro/ob/1">Obadias (Ob)</a></li>
+            <li><a href="/livro/jn/1">Jonas (Jn)</a></li>
+            <li><a href="/livro/mq/1">Miquéias (Mq)</a></li>
+            <li><a href="/livro/na/1">Naum (Na)</a></li>
+            <li><a href="/livro/hc/1">Habacuque (Hc)</a></li>
+            <li><a href="/livro/sf/1">Sofonias (Sf)</a></li>
+            <li><a href="/livro/ag/1">Ageu (Ag)</a></li>
+            <li><a href="/livro/zc/1">Zacarias (Zc)</a></li>
+            <li><a href="/livro/ml/1">Malaquias (Ml)</a></li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Novo Testamento (27 Livros)</h2>
+          <ul>
+            <li><a href="/livro/mt/1">Mateus (Mt)</a></li>
+            <li><a href="/livro/mc/1">Marcos (Mc)</a></li>
+            <li><a href="/livro/lc/1">Lucas (Lc)</a></li>
+            <li><a href="/livro/jo/1">João (Jo)</a></li>
+            <li><a href="/livro/at/1">Atos (At)</a></li>
+            <li><a href="/livro/rm/1">Romanos (Rm)</a></li>
+            <li><a href="/livro/1co/1">1 Coríntios (1Co)</a></li>
+            <li><a href="/livro/2co/1">2 Coríntios (2Co)</a></li>
+            <li><a href="/livro/gl/1">Gálatas (Gl)</a></li>
+            <li><a href="/livro/ef/1">Efésios (Ef)</a></li>
+            <li><a href="/livro/fp/1">Filipenses (Fp)</a></li>
+            <li><a href="/livro/cl/1">Colossenses (Cl)</a></li>
+            <li><a href="/livro/1ts/1">1 Tessalonicenses (1Ts)</a></li>
+            <li><a href="/livro/2ts/1">2 Tessalonicenses (2Ts)</a></li>
+            <li><a href="/livro/1tm/1">1 Timóteo (1Tm)</a></li>
+            <li><a href="/livro/2tm/1">2 Timóteo (2Tm)</a></li>
+            <li><a href="/livro/tt/1">Tito (Tt)</a></li>
+            <li><a href="/livro/fm/1">Filemom (Fm)</a></li>
+            <li><a href="/livro/hb/1">Hebreus (Hb)</a></li>
+            <li><a href="/livro/tg/1">Tiago (Tg)</a></li>
+            <li><a href="/livro/1pe/1">1 Pedro (1Pe)</a></li>
+            <li><a href="/livro/2pe/1">2 Pedro (2Pe)</a></li>
+            <li><a href="/livro/1jo/1">1 João (1Jo)</a></li>
+            <li><a href="/livro/2jo/1">2 João (2Jo)</a></li>
+            <li><a href="/livro/3jo/1">3 João (3Jo)</a></li>
+            <li><a href="/livro/jd/1">Judas (Jd)</a></li>
+            <li><a href="/livro/ap/1">Apocalipse (Ap)</a></li>
+          </ul>
+        </section>
+
+        <footer>
+          <p>&copy; Bíblia Online &mdash; Todos os direitos reservados. Para documentação de IA, consulte <a href="/llms.txt">/llms.txt</a> e o mapa do site em <a href="/sitemap.xml">/sitemap.xml</a>.</p>
+        </footer>
+      </main>
+    </div>
+
+    <noscript>
+      <div style="padding: 20px; font-family: sans-serif; background-color: #0b121f; color: #f1f5f9;">
+        <h2>Bíblia Online - Leitura das Escrituras Sagradas</h2>
+        <p>Acesse os 66 livros da Bíblia Sagrada (1.189 capítulos), estudos bíblicos, pesquisa por versículos e devocionais diários.</p>
+        <p>Consulte o arquivo de resumo em <a href="/llms.txt" style="color: #38bdf8;">/llms.txt</a> ou o <a href="/sitemap.xml" style="color: #38bdf8;">/sitemap.xml</a>.</p>
+      </div>
+    </noscript>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

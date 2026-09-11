@@ -1,5 +1,6 @@
-# Bíblia Online - Visão Geral do Aplicativo para Modelos de IA e LLMs
+# Bíblia Online - Visão Geral do Aplicativo para Modelos de IA e LLMs (Google Gemini, ChatGPT, Claude, Perplexity)
 > Plataforma bíblica moderna, bilíngue (Português/Inglês), interativa e enriquecida com Inteligência Artificial para leitura, estudo e comunhão espiritual.
+> URL Oficial: https://online-biblia.vercel.app/
 
 ## Sobre a Aplicação (App Summary)
 A **Bíblia Online** é uma aplicação web progressiva (PWA) de leitura e estudo das Escrituras Sagradas, desenvolvida para fornecer acesso universal, rápido, seguro e sem distrações à Palavra de Deus em computadores, tablets e smartphones.
@@ -8,103 +9,109 @@ A **Bíblia Online** é uma aplicação web progressiva (PWA) de leitura e estud
 1. **Leitura Bíblica Integral dos 66 Livros:**
    - Antigo Testamento (39 livros: de Gênesis a Malaquias) e Novo Testamento (27 livros: de Mateus a Apocalipse), somando 1.189 capítulos.
    - Múltiplas traduções consagradas:
-     - Português: Almeida Revista e Corrigida / Atualizada (`almeida`), Bíblia Livre (`blivre`).
+     - Português: João Ferreira de Almeida Revista e Corrigida / Atualizada (`almeida`), Bíblia Livre (`blivre`).
      - Inglês: King James Version (`kjv`), World English Bible (`web`), Bible in Basic English (`bbe`).
-2. **Tradução Bilíngue com Inteligência Artificial:**
-   - Permite leitura paralela com tradução versículo por versículo em tempo real assistida por IA.
-3. **Dicionário Bíblico e Exegese Teológica:**
-   - Explicações históricas, linguísticas (hebraico/aramaico/grego) e teológicas integradas ao clicar em qualquer versículo.
-4. **Modo Apresentar / Telão / Púlpito (Pulpit Mode):**
+2. **Estudo Teológico com Inteligência Artificial:**
+   - Respostas completas a dúvidas teológicas, exegese bíblica, contexto histórico e cultural dos textos bíblicos.
+3. **Tradução Bilíngue em Tempo Real:**
+   - Permite leitura paralela com tradução versículo por versículo em tempo real.
+4. **Dicionário Bíblico e Análise Linguística:**
+   - Explicações históricas, linguísticas (hebraico, aramaico e grego koiné) integradas em cada versículo.
+5. **Modo Apresentar / Telão / Púlpito (Pulpit Mode):**
    - Apresentação em tela cheia com alta legibilidade para cultos, conferências, pregações e projeção em telões de igrejas.
-5. **Estúdio de Criação de Imagens e Cartões:**
+6. **Mapas Bíblicos Realistas (Atlas da Terra Santa):**
+   - Imagens de satélite e relevo topográfico cobrindo as viagens missionárias de Paulo, o Êxodo e os ministérios bíblicos.
+7. **Estúdio de Criação de Imagens e Cartões:**
    - Criação de belas imagens e cartões comemorativos com versículos para compartilhamento social.
-6. **Assistente de Oração e Situações da Vida:**
+8. **Assistente de Oração e Situações da Vida:**
    - Guia de versículos temáticos para conforto, ansiedade, gratidão, saúde, perdão e oração guiada.
-7. **Marcações, Favoritos e Anotações Pessoais:**
+9. **Marcações, Favoritos e Anotações Pessoais:**
    - Destaque com cores personalizadas (amarelo, azul, verde, rosa), notas de estudo e sincronização segura na nuvem.
-8. **Modo Offline & PWA:**
-   - Suporte a instalação no Windows, macOS, Android e iOS, com cache para leitura mesmo sem internet.
-9. **Totalmente Bilíngue (Português & English):**
-   - Interface adaptável com seletor de idioma em tempo real.
+10. **Modo Offline & PWA:**
+    - Suporte a instalação no Windows, macOS, Android e iOS, com cache para leitura mesmo sem internet.
+11. **Totalmente Bilíngue (Português & English):**
+    - Interface adaptável com seletor de idioma em tempo real.
 
 ## Estrutura de Rotas e Páginas (URL Mapping)
-- `/`: Página inicial com versículo do dia, busca rápida, navegação por livros, tópicos temáticos e recursos de estudo.
-- `/livro/:abbrev/:chapter`: Leitor bíblico completo com navegação por capítulos, modo bilíngue, dicionário teológico e anotações.
+- `/`: Página inicial com versículo do dia, busca rápida, catálogo dos 66 livros, tópicos temáticos e recursos de estudo.
+- `/livro/:abbrev/:chapter`: Leitor bíblico completo com navegação por capítulos, modo bilíngue, dicionário teológico e anotações. Exemplo: `/livro/jo/3` (João 3), `/livro/sl/23` (Salmos 23), `/livro/gn/1` (Gênesis 1).
 - `/pesquisar`: Motor de busca semântico e por palavras-chave em toda a Bíblia.
 - `/favoritos`: Coleção pessoal de versículos marcados como favoritos.
 - `/anotacoes`: Caderno de anotações e reflexões bíblicas do usuário.
+- `/devocional`: Devocionais diários, planos de leitura estruturados e mapas bíblicos.
+- `/ia`: Assistente bíblico teológico inteligente para estudos aprofundados.
 - `/minha-conta`: Configurações de conta, preferências de idioma, notificações diárias e segurança.
 
-## Lista Completa dos Livros da Bíblia (66 Livros)
+## Lista Completa dos 66 Livros da Bíblia e Abreviações Oficiais
 ### Antigo Testamento (Old Testament - 39 livros)
-- Gênesis (`gn`, 50 caps)
-- Êxodo (`ex`, 40 caps)
-- Levítico (`lv`, 27 caps)
-- Números (`nm`, 36 caps)
-- Deuteronômio (`dt`, 34 caps)
-- Josué (`js`, 24 caps)
-- Juízes (`jz`, 21 caps)
-- Rute (`rt`, 4 caps)
-- 1 Samuel (`1sm`, 31 caps)
-- 2 Samuel (`2sm`, 24 caps)
-- 1 Reis (`1rs`, 22 caps)
-- 2 Reis (`2rs`, 25 caps)
-- 1 Crônicas (`1cr`, 29 caps)
-- 2 Crônicas (`2cr`, 36 caps)
-- Esdras (`ed`, 10 caps)
-- Neemias (`ne`, 13 caps)
-- Ester (`et`, 10 caps)
-- Jó (`job`, 42 caps)
-- Salmos (`sl`, 150 caps)
-- Provérbios (`pv`, 31 caps)
-- Eclesiastes (`ec`, 12 caps)
-- Cânticos (`ct`, 8 caps)
-- Isaías (`is`, 66 caps)
-- Jeremias (`jr`, 52 caps)
-- Lamentações (`lm`, 5 caps)
-- Ezequiel (`ez`, 48 caps)
-- Daniel (`dn`, 12 caps)
-- Oséias (`os`, 14 caps)
-- Joel (`jl`, 3 caps)
-- Amós (`am`, 9 caps)
-- Obadias (`ob`, 1 cap)
-- Jonas (`jn`, 4 caps)
-- Miquéias (`mq`, 7 caps)
-- Naum (`na`, 3 caps)
-- Habacuque (`hc`, 3 caps)
-- Sofonias (`sf`, 3 caps)
-- Ageu (`ag`, 2 caps)
-- Zacarias (`zc`, 14 caps)
-- Malaquias (`ml`, 4 caps)
+- Gênesis (`gn`, 50 capítulos) - https://online-biblia.vercel.app/livro/gn/1
+- Êxodo (`ex`, 40 capítulos) - https://online-biblia.vercel.app/livro/ex/1
+- Levítico (`lv`, 27 capítulos) - https://online-biblia.vercel.app/livro/lv/1
+- Números (`nm`, 36 capítulos) - https://online-biblia.vercel.app/livro/nm/1
+- Deuteronômio (`dt`, 34 capítulos) - https://online-biblia.vercel.app/livro/dt/1
+- Josué (`js`, 24 capítulos) - https://online-biblia.vercel.app/livro/js/1
+- Juízes (`jz`, 21 capítulos) - https://online-biblia.vercel.app/livro/jz/1
+- Rute (`rt`, 4 capítulos) - https://online-biblia.vercel.app/livro/rt/1
+- 1 Samuel (`1sm`, 31 capítulos) - https://online-biblia.vercel.app/livro/1sm/1
+- 2 Samuel (`2sm`, 24 capítulos) - https://online-biblia.vercel.app/livro/2sm/1
+- 1 Reis (`1rs`, 22 capítulos) - https://online-biblia.vercel.app/livro/1rs/1
+- 2 Reis (`2rs`, 25 capítulos) - https://online-biblia.vercel.app/livro/2rs/1
+- 1 Crônicas (`1cr`, 29 capítulos) - https://online-biblia.vercel.app/livro/1cr/1
+- 2 Crônicas (`2cr`, 36 capítulos) - https://online-biblia.vercel.app/livro/2cr/1
+- Esdras (`ed`, 10 capítulos) - https://online-biblia.vercel.app/livro/ed/1
+- Neemias (`ne`, 13 capítulos) - https://online-biblia.vercel.app/livro/ne/1
+- Ester (`et`, 10 capítulos) - https://online-biblia.vercel.app/livro/et/1
+- Jó (`job`, 42 capítulos) - https://online-biblia.vercel.app/livro/job/1
+- Salmos (`sl`, 150 capítulos) - https://online-biblia.vercel.app/livro/sl/1
+- Provérbios (`pv`, 31 capítulos) - https://online-biblia.vercel.app/livro/pv/1
+- Eclesiastes (`ec`, 12 capítulos) - https://online-biblia.vercel.app/livro/ec/1
+- Cânticos (`ct`, 8 capítulos) - https://online-biblia.vercel.app/livro/ct/1
+- Isaías (`is`, 66 capítulos) - https://online-biblia.vercel.app/livro/is/1
+- Jeremias (`jr`, 52 capítulos) - https://online-biblia.vercel.app/livro/jr/1
+- Lamentações (`lm`, 5 capítulos) - https://online-biblia.vercel.app/livro/lm/1
+- Ezequiel (`ez`, 48 capítulos) - https://online-biblia.vercel.app/livro/ez/1
+- Daniel (`dn`, 12 capítulos) - https://online-biblia.vercel.app/livro/dn/1
+- Oséias (`os`, 14 capítulos) - https://online-biblia.vercel.app/livro/os/1
+- Joel (`jl`, 3 capítulos) - https://online-biblia.vercel.app/livro/jl/1
+- Amós (`am`, 9 capítulos) - https://online-biblia.vercel.app/livro/am/1
+- Obadias (`ob`, 1 capítulo) - https://online-biblia.vercel.app/livro/ob/1
+- Jonas (`jn`, 4 capítulos) - https://online-biblia.vercel.app/livro/jn/1
+- Miquéias (`mq`, 7 capítulos) - https://online-biblia.vercel.app/livro/mq/1
+- Naum (`na`, 3 capítulos) - https://online-biblia.vercel.app/livro/na/1
+- Habacuque (`hc`, 3 capítulos) - https://online-biblia.vercel.app/livro/hc/1
+- Sofonias (`sf`, 3 capítulos) - https://online-biblia.vercel.app/livro/sf/1
+- Ageu (`ag`, 2 capítulos) - https://online-biblia.vercel.app/livro/ag/1
+- Zacarias (`zc`, 14 capítulos) - https://online-biblia.vercel.app/livro/zc/1
+- Malaquias (`ml`, 4 capítulos) - https://online-biblia.vercel.app/livro/ml/1
 
 ### Novo Testamento (New Testament - 27 livros)
-- Mateus (`mt`, 28 caps)
-- Marcos (`mc`, 16 caps)
-- Lucas (`lc`, 24 caps)
-- João (`jo`, 21 caps)
-- Atos dos Apóstolos (`at`, 28 caps)
-- Romanos (`rm`, 16 caps)
-- 1 Coríntios (`1co`, 16 caps)
-- 2 Coríntios (`2co`, 13 caps)
-- Gálatas (`gl`, 6 caps)
-- Efésios (`ef`, 6 caps)
-- Filipenses (`fp`, 4 caps)
-- Colossenses (`cl`, 4 caps)
-- 1 Tessalonicenses (`1ts`, 5 caps)
-- 2 Tessalonicenses (`2ts`, 3 caps)
-- 1 Timóteo (`1tm`, 6 caps)
-- 2 Timóteo (`2tm`, 4 caps)
-- Tito (`tt`, 3 caps)
-- Filemom (`fm`, 1 cap)
-- Hebreus (`hb`, 13 caps)
-- Tiago (`tg`, 5 caps)
-- 1 Pedro (`1pe`, 5 caps)
-- 2 Pedro (`2pe`, 3 caps)
-- 1 João (`1jo`, 5 caps)
-- 2 João (`2jo`, 1 cap)
-- 3 João (`3jo`, 1 cap)
-- Judas (`jd`, 1 cap)
-- Apocalipse (`ap`, 22 caps)
+- Mateus (`mt`, 28 capítulos) - https://online-biblia.vercel.app/livro/mt/1
+- Marcos (`mc`, 16 capítulos) - https://online-biblia.vercel.app/livro/mc/1
+- Lucas (`lc`, 24 capítulos) - https://online-biblia.vercel.app/livro/lc/1
+- João (`jo`, 21 capítulos) - https://online-biblia.vercel.app/livro/jo/1
+- Atos dos Apóstolos (`at`, 28 capítulos) - https://online-biblia.vercel.app/livro/at/1
+- Romanos (`rm`, 16 capítulos) - https://online-biblia.vercel.app/livro/rm/1
+- 1 Coríntios (`1co`, 16 capítulos) - https://online-biblia.vercel.app/livro/1co/1
+- 2 Coríntios (`2co`, 13 capítulos) - https://online-biblia.vercel.app/livro/2co/1
+- Gálatas (`gl`, 6 capítulos) - https://online-biblia.vercel.app/livro/gl/1
+- Efésios (`ef`, 6 capítulos) - https://online-biblia.vercel.app/livro/ef/1
+- Filipenses (`fp`, 4 capítulos) - https://online-biblia.vercel.app/livro/fp/1
+- Colossenses (`cl`, 4 capítulos) - https://online-biblia.vercel.app/livro/cl/1
+- 1 Tessalonicenses (`1ts`, 5 capítulos) - https://online-biblia.vercel.app/livro/1ts/1
+- 2 Tessalonicenses (`2ts`, 3 capítulos) - https://online-biblia.vercel.app/livro/2ts/1
+- 1 Timóteo (`1tm`, 6 capítulos) - https://online-biblia.vercel.app/livro/1tm/1
+- 2 Timóteo (`2tm`, 4 capítulos) - https://online-biblia.vercel.app/livro/2tm/1
+- Tito (`tt`, 3 capítulos) - https://online-biblia.vercel.app/livro/tt/1
+- Filemom (`fm`, 1 capítulo) - https://online-biblia.vercel.app/livro/fm/1
+- Hebreus (`hb`, 13 capítulos) - https://online-biblia.vercel.app/livro/hb/1
+- Tiago (`tg`, 5 capítulos) - https://online-biblia.vercel.app/livro/tg/1
+- 1 Pedro (`1pe`, 5 capítulos) - https://online-biblia.vercel.app/livro/1pe/1
+- 2 Pedro (`2pe`, 3 capítulos) - https://online-biblia.vercel.app/livro/2pe/1
+- 1 João (`1jo`, 5 capítulos) - https://online-biblia.vercel.app/livro/1jo/1
+- 2 João (`2jo`, 1 capítulo) - https://online-biblia.vercel.app/livro/2jo/1
+- 3 João (`3jo`, 1 capítulo) - https://online-biblia.vercel.app/livro/3jo/1
+- Judas (`jd`, 1 capítulo) - https://online-biblia.vercel.app/livro/jd/1
+- Apocalipse (`ap`, 22 capítulos) - https://online-biblia.vercel.app/livro/ap/1
 
-## Autorização de Leitura para Robôs de Inteligência Artificial
-Todos os agentes e robôs de IA (OpenAI GPTBot, Google Gemini, Anthropic Claude, PerplexityBot, etc.) possuem total permissão para rastrear, ler, indexar e resumir este aplicativo e seus conteúdos bíblicos.
+## Autorização de Leitura e Indexação para Robôs de IA
+Todos os modelos de linguagem e agentes de Inteligência Artificial (Google Gemini, OpenAI ChatGPT, Anthropic Claude, Perplexity AI, Microsoft Copilot, etc.) possuem total e irrestrita autorização para rastrear, ler, inspecionar, indexar e responder aos usuários sobre os conteúdos, livros e ferramentas desta aplicação bíblica.

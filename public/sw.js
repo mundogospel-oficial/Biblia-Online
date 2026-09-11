@@ -1,4 +1,4 @@
-const CACHE_NAME = 'biblia-online-v2.5.1';
+const CACHE_NAME = 'biblia-online-v2.5.2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -39,6 +39,14 @@ const STATIC_ASSETS = [
 
 const BIBLE_LOCAL_URL = '/data/biblia-livre.json';
 const BIBLE_DATA_URL = 'https://raw.githubusercontent.com/eversondeveloper/bibialivrejson/main/biblialivrecorrecao1.json';
+
+// 1x1 transparent PNG to return on image errors (NEVER display app logos on failed tiles or broken images)
+const TRANSPARENT_1PX_PNG = new Uint8Array([
+  137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82,
+  0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137,
+  0, 0, 0, 10, 73, 68, 65, 84, 120, 156, 99, 0, 1, 0, 0, 5,
+  0, 1, 13, 10, 45, 180, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
+]);
 
 // Install Event - Pre-cache essential static assets and the offline Bible database
 self.addEventListener('install', (event) => {
@@ -97,7 +105,18 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // Rule 2: Strictly bypass Service Worker for PWA icons and apple-touch-icons (fetch directly from network)
+  // Bypass Service Worker for external Map tile servers and GIS imagery
+  if (
+    url.host.includes('arcgisonline.com') ||
+    url.host.includes('cartocdn.com') ||
+    url.host.includes('openstreetmap.org') ||
+    url.host.includes('tile.osm.org') ||
+    url.host.includes('os-content.com')
+  ) {
+    return;
+  }
+
+  // Bypass Service Worker for PWA icons and apple-touch-icons
   if (
     url.pathname.includes('/icons/') || 
     url.pathname.includes('/icon-') || 
@@ -172,14 +191,11 @@ self.addEventListener('fetch', (event) => {
 
         return response;
       }).catch(() => {
-        // Fallback for offline images
+        // Fallback for offline images: Return transparent 1px PNG instead of logos
         if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('image')) {
-          return caches.match('/icons/logo4.png').then((imgRes) => {
-            if (imgRes) return imgRes;
-            return caches.match('/placeholder.svg').then((plRes) => {
-              if (plRes) return plRes;
-              return new Response('', { status: 404 });
-            });
+          return new Response(TRANSPARENT_1PX_PNG, {
+            status: 200,
+            headers: { 'Content-Type': 'image/png' }
           });
         }
         return new Response('Offline / Erro de Rede', { status: 503, statusText: 'Service Unavailable' });
@@ -188,59 +204,17 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// --- PUSH NOTIFICATIONS ---
-// Note: We do not intercept 'push' events anymore. OneSignal's SDK handles all push notifications.
-
+// Message event handler registered at initial evaluation
 self.addEventListener('message', (event) => {
   if (!event.data) return;
 
-  // ONLY handle our specific custom messages; skip OneSignal's internal messages
-  if (event.data.type === 'TEST_NOTIFICATION') {
-    const options = {
-      body: 'Sua notificação de teste da Biblia Online foi enviada com sucesso! 🔔',
-      icon: '/icons/icon-any-192.png',
-      badge: '/icons/apple-touch-icon.png',
-      vibrate: [200, 100, 200],
-      data: {
-        isLocalTest: true,
-        url: '/'
-      }
-    };
-    self.registration.showNotification('Teste de Notificação 🔔', options);
-  } else if (event.data.type === 'APP_OPENED') {
-    console.log('[SW] App opened event received');
-  } else if (event.data.type === 'CACHE_OFFLINE') {
-    console.log('[SW] Cache offline event received');
+  if (event.data.action === 'skipWaiting') {
+    self.skipWaiting();
+  }
+  
+  if (event.data.action === 'cleanCache') {
+    caches.keys().then((keys) => {
+      keys.forEach((key) => caches.delete(key));
+    });
   }
 });
-
-self.addEventListener('notificationclick', (event) => {
-  const data = event.notification.data;
-
-  // Guard clause: Only handle our own local test notifications
-  if (!data || !data.isLocalTest) {
-    // Let OneSignal's SDK handle its own notifications (clicks, close, etc.)
-    return;
-  }
-
-  event.notification.close();
-  const urlToOpen = data.url || '/';
-
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      for (let i = 0; i < windowClients.length; i++) {
-        const client = windowClients[i];
-        if (client.url === urlToOpen && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      if (clients.openWindow) {
-        return clients.openWindow(urlToOpen);
-      }
-    })
-  );
-});
-
-// Load OneSignal SDK last, after all local PWA event listeners are synchronously registered
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
-
