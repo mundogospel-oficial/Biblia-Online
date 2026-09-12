@@ -684,7 +684,7 @@ const CreatePage = () => {
           <div className="lg:col-span-5 space-y-4">
             
             {/* Tab Navigation Pill Track */}
-            <div className="grid grid-cols-4 gap-1 p-1 rounded-2xl bg-secondary/60 border border-border/50 backdrop-blur-md relative overflow-hidden select-none">
+            <div className="grid grid-cols-4 gap-1.5 p-1.5 rounded-2xl glass-card border border-border/60 shadow-card backdrop-blur-xl relative select-none">
               {[
                 { id: "verse", label: "Versículo", icon: Quote },
                 { id: "background", label: "Fundo", icon: Palette },
@@ -694,28 +694,30 @@ const CreatePage = () => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
                 return (
-                  <button
+                  <motion.button
                     key={tab.id}
                     type="button"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.96 }}
                     onClick={() => setActiveTab(tab.id as ActiveTab)}
-                    className={`relative flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-[11px] font-semibold transition-colors select-none ${
+                    className={`relative flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-[11px] font-semibold transition-all duration-200 select-none z-10 ${
                       isActive
-                        ? "text-primary-foreground font-bold"
-                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+                        ? "text-primary-foreground font-bold shadow-sm"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
                     }`}
                   >
                     {isActive && (
                       <motion.div
                         layoutId="activeCreateTabPill"
-                        className="absolute inset-0 rounded-xl bg-primary shadow-md"
-                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        className="absolute inset-0 rounded-xl bg-primary -z-10 shadow-md shadow-primary/25 border border-primary/40 [box-shadow:inset_0_1px_1px_0_rgba(255,255,255,0.3),0_4px_12px_rgba(30,136,229,0.3)]"
+                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
                       />
                     )}
                     <span className="relative z-10 flex flex-col items-center justify-center">
                       <Icon className="h-4 w-4 mb-0.5" />
                       <span>{tab.label}</span>
                     </span>
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>

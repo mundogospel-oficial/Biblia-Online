@@ -41,6 +41,7 @@ interface TileConfig {
   icon: any;
   subdomains?: string[];
   maxZoom?: number;
+  maxNativeZoom?: number;
 }
 
 const TILE_SERVERS: Record<MapTileStyle, TileConfig> = {
@@ -49,29 +50,32 @@ const TILE_SERVERS: Record<MapTileStyle, TileConfig> = {
     attribution: "&copy; Esri &mdash; Imagens de Satélite da Terra Santa",
     name: "Satélite Realista",
     icon: Globe2,
-    maxZoom: 18
+    maxZoom: 18,
+    maxNativeZoom: 18
   },
   physical: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}",
     attribution: "&copy; Esri &mdash; Topografia e Relevo Físico",
     name: "Relevo Topográfico",
     icon: Mountain,
-    maxZoom: 16
+    maxZoom: 18,
+    maxNativeZoom: 16
   },
   voyager: {
-    url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    attribution: "&copy; CartoDB &mdash; Atlas Histórico e Cartografia",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}",
+    attribution: "&copy; National Geographic, Esri &mdash; Atlas Histórico e Cartografia",
     name: "Atlas Histórico",
     icon: Compass,
-    subdomains: ["a", "b", "c", "d"],
-    maxZoom: 19
+    maxZoom: 18,
+    maxNativeZoom: 16
   },
   osm: {
     url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
     attribution: "&copy; OpenStreetMap contributors",
     name: "Mapa Padrão",
     icon: Layers,
-    maxZoom: 19
+    maxZoom: 19,
+    maxNativeZoom: 19
   }
 };
 
@@ -111,6 +115,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({ onNavi
     const layer = L.tileLayer(config.url, {
       attribution: config.attribution,
       maxZoom: config.maxZoom || 18,
+      maxNativeZoom: config.maxNativeZoom || config.maxZoom || 18,
       subdomains: config.subdomains || "abc",
       crossOrigin: true
     });
