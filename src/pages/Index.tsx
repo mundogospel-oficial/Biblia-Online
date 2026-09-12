@@ -242,7 +242,7 @@ const Index = () => {
       </section>
 
       {/* Book List */}
-      <section className="container mx-auto px-4 py-6">
+      <section className="container mx-auto iphone-duo-container safe-area-inset-padding px-4 py-6">
         <div className="mb-6 flex justify-center">
           <div className="inline-flex items-center gap-1.5 p-1.5 rounded-full bg-secondary/60 border border-border/60 shadow-inner">
             <motion.button

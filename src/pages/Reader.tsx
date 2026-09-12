@@ -801,7 +801,7 @@ const Reader = () => {
         </div>
       </div>
 
-      <div className="container mx-auto max-w-2xl px-4 pt-6 pb-32">
+      <div className="container mx-auto max-w-2xl lg:max-w-4xl foldable-book-container iphone-duo-container px-4 pt-6 pb-32 safe-area-inset-padding">
         {loading ? (
           <div className="flex justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-accent" />
@@ -856,7 +856,7 @@ const Reader = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.4 }}
-            className="space-y-3.5"
+            className="space-y-3.5 foldable-book-columns iphone-duo-reader-columns"
           >
             {/* Animated Bilingual Limit Banner */}
             <AnimatePresence>
@@ -953,7 +953,7 @@ const Reader = () => {
                 : "text-base leading-relaxed";
 
               return (
-                <div key={v.verse} id={`verse-item-${v.verse}`} className="group scroll-mt-28" style={{ touchAction: 'pan-y' }}>
+                <div key={v.verse} id={`verse-item-${v.verse}`} className="group scroll-mt-28 foldable-verse-item iphone-duo-verse-item mb-2" style={{ touchAction: 'pan-y' }}>
                   <div className="flex items-start gap-1">
                     <button
                       onClick={() => {

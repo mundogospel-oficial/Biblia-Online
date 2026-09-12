@@ -452,3 +452,102 @@ a[href*="lovable.dev"] {
   visibility: hidden !important;
   pointer-events: none !important;
 }
+
+/* ==========================================================================
+   IPHONE DUO & FOLDABLE DUAL-SCREEN OPTIMIZATION
+   Specs: Apple iPhone Duo (7.6" 2670x1878 OLED Unfolded, 5.4" 2023x1398 Folded)
+   Features: CSS Viewport Segments, Screen Spanning, Safe Areas & Dual-Pane Book Mode
+   ========================================================================== */
+
+:root {
+  --iphone-duo-safe-top: env(safe-area-inset-top, 0px);
+  --iphone-duo-safe-right: env(safe-area-inset-right, 0px);
+  --iphone-duo-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --iphone-duo-safe-left: env(safe-area-inset-left, 0px);
+  --fold-left-width: env(viewport-segment-width 0 0, 50vw);
+  --fold-right-width: env(viewport-segment-width 1 0, 50vw);
+  --fold-hinge-gap: 28px;
+}
+
+/* 1. Global Safe Area Insets for Foldable & Dynamic Island */
+.safe-area-inset-padding {
+  padding-top: max(12px, env(safe-area-inset-top));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+}
+
+/* 2. iPhone Duo Unfolded (Vertical Fold / Book Mode) */
+@media (horizontal-viewport-segments: 2), (screen-spanning: single-fold-vertical) {
+  :root {
+    --fold-hinge-gap: max(24px, calc(env(viewport-segment-left 1 0, 50vw) - env(viewport-segment-width 0 0, 50vw)));
+  }
+
+  /* Dual-pane layout on unfolded iPhone Duo */
+  .foldable-dual-pane {
+    display: grid !important;
+    grid-template-columns: var(--fold-left-width) var(--fold-right-width) !important;
+    column-gap: var(--fold-hinge-gap) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: max(16px, env(safe-area-inset-left)) !important;
+    padding-right: max(16px, env(safe-area-inset-right)) !important;
+  }
+
+  /* Bible Open-Book Layout for iPhone Duo */
+  .foldable-book-container {
+    max-width: 100% !important;
+    padding-left: max(20px, env(safe-area-inset-left)) !important;
+    padding-right: max(20px, env(safe-area-inset-right)) !important;
+  }
+
+  .foldable-book-columns {
+    column-count: 2 !important;
+    column-gap: calc(var(--fold-hinge-gap) + 20px) !important;
+    column-rule: 1px solid rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .foldable-verse-item {
+    break-inside: avoid-column !important;
+    page-break-inside: avoid !important;
+  }
+}
+
+/* 3. iPhone Duo Stand / Laptop Mode (Horizontal Fold) */
+@media (vertical-viewport-segments: 2), (screen-spanning: single-fold-horizontal) {
+  .foldable-stand-top {
+    height: env(viewport-segment-height 0 0, 50vh) !important;
+    overflow-y: auto !important;
+  }
+  .foldable-stand-bottom {
+    height: env(viewport-segment-height 0 1, 50vh) !important;
+    overflow-y: auto !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    background: rgba(11, 18, 31, 0.95) !important;
+  }
+}
+
+/* 4. iPhone Duo Aspect Ratio (~1.42:1 Unfolded Passport Form Factor) */
+@media screen and (min-width: 680px) and (max-width: 1100px) and (min-aspect-ratio: 1.25) and (max-aspect-ratio: 1.6) {
+  .iphone-duo-container {
+    max-width: 96% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  .iphone-duo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 24px !important;
+  }
+
+  .iphone-duo-reader-columns {
+    column-count: 2;
+    column-gap: 32px;
+    column-rule: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .iphone-duo-verse-item {
+    break-inside: avoid-column;
+  }
+}
+

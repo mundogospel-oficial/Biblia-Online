@@ -57,6 +57,10 @@ const App = () => {
   const { SentinelOverlay, isBlocked } = useSentinel(); // Global security monitoring
 
   useEffect(() => {
+    document.title = "Biblia Online";
+  }, []);
+
+  useEffect(() => {
     const initOneSignal = async () => {
       const appId = import.meta.env.VITE_ONESIGNAL_APP_ID;
       if (!appId || appId.startsWith("YOUR_")) {
