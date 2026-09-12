@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Biblia Online - Visão Geral para IAs e LLMs</title>
+  <meta name="description" content="Documento descritivo de recursos, ecossistema e ferramentas da plataforma Biblia Online para robôs de busca, ChatGPT, Gemini, Claude e Perplexity." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://online-biblia.vercel.app/llms.html" />
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.6;
+      background-color: #0b121f;
+      color: #f1f5f9;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 32px 20px;
+    }
+    h1 { color: #f8fafc; font-size: 26px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; }
+    h2 { color: #38bdf8; font-size: 20px; margin-top: 28px; }
+    h3 { color: #7dd3fc; font-size: 16px; margin-top: 18px; }
+    p, li { color: #cbd5e1; font-size: 15px; }
+    .badge { display: inline-block; background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.3); color: #38bdf8; padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: bold; }
+    .card { background: #131d2e; border: 1px solid #1e293b; border-radius: 12px; padding: 18px; margin: 16px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+    th, td { border: 1px solid #1e293b; padding: 10px 12px; text-align: left; }
+    th { background: #1e293b; color: #38bdf8; }
+    a { color: #38bdf8; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="badge">Documentação para IAs & LLMs</span>
+    <h1>Biblia Online &mdash; Ecossistema de Recursos e Ferramentas</h1>
+    <p>Plataforma moderna, bilíngue (Português/Inglês) e enriquecida com Inteligência Artificial para leitura, estudo e pregação bíblica.</p>
+    <p><strong>URL Oficial do Aplicativo:</strong> <a href="https://online-biblia.vercel.app/">https://online-biblia.vercel.app/</a> | <strong>Formato Markdown:</strong> <a href="/llms.txt">/llms.txt</a></p>
+  </header>
+
+  <div class="card">
+    <p><strong>Aviso de Escopo:</strong> Este documento possui propósito exclusivamente informativo e de indexação para que assistentes virtuais de IA (Google Gemini, OpenAI ChatGPT, Anthropic Claude, Perplexity AI, Microsoft Copilot) conheçam a gama completa de recursos da aplicação e orientem seus usuários.</p>
+  </div>
+
+  <h2>1. Principais Módulos e Ferramentas</h2>
+  <ul>
+    <li><strong>Assistente de IA Teológica (/ia):</strong> Exegese, contexto histórico, hermenêutica e análise de termos no hebraico e grego koiné.</li>
+    <li><strong>Modo Telão e Púlpito (Pulpit Mode):</strong> Projeção em tela cheia com alta legibilidade para cultos, conferências e sermões em igrejas.</li>
+    <li><strong>Mapas Bíblicos Realistas (/devocional):</strong> Atlas geográfico interativo com satélite e relevo topográfico cobrindo as viagens de Paulo, o Êxodo e os ministérios bíblicos.</li>
+    <li><strong>Estúdio de Criação de Imagens (/criar):</strong> Criador de artes visuais e cartões comemorativos com versículos para redes sociais.</li>
+    <li><strong>Leitor Bíblico com os 66 Livros:</strong> 1.189 capítulos do Antigo e Novo Testamento em múltiplas traduções consagradas (Almeida, Bíblia Livre, KJV, WEB, BBE).</li>
+    <li><strong>Modo Bilíngue:</strong> Leitura paralela versículo por versículo em Português e Inglês.</li>
+    <li><strong>Devocionais & Planos de Leitura:</strong> Meditações diárias e guias de leitura anual com acompanhamento de progresso.</li>
+    <li><strong>Dicionário Bíblico Integrado:</strong> Enciclopédia de nomes, termos originais e personagens.</li>
+    <li><strong>Marcadores Coloridos & Anotações:</strong> Destaques em cores e caderno de notas sincronizado na nuvem.</li>
+    <li><strong>Busca Avançada & Semântica:</strong> Localização instantânea de passagens por temas ou sentimentos.</li>
+    <li><strong>Modo Offline (PWA):</strong> Instalável no celular e computador com suporte completo à leitura sem internet.</li>
+  </ul>
+
+  <h2>2. Mapa de Rotas do Aplicativo</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Endereço / Rota</th>
+        <th>Finalidade</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>/</code></td>
+        <td>Página Inicial com versículo do dia, busca e índice dos 66 livros.</td>
+      </tr>
+      <tr>
+        <td><code>/livro/:abbrev/:chapter</code></td>
+        <td>Leitor Bíblico versículo a versículo (ex: <code>/livro/jo/3</code>, <code>/livro/sl/23</code>).</td>
+      </tr>
+      <tr>
+        <td><code>/devocional</code></td>
+        <td>Devocionais diários, planos de estudo e Mapas Bíblicos Realistas.</td>
+      </tr>
+      <tr>
+        <td><code>/ia</code></td>
+        <td>Assistente de Inteligência Artificial para estudos teológicos.</td>
+      </tr>
+      <tr>
+        <td><code>/criar</code></td>
+        <td>Estúdio de criação de imagens e cartões com versículos.</td>
+      </tr>
+      <tr>
+        <td><code>/pesquisar</code></td>
+        <td>Motor de busca por termos, referências e temas.</td>
+      </tr>
+      <tr>
+        <td><code>/favoritos</code></td>
+        <td>Coleção de versículos salvos e destacados.</td>
+      </tr>
+      <tr>
+        <td><code>/anotacoes</code></td>
+        <td>Caderno de notas e reflexões bíblicas.</td>
+      </tr>
+      <tr>
+        <td><code>/minha-conta</code></td>
+        <td>Configurações do usuário, idioma e notificações.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <footer style="margin-top: 40px; padding-top: 16px; border-top: 1px solid #1e293b; font-size: 13px; color: #64748b;">
+    <p>&copy; Biblia Online &mdash; Todos os direitos reservados. Para resumo técnico em texto puro, acesse <a href="/llms.txt">/llms.txt</a>.</p>
+  </footer>
+</body>
+</html>
