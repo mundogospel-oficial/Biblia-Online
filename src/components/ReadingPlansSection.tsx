@@ -289,7 +289,7 @@ export const ReadingPlansSection = () => {
                 </span>
                 {progress.streakDays > 0 && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-orange-500/15 px-3 py-1 text-xs font-bold text-orange-400">
-                    <Flame className="h-3.5 w-3.5 fill-orange-400" /> {progress.streakDays} dias seguidos
+                    <Flame className="h-3.5 w-3.5 fill-orange-400" /> {progress.streakDays} {progress.streakDays === 1 ? "dia seguido" : "dias seguidos"}
                   </span>
                 )}
               </div>
@@ -314,21 +314,23 @@ export const ReadingPlansSection = () => {
               </p>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0 flex-wrap sm:flex-nowrap justify-between">
-              <div className="text-right">
-                <span className="text-xs font-medium text-muted-foreground block">Progresso Total</span>
-                <span className="font-sans text-xl font-extrabold text-accent">
-                  {(progress.completedDaysByPlan[activePlan.id] || []).length} / {activePlan.durationDays} dias
-                </span>
-              </div>
-              <div className="h-10 w-10 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center font-bold text-xs text-accent">
-                {Math.round(((progress.completedDaysByPlan[activePlan.id] || []).length / activePlan.durationDays) * 100)}%
+            <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0 flex-wrap sm:flex-nowrap justify-between w-full md:w-auto pt-2 md:pt-0">
+              <div className="flex items-center gap-2.5">
+                <div className="text-left sm:text-right">
+                  <span className="text-[11px] sm:text-xs font-medium text-muted-foreground block">Progresso Total</span>
+                  <span className="font-sans text-lg sm:text-xl font-extrabold text-accent">
+                    {(progress.completedDaysByPlan[activePlan.id] || []).length} / {activePlan.durationDays} {activePlan.durationDays === 1 ? "dia" : "dias"}
+                  </span>
+                </div>
+                <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center font-bold text-xs text-accent shrink-0">
+                  {Math.round(((progress.completedDaysByPlan[activePlan.id] || []).length / activePlan.durationDays) * 100)}%
+                </div>
               </div>
               
               {/* Deactivate Button */}
               <button
                 onClick={handleDeactivatePlan}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-500/20 transition-all shrink-0 ml-2"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-500/20 transition-all shrink-0 active:scale-95"
                 title="Desativar este plano"
               >
                 <PowerOff className="h-3.5 w-3.5" /> Desativar Plano

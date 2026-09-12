@@ -2978,7 +2978,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                 {activeSuggestions.map((s) => (
                   <motion.button key={s} whileTap={{ scale: 0.97 }} onClick={() => !limitReached && send(s)}
                     disabled={limitReached}
-                    className="glass-card rounded-xl p-2.5 sm:p-3 text-left text-xs text-card-foreground transition-colors hover:!border-accent liquid-btn disabled:opacity-50 disabled:cursor-not-allowed flex flex-col justify-between min-h-[68px]"
+                    className="glass-card rounded-xl p-2 sm:p-3 text-left text-xs text-card-foreground transition-colors hover:!border-accent liquid-btn disabled:opacity-50 disabled:cursor-not-allowed flex flex-col justify-between min-h-[58px] sm:min-h-[68px]"
                   >
                     <div className="flex items-center gap-1.5 mb-1 text-accent">
                       {activeMode === "image" ? (
@@ -3184,7 +3184,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
           <div ref={bottomRef} />
         </div>
 
-        <div className={`shrink-0 bg-background pt-1.5 sm:pt-2 transition-all duration-300 ease-out safe-area-bottom ${isKeyboardOpen ? 'pb-2 md:pb-2.5' : 'pb-16 md:pb-3'}`}>
+        <div className={`shrink-0 bg-background pt-1.5 sm:pt-2 transition-all duration-300 ease-out safe-area-bottom ${isKeyboardOpen ? 'pb-2 md:pb-2.5' : 'pb-20 md:pb-3'}`}>
           <AnimatePresence>
             {activeModeInfo && (
               <motion.div
@@ -3525,7 +3525,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] flex flex-col items-center justify-between bg-black/95 p-3 sm:p-5 backdrop-blur-md select-none"
+            className="fixed inset-0 z-[9999] flex flex-col items-center justify-between bg-black/95 p-3 sm:p-5 pb-4 sm:pb-6 backdrop-blur-md select-none safe-area-top safe-area-bottom"
             onClick={() => setLightboxImage(null)}
           >
             {/* Top Bar Header */}
@@ -3557,7 +3557,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.94, opacity: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="flex-1 min-h-0 w-full flex items-center justify-center my-3 relative overflow-hidden"
+              className="flex-1 min-h-0 w-full flex items-center justify-center my-2 sm:my-3 relative overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               <img
@@ -3674,18 +3674,18 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
               </AnimatePresence>
             </motion.div>
 
-            {/* Painel de Ações Inferior com Ferramentas e Feedback (Mesmo tamanho max-w-sm da barra superior) */}
+            {/* Painel de Ações Inferior com Ferramentas e Feedback */}
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
               transition={{ delay: 0.05 }}
-              className="w-full max-w-sm flex items-center justify-end shrink-0 z-50 select-text"
+              className="w-full max-w-sm flex items-center justify-center shrink-0 z-50 select-text px-1"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Barra de Ferramentas da Imagem alinhada à direita, mesmo tamanho max-w-sm do topo */}
-              <div className="w-full flex items-center justify-end gap-1 sm:gap-1.5 bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-full px-3 py-1.5 shadow-2xl">
-                <div className="flex items-center gap-1 sm:gap-1.5">
+              {/* Barra de Ferramentas da Imagem centralizada e com rolagem suave se necessário em telas menores */}
+              <div className="w-auto max-w-full flex items-center justify-center gap-1 sm:gap-1.5 bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-full px-2.5 sm:px-3 py-1.5 shadow-2xl overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
                   <button
                     type="button"
                     onClick={() => lightboxImage && downloadImage(lightboxImage)}

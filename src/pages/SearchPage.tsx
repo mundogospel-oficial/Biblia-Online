@@ -466,10 +466,10 @@ const SearchPage = () => {
           </div>
 
           {/* Search Input Bar */}
-          <div>
-            <form onSubmit={(e) => { e.preventDefault(); handleSearch(query); }} className="flex gap-2 items-start">
-              <div className="flex-1 space-y-2">
-                <div className="relative w-full">
+          <div className="space-y-2.5">
+            <form onSubmit={(e) => { e.preventDefault(); handleSearch(query); }} className="flex flex-col gap-2.5">
+              <div className="flex gap-2 items-center w-full">
+                <div className="relative flex-1 min-w-0">
                   <input 
                     id="search-input"
                     type="text"
@@ -493,7 +493,7 @@ const SearchPage = () => {
                       }
                     }}
                     placeholder="Busque sobre algo bíblico..."
-                    className={`w-full rounded-xl glass-card py-3.5 ${query ? "pl-4" : "pl-10"} pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent transition-all duration-200 shadow-sm`}
+                    className={`w-full rounded-xl glass-card py-3 sm:py-3.5 ${query ? "pl-4" : "pl-10"} pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent transition-all duration-200 shadow-sm`}
                   />
                   {!query && <Search className="absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />}
                   {query && (
@@ -508,43 +508,43 @@ const SearchPage = () => {
                   )}
                 </div>
 
-                {/* BOTÃO "PERGUNTAR À IA BÍBLICA" - Exibido apenas quando o usuário digita alguma busca */}
-                {query.trim().length > 0 && (
-                  <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
-                    <button
-                      type="button"
-                      onClick={() => handleAskAI(`Fale mais sobre o conhecimento bíblico, devocionais ou personagem referente a: ${query}`)}
-                      className="w-full rounded-xl border border-accent/40 bg-gradient-to-r from-accent/15 via-accent/10 to-primary/10 p-3 hover:border-accent hover:bg-accent/20 transition-all flex items-center justify-between group shadow-sm text-left"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-accent-foreground shrink-0 shadow-sm">
-                          <Sparkles className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-foreground flex items-center gap-1.5 truncate">
-                            Perguntar à IA Bíblica sobre <span className="text-accent underline font-serif truncate">"{query}"</span>
-                          </p>
-                          <p className="text-[11px] text-muted-foreground truncate">
-                            Obtenha explicações teológicas, contexto histórico e devocionais instantâneos.
-                          </p>
-                        </div>
-                      </div>
-                      <div className="rounded-lg bg-accent/20 px-3 py-1.5 text-xs font-bold text-accent group-hover:bg-accent group-hover:text-accent-foreground transition-all flex items-center gap-1 shrink-0 ml-2">
-                        <Bot className="h-3.5 w-3.5" /> Perguntar
-                      </div>
-                    </button>
-                  </motion.div>
-                )}
+                <button type="submit" disabled={loading || !query.trim()} aria-label="Executar busca bíblica" className="rounded-xl bg-primary px-4 sm:px-5 py-3 sm:py-3.5 text-xs sm:text-sm font-semibold text-primary-foreground disabled:opacity-50 transition-all hover:opacity-90 shadow-sm flex items-center gap-1.5 shrink-0 active:scale-95">
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <> <Search className="h-4 w-4" /> Buscar </>}
+                </button>
               </div>
 
-              <button type="submit" disabled={loading || !query.trim()} aria-label="Executar busca bíblica" className="rounded-xl bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-50 transition-all hover:opacity-90 shadow-sm flex items-center gap-1.5 shrink-0">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <> <Search className="h-4 w-4" /> Buscar </>}
-              </button>
+              {/* BOTÃO "PERGUNTAR À IA BÍBLICA" - Exibido com largura total quando o usuário digita alguma busca */}
+              {query.trim().length > 0 && (
+                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="w-full">
+                  <button
+                    type="button"
+                    onClick={() => handleAskAI(`Fale mais sobre o conhecimento bíblico, devocionais ou personagem referente a: ${query}`)}
+                    className="w-full rounded-xl border border-accent/40 bg-gradient-to-r from-accent/15 via-accent/10 to-primary/10 p-2.5 sm:p-3 hover:border-accent hover:bg-accent/20 transition-all flex items-center justify-between gap-2.5 group shadow-sm text-left active:scale-[0.99]"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-accent-foreground shrink-0 shadow-sm">
+                        <Sparkles className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-foreground truncate">
+                          Perguntar à IA Bíblica sobre <span className="text-accent underline font-serif">"{query}"</span>
+                        </p>
+                        <p className="text-[11px] text-muted-foreground line-clamp-1">
+                          Obtenha explicações teológicas, contexto histórico e devocionais instantâneos.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-accent/20 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-accent group-hover:bg-accent group-hover:text-accent-foreground transition-all flex items-center gap-1 shrink-0">
+                      <Bot className="h-3.5 w-3.5" /> <span className="hidden xs:inline">Perguntar</span>
+                    </div>
+                  </button>
+                </motion.div>
+              )}
             </form>
           </div>
 
           {/* Quick Category Tabs with Counts */}
-          <div className="flex gap-1.5 overflow-x-auto pb-2.5 scroll-smooth themed-scrollbar border-b border-border/30 relative">
+          <div className="flex gap-1.5 overflow-x-auto pb-2.5 scroll-smooth themed-scrollbar border-b border-border/30 relative [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-1 px-1">
             {[
               { id: "todos", label: "Todos e Destaques", icon: Compass },
               ...(searched && results.length > 0 ? [{ id: "versiculos", label: `Versículos (${results.length})`, icon: BookOpen }] : []),
