@@ -47,11 +47,15 @@ export const getAIHistory = async () => {
 
     // Descriptografa os registros de forma transparente
     const decryptedHistory = await Promise.all(
-      data.map(async (row) => ({
-        ...row,
-        prompt: await decryptPayload(row.prompt, user.id),
-        response: await decryptPayload(row.response, user.id)
-      }))
+      data.map(async (row) => {
+        const decPrompt = await decryptPayload(row.prompt, user.id);
+        const decResponse = await decryptPayload(row.response, user.id);
+        return {
+          ...row,
+          prompt: decPrompt && !decPrompt.startsWith("enc:v1:") ? decPrompt : "Estudo Bíblico",
+          response: decResponse && !decResponse.startsWith("enc:v1:") ? decResponse : ""
+        };
+      })
     );
 
     return decryptedHistory;

@@ -527,8 +527,8 @@ a[href*="lovable.dev"] {
   }
 }
 
-/* 4. iPhone Duo Aspect Ratio (~1.42:1 Unfolded Passport Form Factor) */
-@media screen and (min-width: 680px) and (max-width: 1100px) and (min-aspect-ratio: 1.25) and (max-aspect-ratio: 1.6) {
+/* 4. iPhone Duo Aspect Ratio (~1.42:1 Unfolded Passport Form Factor) - Exclusivo para telas dobráveis móveis */
+@media screen and (pointer: coarse) and (min-width: 680px) and (max-width: 960px) and (min-aspect-ratio: 1.25) and (max-aspect-ratio: 1.55) {
   .iphone-duo-container {
     max-width: 96% !important;
     margin-left: auto !important;
@@ -548,6 +548,16 @@ a[href*="lovable.dev"] {
 
   .iphone-duo-verse-item {
     break-inside: avoid-column;
+  }
+}
+
+/* Garante leitura contínua de 1 coluna em PC / Desktop e telas convencionais */
+@media screen and (min-width: 961px), screen and (pointer: fine) and (not (horizontal-viewport-segments: 2)) {
+  .iphone-duo-reader-columns,
+  .foldable-book-columns {
+    column-count: 1 !important;
+    column-gap: normal !important;
+    column-rule: none !important;
   }
 }
 

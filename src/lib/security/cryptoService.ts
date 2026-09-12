@@ -87,39 +87,57 @@ export async function encryptPayload(
 }
 
 /**
- * Decrypts an AES-256-GCM payload. Returns original text if not encrypted.
+ * Decrypts an AES-256-GCM payload. Returns original text if not encrypted, or sanitized text if decryption fails.
  */
 export async function decryptPayload(
   encryptedText: string,
-  userSecret: string = DEFAULT_SALT_PHRASE
+  userSecret?: string
 ): Promise<string> {
-  if (!encryptedText || typeof encryptedText !== "string" || !encryptedText.startsWith(ENCRYPTION_PREFIX)) {
+  if (!encryptedText || typeof encryptedText !== "string") {
+    return "";
+  }
+
+  if (!encryptedText.startsWith(ENCRYPTION_PREFIX)) {
     return encryptedText;
   }
 
-  try {
-    const body = encryptedText.substring(ENCRYPTION_PREFIX.length);
-    const parts = body.split(":");
-    if (parts.length !== 3) return encryptedText;
+  const secretsToTry = [
+    userSecret,
+    DEFAULT_SALT_PHRASE,
+  ].filter((s): s is string => Boolean(s && s.length > 0));
 
-    const [saltB64, ivB64, cipherB64] = parts;
-    const salt = new Uint8Array(base64ToBuffer(saltB64));
-    const iv = new Uint8Array(base64ToBuffer(ivB64));
-    const cipher = base64ToBuffer(cipherB64);
+  const uniqueSecrets = Array.from(new Set(secretsToTry));
 
-    const key = await deriveKey(userSecret, salt);
-    const decrypted = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: iv },
-      key,
-      cipher
-    );
+  for (const secret of uniqueSecrets) {
+    try {
+      const body = encryptedText.substring(ENCRYPTION_PREFIX.length);
+      const parts = body.split(":");
+      if (parts.length !== 3) continue;
 
-    const dec = new TextDecoder();
-    return dec.decode(decrypted);
-  } catch (err) {
-    console.warn("[CryptoService] Não foi possível descriptografar o payload (pode estar em formato legível antigo):", err);
-    return encryptedText;
+      const [saltB64, ivB64, cipherB64] = parts;
+      const salt = new Uint8Array(base64ToBuffer(saltB64));
+      const iv = new Uint8Array(base64ToBuffer(ivB64));
+      const cipher = base64ToBuffer(cipherB64);
+
+      const key = await deriveKey(secret, salt);
+      const decrypted = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: iv },
+        key,
+        cipher
+      );
+
+      const dec = new TextDecoder();
+      const result = dec.decode(decrypted);
+      if (result && !result.startsWith(ENCRYPTION_PREFIX)) {
+        return result;
+      }
+    } catch (_) {
+      // Tenta o próximo segredo de fallback
+    }
   }
+
+  // Se não foi possível descriptografar, NUNCA expõe a string bruta enc:v1:... na interface
+  return "";
 }
 
 /**

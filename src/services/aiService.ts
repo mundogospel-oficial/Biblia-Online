@@ -314,6 +314,8 @@ const sanitizeAIResponse = (text: string, skipBracketRemoval: boolean = true): s
   if (!skipBracketRemoval) {
     clean = clean.replace(/\[(?!\s*Arquivo:).*?\]/gi, '');
   }
+  // Remove prefixos técnicos internos se existirem
+  clean = clean.replace(/^enc:v1:[^\s]+/gi, '');
   return clean
     /* eslint-disable no-control-regex */
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')

@@ -40,12 +40,18 @@ import { formatFriendlyErrorMessage } from "@/lib/errorUtils";
 
 const formatMessageForDisplay = (text: string): string => {
   if (!text) return "";
+  if (text.startsWith("enc:v1:") || text.includes("enc:v1:")) {
+    return "";
+  }
   // Limpa as tags completas e também qualquer tag que possivelmente foi cortada no final
   return text.replace(/\[.*?\]/g, '').replace(/\[[^\]]*$/, '').trim();
 };
 
 const cleanImageLinksFromText = (text: string): string => {
   if (!text) return "";
+  if (text.startsWith("enc:v1:") || text.includes("enc:v1:")) {
+    return "";
+  }
   return text
     .replace(/!\[.*?\]\(.*?\)/g, '')
     .replace(/!\[.*?\]/g, '')
@@ -62,7 +68,7 @@ const cleanImageLinksFromText = (text: string): string => {
 const extractImageUrl = (str: string): string | null => {
   if (!str) return null;
   const trimmed = str.trim();
-  if (!trimmed) return null;
+  if (!trimmed || trimmed.startsWith("enc:v1:")) return null;
 
   // Markdown image format: ![alt](url)
   const mdMatch = trimmed.match(/!\[.*?\]\((https?:\/\/[^\s)]+|data:image\/[^\s)]+)\)/i);
@@ -100,7 +106,9 @@ const generateTitleFromAI = (msgs: Msg[]): string => {
   if (!assistantMsg || !assistantMsg.content) {
     if (userMsg?.content) {
       const cleanUser = cleanImageLinksFromText(formatMessageForDisplay(userMsg.content)).replace(/\[.*?\]/g, '').trim();
-      return cleanUser ? `Pergunta: ${cleanUser.slice(0, 32)}...` : "Nova Conversa";
+      if (cleanUser && !cleanUser.startsWith("enc:v1:") && !cleanUser.includes("enc:v1:")) {
+        return `Pergunta: ${cleanUser.slice(0, 32)}...`;
+      }
     }
     return "Conversa Bíblica";
   }
@@ -111,9 +119,21 @@ const generateTitleFromAI = (msgs: Msg[]): string => {
   if (rawContent.startsWith("http") || rawContent.startsWith("data:image") || rawContent.includes("generate-chat-image")) {
     if (userMsg?.content) {
       const cleanUser = cleanImageLinksFromText(formatMessageForDisplay(userMsg.content)).replace(/\[.*?\]/g, '').trim();
-      return `Arte Bíblica: ${cleanUser.slice(0, 32) || "Ilustração"}`;
+      if (cleanUser && !cleanUser.startsWith("enc:v1:") && !cleanUser.includes("enc:v1:")) {
+        return `Arte Bíblica: ${cleanUser.slice(0, 32) || "Ilustração"}`;
+      }
     }
     return "Ilustração Bíblica Sagrada";
+  }
+
+  if (rawContent.startsWith("enc:v1:") || rawContent.includes("enc:v1:")) {
+    if (userMsg?.content) {
+      const cleanUser = cleanImageLinksFromText(formatMessageForDisplay(userMsg.content)).replace(/\[.*?\]/g, '').trim();
+      if (cleanUser && !cleanUser.startsWith("enc:v1:") && !cleanUser.includes("enc:v1:")) {
+        return `Pergunta: ${cleanUser.slice(0, 32)}...`;
+      }
+    }
+    return "Conversa Bíblica";
   }
 
   const content = cleanImageLinksFromText(rawContent);
@@ -132,7 +152,9 @@ const generateTitleFromAI = (msgs: Msg[]): string => {
         cleanBold.length >= 3 && 
         cleanBold.length <= 60 && 
         !cleanBold.toLowerCase().startsWith("regras") && 
-        !cleanBold.toLowerCase().startsWith("limite")
+        !cleanBold.toLowerCase().startsWith("limite") &&
+        !cleanBold.startsWith("enc:v1:") &&
+        !cleanBold.includes("enc:v1:")
       ) {
         return cleanBold.charAt(0).toUpperCase() + cleanBold.slice(1);
       }
@@ -145,10 +167,10 @@ const generateTitleFromAI = (msgs: Msg[]): string => {
     .replace(/^(com certeza|olá|paz do senhor|graça e paz|com prazer|excelente pergunta|que bênção)[!,.\s]*/i, '')
     .trim();
 
-  const lines = cleanContent.split('\n').map(l => l.trim()).filter(l => l.length > 5);
+  const lines = cleanContent.split('\n').map(l => l.trim()).filter(l => l.length > 5 && !l.startsWith("enc:v1:"));
   if (lines.length > 0) {
     const firstLine = lines[0].replace(/\*\*/g, '').replace(/\[.*?\]/g, '').trim();
-    if (firstLine) {
+    if (firstLine && !firstLine.startsWith("enc:v1:") && !firstLine.includes("enc:v1:")) {
       const shortTitle = firstLine.slice(0, 42).trim();
       return shortTitle.length < firstLine.length ? `${shortTitle}...` : shortTitle;
     }
@@ -199,14 +221,27 @@ const getConversationCategoryInfo = (conv: Conversation) => {
 };
 
 const getConversationPreview = (conv: Conversation): string => {
-  const assistantMsgs = conv.messages.filter(m => m.role === "assistant");
-  if (assistantMsgs.length === 0) return "Aguardando resposta da IA...";
+  const assistantMsgs = (conv.messages || []).filter(m => m.role === "assistant");
+  const userMsgs = (conv.messages || []).filter(m => m.role === "user");
 
-  const lastAssistant = assistantMsgs[assistantMsgs.length - 1];
-  const text = lastAssistant.content || "";
+  let text = "";
+  if (assistantMsgs.length > 0) {
+    text = assistantMsgs[assistantMsgs.length - 1].content || "";
+  } else if (userMsgs.length > 0) {
+    text = userMsgs[0].content || "";
+  }
+
+  if (!text) return "Conversa e estudo bíblico com IA";
 
   if (text.startsWith("http") || text.startsWith("data:image")) {
     return "🎨 Imagem bíblica gerada pela IA";
+  }
+
+  if (text.startsWith("enc:v1:") || text.includes("enc:v1:")) {
+    if (conv.title && !conv.title.startsWith("enc:v1:")) {
+      return conv.title;
+    }
+    return "Conversa e reflexão bíblica com IA";
   }
 
   const textWithoutImages = cleanImageLinksFromText(text);
@@ -216,8 +251,11 @@ const getConversationPreview = (conv: Conversation): string => {
     .replace(/\*\*/g, '')
     .trim();
 
-  if (!cleanText) {
-    return "🎨 Imagem bíblica gerada pela IA";
+  if (!cleanText || cleanText.startsWith("enc:v1:") || cleanText.includes("enc:v1:")) {
+    if (conv.title && !conv.title.startsWith("enc:v1:")) {
+      return conv.title;
+    }
+    return "Conversa e reflexão bíblica com IA";
   }
 
   return cleanText.slice(0, 110) + (cleanText.length > 110 ? "..." : "");
@@ -912,10 +950,21 @@ const AIPage = () => {
       const userSecret = user?.sub;
       const userKey = getConversationsKey(userSecret);
 
-      // 1. Carrega imediatamente do LocalStorage para renderização instantânea
+      // 1. Carrega imediatamente do LocalStorage e descriptografa para renderização instantânea
       const localSaved = loadFromLocalStorage(userKey) as Conversation[];
       if (localSaved.length > 0 && isMounted) {
-        setConversations(localSaved);
+        const decryptedLocal = await Promise.all(
+          localSaved.map(async (c) => {
+            const msgs = await decryptConversationMessages(c.messages, userSecret);
+            const safeTitle = (c.title && !c.title.startsWith("enc:v1:")) ? c.title : generateTitleFromAI(msgs);
+            return {
+              ...c,
+              title: safeTitle || "Conversa Bíblica",
+              messages: msgs
+            };
+          })
+        );
+        if (isMounted) setConversations(decryptedLocal);
       }
 
       // Se o usuário está logado, mescla conversas criadas no modo visitante se existirem
@@ -926,9 +975,20 @@ const AIPage = () => {
           try {
             const existingIds = new Set(localSaved.map(c => c.id));
             const merged = [...guestSaved.filter(c => !existingIds.has(c.id)), ...localSaved];
-            safeSaveToLocalStorage(userKey, merged);
+            const decryptedMerged = await Promise.all(
+              merged.map(async (c) => {
+                const msgs = await decryptConversationMessages(c.messages, userSecret);
+                const safeTitle = (c.title && !c.title.startsWith("enc:v1:")) ? c.title : generateTitleFromAI(msgs);
+                return {
+                  ...c,
+                  title: safeTitle || "Conversa Bíblica",
+                  messages: msgs
+                };
+              })
+            );
+            safeSaveToLocalStorage(userKey, decryptedMerged);
             localStorage.removeItem(guestKey);
-            if (isMounted) setConversations(merged);
+            if (isMounted) setConversations(decryptedMerged);
           } catch (e) {
             console.error("Erro ao mesclar conversas de visitante:", e);
           }
@@ -942,22 +1002,26 @@ const AIPage = () => {
           const currentLocal = loadFromLocalStorage(userKey) as Conversation[];
           const merged = mergeChatConversations(currentLocal, serverConvs) as Conversation[];
           
-          // Formata títulos amigáveis se necessário
-          const formattedMerged = merged.map(c => {
-            const assistantMsg = c.messages?.find(m => m.role === 'assistant');
-            const firstUserMsg = c.messages?.find(m => m.role === 'user')?.content || "";
+          // Descriptografa e formata títulos amigáveis se necessário
+          const formattedMerged = await Promise.all(merged.map(async c => {
+            const msgs = await decryptConversationMessages(c.messages, userSecret);
+            const assistantMsg = msgs?.find(m => m.role === 'assistant');
+            const firstUserMsg = msgs?.find(m => m.role === 'user')?.content || "";
             let finalTitle = c.title;
-            if (assistantMsg && (!c.title || c.title === "Conversa" || c.title === firstUserMsg || c.title === formatMessageForDisplay(firstUserMsg).slice(0, 50))) {
-              finalTitle = generateTitleFromAI(c.messages);
+            if (!finalTitle || finalTitle.startsWith("enc:v1:") || finalTitle === "Conversa" || finalTitle === firstUserMsg || (assistantMsg && finalTitle === formatMessageForDisplay(firstUserMsg).slice(0, 50))) {
+              finalTitle = generateTitleFromAI(msgs);
             }
             return {
               ...c,
-              title: finalTitle || "Conversa Bíblica"
+              title: finalTitle || "Conversa Bíblica",
+              messages: msgs
             };
-          });
+          }));
 
-          setConversations(formattedMerged);
-          safeSaveToLocalStorage(userKey, formattedMerged);
+          if (isMounted) {
+            setConversations(formattedMerged);
+            safeSaveToLocalStorage(userKey, formattedMerged);
+          }
           return;
         }
       } catch (err) {
@@ -1179,13 +1243,15 @@ const AIPage = () => {
     setMessageFeedback({});
   };
 
-  const loadConversation = (conv: Conversation) => {
+  const loadConversation = async (conv: Conversation) => {
     currentChatIdRef.current = conv.id; // Atualiza a referência para continuar o mesmo chat
-    setMessages(conv.messages);
+    const userSecret = user?.sub;
+    const decryptedMsgs = await decryptConversationMessages(conv.messages, userSecret);
+    setMessages(decryptedMsgs);
     setShowHistory(false);
     setIsSidebarOpen(false);
     const initialFeedback: Record<number, "like" | "dislike"> = {};
-    conv.messages.forEach((msg, idx) => {
+    decryptedMsgs.forEach((msg, idx) => {
       if (msg.feedback) {
         initialFeedback[idx] = msg.feedback;
       }
@@ -2245,6 +2311,9 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
       <div className="space-y-1">
         {topImage && renderImageCard(topImage)}
         {lines.map((line, i) => {
+          if (line.startsWith("enc:v1:") || line.includes("enc:v1:")) {
+            return null;
+          }
           const lineImgUrl = extractImageUrl(line);
           if (lineImgUrl) {
             // If this image is already shown as topImage or the line is just the image URL, skip duplicate text rendering
@@ -2864,7 +2933,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                   ? "IA Simples"
                   : "IA Complexa"}
               </h2>
-              <p className="text-xs text-muted-foreground mb-2 sm:mb-3 max-w-sm leading-relaxed px-2">
+              <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3 max-w-2xl text-center sm:whitespace-nowrap leading-relaxed px-2">
                 {activeMode === "image"
                   ? "Gere imagens e cenas bíblicas realistas com inteligência artificial."
                   : activeMode === "video"

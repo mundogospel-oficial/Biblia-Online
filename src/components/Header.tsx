@@ -44,13 +44,13 @@ const Header = () => {
   }, []);
 
   const links = [
-    { to: "/", label: t("nav_home"), icon: <Home className="h-4 w-4" /> },
-    { to: "/buscar", label: t("nav_search"), icon: <Search className="h-4 w-4" /> },
-    { to: "/ia", label: t("nav_ai"), icon: <Bot className="h-4 w-4" /> },
-    { to: "/devocionais", label: t("nav_devotional"), icon: <Calendar className="h-4 w-4" /> },
-    { to: "/favoritos", label: t("nav_favorites"), icon: <Heart className="h-4 w-4" /> },
-    { to: "/criar", label: t("nav_create"), icon: <Sparkles className="h-4 w-4" /> },
-    { to: "/conta", label: t("nav_account"), icon: <User className="h-4 w-4" /> },
+    { to: "/", label: t("nav_home"), shortLabel: t("nav_home"), icon: <Home className="h-4 w-4 shrink-0" /> },
+    { to: "/buscar", label: t("nav_search"), shortLabel: t("nav_search"), icon: <Search className="h-4 w-4 shrink-0" /> },
+    { to: "/ia", label: t("nav_ai"), shortLabel: t("nav_ai"), icon: <Bot className="h-4 w-4 shrink-0" /> },
+    { to: "/devocionais", label: t("nav_devotional"), shortLabel: "Devocionais", icon: <Calendar className="h-4 w-4 shrink-0" /> },
+    { to: "/favoritos", label: t("nav_favorites"), shortLabel: t("nav_favorites"), icon: <Heart className="h-4 w-4 shrink-0" /> },
+    { to: "/criar", label: t("nav_create"), shortLabel: t("nav_create"), icon: <Sparkles className="h-4 w-4 shrink-0" /> },
+    { to: "/conta", label: t("nav_account"), shortLabel: t("nav_account"), icon: <User className="h-4 w-4 shrink-0" /> },
   ];
 
   const mobileLinks = [
@@ -76,31 +76,31 @@ const Header = () => {
 
   return (
     <>
-      {/* Desktop Header - Full-width Glass Bar with Oval Pills */}
+      {/* Desktop & Tablet Header - Full-width Glass Bar with Oval Pills */}
       <header className="sticky top-0 z-50 hidden md:block glass-card !rounded-none border-b border-border/50 safe-area-top shrink-0">
-        <div className="container mx-auto flex items-center justify-between px-4 py-2.5">
-          <Link to="/" className="flex items-center gap-2.5 group shrink-0 select-none">
+        <div className="container mx-auto flex items-center justify-between px-3 md:px-4 py-2 md:py-2.5 gap-2">
+          <Link to="/" className="flex items-center gap-2 md:gap-2.5 group shrink-0 select-none mr-2 md:mr-3">
             <img
               src="/icons/logo2.png"
               alt="Logo Biblia Online"
               draggable={false}
               onContextMenu={(e) => e.preventDefault()}
               onDragStart={(e) => e.preventDefault()}
-              className="h-7 w-7 object-contain transition-transform duration-200 group-hover:scale-105 pointer-events-none select-none no-copy-logo"
+              className="h-6 w-6 md:h-7 md:w-7 object-contain transition-transform duration-200 group-hover:scale-105 pointer-events-none select-none no-copy-logo shrink-0"
             />
-            <span className="font-serif text-lg font-bold text-foreground">
+            <span className="font-serif text-base md:text-lg font-bold text-foreground whitespace-nowrap">
               Biblia Online
             </span>
           </Link>
 
-          <nav className="flex items-center gap-1">
+          <nav className="flex items-center gap-0.5 md:gap-1 lg:gap-1.5 shrink-0 overflow-x-auto scrollbar-none">
             {links.map((l) => {
               const active = isActiveRoute(l.to);
               return (
                 <Link
                   key={l.to}
                   to={l.to}
-                  className={`relative flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all duration-200 whitespace-nowrap ${
+                  className={`relative flex items-center gap-1 md:gap-1.5 rounded-full px-2 md:px-2.5 lg:px-3.5 py-1 md:py-1.5 text-xs font-medium transition-all duration-200 whitespace-nowrap shrink-0 ${
                     active
                       ? "text-primary-foreground font-semibold shadow-sm"
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
@@ -113,9 +113,10 @@ const Header = () => {
                       transition={{ type: "spring", stiffness: 400, damping: 30 }}
                     />
                   )}
-                  <span className="relative z-10 flex items-center gap-1.5">
+                  <span className="relative z-10 flex items-center gap-1 md:gap-1.5">
                     {l.icon}
-                    {l.label}
+                    <span className="hidden xl:inline">{l.label}</span>
+                    <span className="inline xl:hidden">{l.shortLabel}</span>
                   </span>
                 </Link>
               );
