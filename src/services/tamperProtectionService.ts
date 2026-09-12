@@ -115,8 +115,15 @@ export async function verifyBetaPermissionWithServer(): Promise<{ isAllowed: boo
       return { isAllowed: false, role: "padrao" };
     }
 
-    const serverRole = String((data as any).role || "padrao").trim().toLowerCase();
-    const isAllowed = serverRole === "beta" || serverRole === "admin";
+    // Aceita ESTRITAMENTE minúsculo ('admin' ou 'beta'). NUNCA aceita 'ADMIN' ou variações maiúsculas.
+    const rawRole = String((data as any).role || "padrao").trim();
+    
+    // Se for exatamente 'admin' minúsculo, converte para 'beta'. Se for 'beta', mantém 'beta'. Caso contrário, 'padrao'.
+    let serverRole = "padrao";
+    if (rawRole === "admin" || rawRole === "beta") {
+      serverRole = "beta";
+    }
+    const isAllowed = serverRole === "beta";
 
     // Atualiza o cache seguro com a resposta autêntica do servidor
     await saveVerifiedRole(user.id, serverRole);

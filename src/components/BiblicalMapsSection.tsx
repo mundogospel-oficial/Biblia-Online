@@ -17,11 +17,12 @@ import {
   Layers, 
   Globe2, 
   Mountain, 
-  Lock, 
   ShieldCheck, 
   Volume2, 
-  UserCheck,
-  CheckCircle2
+  CheckCircle2,
+  Maximize2,
+  Minimize2,
+  X
 } from "lucide-react";
 import { biblicalMaps, BiblicalMapTheme, MapLocation } from "@/data/biblicalMapsData";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
@@ -30,6 +31,8 @@ import { useToast } from "@/hooks/use-toast";
 
 interface BiblicalMapsSectionProps {
   onNavigateToVerse?: (bookAbbrev: string, chapter: number, verseNum?: number) => void;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: (fullscreen: boolean) => void;
 }
 
 type MapTileStyle = "satellite" | "physical" | "voyager" | "osm";
@@ -79,7 +82,11 @@ const TILE_SERVERS: Record<MapTileStyle, TileConfig> = {
   }
 };
 
-export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({ onNavigateToVerse }) => {
+export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
+  onNavigateToVerse,
+  isFullscreen: propIsFullscreen,
+  onToggleFullscreen
+}) => {
   const navigate = useNavigate();
   const { isBeta, isAdmin, role } = useFeatureGate();
   const { user } = useAuth();
@@ -89,7 +96,17 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({ onNavi
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>("loc-jerusalem");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [tileStyle, setTileStyle] = useState<MapTileStyle>("satellite");
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [internalFullscreen, setInternalFullscreen] = useState(false);
+  const isFullscreen = propIsFullscreen !== undefined ? propIsFullscreen : internalFullscreen;
+
+  const handleToggleFullscreen = useCallback((val: boolean) => {
+    if (onToggleFullscreen) {
+      onToggleFullscreen(val);
+    } else {
+      setInternalFullscreen(val);
+    }
+  }, [onToggleFullscreen]);
+
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -98,6 +115,27 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({ onNavi
   const markersRef = useRef<Record<string, L.Marker>>({});
   const polylineRef = useRef<L.Polyline | null>(null);
   const lastToastTimeRef = useRef<number>(0);
+
+  // Redimensiona o mapa de forma fluida ao alternar tela cheia sem recriar elementos
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize();
+      }
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [isFullscreen]);
+
+  // Tecla ESC para sair de tela cheia
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isFullscreen) {
+        handleToggleFullscreen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFullscreen, handleToggleFullscreen]);
 
   const notifyMapError = useCallback(() => {
     const now = Date.now();
@@ -133,7 +171,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({ onNavi
     return layer;
   }, [notifyMapError]);
 
-  const hasAccess = isBeta || isAdmin || role === "beta" || role === "admin" || role === "vip";
+  const hasAccess = isBeta || isAdmin || role === "beta" || role === "admin";
 
   const currentMap = useMemo(() => {
     return biblicalMaps.find(m => m.id === selectedMapId) || biblicalMaps[0];
@@ -341,109 +379,16 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({ onNavi
     window.speechSynthesis.speak(utterance);
   }, [selectedLocation, isPlayingAudio]);
 
-  // Se a conta for normal / padrão, exibe a tela de recurso exclusivo Beta
+  // Se a conta não tiver permissão de testes/beta, não exibe nada
   if (!hasAccess) {
-    return (
-      <div className="space-y-6">
-        {/* Header com Badge Beta no canto superior direito */}
-        <div className="relative glass-card rounded-2xl p-6 sm:p-8 border border-border bg-card/60 shadow-xl overflow-hidden">
-          <div className="absolute top-0 right-0 w-80 h-80 bg-accent/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          
-          {/* Badge Beta no canto superior direito */}
-          <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/20 border border-accent/35 text-accent text-xs font-black uppercase tracking-wider shadow-sm">
-              <Sparkles className="h-3.5 w-3.5" /> Beta
-            </span>
-          </div>
-
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pr-16 sm:pr-20">
-            <div className="space-y-2">
-              <h2 className="font-serif text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-2.5">
-                <Compass className="h-7 w-7 text-accent shrink-0" />
-                <span>Mapas Bíblicos Realistas & Atlas da Terra Santa</span>
-              </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl leading-relaxed">
-                Explore as rotas históricas dos apóstolos, o êxodo no deserto, os reinos de Israel e as terras bíblicas com imagens de satélite e relevo topográfico em alta resolução.
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
-              <button
-                onClick={() => navigate("/minha-conta")}
-                className="flex items-center justify-center gap-2 rounded-xl bg-accent text-accent-foreground px-5 py-3 text-xs font-bold shadow-lg hover:bg-accent/90 transition-transform active:scale-98 cursor-pointer"
-              >
-                <UserCheck className="h-4 w-4" />
-                <span>Ver Minha Conta / Acesso Pro</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Card de Bloqueio Informativo do Beta */}
-        <div className="glass-card rounded-2xl p-8 sm:p-12 border border-accent/20 bg-card/40 shadow-2xl text-center flex flex-col items-center justify-center space-y-6">
-          <div className="w-16 h-16 rounded-2xl bg-accent/10 border border-accent/30 flex items-center justify-center shadow-inner">
-            <Lock className="h-8 w-8 text-accent" />
-          </div>
-
-          <div className="space-y-2 max-w-lg">
-            <h3 className="font-serif text-xl sm:text-2xl font-bold text-foreground">
-              Disponível Apenas para Contas Beta
-            </h3>
-            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-              O módulo de Mapas Bíblicos interativos está atualmente restrito para testadores da versão <strong>Beta</strong> e contas <strong>Administradoras/VIP</strong>. Contas no plano padrão não possuem acesso a esta ferramenta durante a fase experimental.
-            </p>
-          </div>
-
-          {/* Destaques do Recurso */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-2xl text-left pt-2">
-            <div className="rounded-xl bg-secondary/50 p-4 border border-border/60 space-y-1.5">
-              <div className="flex items-center gap-2 text-accent font-bold text-xs">
-                <Globe2 className="h-4 w-4" /> Satélite & Relevo
-              </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Visualização geográfica precisa de Israel, Canaã, Egito, Grécia e Roma antiga.
-              </p>
-            </div>
-
-            <div className="rounded-xl bg-secondary/50 p-4 border border-border/60 space-y-1.5">
-              <div className="flex items-center gap-2 text-accent font-bold text-xs">
-                <Compass className="h-4 w-4" /> Rotas dos Apóstolos
-              </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Acompanhe o caminho das 3 viagens missionárias de Paulo, o Êxodo e os ministérios bíblicos.
-              </p>
-            </div>
-
-            <div className="rounded-xl bg-secondary/50 p-4 border border-border/60 space-y-1.5">
-              <div className="flex items-center gap-2 text-accent font-bold text-xs">
-                <BookOpen className="h-4 w-4" /> Integração com a Bíblia
-              </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Clique nos pontos para ler instantaneamente o capítulo sagrado e ouvir notas históricas.
-              </p>
-            </div>
-          </div>
-
-          <div className="pt-2">
-            <button
-              onClick={() => navigate("/minha-conta")}
-              className="inline-flex items-center gap-2 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground px-5 py-2.5 text-xs font-semibold border border-border transition-colors cursor-pointer"
-            >
-              <ShieldCheck className="h-4 w-4 text-accent" />
-              <span>Gerenciar Conta & Solicitar Acesso</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header with Title & Beta Badge in Top Right */}
-      <div className="relative glass-card rounded-2xl p-5 sm:p-6 border border-border bg-card/60 shadow-md flex flex-col gap-4">
-        {/* Top Header Row with Clean Title, Description and Top-Right Beta Badge */}
-        <div className="flex items-start justify-between gap-4 pr-16 sm:pr-20">
+    <div className={`space-y-4 ${isFullscreen ? "h-full flex flex-col flex-1 min-h-0" : ""}`}>
+      {/* Header com Título, Descrição, Selo Beta e Seletor de Rotas Bíblicas - Sempre presente sem mudar nada */}
+      <div className="relative glass-card rounded-2xl p-5 sm:p-6 border border-border bg-card/60 shadow-md flex flex-col gap-4 shrink-0">
+        <div className="flex items-start justify-between gap-4 pr-16 sm:pr-28">
           <div className="space-y-1 max-w-2xl">
             <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2.5 tracking-tight">
               <Compass className="h-5 w-5 sm:h-6 sm:w-6 text-accent shrink-0" />
@@ -454,16 +399,34 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({ onNavi
             </p>
           </div>
 
-          {/* Badge BETA no canto superior direito */}
-          <div className="absolute top-4 right-4 sm:top-5 sm:right-6">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-accent/20 border border-accent/35 text-accent text-[11px] font-black uppercase tracking-wider shadow-sm">
-              <Sparkles className="h-3 w-3" /> Beta
-            </span>
+          {/* Top Right: Botão de Sair da Tela Cheia (se em tela cheia) + Selo Beta no tema do app */}
+          <div className="absolute top-4 right-4 sm:top-5 sm:right-6 flex items-center gap-2">
+            {isFullscreen && (
+              <button
+                onClick={() => handleToggleFullscreen(false)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-destructive/15 text-destructive hover:bg-destructive/25 text-xs font-bold border border-destructive/30 transition-all cursor-pointer shadow-xs active:scale-95"
+                title="Sair da Tela Cheia (ESC)"
+              >
+                <Minimize2 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Sair da Tela Cheia</span>
+              </button>
+            )}
+
+            {/* Selo Beta no tema do app: azul com 2 tons misturados, borda luminosa, ícone Sparkles e sem piscar */}
+            <div
+              id="biblical-maps-badge-beta"
+              className="inline-flex items-center gap-2 px-3 py-1 sm:px-3.5 sm:py-1 rounded-full bg-gradient-to-r from-[#031d2e] via-[#021422] to-[#04253a] border border-[#0ea5e9] shadow-[0_0_12px_rgba(14,165,233,0.25)] backdrop-blur-md transition-all hover:border-[#38bdf8] hover:shadow-[0_0_16px_rgba(14,165,233,0.35)] select-none"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-[#38bdf8] shrink-0" />
+              <span className="text-[11px] sm:text-xs font-bold tracking-[0.18em] uppercase text-[#bae6fd] font-mono leading-none">
+                BETA
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Map Theme Selector Pill Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full themed-scrollbar pt-2 border-t border-border/40">
+        {/* Seletor de Temas dos Mapas */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 max-w-full themed-scrollbar visible-scrollbar pt-2 border-t border-border/40">
           {biblicalMaps.map((mapItem) => {
             const isSelected = mapItem.id === selectedMapId;
             return (
@@ -475,7 +438,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({ onNavi
                 }}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 border cursor-pointer ${
                   isSelected
-                    ? "bg-accent text-accent-foreground border-accent shadow-sm"
+                    ? "bg-accent text-accent-foreground border-accent shadow-sm font-bold"
                     : "bg-secondary/60 text-muted-foreground hover:text-foreground border-border/60 hover:bg-secondary"
                 }`}
               >
@@ -489,242 +452,262 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({ onNavi
         </div>
       </div>
 
-      {/* Main Interactive Map Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Map Stage (7 cols on lg, 8 on xl) */}
-        <div className="lg:col-span-7 xl:col-span-8 space-y-3">
+      {/* Grid Interativo: Mapa e Detalhes - Elemento único no DOM para transição suave sem recriar mapa */}
+      <div className={`grid grid-cols-1 lg:grid-cols-12 gap-4 ${
+        isFullscreen ? "items-stretch flex-1 min-h-0 overflow-y-auto lg:overflow-visible visible-scrollbar" : "items-start"
+      }`}>
+        {/* Map Stage */}
+        <div className={`lg:col-span-7 xl:col-span-7 space-y-2.5 flex flex-col ${
+          isFullscreen ? "h-full min-h-[460px] lg:min-h-0" : ""
+        }`}>
           <div className={`relative rounded-2xl overflow-hidden border border-border shadow-xl bg-slate-950 transition-all duration-300 ${
-            isFullscreen ? "fixed inset-4 z-50 rounded-2xl shadow-2xl" : "h-[440px] sm:h-[500px]"
+            isFullscreen ? "flex-1 min-h-[380px] lg:min-h-0" : "h-[500px] sm:h-[560px] lg:h-[600px]"
           }`}>
-            {/* Custom style to eliminate broken images or logo placeholders */}
-            <style>{`
-              .leaflet-tile-container img {
-                border: 0 !important;
-                outline: 0 !important;
-              }
-              .leaflet-tile-container img:not([src]),
-              .leaflet-tile-container img[src*="data:image/gif"] {
-                opacity: 0 !important;
-                visibility: hidden !important;
-                display: none !important;
-              }
-              .leaflet-container {
-                background: #090e17 !important;
-              }
-            `}</style>
+              {/* Custom style to eliminate broken images or logo placeholders */}
+              <style>{`
+                .leaflet-tile-container img {
+                  border: 0 !important;
+                  outline: 0 !important;
+                }
+                .leaflet-tile-container img:not([src]),
+                .leaflet-tile-container img[src*="data:image/gif"] {
+                  opacity: 0 !important;
+                  visibility: hidden !important;
+                  display: none !important;
+                }
+                .leaflet-container {
+                  background: #090e17 !important;
+                }
+              `}</style>
 
-            {/* Map Container */}
-            <div ref={mapContainerRef} className="w-full h-full z-0" />
+              {/* Map Container */}
+              <div ref={mapContainerRef} className="w-full h-full z-0" />
 
-            {/* Top Overlay: Layer Switcher & Fullscreen Button */}
-            <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between pointer-events-none gap-2">
-              {/* Layer Style Pills */}
-              <div className="flex items-center gap-1 bg-slate-900/90 backdrop-blur-md p-1 rounded-xl border border-white/15 shadow-lg pointer-events-auto overflow-x-auto max-w-[85%] themed-scrollbar">
-                {(Object.keys(TILE_SERVERS) as MapTileStyle[]).map((styleKey) => {
-                  const item = TILE_SERVERS[styleKey];
-                  const Icon = item.icon;
-                  const isActive = tileStyle === styleKey;
-                  return (
-                    <button
-                      key={styleKey}
-                      onClick={() => setTileStyle(styleKey)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                        isActive
-                          ? "bg-amber-400 text-slate-950 font-bold shadow-sm"
-                          : "text-slate-300 hover:text-white hover:bg-white/10"
-                      }`}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                      <span>{item.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Reset Map Center */}
-              <button
-                onClick={handleResetMap}
-                className="bg-slate-900/90 hover:bg-slate-800 text-white p-2 rounded-xl border border-white/15 shadow-lg pointer-events-auto transition-colors cursor-pointer"
-                title="Centralizar Mapa"
-              >
-                <Compass className="h-4 w-4 text-amber-400" />
-              </button>
-            </div>
-
-            {/* Bottom Overlay: Location Stepper Navigation */}
-            <div className="absolute bottom-3 left-3 right-3 z-10 flex items-center justify-between pointer-events-none gap-2">
-              <div className="bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/15 shadow-lg pointer-events-auto flex items-center gap-2">
-                <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1">
-                  <Navigation className="h-3 w-3" /> {currentIndex + 1} de {currentMap.locations.length}
-                </span>
-                <span className="text-[11px] text-slate-300 truncate max-w-[130px] sm:max-w-[200px]">
-                  {selectedLocation?.name}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md p-1 rounded-xl border border-white/15 shadow-lg pointer-events-auto">
-                <button
-                  onClick={() => handleStepLocation("prev")}
-                  className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                  title="Ponto Anterior"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => handleStepLocation("next")}
-                  className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                  title="Próximo Ponto"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Route Points Horizontal Bar */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-2 themed-scrollbar select-none">
-            {currentMap.locations.map((loc, idx) => {
-              const isSelected = selectedLocation?.id === loc.id;
-              return (
-                <button
-                  key={loc.id}
-                  onClick={() => handleSelectLocation(loc)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all border cursor-pointer shrink-0 ${
-                    isSelected
-                      ? "bg-accent text-accent-foreground border-accent shadow-sm font-bold"
-                      : "bg-secondary/60 text-muted-foreground hover:text-foreground border-border/50 hover:bg-secondary"
-                  }`}
-                >
-                  <span className={`w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center ${
-                    isSelected ? "bg-accent-foreground text-accent" : "bg-muted text-muted-foreground"
-                  }`}>
-                    {idx + 1}
-                  </span>
-                  <span>{loc.name}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Location Details Inspector Sidebar (5 cols on lg, 4 on xl) */}
-        <div className="lg:col-span-5 xl:col-span-4 flex flex-col">
-          <AnimatePresence mode="wait">
-            {selectedLocation ? (
-              <motion.div
-                key={selectedLocation.id}
-                initial={{ opacity: 0, x: 15 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -15 }}
-                transition={{ duration: 0.2 }}
-                className="glass-card rounded-2xl p-5 border border-border bg-card shadow-lg flex flex-col justify-between space-y-4 h-full"
-              >
-                <div className="space-y-4">
-                  {/* Title & Badges */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-accent/15 border border-accent/30 text-accent text-[11px] font-bold">
-                        <MapPin className="h-3 w-3" />
-                        <span>Ponto {currentIndex + 1} de {currentMap.locations.length}</span>
-                      </div>
-                      {selectedLocation.modernName && (
-                        <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                          <Globe2 className="h-3 w-3" />
-                          {selectedLocation.modernName}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-serif text-xl sm:text-2xl font-bold text-foreground">
-                        {selectedLocation.name}
-                      </h3>
+              {/* Top Overlay: Layer Switcher & Action Buttons (Center & Fullscreen) */}
+              <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between pointer-events-none gap-2">
+                {/* Layer Style Pills com barra de rolagem visível */}
+                <div className="flex items-center gap-1 bg-slate-900/90 backdrop-blur-md p-1 rounded-xl border border-white/15 shadow-lg pointer-events-auto overflow-x-auto max-w-[70%] sm:max-w-[78%] themed-scrollbar visible-scrollbar">
+                  {(Object.keys(TILE_SERVERS) as MapTileStyle[]).map((styleKey) => {
+                    const item = TILE_SERVERS[styleKey];
+                    const Icon = item.icon;
+                    const isActive = tileStyle === styleKey;
+                    return (
                       <button
-                        onClick={speakLocation}
-                        className={`p-2 rounded-full border border-border transition-colors cursor-pointer ${
-                          isPlayingAudio ? "bg-accent text-accent-foreground animate-pulse" : "bg-secondary text-foreground hover:bg-secondary/80"
+                        key={styleKey}
+                        onClick={() => setTileStyle(styleKey)}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                          isActive
+                            ? "bg-amber-400 text-slate-950 font-bold shadow-sm"
+                            : "text-slate-300 hover:text-white hover:bg-white/10"
                         }`}
-                        title="Ouvir explicação em áudio do sistema"
                       >
-                        <Volume2 className="h-4 w-4" />
+                        <Icon className="h-3.5 w-3.5" />
+                        <span>{item.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Botões à direita: Centralizar e Alternar Tela Cheia para os 3 Blocos */}
+                <div className="flex items-center gap-1.5 pointer-events-auto">
+                  <button
+                    onClick={handleResetMap}
+                    className="bg-slate-900/90 hover:bg-slate-800 text-white p-2 rounded-xl border border-white/15 shadow-lg transition-colors cursor-pointer"
+                    title="Centralizar Mapa"
+                  >
+                    <Compass className="h-4 w-4 text-amber-400" />
+                  </button>
+
+                  <button
+                    onClick={() => handleToggleFullscreen(!isFullscreen)}
+                    className="bg-slate-900/90 hover:bg-slate-800 text-white p-2 rounded-xl border border-white/15 shadow-lg transition-colors cursor-pointer flex items-center gap-1"
+                    title={isFullscreen ? "Sair da Tela Cheia" : "Tela Cheia"}
+                  >
+                    {isFullscreen ? (
+                      <Minimize2 className="h-4 w-4 text-amber-400" />
+                    ) : (
+                      <Maximize2 className="h-4 w-4 text-amber-400" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Bottom Overlay: Location Stepper Navigation */}
+              <div className="absolute bottom-3 left-3 right-3 z-10 flex items-center justify-between pointer-events-none gap-2">
+                <div className="bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/15 shadow-lg pointer-events-auto flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1">
+                    <Navigation className="h-3 w-3" /> {currentIndex + 1} de {currentMap.locations.length}
+                  </span>
+                  <span className="text-[11px] text-slate-300 truncate max-w-[130px] sm:max-w-[200px]">
+                    {selectedLocation?.name}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md p-1 rounded-xl border border-white/15 shadow-lg pointer-events-auto">
+                  <button
+                    onClick={() => handleStepLocation("prev")}
+                    className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                    title="Ponto Anterior"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleStepLocation("next")}
+                    className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                    title="Próximo Ponto"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Route Points Horizontal Bar - Barra de rolagem estilizada idêntica */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-2.5 pt-0.5 themed-scrollbar visible-scrollbar select-none">
+              {currentMap.locations.map((loc, idx) => {
+                const isSelected = selectedLocation?.id === loc.id;
+                return (
+                  <button
+                    key={loc.id}
+                    onClick={() => handleSelectLocation(loc)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all border cursor-pointer shrink-0 ${
+                      isSelected
+                        ? "bg-accent text-accent-foreground border-accent shadow-sm font-bold"
+                        : "bg-secondary/60 text-muted-foreground hover:text-foreground border-border/50 hover:bg-secondary"
+                    }`}
+                  >
+                    <span className={`w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center ${
+                      isSelected ? "bg-accent-foreground text-accent" : "bg-muted text-muted-foreground"
+                    }`}>
+                      {idx + 1}
+                    </span>
+                    <span>{loc.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Location Details Inspector Sidebar */}
+          <div className={`lg:col-span-5 xl:col-span-5 flex flex-col ${
+            isFullscreen ? "h-full min-h-[380px] lg:min-h-0 overflow-y-auto visible-scrollbar" : ""
+          }`}>
+            <AnimatePresence mode="wait">
+              {selectedLocation ? (
+                <motion.div
+                  key={selectedLocation.id}
+                  initial={{ opacity: 0, x: 15 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -15 }}
+                  transition={{ duration: 0.2 }}
+                  className="glass-card rounded-2xl p-5 border border-border bg-card shadow-lg flex flex-col justify-between space-y-4 h-full"
+                >
+                  <div className="space-y-4">
+                    {/* Title & Badges */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-accent/15 border border-accent/30 text-accent text-[11px] font-bold">
+                          <MapPin className="h-3 w-3" />
+                          <span>Ponto {currentIndex + 1} de {currentMap.locations.length}</span>
+                        </div>
+                        {selectedLocation.modernName && (
+                          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                            <Globe2 className="h-3 w-3" />
+                            {selectedLocation.modernName}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-serif text-xl sm:text-2xl font-bold text-foreground">
+                          {selectedLocation.name}
+                        </h3>
+                        <button
+                          onClick={speakLocation}
+                          className={`p-2 rounded-full border border-border transition-colors cursor-pointer ${
+                            isPlayingAudio ? "bg-accent text-accent-foreground animate-pulse" : "bg-secondary text-foreground hover:bg-secondary/80"
+                          }`}
+                          title="Ouvir explicação em áudio do sistema"
+                        >
+                          <Volume2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Summary */}
+                    <div className="rounded-xl bg-secondary/50 p-3 border border-border/60">
+                      <p className="text-xs sm:text-sm text-foreground leading-relaxed">
+                        {selectedLocation.summary}
+                      </p>
+                    </div>
+
+                    {/* Historical & Archaeological Note */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        <Info className="h-3.5 w-3.5 text-accent" />
+                        <span>Contexto Histórico & Arqueológico</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {selectedLocation.historicalNote}
+                      </p>
+                    </div>
+
+                    {/* Key Scripture Verse Box */}
+                    <div className="rounded-xl bg-accent/10 border border-accent/25 p-3.5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-accent flex items-center gap-1">
+                          <BookOpen className="h-3 w-3" /> Texto Bíblico Sagrado
+                        </span>
+                        <span className="text-[11px] font-bold text-accent px-2 py-0.5 rounded-md bg-accent/20">
+                          {selectedLocation.reference}
+                        </span>
+                      </div>
+                      <p className="font-serif text-xs sm:text-sm italic text-foreground leading-relaxed">
+                        "{selectedLocation.keyVerse}"
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons: Read Chapter & Step */}
+                  <div className="space-y-2 pt-2 border-t border-border/80">
+                    <button
+                      onClick={() => handleReadChapter(selectedLocation)}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-accent text-accent-foreground px-4 py-2.5 text-xs font-bold shadow-md hover:bg-accent/90 transition-transform active:scale-98 cursor-pointer"
+                    >
+                      <BookOpen className="h-4 w-4" />
+                      <span>Ler {selectedLocation.reference.split('/')[0].trim()} na Bíblia</span>
+                      <ArrowRight className="h-4 w-4 ml-auto" />
+                    </button>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => handleStepLocation("prev")}
+                        className="flex items-center justify-center gap-1 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground px-3 py-2 text-xs font-medium border border-border transition-colors cursor-pointer"
+                      >
+                        <ChevronLeft className="h-3.5 w-3.5 text-accent" />
+                        <span>Ponto Anterior</span>
+                      </button>
+                      <button
+                        onClick={() => handleStepLocation("next")}
+                        className="flex items-center justify-center gap-1 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground px-3 py-2 text-xs font-medium border border-border transition-colors cursor-pointer"
+                      >
+                        <span>Próximo Ponto</span>
+                        <ChevronRight className="h-3.5 w-3.5 text-accent" />
                       </button>
                     </div>
                   </div>
-
-                  {/* Summary */}
-                  <div className="rounded-xl bg-secondary/50 p-3 border border-border/60">
-                    <p className="text-xs sm:text-sm text-foreground leading-relaxed">
-                      {selectedLocation.summary}
-                    </p>
-                  </div>
-
-                  {/* Historical & Archaeological Note */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                      <Info className="h-3.5 w-3.5 text-accent" />
-                      <span>Contexto Histórico & Arqueológico</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {selectedLocation.historicalNote}
-                    </p>
-                  </div>
-
-                  {/* Key Scripture Verse Box */}
-                  <div className="rounded-xl bg-accent/10 border border-accent/25 p-3.5 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-accent flex items-center gap-1">
-                        <BookOpen className="h-3 w-3" /> Texto Bíblico Sagrado
-                      </span>
-                      <span className="text-[11px] font-bold text-accent px-2 py-0.5 rounded-md bg-accent/20">
-                        {selectedLocation.reference}
-                      </span>
-                    </div>
-                    <p className="font-serif text-xs sm:text-sm italic text-foreground leading-relaxed">
-                      "{selectedLocation.keyVerse}"
-                    </p>
-                  </div>
+                </motion.div>
+              ) : (
+                <div className="glass-card rounded-2xl p-6 border border-border bg-card/60 flex flex-col items-center justify-center text-center h-full space-y-3">
+                  <MapPin className="h-8 w-8 text-accent animate-bounce" />
+                  <h4 className="font-serif text-lg font-bold text-foreground">Selecione um Ponto no Mapa</h4>
+                  <p className="text-xs text-muted-foreground max-w-xs">
+                    Clique em qualquer marcador numerado no mapa para ver a rota detalhada, o contexto histórico e ler o capítulo bíblico.
+                  </p>
                 </div>
-
-                {/* Action Buttons: Read Chapter & Step */}
-                <div className="space-y-2 pt-2 border-t border-border/80">
-                  <button
-                    onClick={() => handleReadChapter(selectedLocation)}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-accent text-accent-foreground px-4 py-2.5 text-xs font-bold shadow-md hover:bg-accent/90 transition-transform active:scale-98 cursor-pointer"
-                  >
-                    <BookOpen className="h-4 w-4" />
-                    <span>Ler {selectedLocation.reference.split('/')[0].trim()} na Bíblia</span>
-                    <ArrowRight className="h-4 w-4 ml-auto" />
-                  </button>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => handleStepLocation("prev")}
-                      className="flex items-center justify-center gap-1 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground px-3 py-2 text-xs font-medium border border-border transition-colors cursor-pointer"
-                    >
-                      <ChevronLeft className="h-3.5 w-3.5 text-accent" />
-                      <span>Ponto Anterior</span>
-                    </button>
-                    <button
-                      onClick={() => handleStepLocation("next")}
-                      className="flex items-center justify-center gap-1 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground px-3 py-2 text-xs font-medium border border-border transition-colors cursor-pointer"
-                    >
-                      <span>Próximo Ponto</span>
-                      <ChevronRight className="h-3.5 w-3.5 text-accent" />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            ) : (
-              <div className="glass-card rounded-2xl p-6 border border-border bg-card/60 flex flex-col items-center justify-center text-center h-full space-y-3">
-                <MapPin className="h-8 w-8 text-accent animate-bounce" />
-                <h4 className="font-serif text-lg font-bold text-foreground">Selecione um Ponto no Mapa</h4>
-                <p className="text-xs text-muted-foreground max-w-xs">
-                  Clique em qualquer marcador numerado no mapa para ver a rota detalhada, o contexto histórico e ler o capítulo bíblico.
-                </p>
-              </div>
-            )}
-          </AnimatePresence>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
-      </div>
     </div>
   );
 };

@@ -30,6 +30,7 @@ import { getFavoritePlanIds, toggleFavoritePlan } from "@/services/readingPlanSe
 import { shareBibleText } from "@/lib/downloadUtils";
 import { ReadingPlansSection } from "@/components/ReadingPlansSection";
 import { BiblicalMapsSection } from "@/components/BiblicalMapsSection";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Helper function to get the icon associated with a category
 const getCategoryIcon = (category: string) => {
@@ -50,6 +51,9 @@ const getCategoryIcon = (category: string) => {
 };
 
 const DevotionalPage = () => {
+  const { isBeta, isAdmin, role } = useAuth();
+  const canAccessBeta = isBeta || isAdmin || role === "beta" || role === "admin";
+
   const [activeTab, setActiveTab] = useState<"hoje" | "planos" | "mapas" | "explorar" | "favoritos">("hoje");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("Todas");
@@ -57,6 +61,17 @@ const DevotionalPage = () => {
   const [favoritedIds, setFavoritedIds] = useState<number[]>([]);
   const [favoritedPlanIds, setFavoritedPlanIds] = useState<string[]>(getFavoritePlanIds());
   const [copyStatus, setCopyStatus] = useState<{ [key: string]: boolean }>({});
+  const [isMapsFullscreen, setIsMapsFullscreen] = useState(false);
+
+  // If user does not have beta access, ensure activeTab does not stay on mapas
+  useEffect(() => {
+    if (activeTab === "mapas" && !canAccessBeta) {
+      setActiveTab("hoje");
+    }
+    if (activeTab !== "mapas" && isMapsFullscreen) {
+      setIsMapsFullscreen(false);
+    }
+  }, [activeTab, canAccessBeta, isMapsFullscreen]);
 
   // Load favorites from localStorage on mount & when switching tabs
   useEffect(() => {
@@ -139,66 +154,81 @@ const DevotionalPage = () => {
   }, [favoritedIds]);
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
-      <Header />
-      <section className="container mx-auto px-4 py-5 sm:py-8 max-w-4xl">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          {/* Page Heading */}
-          <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-accent sm:h-6 sm:w-6" />
-                <h1 className="font-serif text-xl font-bold text-foreground sm:text-2xl">Devocionais e Planos Diários</h1>
+    <div className={`min-h-screen bg-background ${isMapsFullscreen ? "pb-0 overflow-y-auto lg:overflow-hidden" : "pb-20 md:pb-0"}`}>
+      {/* Oculta o Header no modo tela cheia dos mapas */}
+      {!isMapsFullscreen && <Header />}
+      <section className={`transition-all ${
+        isMapsFullscreen
+          ? "w-full max-w-none p-2.5 sm:p-4 min-h-screen lg:h-screen flex flex-col"
+          : activeTab === "mapas"
+            ? "container mx-auto px-4 py-5 sm:py-8 max-w-6xl"
+            : "container mx-auto px-4 py-5 sm:py-8 max-w-4xl"
+      }`}>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={isMapsFullscreen ? "h-full flex flex-col flex-1 min-h-0" : ""}
+        >
+          {/* Page Heading - Ocultado em tela cheia */}
+          {!isMapsFullscreen && (
+            <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-accent sm:h-6 sm:w-6" />
+                  <h1 className="font-serif text-xl font-bold text-foreground sm:text-2xl">Devocionais e Planos Diários</h1>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+                  Meditações diárias e planos de leitura estruturados para fortalecer sua fé a cada dia.
+                </p>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-                Meditações diárias e planos de leitura estruturados para fortalecer sua fé a cada dia.
-              </p>
             </div>
-          </div>
+          )}
 
-          {/* Tab Navigation */}
-          <div className="mb-6 flex gap-1.5 overflow-x-auto pb-2.5 border-b border-border/30 relative scroll-smooth themed-scrollbar select-none">
-            {[
-              { id: "hoje", label: "Devocional de Hoje", icon: Sparkles },
-              { id: "planos", label: "Planos de Leitura", icon: BookOpen },
-              { id: "mapas", label: "Mapas Bíblicos", icon: MapPin, isBeta: true },
-              { id: "explorar", label: `Explorar Devocionais (${devotionals.length})`, icon: Compass },
-              { id: "favoritos", label: `Meus Favoritos (${favoritedIds.length + favoritedPlanIds.length})`, icon: Heart },
-            ].map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`relative flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors select-none shrink-0 ${
-                    isActive
-                      ? "text-primary-foreground font-bold"
-                      : "bg-secondary/70 text-muted-foreground hover:bg-secondary hover:text-foreground"
-                  }`}
-                >
-                  {isActive && (
-                    <motion.div
-                      layoutId="activeDevotionalTabPill"
-                      className="absolute inset-0 rounded-full bg-primary shadow-sm"
-                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                    />
-                  )}
-                  <span className="relative z-10 flex items-center gap-1.5">
-                    <Icon className="h-3.5 w-3.5" />
-                    {tab.label}
-                    {tab.isBeta && (
-                      <span className={`px-1 py-0.2 rounded text-[9px] font-bold uppercase ${
-                        isActive ? "bg-primary-foreground/20 text-primary-foreground" : "bg-accent/20 text-accent"
-                      }`}>
-                        Beta
-                      </span>
+          {/* Tab Navigation - Ocultado em tela cheia */}
+          {!isMapsFullscreen && (
+            <div className="mb-6 flex gap-1.5 overflow-x-auto pb-2.5 border-b border-border/30 relative scroll-smooth themed-scrollbar select-none">
+              {[
+                { id: "hoje", label: "Devocional de Hoje", icon: Sparkles },
+                { id: "planos", label: "Planos de Leitura", icon: BookOpen },
+                ...(canAccessBeta ? [{ id: "mapas", label: "Mapas Bíblicos", icon: MapPin, isBeta: true }] : []),
+                { id: "explorar", label: `Explorar Devocionais (${devotionals.length})`, icon: Compass },
+                { id: "favoritos", label: `Meus Favoritos (${favoritedIds.length + favoritedPlanIds.length})`, icon: Heart },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`relative flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors select-none shrink-0 ${
+                      isActive
+                        ? "text-primary-foreground font-bold"
+                        : "bg-secondary/70 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeDevotionalTabPill"
+                        className="absolute inset-0 rounded-full bg-primary shadow-sm"
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      />
                     )}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                    <span className="relative z-10 flex items-center gap-1.5">
+                      <Icon className="h-3.5 w-3.5" />
+                      {tab.label}
+                      {tab.isBeta && (
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                          isActive ? "bg-primary-foreground/20 text-primary-foreground" : "bg-accent/20 text-accent"
+                        }`}>
+                          Beta
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           <AnimatePresence mode="wait">
             {/* 1. DEVOCIONAL DE HOJE TAB */}
@@ -331,15 +361,19 @@ const DevotionalPage = () => {
               </motion.div>
             )}
 
-            {/* 3. MAPAS BÍBLICOS (BETA) TAB */}
-            {activeTab === "mapas" && (
+            {/* 3. MAPAS BÍBLICOS (EM TESTES) TAB */}
+            {activeTab === "mapas" && canAccessBeta && (
               <motion.div
                 key="mapas-tab"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
+                className={isMapsFullscreen ? "h-full flex flex-col flex-1 min-h-0" : ""}
               >
-                <BiblicalMapsSection />
+                <BiblicalMapsSection
+                  isFullscreen={isMapsFullscreen}
+                  onToggleFullscreen={setIsMapsFullscreen}
+                />
               </motion.div>
             )}
 

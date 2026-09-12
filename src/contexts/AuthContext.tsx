@@ -155,16 +155,20 @@ const fetchProfileRole = async (userId: string): Promise<string> => {
   if (!userId) return 'padrao';
   try {
     // 1. Consulta autoritativa direta com o Supabase
-    const { isAllowed, role: serverRole } = await verifyBetaPermissionWithServer();
+    const { role: serverRole } = await verifyBetaPermissionWithServer();
     if (serverRole && serverRole !== 'padrao') {
-      return serverRole;
+      const clean = serverRole.trim();
+      return clean === 'admin' || clean === 'beta' ? 'beta' : 'padrao';
     }
 
     // 2. Se a rede estiver offline temporariamente, valida usando hash criptográfico
     const verifiedCachedRole = await getVerifiedRoleFromCache(userId);
-    return verifiedCachedRole;
+    const cleanCache = (verifiedCachedRole || 'padrao').trim();
+    return cleanCache === 'admin' || cleanCache === 'beta' ? 'beta' : 'padrao';
   } catch {
-    return await getVerifiedRoleFromCache(userId);
+    const fallback = await getVerifiedRoleFromCache(userId);
+    const clean = (fallback || 'padrao').trim();
+    return clean === 'admin' || clean === 'beta' ? 'beta' : 'padrao';
   }
 };
 
@@ -324,15 +328,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const isBeta = role.toLowerCase() === 'beta' || role.toLowerCase() === 'admin';
-  const isAdmin = role.toLowerCase() === 'admin';
+  // Apenas aceita estritamente minúsculo ('beta' ou 'admin')
+  const isBeta = role === 'beta' || role === 'admin';
+  const isAdmin = role === 'admin';
 
   const hasAccess = (requiredRole: string = 'beta') => {
-    const current = role.toLowerCase();
-    const target = requiredRole.toLowerCase();
-    if (current === 'admin') return true;
-    if (target === 'beta') return current === 'beta' || current === 'admin';
-    return current === target;
+    if (role === 'admin') return true;
+    if (requiredRole === 'beta') return role === 'beta' || role === 'admin';
+    return role === requiredRole;
   };
 
   return (

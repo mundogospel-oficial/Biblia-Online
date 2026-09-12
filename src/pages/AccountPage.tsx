@@ -142,7 +142,9 @@ const AccountPage = () => {
           setAvatarUrl(profile?.avatar_url || meta.avatar_url || meta.picture || authCtx.user.picture || null);
 
           if (profile && (profile as any).role) {
-            localStorage.setItem(`user_role_${userId}`, String((profile as any).role).trim().toLowerCase());
+            const rawRole = String((profile as any).role).trim();
+            const mappedRole = (rawRole === "admin" || rawRole === "beta") ? "beta" : "padrao";
+            localStorage.setItem(`user_role_${userId}`, mappedRole);
             authCtx.refreshRole().catch(() => {});
           }
 
@@ -1196,9 +1198,9 @@ const AccountPage = () => {
 
                 <p className="mt-2 text-xs font-mono text-muted-foreground/80 tracking-wide">{authCtx.user?.email}</p>
 
-                {authCtx.role && authCtx.role !== 'padrao' && (
+                {authCtx.user && (
                   <div className="mt-2.5 flex justify-center">
-                    <UserRoleBadge role={authCtx.role} />
+                    <UserRoleBadge role={authCtx.role || 'padrao'} />
                   </div>
                 )}
               </div>

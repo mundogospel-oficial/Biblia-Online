@@ -21,11 +21,11 @@ const translations: Record<Language, Record<string, string>> = {
     // User Role Badges
     "role_admin": "Conta Administrador",
     "role_beta": "Conta Beta",
-    "role_standard": "Conta Padrão",
+    "role_standard": "Conta Normal",
     // Presentation / Pulpit Mode
     "present": "Apresentar",
     "present_mode": "Modo Apresentação",
-    "present_desc": "Apresentar versículos em tela cheia (Exclusivo Programa Beta)",
+    "present_desc": "Apresentar versículos em tela cheia (Recurso em Testes)",
     "present_options": "Opções de Apresentação",
     "present_exit": "Sair da Apresentação",
     "present_exit_esc": "Sair da Apresentação (Esc)",
@@ -217,11 +217,11 @@ const translations: Record<Language, Record<string, string>> = {
     // User Role Badges
     "role_admin": "Admin Account",
     "role_beta": "Beta Account",
-    "role_standard": "Standard Account",
+    "role_standard": "Normal Account",
     // Presentation / Pulpit Mode
     "present": "Present",
     "present_mode": "Presentation Mode",
-    "present_desc": "Present verses in full screen (Exclusive Beta Program)",
+    "present_desc": "Present verses in full screen (Testing Feature)",
     "present_options": "Presentation Options",
     "present_exit": "Exit Presentation",
     "present_exit_esc": "Exit Presentation (Esc)",
