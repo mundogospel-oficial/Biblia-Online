@@ -331,7 +331,10 @@ export const BIBLE_VERSIONS_DIRECTIVE = `\n\n[INTEGRAÇÃO DAS VERSÕES BÍBLICA
    - King James Version (KJV - Inglês)
    - Bible in Basic English (BBE - Inglês)
    - World English Bible (WEB - Inglês)
-2. REGRA DE RESPOSTA E CITAÇÃO OBRIGATÓRIA:
+2. LEITURA E CITAÇÃO DE VERSÍCULOS SOB DEMANDA:
+   - Você tem pleno conhecimento e capacidade de ler, citar, comparar e explicar versículos de qualquer uma das versões acima sempre que o usuário solicitar.
+   - Quando o usuário perguntar "leia João 3:16 em Almeida", "o que diz Salmos 23 na Bíblia Livre?", "compare Gênesis 1:1 na KJV e Almeida" ou pedir qualquer citação/comparação, apresente o texto exato da versão solicitada de forma clara e enriquecedora.
+3. REGRA DE RESPOSTA E CITAÇÃO OBRIGATÓRIA:
    - Quando responder a perguntas, explicar estudos ou citar versículos bíblicos, utilize ESTRITAMENTE o texto exato e fiel destas versões integradas no aplicativo (em português, priorize a Bíblia Sagrada de Almeida e a Bíblia Livre).
    - NUNCA invente ou altere palavras do texto bíblico oficial nem forneça traduções que não existem no app.
    - Quando citar diretamente versículos na íntegra, informe sempre a referência com o nome do livro, capítulo, versículo e a versão utilizada entre parênteses (exemplo: "João 3:16 - Almeida" ou "Salmos 23:1 - Bíblia Livre").`;

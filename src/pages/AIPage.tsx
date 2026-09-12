@@ -3462,8 +3462,8 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                       : activeMode === "music"
                       ? "Descreva a música..."
                       : aiEngine === "simples"
-                      ? "Pergunta bíblica simples..."
-                      : "Pergunte qualquer tema bíblico..."
+                      ? "Pergunte versículos, versões ou temas..."
+                      : "Pergunte sobre versículos, versões ou estudos..."
                   }
                   disabled={isLoading || limitReached || !isOnline}
                   className="flex-1 min-w-0 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed truncate"
