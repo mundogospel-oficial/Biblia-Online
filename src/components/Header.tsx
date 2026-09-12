@@ -93,14 +93,14 @@ const Header = () => {
             </span>
           </Link>
 
-          <nav className="flex items-center gap-0.5 md:gap-1 lg:gap-1.5 shrink-0 overflow-x-auto scrollbar-none">
+          <nav className="flex-1 flex items-center justify-end gap-1 md:gap-1.5 lg:gap-2 overflow-x-auto scrollbar-none px-6 md:px-10 py-1.5 -my-1.5 overscroll-x-contain [mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)]">
             {links.map((l) => {
               const active = isActiveRoute(l.to);
               return (
                 <Link
                   key={l.to}
                   to={l.to}
-                  className={`relative flex items-center gap-1 md:gap-1.5 rounded-full px-2 md:px-2.5 lg:px-3.5 py-1 md:py-1.5 text-xs font-medium transition-all duration-200 whitespace-nowrap shrink-0 ${
+                  className={`relative flex items-center gap-1.5 rounded-full px-3 md:px-3.5 py-1.5 text-xs font-medium transition-all duration-200 whitespace-nowrap shrink-0 ${
                     active
                       ? "text-primary-foreground font-semibold shadow-sm"
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"

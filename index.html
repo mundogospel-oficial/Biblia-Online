@@ -200,30 +200,41 @@
         min-height: 100vh;
         width: 100%;
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
         background-color: #0b121f;
-        gap: 14px;
         box-sizing: border-box;
+        user-select: none;
+      }
+      .static-splash-lockup {
+        display: inline-flex;
+        align-items: center;
+        gap: 16px;
       }
       .static-splash-logo {
-        width: 60px;
-        height: 60px;
+        width: 38px;
+        height: 38px;
         object-fit: contain;
-        animation: staticLogoPulse 1.8s ease-in-out infinite;
+        flex-shrink: 0;
+      }
+      .static-splash-text-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
       }
       .static-splash-title {
         font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-        font-size: 20px;
+        font-size: 26px;
         font-weight: 700;
-        color: #f8fafc;
-        letter-spacing: -0.01em;
+        color: #ffffff;
+        letter-spacing: -0.015em;
+        line-height: 1;
+        white-space: nowrap;
       }
       .static-splash-loader {
-        width: 36px;
-        height: 3px;
-        background: rgba(56, 189, 248, 0.2);
+        width: 100%;
+        height: 2.5px;
+        background: rgba(56, 189, 248, 0.16);
         border-radius: 9999px;
         overflow: hidden;
         position: relative;
@@ -234,18 +245,15 @@
         top: 0;
         left: 0;
         height: 100%;
-        width: 50%;
-        background: #38bdf8;
+        width: 45%;
+        background: linear-gradient(90deg, transparent, #38bdf8, #7dd3fc);
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.85);
         border-radius: 9999px;
-        animation: staticLoaderSlide 1.2s ease-in-out infinite alternate;
+        animation: staticLoaderGlide 1.3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
       }
-      @keyframes staticLogoPulse {
-        0%, 100% { transform: scale(1); opacity: 0.92; }
-        50% { transform: scale(1.06); opacity: 1; }
-      }
-      @keyframes staticLoaderSlide {
-        0% { transform: translateX(-50%); }
-        100% { transform: translateX(150%); }
+      @keyframes staticLoaderGlide {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(230%); }
       }
       .static-main-container {
         max-width: 900px;
@@ -339,9 +347,13 @@
       <main class="static-pre-render" role="main">
         <!-- 1ª Dobra (100vh): Tela de Carregamento Fluida com Logo no Centro para Usuários Humanos -->
         <section class="static-splash-hero" aria-label="Carregando Biblia Online">
-          <img src="/icons/logo2.png" alt="Biblia Online" width="60" height="60" class="static-splash-logo" />
-          <span class="static-splash-title">Biblia Online</span>
-          <div class="static-splash-loader"></div>
+          <div class="static-splash-lockup">
+            <img src="/icons/logo2.png" alt="Biblia Online" width="38" height="38" class="static-splash-logo" />
+            <div class="static-splash-text-group">
+              <span class="static-splash-title">Biblia Online</span>
+              <div class="static-splash-loader"></div>
+            </div>
+          </div>
         </section>
 
         <!-- 2ª Dobra (Em sequência no fluxo HTML): Conteúdo Semântico Integral para IAs e Robôs -->
