@@ -191,12 +191,13 @@
         color: #f1f5f9;
       }
       .app-initial-loader {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        height: 100vh;
-        width: 100vw;
         background-color: #0b121f;
         user-select: none;
       }
@@ -210,18 +211,136 @@
         0%, 100% { transform: scale(1); opacity: 0.9; }
         50% { transform: scale(1.06); opacity: 1; }
       }
+      .ai-crawler-content {
+        opacity: 0;
+        pointer-events: none;
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 24px 16px;
+      }
     </style>
   </head>
 
   <body>
     <!-- 
-      Interface Principal da Aplicação (Hidratada e Renderizada pelo React).
-      Para IAs, robôs de busca e LLMs, consulte a documentação dedicada em /llms.html e /llms.txt.
+      Conteúdo Semântico Pré-Renderizado e Acessível para IAs (Google Gemini, Googlebot, ChatGPT, Claude, Perplexity).
+      Para o usuário humano no navegador, a tela exibe o carregador escuro fluido até o React hidratar o aplicativo.
     -->
     <div id="root">
       <div class="app-initial-loader" aria-hidden="true">
         <img src="/icons/logo2.png" alt="Biblia Online" />
       </div>
+
+      <main class="ai-crawler-content" role="main">
+        <header>
+          <h1>Biblia Online - A bíblia com IA integrada</h1>
+          <p>Plataforma bíblica completa e bilíngue (Português e Inglês) para leitura, pesquisa e estudo bíblico com Inteligência Artificial.</p>
+        </header>
+
+        <section aria-label="Versículo em Destaque">
+          <p><strong>João 3:16</strong> &mdash; <em>"Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito, para que todo aquele que nele crê não pereça, mas tenha a vida eterna."</em></p>
+        </section>
+
+        <section>
+          <h2>Recursos e Ferramentas do Ecossistema</h2>
+          <p>Nossa plataforma reúne as melhores ferramentas para sua comunhão pessoal, estudos teológicos, ministério pastoral e compartilhamento da Palavra:</p>
+          <ul>
+            <li><strong>Leitura Bíblica Integral:</strong> Os 66 livros canônicos do Antigo e Novo Testamento (1.189 capítulos) em múltiplas versões consagradas (Almeida, Bíblia Livre, King James Version, World English Bible, Bible in Basic English).</li>
+            <li><strong>Assistente Teológico com Inteligência Artificial (/ia):</strong> Respostas completas para exegese, contexto histórico-cultural, hermenêutica e análise de termos originais no hebraico e grego.</li>
+            <li><strong>Modo Telão e Púlpito (Pulpit Mode):</strong> Projeção em tela cheia com alta legibilidade para cultos, conferências e sermões em igrejas.</li>
+            <li><strong>Mapas Bíblicos Realistas & Atlas da Terra Santa (/devocional):</strong> Cartografia interativa com imagens de satélite e relevo topográfico cobrindo as viagens de Paulo, o Êxodo e os ministérios bíblicos.</li>
+            <li><strong>Estúdio de Criação de Imagens e Cartões (/criar):</strong> Gerador de artes visuais e cartões com versículos para Instagram, WhatsApp e redes sociais.</li>
+            <li><strong>Modo Bilíngue em Tempo Real:</strong> Leitura paralela versículo a versículo em Português e Inglês.</li>
+            <li><strong>Devocionais Diários & Planos de Leitura (/devocional):</strong> Meditações e planos estruturados para leitura anual ou temática com acompanhamento de progresso.</li>
+            <li><strong>Dicionário Teológico Integrado:</strong> Enciclopédia de personagens, termos e localidades bíblicas.</li>
+            <li><strong>Marcadores Coloridos, Notas e Favoritos (/favoritos & /anotacoes):</strong> Destaque com cores personalizadas e caderno de anotações sincronizadas na nuvem.</li>
+            <li><strong>Busca Avançada & Semântica (/pesquisar):</strong> Encontre versículos por termos, sentimentos ou referências em milissegundos.</li>
+            <li><strong>Modo Offline & PWA:</strong> Funciona sem internet e instalável no Android, iOS, Windows e Mac.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Antigo Testamento (39 Livros)</h2>
+          <ul>
+            <li><a href="/livro/gn/1">Gênesis (Gn)</a></li>
+            <li><a href="/livro/ex/1">Êxodo (Ex)</a></li>
+            <li><a href="/livro/lv/1">Levítico (Lv)</a></li>
+            <li><a href="/livro/nm/1">Números (Nm)</a></li>
+            <li><a href="/livro/dt/1">Deuteronômio (Dt)</a></li>
+            <li><a href="/livro/js/1">Josué (Js)</a></li>
+            <li><a href="/livro/jz/1">Juízes (Jz)</a></li>
+            <li><a href="/livro/rt/1">Rute (Rt)</a></li>
+            <li><a href="/livro/1sm/1">1 Samuel (1Sm)</a></li>
+            <li><a href="/livro/2sm/1">2 Samuel (2Sm)</a></li>
+            <li><a href="/livro/1rs/1">1 Reis (1Rs)</a></li>
+            <li><a href="/livro/2rs/1">2 Reis (2Rs)</a></li>
+            <li><a href="/livro/1cr/1">1 Crônicas (1Cr)</a></li>
+            <li><a href="/livro/2cr/1">2 Crônicas (2Cr)</a></li>
+            <li><a href="/livro/ed/1">Esdras (Ed)</a></li>
+            <li><a href="/livro/ne/1">Neemias (Ne)</a></li>
+            <li><a href="/livro/et/1">Ester (Et)</a></li>
+            <li><a href="/livro/job/1">Jó (Jó)</a></li>
+            <li><a href="/livro/sl/1">Salmos (Sl)</a></li>
+            <li><a href="/livro/pv/1">Provérbios (Pv)</a></li>
+            <li><a href="/livro/ec/1">Eclesiastes (Ec)</a></li>
+            <li><a href="/livro/ct/1">Cânticos (Ct)</a></li>
+            <li><a href="/livro/is/1">Isaías (Is)</a></li>
+            <li><a href="/livro/jr/1">Jeremias (Jr)</a></li>
+            <li><a href="/livro/lm/1">Lamentações (Lm)</a></li>
+            <li><a href="/livro/ez/1">Ezequiel (Ez)</a></li>
+            <li><a href="/livro/dn/1">Daniel (Dn)</a></li>
+            <li><a href="/livro/os/1">Oséias (Os)</a></li>
+            <li><a href="/livro/jl/1">Joel (Jl)</a></li>
+            <li><a href="/livro/am/1">Amós (Am)</a></li>
+            <li><a href="/livro/ob/1">Obadias (Ob)</a></li>
+            <li><a href="/livro/jn/1">Jonas (Jn)</a></li>
+            <li><a href="/livro/mq/1">Miquéias (Mq)</a></li>
+            <li><a href="/livro/na/1">Naum (Na)</a></li>
+            <li><a href="/livro/hc/1">Habacuque (Hc)</a></li>
+            <li><a href="/livro/sf/1">Sofonias (Sf)</a></li>
+            <li><a href="/livro/ag/1">Ageu (Ag)</a></li>
+            <li><a href="/livro/zc/1">Zacarias (Zc)</a></li>
+            <li><a href="/livro/ml/1">Malaquias (Ml)</a></li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Novo Testamento (27 Livros)</h2>
+          <ul>
+            <li><a href="/livro/mt/1">Mateus (Mt)</a></li>
+            <li><a href="/livro/mc/1">Marcos (Mc)</a></li>
+            <li><a href="/livro/lc/1">Lucas (Lc)</a></li>
+            <li><a href="/livro/jo/1">João (Jo)</a></li>
+            <li><a href="/livro/at/1">Atos (At)</a></li>
+            <li><a href="/livro/rm/1">Romanos (Rm)</a></li>
+            <li><a href="/livro/1co/1">1 Coríntios (1Co)</a></li>
+            <li><a href="/livro/2co/1">2 Coríntios (2Co)</a></li>
+            <li><a href="/livro/gl/1">Gálatas (Gl)</a></li>
+            <li><a href="/livro/ef/1">Efésios (Ef)</a></li>
+            <li><a href="/livro/fp/1">Filipenses (Fp)</a></li>
+            <li><a href="/livro/cl/1">Colossenses (Cl)</a></li>
+            <li><a href="/livro/1ts/1">1 Tessalonicenses (1Ts)</a></li>
+            <li><a href="/livro/2ts/1">2 Tessalonicenses (2Ts)</a></li>
+            <li><a href="/livro/1tm/1">1 Timóteo (1Tm)</a></li>
+            <li><a href="/livro/2tm/1">2 Timóteo (2Tm)</a></li>
+            <li><a href="/livro/tt/1">Tito (Tt)</a></li>
+            <li><a href="/livro/fm/1">Filemom (Fm)</a></li>
+            <li><a href="/livro/hb/1">Hebreus (Hb)</a></li>
+            <li><a href="/livro/tg/1">Tiago (Tg)</a></li>
+            <li><a href="/livro/1pe/1">1 Pedro (1Pe)</a></li>
+            <li><a href="/livro/2pe/1">2 Pedro (2Pe)</a></li>
+            <li><a href="/livro/1jo/1">1 João (1Jo)</a></li>
+            <li><a href="/livro/2jo/1">2 João (2Jo)</a></li>
+            <li><a href="/livro/3jo/1">3 João (3Jo)</a></li>
+            <li><a href="/livro/jd/1">Judas (Jd)</a></li>
+            <li><a href="/livro/ap/1">Apocalipse (Ap)</a></li>
+          </ul>
+        </section>
+
+        <footer>
+          <p>&copy; Biblia Online &mdash; Todos os direitos reservados. Para documentação de IA, consulte <a href="/llms.txt">/llms.txt</a> e <a href="/llms.html">/llms.html</a>.</p>
+        </footer>
+      </main>
     </div>
 
     <noscript>
