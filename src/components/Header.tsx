@@ -147,7 +147,7 @@ const Header = () => {
       {/* Mobile Bottom Navigation - Glass Bar with Oval Active Pills */}
       {!isKeyboardOpen && (
         <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t border-border/50 bg-[hsl(215,40%,8%)]/95 backdrop-blur-xl safe-area-bottom">
-          <div className="flex items-center justify-around px-1 py-1.5">
+          <div className="flex items-center justify-around px-1 py-1">
             {mobileLinks.map((l) => {
               const active = isActiveRoute(l.to);
               return (

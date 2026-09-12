@@ -1498,30 +1498,59 @@ REGRAS DE SAÍDA:
 
       const seed = Math.floor(Math.random() * 2000000000);
       const serverNegativePrompt = "people, humans, human, person, man, woman, child, boy, girl, baby, face, silhouette, crowd, pedestrians, figures, human body, hands, arms, legs, portraits, characters, model, photo of person, statue, statues, greek statue, greek statues, roman statue, roman statues, marble statue, marble statues, sculpture, sculptures, bust, busts, stone idol, idols, carved figure, stone carving, monument of human, classical sculpture, ancient greek statue, roman sculpture, figurine, mannequin, idol worship, pagan statue, text, words, letters, typography, font, watermark, signature, username, title, caption, subtitles, writing, label, banner, logo, watermark text, fake words, gibberish text, script, latin words, quote, nudity, naked, nude, topless, bare breasts, bare shoulders, cleavage, unclothed, sensual, revealing clothes, erotic";
-      const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=${width}&height=${height}&seed=${seed}&model=flux&nologo=true&negative=${encodeURIComponent(serverNegativePrompt)}`;
+      const rawKey = (process.env.POLLINATIONS_API_KEY || "").trim();
+      const cleanKey = rawKey.replace(/^Bearer\s+/i, '').replace(/^["']|["']$/g, '').trim();
+
+      // URLs dos dois endpoints da Pollinations (gen.pollinations.ai para API Keys / App Keys e image.pollinations.ai)
+      const encodedPrompt = encodeURIComponent(finalPrompt);
+      const negativeEncoded = encodeURIComponent(serverNegativePrompt);
+      const keyParam = cleanKey ? `&key=${encodeURIComponent(cleanKey)}&token=${encodeURIComponent(cleanKey)}` : '';
+      
+      const genApiUrl = `https://gen.pollinations.ai/image/${encodedPrompt}?width=${width}&height=${height}&seed=${seed}&model=flux&nologo=true&nofeed=true&enhance=false&negative=${negativeEncoded}${keyParam}`;
+      const imageApiUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&seed=${seed}&model=flux&nologo=true&nofeed=true&enhance=false&negative=${negativeEncoded}${keyParam}`;
 
       console.log("[Modo Criar - Pollinations Flux] Prompt:", finalPrompt);
-      console.log(`[Modo Criar - Pollinations Flux] Gerando para o usuário ${userId}... URL: ${pollinationsUrl}`);
+      console.log(`[Modo Criar - Pollinations Flux] Gerando para o usuário ${userId}... POLLINATIONS_API_KEY configurada: ${Boolean(cleanKey)}`);
 
       let base64Image = "";
-      const pollinationsApiKey = (process.env.POLILINATIONS_IA_API_KEY || process.env.POLLINATIONS_IA_API_KEY || "").trim();
 
-      if (isComplex && pollinationsApiKey) {
+      // Headers completos de autenticação com a chave
+      const fetchHeaders: Record<string, string> = {
+        'Accept': 'image/jpeg, image/png, image/webp, */*'
+      };
+      if (cleanKey) {
+        fetchHeaders['Authorization'] = `Bearer ${cleanKey}`;
+        fetchHeaders['x-api-key'] = cleanKey;
+        fetchHeaders['x-app-key'] = cleanKey;
+        fetchHeaders['x-pollinations-key'] = cleanKey;
+      }
+
+      // Tenta primeiro no gen.pollinations.ai (novo endpoint autenticado oficial que respeita chaves para remoção de logo)
+      const endpointsToTry = [genApiUrl, imageApiUrl];
+      let lastUrlUsed = imageApiUrl;
+
+      for (const targetUrl of endpointsToTry) {
         try {
-          const imageResponse = await fetch(pollinationsUrl, {
-            headers: {
-              'Authorization': `Bearer ${pollinationsApiKey}`
-            }
+          console.log(`[Modo Criar] Tentando baixar imagem em: ${targetUrl.split('?')[0]}...`);
+          const imageResponse = await fetch(targetUrl, {
+            headers: fetchHeaders
           });
 
           if (imageResponse.ok) {
             const arrayBuffer = await imageResponse.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
-            base64Image = `data:image/jpeg;base64,${buffer.toString('base64')}`;
-            console.log(`[Modo Criar] Imagem Pollinations obtida via API Key com sucesso.`);
+            if (buffer.length > 1000) { // Validar que retornou dados de imagem reais
+              const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+              base64Image = `data:${contentType};base64,${buffer.toString('base64')}`;
+              lastUrlUsed = targetUrl;
+              console.log(`[Modo Criar] Imagem Pollinations obtida com sucesso no servidor (${buffer.length} bytes) via ${targetUrl.split('?')[0]}.`);
+              break;
+            }
+          } else {
+            console.warn(`[Modo Criar] Endpoint ${targetUrl.split('?')[0]} retornou HTTP status ${imageResponse.status}`);
           }
         } catch (fetchErr) {
-          console.error(`[Modo Criar] Erro ao obter imagem do Pollinations no servidor:`, fetchErr);
+          console.error(`[Modo Criar] Erro no endpoint ${targetUrl.split('?')[0]}:`, fetchErr);
         }
       }
 
@@ -1541,7 +1570,12 @@ REGRAS DE SAÍDA:
         }
       }
 
-      return res.json({ success: true, pollinationsUrl, base64Image: base64Image || undefined });
+      return res.json({
+        success: true,
+        pollinationsUrl: lastUrlUsed || genApiUrl,
+        base64Image: base64Image || undefined,
+        imageUrl: base64Image || lastUrlUsed || genApiUrl
+      });
     } catch (err: any) {
       console.error("[Modo Criar CRITICAL]", err);
       return res.status(500).json({ error: err.message || "Erro interno do servidor no Modo Criar." });

@@ -43,8 +43,12 @@ const formatMessageForDisplay = (text: string): string => {
   if (text.startsWith("enc:v1:") || text.includes("enc:v1:")) {
     return "";
   }
-  // Limpa as tags completas e também qualquer tag que possivelmente foi cortada no final
-  return text.replace(/\[.*?\]/g, '').replace(/\[[^\]]*$/, '').trim();
+  // Limpa as tags completas, tags cortadas no final e fragmentos de pergunta cortados
+  return text
+    .replace(/\[.*?\]/g, '')
+    .replace(/\[[^\]]*$/, '')
+    .replace(/\n*\s*\*\*Pergunta(?:\.\.\.|:?.*?)?$/i, '')
+    .trim();
 };
 
 const cleanImageLinksFromText = (text: string): string => {
@@ -1758,17 +1762,17 @@ Estilo Pixel Art:
     try {
       let responseText = "";
       if (activeMode === 'learning') {
-        const learningPrompt = `Você é um professor e teólogo cristão dedicado ao ensino bíblico de forma altamente didática, passo a passo e interativa.
+        const learningPrompt = `Você é um professor e teólogo cristão dedicado ao ensino bíblico de forma altamente didática, passo a passo e enriquecedora.
 
 🛑 REGRAS INVIOLÁVEIS DE ESCOPO E TAMANHO:
 - ESCOPO BÍBLICO ESTRITO: Se o tema solicitado pelo usuário NÃO for de contexto bíblico ou cristão, RECUSE COM EXTREMA EDUCAÇÃO: "Olá! O modo aprendizado é exclusivo para estudos da Bíblia Sagrada e fé cristã. Não posso ensinar sobre temas seculares. Como posso ajudar em seus estudos bíblicos hoje?"
-- ⚠️ LIMITE DE TAMANHO OBRIGATÓRIO DE ATÉ 2.000 CARACTERES: Sua resposta inteira DEVE ter no MÁXIMO 2.000 CARACTERES no total. Seja conciso, objetivo e direto para garantir que todo o texto caiba em até 2000 caracteres.
+- ⚠️ LIMITE DE TAMANHO OBRIGATÓRIO DE ATÉ 2.000 CARACTERES: Sua resposta inteira DEVE ter no MÁXIMO 2.000 CARACTERES no total. Seja conciso, objetivo e direto para garantir que todo o texto caiba perfeitamente.
 
 Seu objetivo é ensinar o tema bíblico solicitado seguindo estas diretrizes:
-1. Ensine o tema de forma PASSO A PASSO (dividido em etapas curtas e claras).
-2. Seja conciso e objetivo: evite explicações redundantes ou exageradamente longas.
-3. Apresente um RESUMO claro com as principais lições práticas e espirituais.
-4. Finalize OBRIGATORIAMENTE com uma PERGUNTA reflexiva sobre o tema.
+1. Ensine o tema de forma PASSO A PASSO (dividido em etapas curtas, organizadas e claras).
+2. Seja conciso e objetivo: evite explicações redundantes ou texto excessivo.
+3. Finalize com um RESUMO claro contendo as principais lições práticas e espirituais.
+4. IMPORTANTE: Conclua a explicação diretamente no resumo das lições práticas. NÃO inclua perguntas adicionais ou seções de pergunta no final.
 
 Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex: João 3:16, Efésios 2:8). NUNCA use # para títulos, use **negrito**.`;
         responseText = await askBibleAI(finalText, aiEngine === "complexo" ? "complex" : "simple", controller.signal, attachments, learningPrompt, true);
@@ -3184,7 +3188,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
           <div ref={bottomRef} />
         </div>
 
-        <div className={`shrink-0 bg-background pt-1.5 sm:pt-2 transition-all duration-300 ease-out safe-area-bottom ${isKeyboardOpen ? 'pb-2 md:pb-2.5' : 'pb-20 md:pb-3'}`}>
+        <div className={`shrink-0 bg-background pt-1.5 sm:pt-2 transition-all duration-300 ease-out ${isKeyboardOpen ? 'mb-1 md:mb-0 pb-1.5 md:pb-2.5' : 'mb-[54px] md:mb-0 pb-1.5 md:pb-2.5'}`}>
           <AnimatePresence>
             {activeModeInfo && (
               <motion.div
@@ -3362,9 +3366,9 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                   {aiEngine !== "simples" && (
                     <button type="button" onClick={() => setShowModes(!showModes)}
                       title="Alternar modos e ferramentas"
-                      className={`flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full transition-colors liquid-btn ${showModes ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
+                      className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground active:scale-95 transition-all shadow-xs"
                     >
-                      <Plus className="h-4 w-4" />
+                      <Plus className={`h-4 w-4 transition-transform duration-200 ${showModes ? "rotate-45 text-foreground" : ""}`} />
                     </button>
                   )}
                   <button type="button" onClick={() => fileInputRef.current?.click()}
@@ -3462,8 +3466,8 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                       : activeMode === "music"
                       ? "Descreva a música..."
                       : aiEngine === "simples"
-                      ? "Pergunte versículos, versões ou temas..."
-                      : "Pergunte sobre versículos, versões ou estudos..."
+                      ? "Pergunta simples bíblica..."
+                      : "Pergunta bíblica..."
                   }
                   disabled={isLoading || limitReached || !isOnline}
                   className="flex-1 min-w-0 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed truncate"
@@ -3512,7 +3516,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
               </div>
             </div>
           </form>
-          <p className="mt-2 text-center text-[10px] text-muted-foreground/60 font-medium italic">
+          <p className="mt-1 sm:mt-1.5 text-center text-[10px] text-muted-foreground/60 font-medium italic select-none">
             A IA biblica é uma IA ela comete erros
           </p>
         </div>
@@ -3525,166 +3529,165 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] flex flex-col items-center justify-between bg-black/95 p-3 sm:p-5 pb-4 sm:pb-6 backdrop-blur-md select-none safe-area-top safe-area-bottom"
+            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/95 p-3 sm:p-4 backdrop-blur-md select-none safe-area-top safe-area-bottom"
             onClick={() => setLightboxImage(null)}
           >
-            {/* Top Bar Header */}
-            <motion.div
-              initial={{ y: -20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -20, opacity: 0 }}
-              className="w-full max-w-sm flex items-center justify-between bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-full px-4 py-2 shadow-xl shrink-0 z-50"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center gap-2 text-white font-medium text-xs sm:text-sm">
-                <Sparkles className="h-4 w-4 text-accent" />
-                <span>Visualizador de Imagem</span>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setLightboxImage(null)}
-                className="flex items-center justify-center h-8 w-8 rounded-full bg-white/10 hover:bg-red-500/80 text-white transition-all hover:scale-105 active:scale-95"
-                title="Fechar (Esc)"
+            <div className="w-full max-w-[340px] sm:max-w-sm flex flex-col items-center justify-center gap-2 sm:gap-2.5 my-auto max-h-full">
+              {/* Top Bar Header - Mesmo tamanho da barra inferior */}
+              <motion.div
+                initial={{ y: -15, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -15, opacity: 0 }}
+                className="w-full h-11 sm:h-12 flex items-center justify-between bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-full px-3.5 sm:px-4 shadow-xl shrink-0 z-50"
+                onClick={(e) => e.stopPropagation()}
               >
-                <X className="h-4 w-4" />
-              </button>
-            </motion.div>
+                <div className="flex items-center gap-2 text-white font-medium text-xs sm:text-sm">
+                  <Sparkles className="h-4 w-4 text-accent shrink-0" />
+                  <span className="truncate">Visualizador de Imagem</span>
+                </div>
 
-            {/* Container Central da Imagem (flex-1 para ajustar dinamicamente o espaço) */}
-            <motion.div
-              initial={{ scale: 0.94, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.94, opacity: 0 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="flex-1 min-h-0 w-full flex items-center justify-center my-2 sm:my-3 relative overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <img
-                ref={lightboxImgRef}
-                src={lightboxImage}
-                alt="Arte bíblica em alta definição"
-                crossOrigin="anonymous"
-                className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl border border-white/10 block mx-auto touch-none transition-transform duration-100 ease-out"
-                style={{
-                  transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomScale * lightboxLetterboxScale})`,
-                  cursor: zoomScale > 1 ? (isDraggingImage ? 'grabbing' : 'grab') : 'zoom-in',
-                  imageRendering: 'auto',
-                }}
-                referrerPolicy="no-referrer"
-                onLoad={(e) => {
-                  const info = analyzeLetterbox(e.currentTarget);
-                  if (info.hasLetterbox && info.scale > 1) {
-                    setLightboxLetterboxScale(info.scale);
-                  } else {
-                    setLightboxLetterboxScale(1);
-                  }
-                }}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUpOrLeave}
-                onMouseLeave={handleMouseUpOrLeave}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-                onDoubleClick={handleDoubleClick}
-              />
+                <button
+                  type="button"
+                  onClick={() => setLightboxImage(null)}
+                  className="flex items-center justify-center h-7.5 w-7.5 sm:h-8 sm:w-8 rounded-full bg-white/10 hover:bg-red-500/80 text-white transition-all hover:scale-105 active:scale-95 shrink-0"
+                  title="Fechar (Esc)"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </motion.div>
 
-              {/* Overlay Flutuante de Pedir Mudança POR CIMA da visualização da imagem */}
-              <AnimatePresence>
-                {isChangeInputOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 25, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                    transition={{ type: "spring", damping: 25, stiffness: 320 }}
-                    className="absolute bottom-3 sm:bottom-4 z-50 w-full max-w-sm px-3 select-text pointer-events-auto"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="w-full bg-zinc-900/95 backdrop-blur-2xl border border-white/20 rounded-2xl p-3.5 shadow-2xl space-y-2.5 text-left ring-1 ring-black/60">
-                      <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
-                          <Wand2 className="h-3.5 w-3.5 text-accent" />
-                          <span>O que deseja mudar na imagem?</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setIsChangeInputOpen(false)}
-                          className="h-6 w-6 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-                          title="Fechar"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
+              {/* Container Central da Imagem */}
+              <motion.div
+                initial={{ scale: 0.94, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.94, opacity: 0 }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                className="w-full flex-1 min-h-0 flex items-center justify-center relative overflow-hidden rounded-2xl my-0.5"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <img
+                  ref={lightboxImgRef}
+                  src={lightboxImage}
+                  alt="Arte bíblica em alta definição"
+                  crossOrigin="anonymous"
+                  className="max-w-full max-h-[58vh] sm:max-h-[66vh] object-contain rounded-2xl shadow-2xl border border-white/10 block mx-auto touch-none transition-transform duration-100 ease-out"
+                  style={{
+                    transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomScale * lightboxLetterboxScale})`,
+                    cursor: zoomScale > 1 ? (isDraggingImage ? 'grabbing' : 'grab') : 'zoom-in',
+                    imageRendering: 'auto',
+                  }}
+                  referrerPolicy="no-referrer"
+                  onLoad={(e) => {
+                    const info = analyzeLetterbox(e.currentTarget);
+                    if (info.hasLetterbox && info.scale > 1) {
+                      setLightboxLetterboxScale(info.scale);
+                    } else {
+                      setLightboxLetterboxScale(1);
+                    }
+                  }}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUpOrLeave}
+                  onMouseLeave={handleMouseUpOrLeave}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                  onDoubleClick={handleDoubleClick}
+                />
 
-                      {/* Sugestões rápidas de melhoria */}
-                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                        {["Mais realista", "Pôr do sol", "Mais luz", "Mudar roupas", "Adicionar flores"].map((chip) => (
+                {/* Overlay Flutuante de Pedir Mudança POR CIMA da visualização da imagem */}
+                <AnimatePresence>
+                  {isChangeInputOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 25, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                      transition={{ type: "spring", damping: 25, stiffness: 320 }}
+                      className="absolute bottom-2 sm:bottom-3 z-50 w-full px-2 select-text pointer-events-auto"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="w-full bg-zinc-900/95 backdrop-blur-2xl border border-white/20 rounded-2xl p-3.5 shadow-2xl space-y-2.5 text-left ring-1 ring-black/60">
+                        <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
+                            <Wand2 className="h-3.5 w-3.5 text-accent" />
+                            <span>O que deseja mudar na imagem?</span>
+                          </div>
                           <button
-                            key={chip}
                             type="button"
-                            onClick={() => {
-                              setChangePromptText(prev => prev ? `${prev}, ${chip.toLowerCase()}` : chip);
-                            }}
-                            className="shrink-0 px-2.5 py-1 rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-[11px] text-white/90 hover:text-white border border-white/10 transition-colors font-medium active:scale-95"
+                            onClick={() => setIsChangeInputOpen(false)}
+                            className="h-6 w-6 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                            title="Fechar"
                           >
-                            +{chip}
+                            <X className="h-3.5 w-3.5" />
                           </button>
-                        ))}
-                      </div>
+                        </div>
 
-                      <div className="flex items-center gap-1.5 bg-black/60 border border-white/15 rounded-xl p-1.5 focus-within:border-accent transition-colors">
-                        <input
-                          type="text"
-                          value={changePromptText}
-                          onChange={(e) => setChangePromptText(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && changePromptText.trim()) {
-                              e.preventDefault();
-                              handleApplyImageChange();
-                            }
-                          }}
-                          placeholder="Ex: Mude a iluminação, adicione ovelhas ao fundo..."
-                          className="flex-1 bg-transparent text-xs text-white placeholder:text-white/40 px-2 py-1 outline-none min-w-0"
-                          autoFocus
-                        />
-                        <button
-                          type="button"
-                          onClick={handleApplyImageChange}
-                          disabled={!changePromptText.trim()}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-accent hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold shadow-md transition-all active:scale-95 shrink-0"
-                        >
-                          <Sparkles className="h-3.5 w-3.5" />
-                          <span>Aplicar</span>
-                        </button>
-                      </div>
+                        {/* Sugestões rápidas de melhoria */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                          {["Mais realista", "Pôr do sol", "Mais luz", "Mudar roupas", "Adicionar flores"].map((chip) => (
+                            <button
+                              key={chip}
+                              type="button"
+                              onClick={() => {
+                                setChangePromptText(prev => prev ? `${prev}, ${chip.toLowerCase()}` : chip);
+                              }}
+                              className="shrink-0 px-2.5 py-1 rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-[11px] text-white/90 hover:text-white border border-white/10 transition-colors font-medium active:scale-95"
+                            >
+                              +{chip}
+                            </button>
+                          ))}
+                        </div>
 
-                      <div className="flex justify-end pt-0.5">
-                        <button
-                          type="button"
-                          onClick={() => handleRequestImageChangeInChat(lightboxPrompt)}
-                          className="text-[11px] text-accent/90 hover:text-accent hover:underline flex items-center gap-1 transition-colors font-medium"
-                        >
-                          Digitar no campo do chat principal <ArrowRight className="h-3 w-3" />
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
+                        <div className="flex items-center gap-1.5 bg-black/60 border border-white/15 rounded-xl p-1.5 focus-within:border-accent transition-colors">
+                          <input
+                            type="text"
+                            value={changePromptText}
+                            onChange={(e) => setChangePromptText(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && changePromptText.trim()) {
+                                e.preventDefault();
+                                handleApplyImageChange();
+                              }
+                            }}
+                            placeholder="Ex: Mude a iluminação, adicione ovelhas..."
+                            className="flex-1 bg-transparent text-xs text-white placeholder:text-white/40 px-2 py-1 outline-none min-w-0"
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            onClick={handleApplyImageChange}
+                            disabled={!changePromptText.trim()}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-accent hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold shadow-md transition-all active:scale-95 shrink-0"
+                          >
+                            <Sparkles className="h-3.5 w-3.5" />
+                            <span>Aplicar</span>
+                          </button>
+                        </div>
 
-            {/* Painel de Ações Inferior com Ferramentas e Feedback */}
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 20, opacity: 0 }}
-              transition={{ delay: 0.05 }}
-              className="w-full max-w-sm flex items-center justify-center shrink-0 z-50 select-text px-1"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Barra de Ferramentas da Imagem centralizada e com rolagem suave se necessário em telas menores */}
-              <div className="w-auto max-w-full flex items-center justify-center gap-1 sm:gap-1.5 bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-full px-2.5 sm:px-3 py-1.5 shadow-2xl overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        <div className="flex justify-end pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => handleRequestImageChangeInChat(lightboxPrompt)}
+                            className="text-[11px] text-accent/90 hover:text-accent hover:underline flex items-center gap-1 transition-colors font-medium"
+                          >
+                            Digitar no chat principal <ArrowRight className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+
+              {/* Painel de Ações Inferior - Mesmo tamanho da barra superior */}
+              <motion.div
+                initial={{ y: 15, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 15, opacity: 0 }}
+                transition={{ delay: 0.05 }}
+                className="w-full h-11 sm:h-12 flex items-center justify-between bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-full px-2 sm:px-3 shadow-2xl shrink-0 z-50 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
                   <button
                     type="button"
@@ -3809,8 +3812,8 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     <ZoomIn className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </button>
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -180,7 +180,7 @@ export const generateCreateModeImage = async (
 
       const clientNegativePrompt = "people, humans, human, person, man, woman, child, boy, girl, baby, face, silhouette, crowd, pedestrians, figures, human body, hands, arms, legs, portraits, characters, model, photo of person, statue, statues, greek statue, greek statues, roman statue, roman statues, marble statue, marble statues, sculpture, sculptures, bust, busts, stone idol, idols, carved figure, stone carving, monument of human, classical sculpture, ancient greek statue, roman sculpture, figurine, mannequin, idol worship, pagan statue, text, words, letters, typography, font, watermark, signature, username, title, caption, subtitles, writing, label, banner, logo, watermark text, fake words, gibberish text, script, latin words, quote, nudity, naked, nude, topless, bare breasts, bare shoulders, cleavage, unclothed, sensual, revealing clothes, erotic";
       const seed = Math.floor(Math.random() * 2000000000);
-      const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=${width}&height=${height}&seed=${seed}&model=flux&nologo=true&enhance=false&negative=${encodeURIComponent(clientNegativePrompt)}`;
+      const pollinationsUrl = `https://gen.pollinations.ai/image/${encodeURIComponent(finalPrompt)}?width=${width}&height=${height}&seed=${seed}&model=flux&nologo=true&nofeed=true&enhance=false&negative=${encodeURIComponent(clientNegativePrompt)}`;
 
       console.log("[Modo Criar - Pollinations Local URL]:", pollinationsUrl);
 
@@ -210,15 +210,22 @@ export const generateCreateModeImage = async (
           img.onload = () => {
             clearTimeout(timer);
             try {
+              const rawW = img.naturalWidth || img.width;
+              const rawH = img.naturalHeight || img.height;
+              // Remove a faixa inferior onde o Pollinations insere sua marca d'água (últimos 4% da altura)
+              const cropBottomPixels = Math.round(rawH * 0.045);
+              const cleanH = rawH - cropBottomPixels;
+
               const canvas = document.createElement("canvas");
-              canvas.width = img.naturalWidth || img.width;
-              canvas.height = img.naturalHeight || img.height;
+              canvas.width = rawW;
+              canvas.height = cleanH;
               const ctx = canvas.getContext("2d");
               if (!ctx) {
                 reject(new Error("Falha ao obter contexto de renderização."));
                 return;
               }
-              ctx.drawImage(img, 0, 0);
+              // Desenha cortando os pixels da marca d'água do rodapé
+              ctx.drawImage(img, 0, 0, rawW, cleanH, 0, 0, rawW, cleanH);
               resolve(canvas.toDataURL("image/jpeg", 0.95));
             } catch (canvasErr) {
               reject(canvasErr);
@@ -273,15 +280,21 @@ export const generateCreateModeImage = async (
         img.onload = () => {
           clearTimeout(timer);
           try {
+            const rawW = img.naturalWidth || img.width;
+            const rawH = img.naturalHeight || img.height;
+            // Remove a faixa inferior onde o Pollinations insere sua marca d'água (últimos 4.5% da altura)
+            const cropBottomPixels = Math.round(rawH * 0.045);
+            const cleanH = rawH - cropBottomPixels;
+
             const canvas = document.createElement("canvas");
-            canvas.width = img.naturalWidth || img.width;
-            canvas.height = img.naturalHeight || img.height;
+            canvas.width = rawW;
+            canvas.height = cleanH;
             const ctx = canvas.getContext("2d");
             if (!ctx) {
               reject(new Error("Erro ao criar canvas"));
               return;
             }
-            ctx.drawImage(img, 0, 0);
+            ctx.drawImage(img, 0, 0, rawW, cleanH, 0, 0, rawW, cleanH);
             resolve(canvas.toDataURL("image/jpeg", 0.95));
           } catch (canvasErr: any) {
             reject(canvasErr);

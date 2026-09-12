@@ -33,47 +33,110 @@ export const generateProfessionalFileName = (prefix: string = "Biblia-Online"): 
 };
 
 export const downloadBibleImage = async (dataUrl: string, fileNamePrefix: string = "Biblia-Online") => {
-  const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent || '') && !(window as any).MSStream;
   const fileName = generateProfessionalFileName(fileNamePrefix);
 
   try {
     const cleanUrl = await cropBlackBars(dataUrl);
-    let downloadUrl = cleanUrl;
+    let blob: Blob | null = null;
     
-    // For external URLs, fetch the blob to avoid CORS issues and ensure download attribute works
-    if (cleanUrl.startsWith('http')) {
+    if (cleanUrl.startsWith('data:')) {
+      try {
+        const res = await fetch(cleanUrl);
+        blob = await res.blob();
+      } catch {
+        try {
+          const parts = cleanUrl.split(',');
+          const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+          const binary = atob(parts[1]);
+          const array = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) {
+            array[i] = binary.charCodeAt(i);
+          }
+          blob = new Blob([array], { type: mime });
+        } catch (decodeErr) {
+          console.error("DataURL decode failed", decodeErr);
+        }
+      }
+    } else if (cleanUrl.startsWith('blob:')) {
+      try {
+        const res = await fetch(cleanUrl);
+        blob = await res.blob();
+      } catch (e) {
+        console.warn("Fetch blob URL failed", e);
+      }
+    } else if (cleanUrl.startsWith('http')) {
       try {
         const response = await fetch(cleanUrl, { mode: 'cors' });
         if (response.ok) {
-          const blob = await response.blob();
-          downloadUrl = URL.createObjectURL(blob);
+          blob = await response.blob();
         }
       } catch (err) {
         console.warn("Could not proxy download via CORS blob, using direct URL", err);
-        downloadUrl = cleanUrl;
       }
+    }
+
+    // No iOS/Safari, a Web Share API nativa com File é a forma mais confiável de salvar direto na Galeria/Fotos (Salvar Imagem)
+    if (isIOS && blob && typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
+      try {
+        const mimeType = blob.type || "image/png";
+        const file = new File([blob], fileName, { type: mimeType });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: "Salvar Imagem",
+          });
+          toast({ 
+            title: "Imagem salva com sucesso",
+            description: "Você pode salvá-la em Fotos ou Arquivos."
+          });
+          return;
+        }
+      } catch (shareErr: any) {
+        // Se usuário cancelou o menu, não precisa disparar erro
+        if (shareErr?.name === 'AbortError' || shareErr?.name === 'CanceledError' || shareErr?.message?.includes('cancel')) {
+          return;
+        }
+        console.warn("iOS native share-to-save failed, falling back to anchor click:", shareErr);
+      }
+    }
+
+    // Fallback padrão universal para Desktop, Android e navegadores em geral
+    let downloadUrl = cleanUrl;
+    let isCreatedBlobUrl = false;
+
+    if (blob) {
+      downloadUrl = URL.createObjectURL(blob);
+      isCreatedBlobUrl = true;
     }
 
     const link = document.createElement("a");
     link.href = downloadUrl;
     link.download = fileName;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
     
-    if (downloadUrl.startsWith('blob:')) {
-      setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
-    }
+    // Pequeno delay para garantir que o navegador capture o clique antes de remover
+    setTimeout(() => {
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
+      }
+      if (isCreatedBlobUrl) {
+        URL.revokeObjectURL(downloadUrl);
+      }
+    }, 2000);
     
     toast({ 
-      title: "Imagem baixada com sucesso",
+      title: "Download iniciado",
       description: `Arquivo: ${fileName}`
     });
   } catch (error) {
     console.error("Download error:", error);
     toast({ 
       title: "Erro ao baixar", 
-      description: "Houve um problema de permissão ou rede.",
+      description: "Houve um problema de permissão ou formato no dispositivo.",
       variant: "destructive" 
     });
   }

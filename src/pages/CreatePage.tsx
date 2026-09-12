@@ -1302,7 +1302,7 @@ const CreatePage = () => {
                           key={aiImageUrl}
                           src={aiImageUrl}
                           alt="Background com IA"
-                          className="absolute inset-0 w-full h-full object-cover"
+                          className="absolute inset-0 w-full h-[106%] -top-[1%] object-cover object-center"
                           referrerPolicy="no-referrer"
                           onError={() => setAiImageError(true)}
                           onLoad={() => setAiImageError(false)}
