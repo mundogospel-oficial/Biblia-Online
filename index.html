@@ -191,52 +191,83 @@
         color: #f1f5f9;
       }
       .static-pre-render {
-        max-width: 960px;
-        margin: 0 auto;
-        padding: 24px 16px;
-        line-height: 1.6;
-        color: #e2e8f0;
+        min-height: 100vh;
+        background-color: #0b121f;
+        color: #f1f5f9;
       }
-      .static-pre-render header {
+      .static-nav-bar {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        background: rgba(15, 23, 42, 0.85);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 10px 16px;
+      }
+      .static-nav-content {
+        max-width: 1000px;
+        margin: 0 auto;
         display: flex;
         align-items: center;
-        gap: 14px;
-        margin-bottom: 20px;
-        border-bottom: 1px solid rgba(255,255,255,0.08);
-        padding-bottom: 16px;
+        gap: 10px;
       }
-      .static-pre-render header img {
-        width: 44px;
-        height: 44px;
+      .static-nav-content img {
+        width: 28px;
+        height: 28px;
         object-fit: contain;
       }
-      .static-pre-render h1 {
-        font-size: 22px;
-        color: #f8fafc;
-        margin: 0 0 4px 0;
-      }
-      .static-pre-render h2 {
+      .static-nav-content span {
+        font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
         font-size: 18px;
+        font-weight: 700;
+        color: #f8fafc;
+      }
+      .static-main-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 24px 16px 48px;
+        line-height: 1.6;
+      }
+      .static-main-container h1 {
+        font-size: 24px;
+        font-weight: 700;
+        color: #f8fafc;
+        margin: 0 0 6px 0;
+        font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+      }
+      .static-main-container h2 {
+        font-size: 18px;
+        font-weight: 600;
         color: #38bdf8;
-        margin-top: 24px;
+        margin-top: 28px;
         margin-bottom: 12px;
       }
-      .static-pre-render p {
+      .static-main-container p {
         color: #94a3b8;
-        font-size: 14px;
-        margin-bottom: 12px;
+        font-size: 14.5px;
+        margin-bottom: 14px;
       }
       .static-verse-box {
-        background: rgba(56, 189, 248, 0.08);
+        background: rgba(56, 189, 248, 0.06);
         border: 1px solid rgba(56, 189, 248, 0.2);
         border-radius: 12px;
-        padding: 16px;
-        margin: 16px 0;
+        padding: 18px 20px;
+        margin: 18px 0 24px;
+      }
+      .static-verse-box p {
+        margin: 0;
+        color: #e2e8f0;
+        font-size: 15px;
+      }
+      .static-verse-box em {
+        font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+        font-size: 16px;
+        color: #f8fafc;
       }
       .static-features-list {
         list-style: none;
         padding: 0;
-        margin: 0 0 20px 0;
+        margin: 0 0 24px 0;
         display: grid;
         grid-template-columns: 1fr;
         gap: 10px;
@@ -245,7 +276,7 @@
         background: #131d2e;
         border: 1px solid #1e293b;
         border-radius: 10px;
-        padding: 12px 14px;
+        padding: 12px 16px;
         font-size: 13.5px;
         color: #cbd5e1;
       }
@@ -258,13 +289,18 @@
       }
       .static-books-grid li a {
         display: block;
-        padding: 8px 12px;
+        padding: 9px 12px;
         background: #131d2e;
         color: #38bdf8;
         border-radius: 8px;
         text-decoration: none;
         font-size: 13px;
         border: 1px solid #1e293b;
+        text-align: center;
+        transition: background 0.15s;
+      }
+      .static-books-grid li a:hover {
+        background: #1e293b;
       }
     </style>
   </head>
@@ -276,17 +312,22 @@
     -->
     <div id="root">
       <main class="static-pre-render" role="main">
-        <header>
-          <img src="/icons/logo2.png" alt="Biblia Online" width="44" height="44" />
-          <div>
+        <div class="static-nav-bar">
+          <div class="static-nav-content">
+            <img src="/icons/logo2.png" alt="Biblia Online" width="28" height="28" />
+            <span>Biblia Online</span>
+          </div>
+        </div>
+
+        <div class="static-main-container">
+          <header>
             <h1>Biblia Online - A bíblia com IA integrada</h1>
             <p>Plataforma bíblica completa e bilíngue (Português e Inglês) para leitura, pesquisa e estudo bíblico com Inteligência Artificial.</p>
-          </div>
-        </header>
+          </header>
 
-        <section class="static-verse-box" aria-label="Versículo em Destaque">
-          <p><strong>João 3:16</strong> &mdash; <em>"Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito, para que todo aquele que nele crê não pereça, mas tenha a vida eterna."</em></p>
-        </section>
+          <section class="static-verse-box" aria-label="Versículo em Destaque">
+            <p><strong>João 3:16</strong> &mdash; <em>"Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito, para que todo aquele que nele crê não pereça, mas tenha a vida eterna."</em></p>
+          </section>
 
         <section>
           <h2>Recursos e Ferramentas do Ecossistema</h2>
@@ -387,6 +428,7 @@
         <footer>
           <p>&copy; Biblia Online &mdash; Todos os direitos reservados. Para documentação de IA, consulte <a href="/llms.txt">/llms.txt</a> e <a href="/llms.html">/llms.html</a>.</p>
         </footer>
+        </div>
       </main>
     </div>
 
