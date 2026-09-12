@@ -190,33 +190,81 @@
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         color: #f1f5f9;
       }
-      .app-initial-loader {
-        position: fixed;
-        inset: 0;
-        z-index: 9999;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        background-color: #0b121f;
-        user-select: none;
-      }
-      .app-initial-loader img {
-        width: 64px;
-        height: 64px;
-        object-fit: contain;
-        animation: logoPulse 1.8s ease-in-out infinite;
-      }
-      @keyframes logoPulse {
-        0%, 100% { transform: scale(1); opacity: 0.9; }
-        50% { transform: scale(1.06); opacity: 1; }
-      }
-      .ai-crawler-content {
-        opacity: 0;
-        pointer-events: none;
-        max-width: 900px;
+      .static-pre-render {
+        max-width: 960px;
         margin: 0 auto;
         padding: 24px 16px;
+        line-height: 1.6;
+        color: #e2e8f0;
+      }
+      .static-pre-render header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        padding-bottom: 16px;
+      }
+      .static-pre-render header img {
+        width: 44px;
+        height: 44px;
+        object-fit: contain;
+      }
+      .static-pre-render h1 {
+        font-size: 22px;
+        color: #f8fafc;
+        margin: 0 0 4px 0;
+      }
+      .static-pre-render h2 {
+        font-size: 18px;
+        color: #38bdf8;
+        margin-top: 24px;
+        margin-bottom: 12px;
+      }
+      .static-pre-render p {
+        color: #94a3b8;
+        font-size: 14px;
+        margin-bottom: 12px;
+      }
+      .static-verse-box {
+        background: rgba(56, 189, 248, 0.08);
+        border: 1px solid rgba(56, 189, 248, 0.2);
+        border-radius: 12px;
+        padding: 16px;
+        margin: 16px 0;
+      }
+      .static-features-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 20px 0;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      .static-features-list li {
+        background: #131d2e;
+        border: 1px solid #1e293b;
+        border-radius: 10px;
+        padding: 12px 14px;
+        font-size: 13.5px;
+        color: #cbd5e1;
+      }
+      .static-books-grid {
+        list-style-type: none;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 8px;
+      }
+      .static-books-grid li a {
+        display: block;
+        padding: 8px 12px;
+        background: #131d2e;
+        color: #38bdf8;
+        border-radius: 8px;
+        text-decoration: none;
+        font-size: 13px;
+        border: 1px solid #1e293b;
       }
     </style>
   </head>
@@ -224,27 +272,26 @@
   <body>
     <!-- 
       Conteúdo Semântico Pré-Renderizado e Acessível para IAs (Google Gemini, Googlebot, ChatGPT, Claude, Perplexity).
-      Para o usuário humano no navegador, a tela exibe o carregador escuro fluido até o React hidratar o aplicativo.
+      Quando o JavaScript do React é carregado pelo navegador do usuário, este nó é automaticamente hidratado/substituído pela interface dinâmica interativa.
     -->
     <div id="root">
-      <div class="app-initial-loader" aria-hidden="true">
-        <img src="/icons/logo2.png" alt="Biblia Online" />
-      </div>
-
-      <main class="ai-crawler-content" role="main">
+      <main class="static-pre-render" role="main">
         <header>
-          <h1>Biblia Online - A bíblia com IA integrada</h1>
-          <p>Plataforma bíblica completa e bilíngue (Português e Inglês) para leitura, pesquisa e estudo bíblico com Inteligência Artificial.</p>
+          <img src="/icons/logo2.png" alt="Biblia Online" width="44" height="44" />
+          <div>
+            <h1>Biblia Online - A bíblia com IA integrada</h1>
+            <p>Plataforma bíblica completa e bilíngue (Português e Inglês) para leitura, pesquisa e estudo bíblico com Inteligência Artificial.</p>
+          </div>
         </header>
 
-        <section aria-label="Versículo em Destaque">
+        <section class="static-verse-box" aria-label="Versículo em Destaque">
           <p><strong>João 3:16</strong> &mdash; <em>"Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito, para que todo aquele que nele crê não pereça, mas tenha a vida eterna."</em></p>
         </section>
 
         <section>
           <h2>Recursos e Ferramentas do Ecossistema</h2>
           <p>Nossa plataforma reúne as melhores ferramentas para sua comunhão pessoal, estudos teológicos, ministério pastoral e compartilhamento da Palavra:</p>
-          <ul>
+          <ul class="static-features-list">
             <li><strong>Leitura Bíblica Integral:</strong> Os 66 livros canônicos do Antigo e Novo Testamento (1.189 capítulos) em múltiplas versões consagradas (Almeida, Bíblia Livre, King James Version, World English Bible, Bible in Basic English).</li>
             <li><strong>Assistente Teológico com Inteligência Artificial (/ia):</strong> Respostas completas para exegese, contexto histórico-cultural, hermenêutica e análise de termos originais no hebraico e grego.</li>
             <li><strong>Modo Telão e Púlpito (Pulpit Mode):</strong> Projeção em tela cheia com alta legibilidade para cultos, conferências e sermões em igrejas.</li>
@@ -261,7 +308,7 @@
 
         <section>
           <h2>Antigo Testamento (39 Livros)</h2>
-          <ul>
+          <ul class="static-books-grid">
             <li><a href="/livro/gn/1">Gênesis (Gn)</a></li>
             <li><a href="/livro/ex/1">Êxodo (Ex)</a></li>
             <li><a href="/livro/lv/1">Levítico (Lv)</a></li>
@@ -306,7 +353,7 @@
 
         <section>
           <h2>Novo Testamento (27 Livros)</h2>
-          <ul>
+          <ul class="static-books-grid">
             <li><a href="/livro/mt/1">Mateus (Mt)</a></li>
             <li><a href="/livro/mc/1">Marcos (Mc)</a></li>
             <li><a href="/livro/lc/1">Lucas (Lc)</a></li>
