@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { CookieConsent } from "./components/CookieConsent";
+import { AdBlockDetector } from "./components/AdBlockDetector";
 import { oneSignalService } from "@/services/oneSignalService";
 import Index from "./pages/Index";
 import Reader from "./pages/Reader";
@@ -118,6 +119,7 @@ const App = () => {
             <Toaster />
             <Sonner />
             <SentinelOverlay />
+            <AdBlockDetector />
             <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
               <Routes>
                 <Route path="/" element={<Index />} />

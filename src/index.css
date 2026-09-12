@@ -96,10 +96,20 @@ html, body, #root {
   height: 100%;
 }
 
-/* Global default: hide vertical/page body scrollbars for a clean app feel */
+/* Global default: hide scrollbars everywhere for a clean native app feel */
+*, *::before, *::after {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 html, body {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
 }
 html::-webkit-scrollbar,
 body::-webkit-scrollbar {
