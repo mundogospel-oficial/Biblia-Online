@@ -244,21 +244,21 @@ const Index = () => {
       {/* Book List */}
       <section className="container mx-auto iphone-duo-container safe-area-inset-padding px-4 py-6">
         <div className="mb-6 flex justify-center">
-          <div className="inline-flex items-center gap-1.5 p-1.5 rounded-full bg-secondary/60 border border-border/60 shadow-inner">
+          <div className="inline-flex items-center gap-1.5 p-1.5 rounded-full glass-card border border-border/60 shadow-card backdrop-blur-xl select-none">
             <motion.button
               whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.96 }}
               onClick={() => setActiveTab('old')}
-              className={`relative rounded-full px-5 py-2 text-xs sm:text-sm font-bold transition-all duration-200 z-10 ${
+              className={`relative rounded-full px-5 py-2 text-xs sm:text-sm font-semibold transition-all duration-200 z-10 ${
                 activeTab === 'old'
-                  ? 'text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'text-primary-foreground font-bold shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
               }`}
             >
               {activeTab === 'old' && (
                 <motion.div
                   layoutId="activeTestamentTab"
-                  className="absolute inset-0 bg-primary rounded-full -z-10 shadow-md"
+                  className="absolute inset-0 bg-primary rounded-full -z-10 shadow-md shadow-primary/25 border border-primary/40 [box-shadow:inset_0_1px_1px_0_rgba(255,255,255,0.3),0_4px_12px_rgba(30,136,229,0.3)]"
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
               )}
@@ -267,18 +267,18 @@ const Index = () => {
 
             <motion.button
               whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.96 }}
               onClick={() => setActiveTab('new')}
-              className={`relative rounded-full px-5 py-2 text-xs sm:text-sm font-bold transition-all duration-200 z-10 ${
+              className={`relative rounded-full px-5 py-2 text-xs sm:text-sm font-semibold transition-all duration-200 z-10 ${
                 activeTab === 'new'
-                  ? 'text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'text-primary-foreground font-bold shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
               }`}
             >
               {activeTab === 'new' && (
                 <motion.div
                   layoutId="activeTestamentTab"
-                  className="absolute inset-0 bg-primary rounded-full -z-10 shadow-md"
+                  className="absolute inset-0 bg-primary rounded-full -z-10 shadow-md shadow-primary/25 border border-primary/40 [box-shadow:inset_0_1px_1px_0_rgba(255,255,255,0.3),0_4px_12px_rgba(30,136,229,0.3)]"
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
               )}

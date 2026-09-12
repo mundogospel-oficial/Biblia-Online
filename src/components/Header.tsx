@@ -78,8 +78,8 @@ const Header = () => {
     <>
       {/* Desktop & Tablet Header - Full-width Glass Bar with Oval Pills */}
       <header className="sticky top-0 z-50 hidden md:block glass-card !rounded-none border-b border-border/50 safe-area-top shrink-0">
-        <div className="container mx-auto flex items-center justify-between px-3 md:px-4 py-2 md:py-2.5 gap-2">
-          <Link to="/" className="flex items-center gap-2 md:gap-2.5 group shrink-0 select-none mr-2 md:mr-3">
+        <div className="w-full flex items-center justify-between px-3 md:px-5 py-2 md:py-2.5">
+          <Link to="/" className="flex items-center gap-2 md:gap-2.5 group shrink-0 select-none">
             <img
               src="/icons/logo2.png"
               alt="Logo Biblia Online"
@@ -93,7 +93,7 @@ const Header = () => {
             </span>
           </Link>
 
-          <nav className="flex-1 flex items-center justify-end gap-1 md:gap-1.5 lg:gap-2 overflow-x-auto scrollbar-none px-6 md:px-10 py-1.5 -my-1.5 overscroll-x-contain [mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)]">
+          <nav className="ml-auto flex items-center gap-1 md:gap-1.5 lg:gap-2 shrink-0">
             {links.map((l) => {
               const active = isActiveRoute(l.to);
               return (

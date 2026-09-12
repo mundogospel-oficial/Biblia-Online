@@ -129,7 +129,7 @@ const FavoritesPage = () => {
       <Header />
       <section className="container mx-auto px-4 py-5 sm:py-8">
         <div className="mx-auto max-w-4xl">
-          <div className="mb-6 flex p-1 gap-1 rounded-full bg-secondary/40 border border-border/60 backdrop-blur-xl shadow-inner relative select-none max-w-md mx-auto overflow-hidden">
+          <div className="mb-6 flex p-1.5 gap-1.5 rounded-full glass-card border border-border/60 backdrop-blur-xl shadow-card relative select-none max-w-md mx-auto">
             {[
               { id: "favorites", label: "Favoritos", icon: Heart },
               { id: "markings", label: "Marcações", icon: Highlighter },
@@ -139,25 +139,29 @@ const FavoritesPage = () => {
               const IconComp = tab.icon;
 
               return (
-                <button
+                <motion.button
                   key={tab.id}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.96 }}
                   onClick={() => setActiveTab(tab.id as ReactionType)}
-                  className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 px-3 text-[12px] sm:text-[13px] font-bold transition-colors duration-200 whitespace-nowrap ${
-                    isActive ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 px-3 text-[12px] sm:text-[13px] font-semibold transition-all duration-200 whitespace-nowrap z-10 ${
+                    isActive
+                      ? "text-primary-foreground font-bold shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
                   }`}
                 >
                   {isActive && (
                     <motion.div
                       layoutId="activeFavoriteTabPill"
-                      className="absolute inset-0 rounded-full bg-primary shadow-md"
-                      transition={{ type: "spring", stiffness: 380, damping: 28 }}
+                      className="absolute inset-0 rounded-full bg-primary -z-10 shadow-md shadow-primary/25 border border-primary/40 [box-shadow:inset_0_1px_1px_0_rgba(255,255,255,0.3),0_4px_12px_rgba(30,136,229,0.3)]"
+                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
                     />
                   )}
                   <span className="relative z-10 flex items-center gap-1.5">
                     <IconComp className="h-4 w-4" />
                     {tab.label}
                   </span>
-                </button>
+                </motion.button>
               );
             })}
           </div>
