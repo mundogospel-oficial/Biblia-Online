@@ -574,7 +574,7 @@ const Reader = () => {
     <div className="min-h-screen bg-background pb-20 md:pb-0">
       <Header />
 
-      <div className="sticky top-[52px] md:top-[45px] z-40 glass-card !rounded-none bg-[hsl(var(--card)/0.95)] border-b border-border/80 backdrop-blur-xl">
+      <div className="sticky top-[calc(52px+env(safe-area-inset-top,0px))] md:top-[calc(45px+env(safe-area-inset-top,0px))] z-40 glass-card !rounded-none bg-[hsl(var(--card)/0.95)] border-b border-border/80 backdrop-blur-xl">
         <div className="container mx-auto px-4 py-2.5 space-y-2">
           {/* Row 1: Header title */}
           <div className="flex items-center justify-between">
