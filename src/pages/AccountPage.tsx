@@ -1653,7 +1653,7 @@ const AccountPage = () => {
                     className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-accent/40 bg-accent/15 hover:bg-accent/25 py-3.5 text-sm font-bold text-accent transition-all backdrop-blur-md shadow-lg shadow-accent/10 disabled:opacity-50 liquid-btn"
                   >
                     <ScanFace className="h-5 w-5 text-accent" />
-                    <span>{biometricLoading ? "Autenticando no Dispositivo..." : "Entrar com Face ID / Biometria / PIN"}</span>
+                    <span>{biometricLoading ? "Autenticando no Dispositivo..." : "Entrar com Face ID / Biometria / Código"}</span>
                   </button>
                 )}
 

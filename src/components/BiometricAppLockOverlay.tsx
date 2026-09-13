@@ -158,7 +158,7 @@ export const BiometricAppLockOverlay: React.FC = () => {
               <Lock className="h-4 w-4" />
             </div>
             <span className="font-serif font-bold text-lg text-foreground tracking-tight">
-              Bíblia Online
+              Biblia Online
             </span>
           </div>
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-secondary/60 border border-white/10 text-muted-foreground">
@@ -206,10 +206,10 @@ export const BiometricAppLockOverlay: React.FC = () => {
               {enrolledUser?.name ? (
                 <>
                   Olá, <strong>{enrolledUser.name}</strong>.<br />
-                  Confirme seu Face ID, Touch ID ou PIN para continuar.
+                  Confirme seu Face ID, Touch ID ou Código para continuar.
                 </>
               ) : (
-                "Confirme sua identidade usando a biometria ou PIN do seu celular para abrir o Bíblia Online."
+                "Confirme sua identidade usando o Face ID, Touch ID ou Código do celular para abrir o Biblia Online."
               )}
             </p>
           </div>
@@ -229,7 +229,7 @@ export const BiometricAppLockOverlay: React.FC = () => {
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-accent py-3 px-4 text-xs font-bold text-accent-foreground shadow-lg shadow-accent/20 hover:shadow-accent/35 active:scale-[0.98] transition-all liquid-btn disabled:opacity-50"
           >
             <ScanFace className="h-4 w-4" />
-            <span>{authenticating ? "Lendo Biometria / PIN..." : "Desbloquear com Biometria / PIN"}</span>
+            <span>{authenticating ? "Lendo Biometria / Código..." : "Desbloquear com Face ID / Biometria"}</span>
           </button>
         </motion.div>
 
@@ -245,7 +245,7 @@ export const BiometricAppLockOverlay: React.FC = () => {
             </span>
             <span>•</span>
             <span className="flex items-center gap-1">
-              <KeyRound className="h-3.5 w-3.5 text-accent/80" /> PIN
+              <KeyRound className="h-3.5 w-3.5 text-accent/80" /> Código
             </span>
           </div>
 

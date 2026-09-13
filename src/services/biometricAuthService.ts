@@ -195,26 +195,26 @@ export async function registerBiometricCredential(user: {
     // 3. Obtém o hostname limpo para rpId
     const rpId = window.location.hostname;
 
-    // 4. Solicita a criação de credencial biométrica na plataforma (Face ID / Touch ID / Android Biometrics)
+    // 4. Solicita a verificação biométrica nativa na plataforma do aparelho (Face ID / Touch ID / Código de tela)
     const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
       challenge,
       rp: {
-        name: "Bíblia Online PWA",
+        name: "Biblia Online",
         id: rpId,
       },
       user: {
         id: userIdBuffer,
         name: user.email,
-        displayName: user.name || user.email.split("@")[0] || "Usuário Bíblia",
+        displayName: user.name || user.email.split("@")[0] || "Usuario",
       },
       pubKeyCredParams: [
-        { alg: -7, type: "public-key" }, // ES256 (Padrão Apple Face ID e Android)
+        { alg: -7, type: "public-key" }, // ES256 (Padrão Apple Face ID / Touch ID e Android)
         { alg: -257, type: "public-key" }, // RS256
       ],
       authenticatorSelection: {
-        authenticatorAttachment: "platform", // Força autenticador integrado do celular (Face ID / Biometria)
-        userVerification: "required", // Obriga validação biométrica do usuário
-        residentKey: "preferred",
+        authenticatorAttachment: "platform", // Força autenticador integrado nativo do celular (Face ID / Touch ID / Código)
+        userVerification: "required", // Obriga validação biométrica ou código de bloqueio do sistema
+        residentKey: "discouraged", // Não salva como chave-senha / passkey na nuvem, usa apenas o hardware nativo do sistema
       },
       timeout: 60000,
       attestation: "none",
@@ -227,7 +227,7 @@ export async function registerBiometricCredential(user: {
     if (!credential) {
       return {
         success: false,
-        error: "Autenticação biométrica / PIN cancelada ou não concluída.",
+        error: "Autenticação por Face ID / Touch ID / Código cancelada ou não concluída.",
       };
     }
 
