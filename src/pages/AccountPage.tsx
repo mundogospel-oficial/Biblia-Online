@@ -23,7 +23,6 @@ import { UserRoleBadge } from "@/components/UserRoleBadge";
 import { TwoFactorSettingsCard } from "@/components/TwoFactorSettingsCard";
 import { TwoFactorLoginModal } from "@/components/TwoFactorLoginModal";
 import { BiometricSettingsCard } from "@/components/BiometricSettingsCard";
-import { isPWAMode, isUserBiometricEnrolled, authenticateWithBiometric } from "@/services/biometricAuthService";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
 const OFFLINE_KEY = "bible-offline-enabled";
@@ -107,51 +106,6 @@ const AccountPage = () => {
   const [pwnedLeakCount, setPwnedLeakCount] = useState(0);
   const [appVersion, setAppVersion] = useState("2.5.1");
   const [notificationTestError, setNotificationTestError] = useState<string | null>(null);
-  const [inPWAModeState, setInPWAModeState] = useState(false);
-  const [hasEnrolledBiometrics, setHasEnrolledBiometrics] = useState(false);
-  const [biometricLoading, setBiometricLoading] = useState(false);
-
-  useEffect(() => {
-    const isPwa = isPWAMode();
-    setInPWAModeState(isPwa);
-    setHasEnrolledBiometrics(isUserBiometricEnrolled());
-  }, [authCtx.user]);
-
-  const handleBiometricLogin = async () => {
-    setBiometricLoading(true);
-    try {
-      const res = await authenticateWithBiometric();
-      if (res.success && res.user) {
-        toast({
-          title: "Face ID Confirmado!",
-          description: `Bem-vindo de volta, ${res.user.name || res.user.email}!`,
-        });
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
-          authCtx.login({
-            name: res.user.name,
-            email: res.user.email,
-            picture: "",
-            sub: res.user.userId,
-          });
-        }
-      } else {
-        toast({
-          title: "Falha no Reconhecimento Facial",
-          description: res.error || "Rosto não reconhecido ou cancelado.",
-          variant: "destructive",
-        });
-      }
-    } catch (err: any) {
-      toast({
-        title: "Erro no Face ID",
-        description: err?.message || "Ocorreu um erro ao autenticar.",
-        variant: "destructive",
-      });
-    } finally {
-      setBiometricLoading(false);
-    }
-  };
 
   useEffect(() => {
     setLoading(authCtx.loading);
@@ -1645,18 +1599,6 @@ const AccountPage = () => {
               </div>
 
               <div className="space-y-2">
-                {inPWAModeState && hasEnrolledBiometrics && !isSignUp && (
-                  <button
-                    type="button"
-                    onClick={handleBiometricLogin}
-                    disabled={biometricLoading || authLoading}
-                    className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-accent/40 bg-accent/15 hover:bg-accent/25 py-3.5 text-sm font-bold text-accent transition-all backdrop-blur-md shadow-lg shadow-accent/10 disabled:opacity-50 liquid-btn"
-                  >
-                    <ScanFace className="h-5 w-5 text-accent" />
-                    <span>{biometricLoading ? "Autenticando no Dispositivo..." : "Entrar com Face ID / Biometria / Código"}</span>
-                  </button>
-                )}
-
                 <button onClick={handleGoogleLogin} disabled={authLoading}
                   className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-white/10 bg-secondary/30 hover:bg-secondary/50 py-3.5 text-sm font-semibold text-foreground transition-all backdrop-blur-md shadow-md disabled:opacity-50 disabled:cursor-not-allowed liquid-btn">
                   <svg className="h-4 w-4" viewBox="0 0 24 24">
