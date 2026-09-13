@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import zxcvbn from "zxcvbn";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
-import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2, AlertTriangle, Languages, X, Sparkles, Clock, RotateCcw, Shield } from "lucide-react";
+import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2, AlertTriangle, Languages, X, Sparkles, Clock, RotateCcw, Shield, ScanFace } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, forceSignOut, handleAuthError } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -21,6 +22,8 @@ import { BetaGate } from "@/components/BetaGate";
 import { UserRoleBadge } from "@/components/UserRoleBadge";
 import { TwoFactorSettingsCard } from "@/components/TwoFactorSettingsCard";
 import { TwoFactorLoginModal } from "@/components/TwoFactorLoginModal";
+import { BiometricSettingsCard } from "@/components/BiometricSettingsCard";
+import { isPWAMode, isUserBiometricEnrolled, authenticateWithBiometric } from "@/services/biometricAuthService";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
 const OFFLINE_KEY = "bible-offline-enabled";
@@ -104,6 +107,51 @@ const AccountPage = () => {
   const [pwnedLeakCount, setPwnedLeakCount] = useState(0);
   const [appVersion, setAppVersion] = useState("2.5.1");
   const [notificationTestError, setNotificationTestError] = useState<string | null>(null);
+  const [inPWAModeState, setInPWAModeState] = useState(false);
+  const [hasEnrolledBiometrics, setHasEnrolledBiometrics] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+
+  useEffect(() => {
+    const isPwa = isPWAMode();
+    setInPWAModeState(isPwa);
+    setHasEnrolledBiometrics(isUserBiometricEnrolled());
+  }, [authCtx.user]);
+
+  const handleBiometricLogin = async () => {
+    setBiometricLoading(true);
+    try {
+      const res = await authenticateWithBiometric();
+      if (res.success && res.user) {
+        toast({
+          title: "Face ID Confirmado!",
+          description: `Bem-vindo de volta, ${res.user.name || res.user.email}!`,
+        });
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          authCtx.login({
+            name: res.user.name,
+            email: res.user.email,
+            picture: "",
+            sub: res.user.userId,
+          });
+        }
+      } else {
+        toast({
+          title: "Falha no Reconhecimento Facial",
+          description: res.error || "Rosto não reconhecido ou cancelado.",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Erro no Face ID",
+        description: err?.message || "Ocorreu um erro ao autenticar.",
+        variant: "destructive",
+      });
+    } finally {
+      setBiometricLoading(false);
+    }
+  };
 
   useEffect(() => {
     setLoading(authCtx.loading);
@@ -1381,6 +1429,16 @@ const AccountPage = () => {
                       />
                     )}
 
+                    {/* Reconhecimento Facial (Face ID / Biometria PWA) */}
+                    {authCtx.user?.sub && (
+                      <BiometricSettingsCard
+                        userId={authCtx.user.sub}
+                        userEmail={authCtx.user.email}
+                        userName={authCtx.user.name}
+                        onStatusChange={(enabled) => setHasEnrolledBiometrics(enabled)}
+                      />
+                    )}
+
                     <button onClick={toggleOffline} disabled={isDownloading} className="flex w-full items-center justify-between rounded-xl bg-secondary/30 border border-white/5 p-3.5 transition-all hover:bg-secondary/50 hover:border-white/10 disabled:opacity-70 liquid-btn">
                       <div className="flex items-center gap-3">
                         <span className="text-muted-foreground">
@@ -1587,6 +1645,18 @@ const AccountPage = () => {
               </div>
 
               <div className="space-y-2">
+                {inPWAModeState && hasEnrolledBiometrics && !isSignUp && (
+                  <button
+                    type="button"
+                    onClick={handleBiometricLogin}
+                    disabled={biometricLoading || authLoading}
+                    className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-accent/40 bg-accent/15 hover:bg-accent/25 py-3.5 text-sm font-bold text-accent transition-all backdrop-blur-md shadow-lg shadow-accent/10 disabled:opacity-50 liquid-btn"
+                  >
+                    <ScanFace className="h-5 w-5 text-accent" />
+                    <span>{biometricLoading ? "Autenticando no Dispositivo..." : "Entrar com Face ID / Biometria / PIN"}</span>
+                  </button>
+                )}
+
                 <button onClick={handleGoogleLogin} disabled={authLoading}
                   className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-white/10 bg-secondary/30 hover:bg-secondary/50 py-3.5 text-sm font-semibold text-foreground transition-all backdrop-blur-md shadow-md disabled:opacity-50 disabled:cursor-not-allowed liquid-btn">
                   <svg className="h-4 w-4" viewBox="0 0 24 24">
@@ -1622,159 +1692,162 @@ const AccountPage = () => {
         </motion.div>
       </section>
 
-      {/* Modal de Confirmação de Exclusão de Conta */}
-      <AnimatePresence>
-        {showDeleteModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md select-none"
-            onClick={() => setShowDeleteModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.92, opacity: 0, y: 15 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.92, opacity: 0, y: 15 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="relative max-w-sm w-full overflow-hidden rounded-[2rem] border border-white/10 bg-background/95 p-6 sm:p-7 shadow-2xl backdrop-blur-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Efeito de brilho ambiente sutil */}
-              <div className="absolute -top-16 -left-16 h-36 w-36 rounded-full bg-accent/15 blur-3xl pointer-events-none" />
-              <div className="absolute -bottom-16 -right-16 h-36 w-36 rounded-full bg-accent/10 blur-3xl pointer-events-none" />
-
-              {/* Botão Fechar */}
-              <button
-                type="button"
+      {/* Modal de Confirmação de Exclusão de Conta e Saída renderizados via Portal no body */}
+      {typeof document !== "undefined" &&
+        createPortal(
+          <AnimatePresence>
+            {showDeleteModal && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md select-none"
                 onClick={() => setShowDeleteModal(false)}
-                className="absolute top-4 right-4 z-10 rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
-                title="Fechar"
               >
-                <X className="h-4 w-4" />
-              </button>
+                <motion.div
+                  initial={{ scale: 0.92, opacity: 0, y: 15 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.92, opacity: 0, y: 15 }}
+                  transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                  className="relative max-w-sm w-full overflow-hidden rounded-[2rem] border border-white/10 bg-background/95 p-6 sm:p-7 shadow-2xl backdrop-blur-xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Efeito de brilho ambiente sutil */}
+                  <div className="absolute -top-16 -left-16 h-36 w-36 rounded-full bg-accent/15 blur-3xl pointer-events-none" />
+                  <div className="absolute -bottom-16 -right-16 h-36 w-36 rounded-full bg-accent/10 blur-3xl pointer-events-none" />
 
-              <div className="relative flex flex-col items-center text-center">
-                {/* Ícone de Aviso */}
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/15 border border-accent/30 text-accent shadow-lg shadow-accent/10">
-                  <AlertTriangle className="h-7 w-7 text-accent" />
-                </div>
-                
-                <h3 className="font-serif text-xl font-bold text-foreground mb-3">{t("delete_modal_title")}</h3>
-                
-                <div className="mb-6 w-full text-left space-y-2.5 rounded-2xl border border-white/10 bg-secondary/30 backdrop-blur-md p-4 text-xs sm:text-sm text-foreground/90 shadow-md">
-                  <div className="flex items-start gap-2.5">
-                    <div className="h-1.5 w-1.5 rounded-full bg-accent mt-2 shrink-0" />
-                    <p className="leading-relaxed">
-                      <strong className="text-accent font-bold">{language === "en" ? "Permanent deletion:" : "Exclusão permanente:"}</strong>{" "}
-                      {language === "en"
-                        ? "All your account data, history, and preferences will be erased immediately."
-                        : "Todos os seus dados, histórico e preferências serão apagados permanentemente."}
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <div className="h-1.5 w-1.5 rounded-full bg-accent/80 mt-2 shrink-0" />
-                    <p className="leading-relaxed">
-                      <strong className="text-accent/90 font-bold">{language === "en" ? "30-day waiting period:" : "Aguarde 30 dias:"}</strong>{" "}
-                      {language === "en"
-                        ? "You must wait 30 days before creating a new account using this same email address."
-                        : "Você precisará aguardar 30 dias para poder criar uma nova conta com este mesmo e-mail."}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Botões de Ação */}
-                <div className="flex w-full flex-col gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteData()}
-                    disabled={deleting}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground py-3.5 text-sm font-bold transition-all shadow-lg shadow-destructive/25 active:scale-[0.98] disabled:opacity-50 liquid-btn"
-                  >
-                    <Trash2 className="h-4 w-4 shrink-0" />
-                    <span>{deleting ? (language === "en" ? "Deleting..." : "Apagando...") : t("delete_modal_confirm")}</span>
-                  </button>
+                  {/* Botão Fechar */}
                   <button
                     type="button"
                     onClick={() => setShowDeleteModal(false)}
-                    disabled={deleting}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary/50 hover:bg-secondary/80 active:scale-[0.98] text-foreground py-3.5 text-sm font-semibold transition-all border border-white/10 backdrop-blur-md"
+                    className="absolute top-4 right-4 z-10 rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
+                    title="Fechar"
                   >
-                    {t("delete_modal_cancel")}
+                    <X className="h-4 w-4" />
                   </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      {/* Modal de Confirmação de Saída da Conta */}
-      <AnimatePresence>
-        {showLogoutModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md select-none"
-            onClick={() => setShowLogoutModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.92, opacity: 0, y: 15 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.92, opacity: 0, y: 15 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="relative max-w-sm w-full overflow-hidden rounded-[2rem] border border-white/10 bg-background/95 p-6 sm:p-7 shadow-2xl backdrop-blur-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Efeito de brilho ambiente sutil */}
-              <div className="absolute -top-16 -left-16 h-36 w-36 rounded-full bg-accent/15 blur-3xl pointer-events-none" />
-              <div className="absolute -bottom-16 -right-16 h-36 w-36 rounded-full bg-accent/10 blur-3xl pointer-events-none" />
 
-              {/* Botão Fechar */}
-              <button
-                type="button"
+                  <div className="relative flex flex-col items-center text-center">
+                    {/* Ícone de Aviso */}
+                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/15 border border-accent/30 text-accent shadow-lg shadow-accent/10">
+                      <AlertTriangle className="h-7 w-7 text-accent" />
+                    </div>
+                    
+                    <h3 className="font-serif text-xl font-bold text-foreground mb-3">{t("delete_modal_title")}</h3>
+                    
+                    <div className="mb-6 w-full text-left space-y-2.5 rounded-2xl border border-white/10 bg-secondary/30 backdrop-blur-md p-4 text-xs sm:text-sm text-foreground/90 shadow-md">
+                      <div className="flex items-start gap-2.5">
+                        <div className="h-1.5 w-1.5 rounded-full bg-accent mt-2 shrink-0" />
+                        <p className="leading-relaxed">
+                          <strong className="text-accent font-bold">{language === "en" ? "Permanent deletion:" : "Exclusão permanente:"}</strong>{" "}
+                          {language === "en"
+                            ? "All your account data, history, and preferences will be erased immediately."
+                            : "Todos os seus dados, histórico e preferências serão apagados permanentemente."}
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-2.5">
+                        <div className="h-1.5 w-1.5 rounded-full bg-accent/80 mt-2 shrink-0" />
+                        <p className="leading-relaxed">
+                          <strong className="text-accent/90 font-bold">{language === "en" ? "30-day waiting period:" : "Aguarde 30 dias:"}</strong>{" "}
+                          {language === "en"
+                            ? "You must wait 30 days before creating a new account using this same email address."
+                            : "Você precisará aguardar 30 dias para poder criar uma nova conta com este mesmo e-mail."}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Botões de Ação */}
+                    <div className="flex w-full flex-col gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteData()}
+                        disabled={deleting}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground py-3.5 text-sm font-bold transition-all shadow-lg shadow-destructive/25 active:scale-[0.98] disabled:opacity-50 liquid-btn"
+                      >
+                        <Trash2 className="h-4 w-4 shrink-0" />
+                        <span>{deleting ? (language === "en" ? "Deleting..." : "Apagando...") : t("delete_modal_confirm")}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteModal(false)}
+                        disabled={deleting}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary/50 hover:bg-secondary/80 active:scale-[0.98] text-foreground py-3.5 text-sm font-semibold transition-all border border-white/10 backdrop-blur-md"
+                      >
+                        {t("delete_modal_cancel")}
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+
+            {/* Modal de Confirmação de Saída da Conta */}
+            {showLogoutModal && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md select-none"
                 onClick={() => setShowLogoutModal(false)}
-                className="absolute top-4 right-4 z-10 rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
-                title="Fechar"
               >
-                <X className="h-4 w-4" />
-              </button>
+                <motion.div
+                  initial={{ scale: 0.92, opacity: 0, y: 15 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.92, opacity: 0, y: 15 }}
+                  transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                  className="relative max-w-sm w-full overflow-hidden rounded-[2rem] border border-white/10 bg-background/95 p-6 sm:p-7 shadow-2xl backdrop-blur-xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Efeito de brilho ambiente sutil */}
+                  <div className="absolute -top-16 -left-16 h-36 w-36 rounded-full bg-accent/15 blur-3xl pointer-events-none" />
+                  <div className="absolute -bottom-16 -right-16 h-36 w-36 rounded-full bg-accent/10 blur-3xl pointer-events-none" />
 
-              <div className="relative flex flex-col items-center text-center">
-                {/* Ícone */}
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/15 border border-accent/30 text-accent shadow-lg shadow-accent/10">
-                  <LogOut className="h-7 w-7 text-accent" />
-                </div>
-                
-                <h3 className="font-serif text-xl font-bold text-foreground mb-2">Sair da Conta</h3>
-                
-                <p className="mb-6 text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                  Tem certeza que deseja sair da sua conta no Bíblia Online?
-                </p>
-
-                {/* Botões de Ação */}
-                <div className="flex w-full flex-col gap-2.5">
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground py-3.5 text-sm font-bold transition-all shadow-lg shadow-destructive/25 active:scale-[0.98] liquid-btn"
-                  >
-                    <LogOut className="h-4 w-4 shrink-0" />
-                    <span>Sair da Conta</span>
-                  </button>
+                  {/* Botão Fechar */}
                   <button
                     type="button"
                     onClick={() => setShowLogoutModal(false)}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary/50 hover:bg-secondary/80 active:scale-[0.98] text-foreground py-3.5 text-sm font-semibold transition-all border border-white/10 backdrop-blur-md"
+                    className="absolute top-4 right-4 z-10 rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
+                    title="Fechar"
                   >
-                    Cancelar
+                    <X className="h-4 w-4" />
                   </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
+
+                  <div className="relative flex flex-col items-center text-center">
+                    {/* Ícone */}
+                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/15 border border-accent/30 text-accent shadow-lg shadow-accent/10">
+                      <LogOut className="h-7 w-7 text-accent" />
+                    </div>
+                    
+                    <h3 className="font-serif text-xl font-bold text-foreground mb-2">Sair da Conta</h3>
+                    
+                    <p className="mb-6 text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                      Tem certeza que deseja sair da sua conta no Bíblia Online?
+                    </p>
+
+                    {/* Botões de Ação */}
+                    <div className="flex w-full flex-col gap-2.5">
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground py-3.5 text-sm font-bold transition-all shadow-lg shadow-destructive/25 active:scale-[0.98] liquid-btn"
+                      >
+                        <LogOut className="h-4 w-4 shrink-0" />
+                        <span>Sair da Conta</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowLogoutModal(false)}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary/50 hover:bg-secondary/80 active:scale-[0.98] text-foreground py-3.5 text-sm font-semibold transition-all border border-white/10 backdrop-blur-md"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          document.body
         )}
-      </AnimatePresence>
 
       <MandatoryPwnedPasswordModal
         isOpen={showPwnedModal}

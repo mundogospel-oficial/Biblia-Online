@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { ShieldCheck, Lock, AlertCircle, ArrowRight, X } from "lucide-react";
 import { validateLoginTwoFactor } from "@/services/twoFactorService";
@@ -76,7 +77,7 @@ export const TwoFactorLoginModal: React.FC<TwoFactorLoginModalProps> = ({
     }
   };
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md select-none">
       <motion.div
         initial={{ scale: 0.92, opacity: 0, y: 15 }}
@@ -175,4 +176,6 @@ export const TwoFactorLoginModal: React.FC<TwoFactorLoginModalProps> = ({
       </motion.div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(modalContent, document.body) : modalContent;
 };

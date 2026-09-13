@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import { ShieldAlert, KeyRound, Eye, EyeOff, Loader2, CheckCircle2, Lock } from "lucide-react";
 import zxcvbn from "zxcvbn";
 import { supabase } from "@/integrations/supabase/client";
@@ -81,7 +82,7 @@ export const MandatoryPwnedPasswordModal: React.FC<MandatoryPwnedPasswordModalPr
 
   const formattedCount = pwnedCount.toLocaleString("pt-BR");
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in font-sans select-none">
       <div className="max-w-md w-full bg-[#0d1527] border border-amber-500/40 rounded-2xl p-6 shadow-2xl relative space-y-5 text-foreground overflow-hidden">
         {/* Banner superior de alerta */}
@@ -213,4 +214,6 @@ export const MandatoryPwnedPasswordModal: React.FC<MandatoryPwnedPasswordModalPr
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(modalContent, document.body) : modalContent;
 };
