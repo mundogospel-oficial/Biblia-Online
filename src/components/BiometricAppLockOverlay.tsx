@@ -2,15 +2,12 @@ import React, { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  ScanFace, 
   Lock, 
   Unlock, 
-  ShieldCheck, 
   AlertCircle, 
   Fingerprint, 
   KeyRound, 
-  LogOut,
-  Sparkles
+  LogOut
 } from "lucide-react";
 import { 
   isPWAMode, 
@@ -22,6 +19,31 @@ import {
 } from "@/services/biometricAuthService";
 import { forceSignOut } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+
+// Ícone vetorial idêntico ao oficial do Apple Face ID
+const AppleFaceIdIcon: React.FC<{ className?: string }> = ({ className = "h-10 w-10" }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    {/* Cantos de enquadramento suaves */}
+    <path d="M7 3.5H5a2 2 0 0 0-2 2v2" strokeWidth="2.1" />
+    <path d="M17 3.5h2a2 2 0 0 1 2 2v2" strokeWidth="2.1" />
+    <path d="M3 16.5v2a2 2 0 0 0 2 2h2" strokeWidth="2.1" />
+    <path d="M21 16.5v2a2 2 0 0 1-2 2h-2" strokeWidth="2.1" />
+    {/* Olhos em pílula verticais oficiais */}
+    <line x1="8.8" y1="8.5" x2="8.8" y2="10.2" strokeWidth="2.4" />
+    <line x1="15.2" y1="8.5" x2="15.2" y2="10.2" strokeWidth="2.4" />
+    {/* Nariz angular clássico do Face ID */}
+    <path d="M12 8.8v4.2h1.6" strokeWidth="1.9" />
+    {/* Boca / Curva de sorriso do Face ID */}
+    <path d="M8.2 16.2c1.2 1.3 2.5 1.8 3.8 1.8s2.6-.5 3.8-1.8" strokeWidth="1.9" />
+  </svg>
+);
 
 export const BiometricAppLockOverlay: React.FC = () => {
   const [isLocked, setIsLocked] = useState(false);
@@ -153,7 +175,7 @@ export const BiometricAppLockOverlay: React.FC = () => {
 
         {/* Topo: Identidade do App */}
         <div className="pt-8 text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
+          <div className="flex items-center justify-center gap-2">
             <img 
               src="/icons/logo2.png" 
               onError={(e) => {
@@ -174,9 +196,6 @@ export const BiometricAppLockOverlay: React.FC = () => {
               Biblia Online
             </span>
           </div>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-secondary/60 border border-white/10 text-muted-foreground">
-            <ShieldCheck className="h-3 w-3 text-emerald-400" /> Aplicativo Protegido
-          </span>
         </div>
 
         {/* Centro: Card de Desbloqueio */}
@@ -203,7 +222,7 @@ export const BiometricAppLockOverlay: React.FC = () => {
             {isSuccess ? (
               <Unlock className="h-10 w-10 text-emerald-400" />
             ) : (
-              <ScanFace className="h-10 w-10 text-accent transition-transform group-hover:scale-110" />
+              <AppleFaceIdIcon className="h-11 w-11 text-accent transition-transform group-hover:scale-110" />
             )}
           </button>
 
@@ -234,7 +253,7 @@ export const BiometricAppLockOverlay: React.FC = () => {
             disabled={authenticating}
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-accent py-3 px-4 text-xs font-bold text-accent-foreground shadow-lg shadow-accent/20 hover:shadow-accent/35 active:scale-[0.98] transition-all liquid-btn disabled:opacity-50"
           >
-            <ScanFace className="h-4 w-4" />
+            <AppleFaceIdIcon className="h-4 w-4 shrink-0" />
             <span>{authenticating ? "Lendo Biometria / Código..." : "Desbloquear com Face ID / Biometria"}</span>
           </button>
         </motion.div>
@@ -247,7 +266,7 @@ export const BiometricAppLockOverlay: React.FC = () => {
             </span>
             <span>•</span>
             <span className="flex items-center gap-1">
-              <ScanFace className="h-3.5 w-3.5 text-accent/80" /> Face ID
+              <AppleFaceIdIcon className="h-3.5 w-3.5 text-accent/80" /> Face ID
             </span>
             <span>•</span>
             <span className="flex items-center gap-1">
