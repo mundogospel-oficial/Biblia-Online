@@ -131,7 +131,7 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
           </span>
           <div className="text-left">
             <p className="text-sm font-medium text-foreground">
-              Bloquear App com Face ID / Biometria / PIN
+              Biometria
             </p>
             <p className="text-[10px] text-muted-foreground">
               {loading
@@ -194,7 +194,7 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
                   </div>
 
                   <h3 className="font-serif text-xl font-bold text-foreground">
-                    Face ID, Touch ID & PIN
+                    Face ID, Touch ID e PIN
                   </h3>
 
                   <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">

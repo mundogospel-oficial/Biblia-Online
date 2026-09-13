@@ -154,9 +154,11 @@ export const BiometricAppLockOverlay: React.FC = () => {
         {/* Topo: Identidade do App */}
         <div className="pt-8 text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <div className="h-8 w-8 rounded-xl bg-accent/20 border border-accent/40 flex items-center justify-center text-accent">
-              <Lock className="h-4 w-4" />
-            </div>
+            <img 
+              src="/favicon.png" 
+              alt="Biblia Online" 
+              className="h-8 w-8 rounded-xl object-contain shadow-md border border-white/10" 
+            />
             <span className="font-serif font-bold text-lg text-foreground tracking-tight">
               Biblia Online
             </span>
@@ -203,14 +205,7 @@ export const BiometricAppLockOverlay: React.FC = () => {
                 : "Aplicativo Bloqueado"}
             </h2>
             <p className="text-xs text-muted-foreground max-w-[240px] leading-relaxed mx-auto">
-              {enrolledUser?.name ? (
-                <>
-                  Olá, <strong>{enrolledUser.name}</strong>.<br />
-                  Confirme seu Face ID, Touch ID ou Código para continuar.
-                </>
-              ) : (
-                "Confirme sua identidade usando o Face ID, Touch ID ou Código do celular para abrir o Biblia Online."
-              )}
+              Confirme seu Face ID, Touch ID ou Código para continuar.
             </p>
           </div>
 
