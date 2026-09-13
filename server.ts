@@ -10,6 +10,7 @@ import fs from "fs";
 import { sanitizeUserPrompt, buildPrivacyEnhancedSystemRule } from "./src/lib/security/privacyGuard.js";
 import { resolveBiblicalSituationSubject } from "./src/data/biblicalSituations.js";
 import { resolveBiblicalBackground, buildUltraRealisticChatPrompt } from "./src/data/biblicalBackgrounds.js";
+import { getServerDailyVerse, serverDailyVerses } from "./src/data/serverDailyVerses.js";
 
 // --- ESM & CJS COMPATIBLE RUNTIME RESOLUTION ---
 
@@ -2264,6 +2265,173 @@ SUA TAREFA OBRIGATÓRIA:
       res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: err.message });
     }
   });
+
+  // --- ONESIGNAL SERVER-SIDE PUSH NOTIFICATION ENGINE ---
+  // Permite disparar notificações de versículos diretamente do servidor mesmo quando o usuário não está no app
+  const sendOneSignalPushNotification = async (title: string, message: string, urlPath: string = "/") => {
+    const appId = process.env.ONESIGNAL_APP_ID || process.env.VITE_ONESIGNAL_APP_ID;
+    const restApiKey = process.env.ONESIGNAL_REST_API_KEY;
+
+    if (!appId || !restApiKey) {
+      console.warn("[OneSignal Server Engine] ONESIGNAL_REST_API_KEY ou ONESIGNAL_APP_ID não configurados no servidor.");
+      return { 
+        success: false, 
+        configured: false, 
+        error: "Chaves de API do OneSignal não configuradas nas variáveis do servidor." 
+      };
+    }
+
+    try {
+      console.log(`[OneSignal Server Engine] Enviando Push Global: "${title}" - "${message.substring(0, 50)}..."`);
+      
+      const payload = {
+        app_id: appId,
+        included_segments: ["Total Subscriptions", "Subscribed Users"],
+        headings: {
+          en: title,
+          pt: title,
+          es: title
+        },
+        contents: {
+          en: message,
+          pt: message,
+          es: message
+        },
+        chrome_web_icon: "https://online-biblia.vercel.app/icons/logo2.png",
+        chrome_web_badge: "https://online-biblia.vercel.app/apple-touch-icon.png",
+        firefox_icon: "https://online-biblia.vercel.app/icons/logo2.png",
+        url: urlPath.startsWith("http") ? urlPath : `https://online-biblia.vercel.app${urlPath}`,
+        web_buttons: [
+          {
+            id: "read-now",
+            text: "Ler na Bíblia",
+            icon: "https://online-biblia.vercel.app/icons/logo2.png",
+            url: urlPath.startsWith("http") ? urlPath : `https://online-biblia.vercel.app${urlPath}`
+          }
+        ]
+      };
+
+      const response = await fetch("https://onesignal.com/api/v1/notifications", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          "Authorization": `Basic ${restApiKey}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const responseData = await response.json();
+      
+      if (!response.ok) {
+        console.error("[OneSignal Server Engine] Falha na resposta da API OneSignal:", responseData);
+        return { success: false, configured: true, error: responseData.errors || "Falha ao enviar Push" };
+      }
+
+      console.log("[OneSignal Server Engine] Push enviado com sucesso via OneSignal:", responseData);
+      return { success: true, configured: true, data: responseData };
+    } catch (err: any) {
+      console.error("[OneSignal Server Engine] Erro ao disparar push:", err);
+      return { success: false, configured: true, error: err.message };
+    }
+  };
+
+  // Histórico de disparos do servidor em memória
+  const serverPushHistory: { time: string; slot: string; verse: string; result: any }[] = [];
+
+  // Rota de status e disparo manual do OneSignal para a página /relogio
+  app.get("/api/notifications/status", (req, res) => {
+    const hasAppId = Boolean(process.env.ONESIGNAL_APP_ID || process.env.VITE_ONESIGNAL_APP_ID);
+    const hasRestApiKey = Boolean(process.env.ONESIGNAL_REST_API_KEY);
+    
+    res.json({
+      serverTime: new Date().toISOString(),
+      oneSignalConfigured: hasAppId && hasRestApiKey,
+      hasAppId,
+      hasRestApiKey,
+      history: serverPushHistory.slice(0, 10)
+    });
+  });
+
+  app.post("/api/notifications/dispatch-slot", async (req, res) => {
+    try {
+      const isEvening = Boolean(req.body?.isEvening);
+      const customVerse = req.body?.verse;
+      const verse = customVerse || getServerDailyVerse(isEvening);
+
+      const slotTitle = isEvening ? "Versículo da Noite (20:00)" : "Versículo da Manhã (08:00)";
+      const fullTitle = `${slotTitle} - ${verse.reference}`;
+      const timeFormatted = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+      const pushResult = await sendOneSignalPushNotification(fullTitle, verse.text, "/");
+
+      serverPushHistory.unshift({
+        time: timeFormatted,
+        slot: isEvening ? "20:00 PM (Noite)" : "08:00 AM (Manhã)",
+        verse: `${verse.reference}: "${verse.text}"`,
+        result: pushResult
+      });
+
+      if (serverPushHistory.length > 20) serverPushHistory.pop();
+
+      return res.json({
+        success: pushResult.success,
+        configured: pushResult.configured,
+        slot: isEvening ? "evening" : "morning",
+        verse,
+        pushResult
+      });
+    } catch (err: any) {
+      console.error("[Dispatch Slot Route Error]", err);
+      return res.status(500).json({ error: err.message || "Erro ao processar disparo." });
+    }
+  });
+
+  // Temporizador do Servidor em Segundo Plano (Cron Interno no Servidor)
+  // Roda a cada 30 segundos no servidor Express para checar 08:00 (Manhã) e 20:00 (Noite)
+  let lastServerDispatchedMorning = "";
+  let lastServerDispatchedEvening = "";
+
+  setInterval(async () => {
+    try {
+      // Hora no fuso de Brasília (America/Sao_Paulo)
+      const nowBrasiliaStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+      const nowBrasilia = new Date(nowBrasiliaStr);
+
+      const hours = nowBrasilia.getHours();
+      const minutes = nowBrasilia.getMinutes();
+      const todayKey = nowBrasilia.toISOString().split("T")[0];
+
+      // Disparo das 08:00 AM (Horário de Brasília)
+      if (hours === 8 && minutes === 0 && lastServerDispatchedMorning !== todayKey) {
+        lastServerDispatchedMorning = todayKey;
+        const verse = getServerDailyVerse(false);
+        console.log(`[Server Cron 08:00 AM] Disparando versículo da manhã: ${verse.reference}`);
+        const res = await sendOneSignalPushNotification(`Versículo da Manhã - ${verse.reference}`, verse.text, "/");
+        serverPushHistory.unshift({
+          time: nowBrasilia.toLocaleTimeString("pt-BR"),
+          slot: "08:00 AM (Manhã)",
+          verse: `${verse.reference}: "${verse.text}"`,
+          result: res
+        });
+      }
+
+      // Disparo das 20:00 PM (Horário de Brasília)
+      if (hours === 20 && minutes === 0 && lastServerDispatchedEvening !== todayKey) {
+        lastServerDispatchedEvening = todayKey;
+        const verse = getServerDailyVerse(true);
+        console.log(`[Server Cron 20:00 PM] Disparando versículo da noite: ${verse.reference}`);
+        const res = await sendOneSignalPushNotification(`Versículo da Noite - ${verse.reference}`, verse.text, "/");
+        serverPushHistory.unshift({
+          time: nowBrasilia.toLocaleTimeString("pt-BR"),
+          slot: "20:00 PM (Noite)",
+          verse: `${verse.reference}: "${verse.text}"`,
+          result: res
+        });
+      }
+    } catch (cronErr) {
+      console.error("[Server Notification Cron Error]", cronErr);
+    }
+  }, 30000);
 
   // Vite middleware setup
   if (process.env.NODE_ENV !== "production") {

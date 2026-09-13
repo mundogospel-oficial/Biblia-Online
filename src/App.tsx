@@ -19,6 +19,7 @@ import DevotionalPage from "./pages/DevotionalPage";
 import AccountPage from "./pages/AccountPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import ClockPage from "./pages/ClockPage";
 import { useSentinel } from "./hooks/useSentinel";
 import { checkInactivity, updateLastVisit, checkScheduledNotifications } from "@/services/notificationService";
 
@@ -134,6 +135,7 @@ const App = () => {
                 <Route path="/devocional" element={<Navigate to="/devocionais" replace />} />
                 <Route path="/conta" element={<AccountPage />} />
                 <Route path="/atualizar-senha" element={<ResetPasswordPage />} />
+                <Route path="/relogio" element={<ClockPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
