@@ -146,6 +146,9 @@ export type Database = {
           display_name: string | null
           id: string
           role: string | null
+          two_factor_backup_codes: Json | null
+          two_factor_enabled: boolean | null
+          two_factor_secret: string | null
           updated_at: string
           username: string | null
         }
@@ -156,6 +159,9 @@ export type Database = {
           display_name?: string | null
           id: string
           role?: string | null
+          two_factor_backup_codes?: Json | null
+          two_factor_enabled?: boolean | null
+          two_factor_secret?: string | null
           updated_at?: string
           username?: string | null
         }
@@ -166,6 +172,9 @@ export type Database = {
           display_name?: string | null
           id?: string
           role?: string | null
+          two_factor_backup_codes?: Json | null
+          two_factor_enabled?: boolean | null
+          two_factor_secret?: string | null
           updated_at?: string
           username?: string | null
         }

@@ -7,9 +7,68 @@ import { createClient } from "@supabase/supabase-js";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import fs from "fs";
+import crypto from "crypto";
 import { sanitizeUserPrompt, buildPrivacyEnhancedSystemRule } from "./src/lib/security/privacyGuard.js";
 import { resolveBiblicalSituationSubject } from "./src/data/biblicalSituations.js";
 import { resolveBiblicalBackground, buildUltraRealisticChatPrompt } from "./src/data/biblicalBackgrounds.js";
+
+const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+function base32Decode(base32: string): Buffer {
+  const clean = base32.replace(/=+$/, "").toUpperCase();
+  let bits = 0;
+  let value = 0;
+  const bytes: number[] = [];
+
+  for (let i = 0; i < clean.length; i++) {
+    const val = BASE32_ALPHABET.indexOf(clean.charAt(i));
+    if (val === -1) continue;
+    value = (value << 5) | val;
+    bits += 5;
+    if (bits >= 8) {
+      bytes.push((value >>> (bits - 8)) & 255);
+      bits -= 8;
+    }
+  }
+
+  return Buffer.from(bytes);
+}
+
+function verifyServerTotp(token: string, secret: string): boolean {
+  if (!token || !secret) return false;
+  const cleanToken = token.replace(/\s+/g, "").trim();
+  if (!/^\d{6}$/.test(cleanToken)) return false;
+
+  try {
+    const key = base32Decode(secret);
+    const now = Date.now();
+    const stepSeconds = 30;
+
+    for (const stepOffset of [-1, 0, 1]) {
+      const counter = Math.floor((now + stepOffset * 30 * 1000) / 1000 / stepSeconds);
+      const buf = Buffer.alloc(8);
+      buf.writeUInt32BE(Math.floor(counter / 0x100000000), 0);
+      buf.writeUInt32BE(counter & 0xffffffff, 4);
+
+      const hmac = crypto.createHmac("sha1", key).update(buf).digest();
+      const offset = hmac[hmac.length - 1] & 0x0f;
+      const binary =
+        ((hmac[offset] & 0x7f) << 24) |
+        ((hmac[offset + 1] & 0xff) << 16) |
+        ((hmac[offset + 2] & 0xff) << 8) |
+        (hmac[offset + 3] & 0xff);
+
+      const code = (binary % 1000000).toString().padStart(6, "0");
+      if (code === cleanToken) {
+        return true;
+      }
+    }
+  } catch (err) {
+    console.error("[Server TOTP] Erro na verificação:", err);
+  }
+
+  return false;
+}
 
 // --- ESM & CJS COMPATIBLE RUNTIME RESOLUTION ---
 
@@ -2218,6 +2277,104 @@ SUA TAREFA OBRIGATÓRIA:
     } catch (err: any) {
       console.error("[Chat Image CRITICAL]", err);
       return res.status(500).json({ error: err.message || "Erro interno ao gerar imagem no Chat." });
+    }
+  });
+
+  // --- 2FA (GOOGLE AUTHENTICATOR) CHECK & VERIFY ROUTES ---
+  app.post("/api/auth/2fa/check", async (req, res) => {
+    const { email } = req.body || {};
+    if (!email || typeof email !== "string") {
+      return res.status(400).json({ error: "E-mail inválido" });
+    }
+
+    const adminClient = getSupabaseAdmin();
+    if (!adminClient) {
+      return res.json({ twoFactorEnabled: false });
+    }
+
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      // 1. Localiza usuário em auth.users
+      const { data: usersData } = await adminClient.auth.admin.listUsers();
+      const matchedUser = usersData?.users?.find(u => u.email?.toLowerCase() === cleanEmail);
+
+      if (!matchedUser) {
+        return res.json({ twoFactorEnabled: false, exists: false });
+      }
+
+      // 2. Checa coluna two_factor_enabled em profiles
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("two_factor_enabled")
+        .eq("id", matchedUser.id)
+        .maybeSingle();
+
+      const enabled = Boolean(profile?.two_factor_enabled);
+      return res.json({
+        twoFactorEnabled: enabled,
+        userId: enabled ? matchedUser.id : undefined,
+        exists: true
+      });
+    } catch (err: any) {
+      console.error("[2FA API Check Error]", err);
+      return res.json({ twoFactorEnabled: false });
+    }
+  });
+
+  app.post("/api/auth/2fa/verify", async (req, res) => {
+    const { userId, code } = req.body || {};
+    if (!userId || !code) {
+      return res.status(400).json({ valid: false, error: "Dados incompletos para validação." });
+    }
+
+    const adminClient = getSupabaseAdmin();
+    if (!adminClient) {
+      return res.status(500).json({ valid: false, error: "Servidor não configurado para 2FA." });
+    }
+
+    try {
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("two_factor_enabled, two_factor_secret, two_factor_backup_codes")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (!profile || !profile.two_factor_enabled || !profile.two_factor_secret) {
+        return res.json({ valid: true });
+      }
+
+      const cleanCode = String(code).trim().toUpperCase();
+      const secret = profile.two_factor_secret;
+      const backupCodes: string[] = Array.isArray(profile.two_factor_backup_codes) ? profile.two_factor_backup_codes : [];
+
+      // 1. Valida TOTP (6 dígitos)
+      if (/^\d{6}$/.test(cleanCode.replace(/\s+/g, ""))) {
+        const isValid = verifyServerTotp(cleanCode.replace(/\s+/g, ""), secret.trim());
+        if (isValid) {
+          return res.json({ valid: true });
+        }
+      }
+
+      // 2. Valida Código de Backup
+      const bIdx = backupCodes.findIndex(
+        c => c.toUpperCase() === cleanCode || c.replace("-", "").toUpperCase() === cleanCode.replace("-", "")
+      );
+
+      if (bIdx !== -1) {
+        const remaining = [...backupCodes];
+        remaining.splice(bIdx, 1);
+        await adminClient
+          .from("profiles")
+          .update({ two_factor_backup_codes: remaining, updated_at: new Date().toISOString() })
+          .eq("id", userId);
+
+        return res.json({ valid: true, backupUsed: true });
+      }
+
+      return res.status(401).json({ valid: false, error: "Código do autenticador inválido ou expirado." });
+    } catch (err: any) {
+      console.error("[2FA API Verify Error]", err);
+      return res.status(500).json({ valid: false, error: err.message || "Erro na verificação." });
     }
   });
 

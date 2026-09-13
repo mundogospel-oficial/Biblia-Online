@@ -19,6 +19,8 @@ import { syncKeyToSupabase } from "@/services/userSyncService";
 import { FocusModeCard } from "@/components/FocusModeCard";
 import { BetaGate } from "@/components/BetaGate";
 import { UserRoleBadge } from "@/components/UserRoleBadge";
+import { TwoFactorSettingsCard } from "@/components/TwoFactorSettingsCard";
+import { TwoFactorLoginModal } from "@/components/TwoFactorLoginModal";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
 const OFFLINE_KEY = "bible-offline-enabled";
@@ -88,6 +90,10 @@ const AccountPage = () => {
   const [editingName, setEditingName] = useState(false);
   const [username, setUsername] = useState("");
   const [editingUsername, setEditingUsername] = useState(false);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [showTwoFactorModal, setShowTwoFactorModal] = useState(false);
+  const [pendingTwoFactorUserId, setPendingTwoFactorUserId] = useState<string | null>(null);
+  const [pendingTwoFactorEmail, setPendingTwoFactorEmail] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const turnstileRef = useRef<any>(null);
   const { toast } = useToast();
@@ -147,6 +153,8 @@ const AccountPage = () => {
             localStorage.setItem(`user_role_${userId}`, mappedRole);
             authCtx.refreshRole().catch(() => {});
           }
+
+          setTwoFactorEnabled(Boolean((profile as any)?.two_factor_enabled));
 
           let validUsername = (profile as any)?.username || meta.username || meta.user_name || meta.preferred_username || "";
           let isMissingUsername = false;
@@ -672,6 +680,25 @@ const AccountPage = () => {
               variant: "destructive",
             });
             return;
+          }
+
+          // Checa se o usuário possui Verificação em 2 Etapas (Google Authenticator) ativada
+          try {
+            const { data: userProfile } = await supabase
+              .from('profiles')
+              .select('two_factor_enabled')
+              .eq('id', data.user.id)
+              .maybeSingle();
+
+            if (userProfile && (userProfile as any).two_factor_enabled) {
+              setPendingTwoFactorUserId(data.user.id);
+              setPendingTwoFactorEmail(cleanEmail);
+              setShowTwoFactorModal(true);
+              setAuthLoading(false);
+              return;
+            }
+          } catch (tfaErr) {
+            console.warn("Aviso ao verificar status de 2FA no login:", tfaErr);
           }
 
           toast({ title: "Login realizado com sucesso" });
@@ -1344,6 +1371,16 @@ const AccountPage = () => {
                       <FocusModeCard />
                     </BetaGate>
 
+                    {/* Verificação em Duas Etapas (Google Authenticator / TOTP) */}
+                    {authCtx.user?.sub && (
+                      <TwoFactorSettingsCard
+                        userId={authCtx.user.sub}
+                        userEmail={authCtx.user.email}
+                        is2FAEnabled={twoFactorEnabled}
+                        onStatusChange={(enabled) => setTwoFactorEnabled(enabled)}
+                      />
+                    )}
+
                     <button onClick={toggleOffline} disabled={isDownloading} className="flex w-full items-center justify-between rounded-xl bg-secondary/30 border border-white/5 p-3.5 transition-all hover:bg-secondary/50 hover:border-white/10 disabled:opacity-70 liquid-btn">
                       <div className="flex items-center gap-3">
                         <span className="text-muted-foreground">
@@ -1749,6 +1786,27 @@ const AccountPage = () => {
           navigate("/");
         }}
       />
+
+      {/* Modal de Desafio de 2FA (Google Authenticator) no Login */}
+      {showTwoFactorModal && pendingTwoFactorUserId && (
+        <TwoFactorLoginModal
+          userId={pendingTwoFactorUserId}
+          userEmail={pendingTwoFactorEmail}
+          onSuccess={() => {
+            setShowTwoFactorModal(false);
+            setPendingTwoFactorUserId(null);
+            setPendingTwoFactorEmail("");
+            navigate("/");
+          }}
+          onCancel={async () => {
+            setShowTwoFactorModal(false);
+            setPendingTwoFactorUserId(null);
+            setPendingTwoFactorEmail("");
+            // Faz logout preventivo caso o usuário cancele o desafio 2FA
+            await supabase.auth.signOut().catch(() => {});
+          }}
+        />
+      )}
     </div>
   );
 };
