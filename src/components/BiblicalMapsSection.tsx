@@ -388,11 +388,11 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
     <div className={`space-y-4 ${isFullscreen ? "h-full flex flex-col flex-1 min-h-0" : ""}`}>
       {/* Header com Título, Descrição, Selo Beta e Seletor de Rotas Bíblicas - Sempre presente sem mudar nada */}
       <div className="relative glass-card rounded-2xl p-5 sm:p-6 border border-border bg-card/60 shadow-md flex flex-col gap-4 shrink-0">
-        <div className="flex items-start justify-between gap-4 pr-16 sm:pr-28">
-          <div className="space-y-1 max-w-2xl">
+        <div className="flex items-start justify-between gap-4 pr-0 sm:pr-28">
+          <div className="space-y-1 max-w-2xl flex-1 min-w-0">
             <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2.5 tracking-tight">
               <Compass className="h-5 w-5 sm:h-6 sm:w-6 text-accent shrink-0" />
-              <span>Mapas Bíblicos Realistas & Interativos</span>
+              <span>Mapas Bíblicos Realistas e Interativos</span>
             </h2>
             <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
               Geografia sagrada em alta resolução com satélite realista, relevo topográfico, atlas histórico e contextualização bíblica versículo por versículo.
@@ -412,10 +412,10 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
               </button>
             )}
 
-            {/* Selo Beta no tema do app: azul com 2 tons misturados, borda luminosa, ícone Sparkles e sem piscar */}
+            {/* Selo Beta no tema do app: oculto em celulares para evitar sobreposição */}
             <div
               id="biblical-maps-badge-beta"
-              className="inline-flex items-center gap-2 px-3 py-1 sm:px-3.5 sm:py-1 rounded-full bg-gradient-to-r from-[#031d2e] via-[#021422] to-[#04253a] border border-[#0ea5e9] shadow-[0_0_12px_rgba(14,165,233,0.25)] backdrop-blur-md transition-all hover:border-[#38bdf8] hover:shadow-[0_0_16px_rgba(14,165,233,0.35)] select-none"
+              className="hidden sm:inline-flex items-center gap-2 px-3 py-1 sm:px-3.5 sm:py-1 rounded-full bg-gradient-to-r from-[#031d2e] via-[#021422] to-[#04253a] border border-[#0ea5e9] shadow-[0_0_12px_rgba(14,165,233,0.25)] backdrop-blur-md transition-all hover:border-[#38bdf8] hover:shadow-[0_0_16px_rgba(14,165,233,0.35)] select-none"
             >
               <Sparkles className="h-3.5 w-3.5 text-[#38bdf8] shrink-0" />
               <span className="text-[11px] sm:text-xs font-bold tracking-[0.18em] uppercase text-[#bae6fd] font-mono leading-none">
@@ -644,7 +644,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
                         <Info className="h-3.5 w-3.5 text-accent" />
-                        <span>Contexto Histórico & Arqueológico</span>
+                        <span>Contexto Histórico e Arqueológico</span>
                       </div>
                       <p className="text-xs text-muted-foreground leading-relaxed">
                         {selectedLocation.historicalNote}

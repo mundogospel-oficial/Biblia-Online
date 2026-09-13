@@ -3532,7 +3532,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
             className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/95 p-3 sm:p-4 backdrop-blur-md select-none safe-area-top safe-area-bottom"
             onClick={() => setLightboxImage(null)}
           >
-            <div className="w-full max-w-[340px] sm:max-w-sm flex flex-col items-center justify-center gap-2 sm:gap-2.5 my-auto max-h-full">
+            <div className="w-full max-w-[360px] sm:max-w-md flex flex-col items-center justify-center gap-2 sm:gap-2.5 my-auto max-h-full">
               {/* Top Bar Header - Mesmo tamanho da barra inferior */}
               <motion.div
                 initial={{ y: -15, opacity: 0 }}
@@ -3549,7 +3549,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                 <button
                   type="button"
                   onClick={() => setLightboxImage(null)}
-                  className="flex items-center justify-center h-7.5 w-7.5 sm:h-8 sm:w-8 rounded-full bg-white/10 hover:bg-red-500/80 text-white transition-all hover:scale-105 active:scale-95 shrink-0"
+                  className="flex items-center justify-center h-8 w-8 rounded-full bg-white/10 hover:bg-red-500/80 text-white transition-all hover:scale-105 active:scale-95 shrink-0"
                   title="Fechar (Esc)"
                 >
                   <X className="h-4 w-4" />
@@ -3685,18 +3685,18 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: 15, opacity: 0 }}
                 transition={{ delay: 0.05 }}
-                className="w-full h-11 sm:h-12 flex items-center justify-between bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-full px-2 sm:px-3 shadow-2xl shrink-0 z-50 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                className="w-full h-11 sm:h-12 flex items-center justify-between bg-zinc-900/95 backdrop-blur-xl border border-white/10 rounded-full px-2.5 sm:px-3 shadow-2xl shrink-0 z-50 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+                <div className="flex items-center gap-1.5 sm:gap-1.5 shrink-0">
                   <button
                     type="button"
                     onClick={() => lightboxImage && downloadImage(lightboxImage)}
                     title="Baixar imagem"
                     aria-label="Baixar imagem"
-                    className="flex h-7.5 w-7.5 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white/90 hover:text-white border border-white/10 hover:border-white/25 transition-all hover:scale-105 active:scale-95 shrink-0"
+                    className="flex h-8 w-8 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white/90 hover:text-white border border-white/10 hover:border-white/25 transition-all hover:scale-105 active:scale-95 shrink-0"
                   >
-                    <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                    <Download className="h-4 w-4 shrink-0" />
                   </button>
 
                   <button
@@ -3704,9 +3704,9 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     onClick={() => lightboxImage && shareBibleImage(lightboxImage)}
                     title="Compartilhar imagem"
                     aria-label="Compartilhar imagem"
-                    className="flex h-7.5 w-7.5 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white/90 hover:text-white border border-white/10 hover:border-white/25 transition-all hover:scale-105 active:scale-95 shrink-0"
+                    className="flex h-8 w-8 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white/90 hover:text-white border border-white/10 hover:border-white/25 transition-all hover:scale-105 active:scale-95 shrink-0"
                   >
-                    <Share2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                    <Share2 className="h-4 w-4 shrink-0" />
                   </button>
 
                   <button
@@ -3714,9 +3714,9 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     onClick={handleRegenerateFromLightbox}
                     title="Regenerar imagem"
                     aria-label="Regenerar imagem"
-                    className="flex h-7.5 w-7.5 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white/90 hover:text-white border border-white/10 hover:border-white/25 transition-all hover:scale-105 active:scale-95 shrink-0"
+                    className="flex h-8 w-8 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white/90 hover:text-white border border-white/10 hover:border-white/25 transition-all hover:scale-105 active:scale-95 shrink-0"
                   >
-                    <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-accent" />
+                    <RotateCcw className="h-4 w-4 shrink-0 text-accent" />
                   </button>
 
                   <button
@@ -3724,13 +3724,13 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     onClick={() => setIsChangeInputOpen(prev => !prev)}
                     title="Pedir mudança"
                     aria-label="Pedir mudança"
-                    className={`flex h-7.5 w-7.5 sm:h-8 sm:w-8 items-center justify-center rounded-full transition-all hover:scale-105 active:scale-95 border shrink-0 ${
+                    className={`flex h-8 w-8 sm:h-8 sm:w-8 items-center justify-center rounded-full transition-all hover:scale-105 active:scale-95 border shrink-0 ${
                       isChangeInputOpen
                         ? "bg-accent text-white border-accent shadow-md shadow-accent/30"
                         : "bg-white/[0.08] hover:bg-white/[0.16] text-white/90 hover:text-white border-white/10 hover:border-white/25"
                     }`}
                   >
-                    <Wand2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-accent" />
+                    <Wand2 className="h-4 w-4 shrink-0 text-accent" />
                   </button>
 
                   <button
@@ -3738,13 +3738,13 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     onClick={handleLightboxLike}
                     title="Gostei"
                     aria-label="Gostei"
-                    className={`flex h-7.5 w-7.5 sm:h-8 sm:w-8 items-center justify-center rounded-full transition-all hover:scale-105 active:scale-95 border shrink-0 ${
+                    className={`flex h-8 w-8 sm:h-8 sm:w-8 items-center justify-center rounded-full transition-all hover:scale-105 active:scale-95 border shrink-0 ${
                       currentLightboxFeedback === "like"
                         ? "bg-emerald-500/25 text-emerald-400 border-emerald-500/50"
                         : "bg-white/[0.08] hover:bg-white/[0.16] text-white/90 hover:text-white border-white/10 hover:border-white/25"
                     }`}
                   >
-                    <ThumbsUp className={`h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 ${currentLightboxFeedback === "like" ? "fill-current text-emerald-400" : ""}`} />
+                    <ThumbsUp className={`h-4 w-4 shrink-0 ${currentLightboxFeedback === "like" ? "fill-current text-emerald-400" : ""}`} />
                   </button>
 
                   <button
@@ -3752,17 +3752,17 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     onClick={handleLightboxDislike}
                     title="Não gostei"
                     aria-label="Não gostei"
-                    className={`flex h-7.5 w-7.5 sm:h-8 sm:w-8 items-center justify-center rounded-full transition-all hover:scale-105 active:scale-95 border shrink-0 ${
+                    className={`flex h-8 w-8 sm:h-8 sm:w-8 items-center justify-center rounded-full transition-all hover:scale-105 active:scale-95 border shrink-0 ${
                       currentLightboxFeedback === "dislike"
                         ? "bg-rose-500/25 text-rose-400 border-rose-500/50"
                         : "bg-white/[0.08] hover:bg-white/[0.16] text-white/90 hover:text-white border-white/10 hover:border-white/25"
                     }`}
                   >
-                    <ThumbsDown className={`h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 ${currentLightboxFeedback === "dislike" ? "fill-current text-rose-400" : ""}`} />
+                    <ThumbsDown className={`h-4 w-4 shrink-0 ${currentLightboxFeedback === "dislike" ? "fill-current text-rose-400" : ""}`} />
                   </button>
                 </div>
 
-                <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 pl-1 border-l border-white/10 ml-0.5">
+                <div className="flex items-center gap-1.5 shrink-0 pl-1.5 border-l border-white/10 ml-0.5">
                   <button
                     type="button"
                     onClick={() => {
@@ -3773,7 +3773,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                         setZoomScale(2);
                       }
                     }}
-                    className={`flex h-7.5 sm:h-8 px-1.5 sm:px-2 items-center justify-center rounded-full text-[11px] sm:text-xs font-mono font-bold transition-all active:scale-95 border border-white/10 ${
+                    className={`flex h-8 px-2 items-center justify-center rounded-full text-xs font-mono font-bold transition-all active:scale-95 border border-white/10 ${
                       zoomScale > 1 ? "bg-accent text-white" : "bg-white/[0.08] hover:bg-white/[0.16] text-zinc-300"
                     }`}
                     title="Alternar Zoom Rápido 2x"
@@ -3794,10 +3794,10 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                       });
                     }}
                     disabled={zoomScale <= 1}
-                    className="flex h-7.5 w-7.5 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white disabled:opacity-30 transition-all active:scale-95 border border-white/10 shrink-0"
+                    className="flex h-8 w-8 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white disabled:opacity-30 transition-all active:scale-95 border border-white/10 shrink-0"
                     title="Diminuir Zoom"
                   >
-                    <ZoomOut className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <ZoomOut className="h-4 w-4" />
                   </button>
 
                   <button
@@ -3806,10 +3806,10 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                       setZoomScale(prev => Math.min(prev + 0.5, 4.5));
                     }}
                     disabled={zoomScale >= 4.5}
-                    className="flex h-7.5 w-7.5 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white disabled:opacity-30 transition-all active:scale-95 border border-white/10 shrink-0"
+                    className="flex h-8 w-8 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] text-white disabled:opacity-30 transition-all active:scale-95 border border-white/10 shrink-0"
                     title="Aumentar Zoom"
                   >
-                    <ZoomIn className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <ZoomIn className="h-4 w-4" />
                   </button>
                 </div>
               </motion.div>

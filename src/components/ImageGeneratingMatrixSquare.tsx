@@ -149,21 +149,21 @@ export const ImageGeneratingMatrixSquare: React.FC = () => {
   return (
     <div
       ref={containerRef}
-      className="relative w-full max-w-[280px] sm:max-w-[320px] aspect-square rounded-2xl bg-[#04060a] border border-white/[0.08] shadow-[0_16px_48px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col justify-between p-4 sm:p-5 select-none my-1"
+      className="relative w-full max-w-[280px] sm:max-w-[320px] aspect-square rounded-2xl bg-[#04060a] border border-white/[0.08] shadow-[0_16px_48px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col justify-between p-3.5 sm:p-4 select-none my-1"
     >
       {/* Subtle top ambient glow */}
       <div className="absolute top-0 inset-x-0 h-14 bg-gradient-to-b from-sky-500/10 to-transparent pointer-events-none" />
 
-      {/* Top Header with changing phrase */}
-      <div className="relative z-10 flex items-center justify-between w-full h-7">
-        <div className="flex items-center gap-2 overflow-hidden">
-          <div className="h-5 relative overflow-hidden flex items-center">
+      {/* Top Header with changing phrase - Posicionado no topo com margem limpa */}
+      <div className="relative z-10 flex items-center justify-between w-full pt-1 px-1">
+        <div className="flex items-center gap-2 overflow-hidden w-full">
+          <div className="h-5 relative overflow-hidden flex items-center w-full">
             <AnimatePresence mode="wait">
               <motion.span
                 key={phraseIndex}
-                initial={{ opacity: 0, y: 5, filter: "blur(2px)" }}
+                initial={{ opacity: 0, y: 4, filter: "blur(2px)" }}
                 animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                exit={{ opacity: 0, y: -5, filter: "blur(2px)" }}
+                exit={{ opacity: 0, y: -4, filter: "blur(2px)" }}
                 transition={{ duration: 0.35, ease: "easeOut" }}
                 className="text-xs sm:text-sm font-semibold text-white/95 tracking-tight truncate block"
               >
@@ -174,8 +174,8 @@ export const ImageGeneratingMatrixSquare: React.FC = () => {
         </div>
       </div>
 
-      {/* Center Matrix Dot Canvas */}
-      <div className="absolute inset-0 pt-8 pb-8 px-2 flex items-center justify-center pointer-events-none">
+      {/* Center Matrix Dot Canvas - Delimitado abaixo do texto */}
+      <div className="absolute inset-x-0 top-9 bottom-9 px-3 flex items-center justify-center pointer-events-none">
         <canvas
           ref={canvasRef}
           className="w-full h-full block"
@@ -183,7 +183,7 @@ export const ImageGeneratingMatrixSquare: React.FC = () => {
       </div>
 
       {/* Bottom Row with Percentage Badge at Bottom-Right */}
-      <div className="relative z-10 flex items-center justify-end w-full mt-auto">
+      <div className="relative z-10 flex items-center justify-end w-full mt-auto pb-0.5 px-0.5">
         <div className="rounded-full px-3 py-1 bg-[#141824]/90 border border-slate-700/60 shadow-lg backdrop-blur-md flex items-center">
           <span className="text-sky-400 font-mono font-semibold text-xs tracking-tight">
             {progress}%

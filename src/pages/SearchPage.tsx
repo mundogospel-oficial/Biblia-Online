@@ -585,11 +585,14 @@ const SearchPage = () => {
           {/* MATCHED BIBLICAL ENTITY CARD WHEN SEARCHING */}
           {activeTab === "todos" && searched && matchedEntities.length > 0 && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <User className="h-4 w-4 text-accent" />
-                  <h2 className="font-serif text-sm font-bold text-foreground sm:text-base">
-                    Conhecimento e Personagens Relacionados ({matchedEntities.length})
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start gap-2 min-w-0 flex-1">
+                  <User className="h-4 w-4 text-accent shrink-0 mt-0.5" />
+                  <h2 className="font-serif text-sm sm:text-base font-bold text-foreground leading-snug">
+                    Conhecimento e Personagens Relacionados{" "}
+                    <span className="text-xs font-normal text-muted-foreground font-sans whitespace-nowrap">
+                      ({matchedEntities.length})
+                    </span>
                   </h2>
                 </div>
               </div>
@@ -602,9 +605,9 @@ const SearchPage = () => {
                       key={entity.id}
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="glass-card rounded-xl p-4 space-y-2 border border-border/40 hover:border-accent/50 transition-all flex flex-col justify-between hover:shadow-md hover:shadow-accent/5 group"
+                      className="glass-card rounded-xl p-3.5 sm:p-4 space-y-2 border border-border/40 hover:border-accent/50 transition-all flex flex-col justify-between hover:shadow-md hover:shadow-accent/5 group overflow-hidden w-full"
                     >
-                      <div>
+                      <div className="min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-1">
                           <span className="rounded bg-accent/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-accent line-clamp-1">
                             {entity.badge.split("•")[0].trim()}
@@ -617,7 +620,7 @@ const SearchPage = () => {
                             <Sparkles className="h-3.5 w-3.5" />
                           </button>
                         </div>
-                        <h3 className="font-serif text-sm font-bold text-foreground">
+                        <h3 className="font-serif text-sm font-bold text-foreground truncate">
                           {stripLeadingNumber(entity.name)}
                         </h3>
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-3 leading-relaxed">
@@ -625,7 +628,7 @@ const SearchPage = () => {
                         </p>
                       </div>
 
-                      <div className="pt-2 border-t border-border/20 flex items-center justify-between gap-2">
+                      <div className="pt-2 border-t border-border/20 flex flex-wrap items-center justify-between gap-2">
                         <button
                           onClick={() => handleAskAI(entity.aiPrompt)}
                           className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 shrink-0 whitespace-nowrap"
@@ -634,7 +637,7 @@ const SearchPage = () => {
                         </button>
                         <button
                           onClick={() => handleSearch(shortName)}
-                          className="text-[11px] font-semibold text-accent hover:underline flex items-center gap-1 min-w-0 truncate"
+                          className="text-[11px] font-semibold text-accent hover:underline flex items-center gap-1 min-w-0 max-w-full truncate"
                         >
                           <Search className="h-3 w-3 shrink-0" /> <span className="truncate">Buscar sobre {shortName}</span>
                         </button>
@@ -671,10 +674,16 @@ const SearchPage = () => {
 
           {!loading && (activeTab === "todos" || activeTab === "versiculos") && results.length > 0 && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="font-serif text-sm font-bold text-foreground sm:text-base flex items-center gap-1.5">
-                  <BookOpen className="h-4 w-4 text-accent" /> Versículos na Bíblia ({results.length})
-                </h2>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start gap-2 min-w-0">
+                  <BookOpen className="h-4 w-4 text-accent shrink-0 mt-0.5" />
+                  <h2 className="font-serif text-sm sm:text-base font-bold text-foreground leading-snug">
+                    Versículos na Bíblia{" "}
+                    <span className="text-xs font-normal text-muted-foreground font-sans whitespace-nowrap">
+                      ({results.length})
+                    </span>
+                  </h2>
+                </div>
               </div>
 
               <div className="space-y-2.5">
@@ -779,16 +788,22 @@ const SearchPage = () => {
             {/* TAB CONTENT: PLANOS DIÁRIOS DE LEITURA */}
             {((activeTab === "todos" && filteredReadingPlans.length > 0) || activeTab === "planos") && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="h-4 w-4 text-accent" />
-                    <h2 className="font-serif text-base font-bold text-foreground">
-                      Planos Diários de Leitura ({filteredReadingPlans.length})
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2 min-w-0 flex-1">
+                    <Calendar className="h-4 w-4 text-accent shrink-0 mt-0.5" />
+                    <h2 className="font-serif text-sm sm:text-base font-bold text-foreground leading-snug">
+                      Planos Diários de Leitura{" "}
+                      <span className="text-xs font-normal text-muted-foreground font-sans whitespace-nowrap">
+                        ({filteredReadingPlans.length})
+                      </span>
                     </h2>
                   </div>
                   {activeTab === "todos" && (
-                    <Link to="/devocionais" className="text-xs text-accent hover:underline font-medium">
-                      Ver Todos em Devocionais e Planos →
+                    <Link
+                      to="/devocionais"
+                      className="text-xs text-accent hover:underline font-medium shrink-0 whitespace-nowrap pt-0.5"
+                    >
+                      Ver em Devocionais →
                     </Link>
                   )}
                 </div>
@@ -799,26 +814,26 @@ const SearchPage = () => {
                       key={plan.id}
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="glass-card rounded-xl p-4 space-y-2 border border-border/40 hover:border-accent/50 transition-all flex flex-col justify-between hover:shadow-md hover:shadow-accent/5"
+                      className="glass-card rounded-xl p-3.5 sm:p-4 space-y-2 border border-border/40 hover:border-accent/50 transition-all flex flex-col justify-between hover:shadow-md hover:shadow-accent/5 overflow-hidden w-full"
                     >
-                      <div className="space-y-1.5">
+                      <div className="space-y-1.5 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[9px] font-bold border ${plan.bgGradient}`}>
                             {plan.badge}
                           </span>
-                          <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
+                          <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1 shrink-0">
                             <Clock className="h-3 w-3" /> {plan.durationDays} Dias
                           </span>
                         </div>
-                        <h3 className="font-serif text-sm font-bold text-foreground">{plan.title}</h3>
+                        <h3 className="font-serif text-sm font-bold text-foreground truncate">{plan.title}</h3>
                         <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{plan.description}</p>
                       </div>
 
-                      <div className="pt-2 border-t border-border/20 flex items-center justify-between">
-                        <span className="text-[10px] font-semibold text-accent uppercase tracking-wider">{plan.category}</span>
+                      <div className="pt-2 border-t border-border/20 flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-[10px] font-semibold text-accent uppercase tracking-wider truncate">{plan.category}</span>
                         <Link
                           to="/devocionais"
-                          className="inline-flex items-center gap-1 text-xs font-bold text-accent hover:underline"
+                          className="inline-flex items-center gap-1 text-xs font-bold text-accent hover:underline shrink-0 ml-auto"
                         >
                           <BookOpen className="h-3.5 w-3.5" /> Acessar Plano →
                         </Link>
@@ -849,15 +864,21 @@ const SearchPage = () => {
             {/* TAB CONTENT: PERSONAGENS BÍBLICOS (100+) */}
             {((activeTab === "todos" && filteredCharacters.length > 0) || activeTab === "personagens") && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <User className="h-4 w-4 text-accent" />
-                    <h2 className="font-serif text-base font-bold text-foreground">
-                      Personagens Bíblicos ({filteredCharacters.length})
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2 min-w-0 flex-1">
+                    <User className="h-4 w-4 text-accent shrink-0 mt-0.5" />
+                    <h2 className="font-serif text-sm sm:text-base font-bold text-foreground leading-snug">
+                      Personagens Bíblicos{" "}
+                      <span className="text-xs font-normal text-muted-foreground font-sans whitespace-nowrap">
+                        ({filteredCharacters.length})
+                      </span>
                     </h2>
                   </div>
                   {activeTab === "todos" && (
-                    <button onClick={() => setActiveTab("personagens")} className="text-xs text-accent hover:underline font-medium">
+                    <button
+                      onClick={() => setActiveTab("personagens")}
+                      className="text-xs text-accent hover:underline font-medium shrink-0 whitespace-nowrap pt-0.5"
+                    >
                       Ver Mais ({filteredCharacters.length}) →
                     </button>
                   )}
@@ -871,9 +892,9 @@ const SearchPage = () => {
                         key={p.id}
                         initial={{ opacity: 0, y: 5 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="glass-card rounded-xl p-4 space-y-2 border border-border/40 hover:border-accent/50 transition-all flex flex-col justify-between hover:shadow-md hover:shadow-accent/5 group"
+                        className="glass-card rounded-xl p-3.5 sm:p-4 space-y-2 border border-border/40 hover:border-accent/50 transition-all flex flex-col justify-between hover:shadow-md hover:shadow-accent/5 group overflow-hidden w-full"
                       >
-                        <div>
+                        <div className="min-w-0">
                           <div className="flex items-center justify-between mb-1 gap-2">
                             <span className="rounded bg-accent/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-accent line-clamp-1">
                               {p.badge.split("•")[0].trim()}
@@ -886,13 +907,13 @@ const SearchPage = () => {
                               <Sparkles className="h-3.5 w-3.5" />
                             </button>
                           </div>
-                          <h3 className="font-serif text-sm font-bold text-foreground">{stripLeadingNumber(p.name)}</h3>
+                          <h3 className="font-serif text-sm font-bold text-foreground truncate">{stripLeadingNumber(p.name)}</h3>
                           <p className="text-xs text-muted-foreground mt-1 line-clamp-3 leading-relaxed">
                             {p.summary}
                           </p>
                         </div>
 
-                        <div className="pt-2 border-t border-border/20 flex items-center justify-between gap-2">
+                        <div className="pt-2 border-t border-border/20 flex flex-wrap items-center justify-between gap-2">
                           <button
                             onClick={() => handleAskAI(p.aiPrompt)}
                             className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 shrink-0 whitespace-nowrap"
@@ -901,7 +922,7 @@ const SearchPage = () => {
                           </button>
                           <button
                             onClick={() => handleSearch(shortName)}
-                            className="text-[11px] font-semibold text-accent hover:underline flex items-center gap-1 min-w-0 truncate"
+                            className="text-[11px] font-semibold text-accent hover:underline flex items-center gap-1 min-w-0 max-w-full truncate"
                           >
                             <Search className="h-3 w-3 shrink-0" /> <span className="truncate">Buscar sobre {shortName}</span>
                           </button>
@@ -933,15 +954,21 @@ const SearchPage = () => {
             {/* TAB CONTENT: CONHECIMENTO & TEMAS (100+) */}
             {((activeTab === "todos" && filteredTopics.length > 0) || activeTab === "assuntos") && (
               <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <BookOpen className="h-4 w-4 text-accent" />
-                    <h2 className="font-serif text-base font-bold text-foreground">
-                      Conhecimento e Temas Bíblicos ({filteredTopics.length})
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2 min-w-0 flex-1">
+                    <BookOpen className="h-4 w-4 text-accent shrink-0 mt-0.5" />
+                    <h2 className="font-serif text-sm sm:text-base font-bold text-foreground leading-snug">
+                      Conhecimento e Temas Bíblicos{" "}
+                      <span className="text-xs font-normal text-muted-foreground font-sans whitespace-nowrap">
+                        ({filteredTopics.length})
+                      </span>
                     </h2>
                   </div>
                   {activeTab === "todos" && (
-                    <button onClick={() => setActiveTab("assuntos")} className="text-xs text-accent hover:underline font-medium">
+                    <button
+                      onClick={() => setActiveTab("assuntos")}
+                      className="text-xs text-accent hover:underline font-medium shrink-0 whitespace-nowrap pt-0.5"
+                    >
                       Ver Mais ({filteredTopics.length}) →
                     </button>
                   )}
@@ -955,9 +982,9 @@ const SearchPage = () => {
                         key={a.id}
                         initial={{ opacity: 0, y: 5 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="glass-card rounded-xl p-4 space-y-2 border border-border/40 hover:border-accent/50 transition-all flex flex-col justify-between hover:shadow-md hover:shadow-accent/5 group"
+                        className="glass-card rounded-xl p-3.5 sm:p-4 space-y-2 border border-border/40 hover:border-accent/50 transition-all flex flex-col justify-between hover:shadow-md hover:shadow-accent/5 group overflow-hidden w-full"
                       >
-                        <div>
+                        <div className="min-w-0">
                           <div className="flex items-center justify-between mb-1 gap-2">
                             <span className="rounded bg-accent/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-accent line-clamp-1">
                               {a.badge.split("•")[0].trim()}
@@ -969,13 +996,13 @@ const SearchPage = () => {
                               <Sparkles className="h-3.5 w-3.5" />
                             </button>
                           </div>
-                          <h3 className="font-serif text-sm font-bold text-foreground">{stripLeadingNumber(a.name)}</h3>
+                          <h3 className="font-serif text-sm font-bold text-foreground truncate">{stripLeadingNumber(a.name)}</h3>
                           <p className="text-xs text-muted-foreground mt-1 line-clamp-3 leading-relaxed">
                             {a.summary}
                           </p>
                         </div>
 
-                        <div className="pt-2 border-t border-border/20 flex items-center justify-between gap-2">
+                        <div className="pt-2 border-t border-border/20 flex flex-wrap items-center justify-between gap-2">
                           <button
                             onClick={() => handleAskAI(a.aiPrompt)}
                             className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 shrink-0 whitespace-nowrap"
@@ -984,7 +1011,7 @@ const SearchPage = () => {
                           </button>
                           <button
                             onClick={() => handleSearch(shortName)}
-                            className="text-[11px] font-semibold text-accent hover:underline flex items-center gap-1 min-w-0 truncate"
+                            className="text-[11px] font-semibold text-accent hover:underline flex items-center gap-1 min-w-0 max-w-full truncate"
                           >
                             <Search className="h-3 w-3 shrink-0" /> <span className="truncate">Buscar sobre {shortName}</span>
                           </button>
@@ -1016,16 +1043,22 @@ const SearchPage = () => {
             {/* TAB CONTENT: DEVOCIONAIS (100+) */}
             {((activeTab === "todos" && filteredDevotionals.length > 0) || activeTab === "devocionais") && (
               <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Flame className="h-4 w-4 text-accent" />
-                    <h2 className="font-serif text-base font-bold text-foreground">
-                      Devocionais Relacionados ({filteredDevotionals.length})
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2 min-w-0 flex-1">
+                    <Flame className="h-4 w-4 text-accent shrink-0 mt-0.5" />
+                    <h2 className="font-serif text-sm sm:text-base font-bold text-foreground leading-snug">
+                      Devocionais Relacionados{" "}
+                      <span className="text-xs font-normal text-muted-foreground font-sans whitespace-nowrap">
+                        ({filteredDevotionals.length})
+                      </span>
                     </h2>
                   </div>
                   {activeTab === "todos" && (
-                    <Link to="/devocionais" className="text-xs text-accent hover:underline font-medium">
-                      Ir para Página Devocionais →
+                    <Link
+                      to="/devocionais"
+                      className="text-xs text-accent hover:underline font-medium shrink-0 whitespace-nowrap pt-0.5"
+                    >
+                      Ir para Devocionais →
                     </Link>
                   )}
                 </div>
@@ -1036,20 +1069,20 @@ const SearchPage = () => {
                       key={d.id}
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="glass-card rounded-xl p-4 space-y-2 border border-border/40 hover:border-accent/60 transition-all flex flex-col justify-between"
+                      className="glass-card rounded-xl p-3.5 sm:p-4 space-y-2 border border-border/40 hover:border-accent/60 transition-all flex flex-col justify-between overflow-hidden w-full"
                     >
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="rounded bg-accent/20 px-2 py-0.5 text-[9px] font-bold uppercase text-accent">
+                      <div className="space-y-1.5 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="rounded bg-accent/20 px-2 py-0.5 text-[9px] font-bold uppercase text-accent truncate">
                             {d.category}
                           </span>
-                          <span className="text-[10px] font-semibold text-muted-foreground">{d.reference}</span>
+                          <span className="text-[10px] font-semibold text-muted-foreground shrink-0">{d.reference}</span>
                         </div>
-                        <h3 className="font-serif text-sm font-bold text-foreground">{d.title}</h3>
+                        <h3 className="font-serif text-sm font-bold text-foreground truncate">{d.title}</h3>
                         <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{d.summary}</p>
                       </div>
 
-                      <div className="pt-2 border-t border-border/20 flex items-center justify-between">
+                      <div className="pt-2 border-t border-border/20 flex flex-wrap items-center justify-between gap-2">
                         <button
                           onClick={() => setSelectedDevotional(d)}
                           className="text-xs font-bold text-accent hover:underline flex items-center gap-1.5"
@@ -1092,36 +1125,39 @@ const SearchPage = () => {
             {/* TAB CONTENT: PASSAGENS BÍBLICAS POPULARES (100+) */}
             {((activeTab === "todos" && filteredPopularVerses.length > 0) || activeTab === "passagens") && (
               <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Star className="h-4 w-4 text-accent" />
-                    <h2 className="font-serif text-base font-bold text-foreground">
-                      Passagens Bíblicas Mais Buscadas ({filteredPopularVerses.length})
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2 min-w-0 flex-1">
+                    <Star className="h-4 w-4 text-accent shrink-0 mt-0.5" />
+                    <h2 className="font-serif text-sm sm:text-base font-bold text-foreground leading-snug">
+                      Passagens Bíblicas Mais Buscadas{" "}
+                      <span className="text-xs font-normal text-muted-foreground font-sans whitespace-nowrap">
+                        ({filteredPopularVerses.length})
+                      </span>
                     </h2>
                   </div>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   {filteredPopularVerses.slice(0, activeTab === "todos" ? 6 : visibleVersesCount).map((pv, i) => (
-                    <div key={i} className="glass-card rounded-xl p-4 space-y-2 border border-border/40 hover:border-accent/50 transition-all flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-bold text-accent uppercase tracking-wider">{pv.reference}</span>
-                          <span className="rounded bg-secondary px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">{stripLeadingNumber(pv.theme)}</span>
+                    <div key={i} className="glass-card rounded-xl p-3.5 sm:p-4 space-y-2 border border-border/40 hover:border-accent/50 transition-all flex flex-col justify-between overflow-hidden w-full">
+                      <div className="min-w-0">
+                        <div className="flex items-center justify-between mb-1 gap-2">
+                          <span className="text-[10px] font-bold text-accent uppercase tracking-wider truncate">{pv.reference}</span>
+                          <span className="rounded bg-secondary px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground truncate">{stripLeadingNumber(pv.theme)}</span>
                         </div>
                         <p className="font-serif text-xs italic leading-relaxed text-card-foreground">"{pv.text}"</p>
                       </div>
 
-                      <div className="pt-2 border-t border-border/20 flex items-center justify-between">
+                      <div className="pt-2 border-t border-border/20 flex flex-wrap items-center justify-between gap-2">
                         <button
                           onClick={() => handleSearch(pv.reference)}
-                          className="text-xs font-semibold text-accent hover:underline flex items-center gap-1"
+                          className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 shrink-0"
                         >
                           <Search className="h-3 w-3" /> Ler / Buscar
                         </button>
                         <button
                           onClick={() => handleAskAI(`Me explique o contexto e o significado teológico de ${pv.reference}`)}
-                          className="text-[11px] font-medium text-muted-foreground hover:text-foreground flex items-center gap-1"
+                          className="text-[11px] font-medium text-muted-foreground hover:text-foreground flex items-center gap-1 shrink-0"
                         >
                           Explicar na IA <Sparkles className="h-3 w-3 text-accent" />
                         </button>

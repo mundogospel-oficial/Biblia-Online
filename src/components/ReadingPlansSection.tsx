@@ -555,11 +555,11 @@ export const ReadingPlansSection = () => {
                         </>
                       ) : !isCurrentPlanActive ? (
                         <>
-                          <Sparkles className="h-3.5 w-3.5" /> Ativar & Responder
+                          <Sparkles className="h-3.5 w-3.5" /> Ativar e Responder
                         </>
                       ) : (
                         <>
-                          <CheckCircle2 className="h-3.5 w-3.5" /> Responder & Marcar Lido
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Responder e Marcar Lido
                         </>
                       )}
                     </button>
@@ -801,7 +801,7 @@ export const ReadingPlansSection = () => {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 font-mono">
-                        Lição Salva & Concluída
+                        Lição Salva e Concluída
                       </span>
                       {viewingSavedLesson.reflection?.savedAt && (
                         <span className="text-[10px] text-muted-foreground font-mono">

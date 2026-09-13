@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  ScanFace, 
   Smartphone, 
   ShieldCheck, 
   Fingerprint,
@@ -70,7 +69,7 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
         onStatusChange?.(false);
         toast({
           title: "Proteção Desativada",
-          description: "O bloqueio por Face ID, Touch ID ou PIN foi desativado.",
+          description: "O bloqueio por biometria ou PIN foi desativado.",
         });
       }
       return;
@@ -92,7 +91,7 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
         onStatusChange?.(true);
         toast({
           title: "Proteção do App Ativada!",
-          description: "O app solicitará Face ID, Touch ID ou PIN toda vez que for aberto.",
+          description: "O app solicitará biometria ou PIN toda vez que for aberto.",
         });
       } else {
         toast({
@@ -124,9 +123,9 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
         <div className="flex items-center gap-3">
           <span className="text-muted-foreground">
             {isEnabled ? (
-              <ScanFace className="h-4 w-4 text-accent" />
+              <Fingerprint className="h-4 w-4 text-accent" />
             ) : (
-              <ScanFace className="h-4 w-4" />
+              <Fingerprint className="h-4 w-4" />
             )}
           </span>
           <div className="text-left">
@@ -190,15 +189,15 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
                   </button>
 
                   <div className="relative mx-auto mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/15 border border-accent/30 text-accent shadow-lg shadow-accent/10">
-                    <ScanFace className="h-7 w-7 text-accent" />
+                    <Fingerprint className="h-7 w-7 text-accent" />
                   </div>
 
                   <h3 className="font-serif text-xl font-bold text-foreground">
-                    Face ID, Touch ID e PIN
+                    Biometria e PIN
                   </h3>
 
                   <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
-                    O acesso por reconhecimento facial, impressão digital ou código do celular está disponível <strong>exclusivamente no aplicativo instalado (PWA)</strong>:
+                    O acesso por biometria ou código do celular está disponível <strong>exclusivamente no aplicativo instalado (PWA)</strong>:
                   </p>
 
                   <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-500/10 border border-emerald-500/25 text-emerald-400">
@@ -212,14 +211,10 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
                       <span>Usa a segurança nativa do seu aparelho:</span>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 text-center text-[10px] text-muted-foreground pb-2 border-b border-white/5">
-                      <div className="flex flex-col items-center gap-1 p-1.5 rounded-lg bg-secondary/50">
-                        <ScanFace className="h-4 w-4 text-accent" />
-                        <span>Face ID</span>
-                      </div>
+                    <div className="grid grid-cols-2 gap-2 text-center text-[10px] text-muted-foreground pb-2 border-b border-white/5">
                       <div className="flex flex-col items-center gap-1 p-1.5 rounded-lg bg-secondary/50">
                         <Fingerprint className="h-4 w-4 text-accent" />
-                        <span>Touch ID</span>
+                        <span>Biometria</span>
                       </div>
                       <div className="flex flex-col items-center gap-1 p-1.5 rounded-lg bg-secondary/50">
                         <KeyRound className="h-4 w-4 text-accent" />

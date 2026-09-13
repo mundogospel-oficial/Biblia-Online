@@ -19,6 +19,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { PulpitMode } from "@/components/PulpitMode";
 import { BetaGate } from "@/components/BetaGate";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { isPWAMode } from "@/services/biometricAuthService";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const DICT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bible-chat`;
 
@@ -54,6 +56,9 @@ const Reader = () => {
   const loaderRef = useRef<HTMLDivElement | null>(null);
 
   // Modo Púlpito (Apresentação Sagrada & Projeção)
+  const isPWA = isPWAMode();
+  const isMobile = useIsMobile();
+  const hidePresentation = isPWA || isMobile;
   const [showPulpitMode, setShowPulpitMode] = useState(false);
   const [pulpitStartVerse, setPulpitStartVerse] = useState<number>(1);
 
@@ -601,23 +606,25 @@ const Reader = () => {
                 </option>
               ))}
             </select>
-            <BetaGate>
-              <button
-                onClick={() => {
-                  const firstSelected = selectedVerses.size > 0 ? Math.min(...Array.from(selectedVerses)) : (activeVerse || 1);
-                  setPulpitStartVerse(firstSelected);
-                  setShowPulpitMode(true);
-                }}
-                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium bg-secondary text-secondary-foreground border border-border/80 hover:bg-secondary/80 hover:text-accent hover:border-accent/50 transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer shadow-xs hover:shadow-[0_0_14px_hsl(var(--accent)/0.25)]"
-                title={t("present_desc")}
-              >
-                <Presentation className="h-3.5 w-3.5 text-accent" />
-                <span>{t("present")}</span>
-                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-accent/20 text-accent leading-none">
-                  Beta
-                </span>
-              </button>
-            </BetaGate>
+            {!hidePresentation && (
+              <BetaGate>
+                <button
+                  onClick={() => {
+                    const firstSelected = selectedVerses.size > 0 ? Math.min(...Array.from(selectedVerses)) : (activeVerse || 1);
+                    setPulpitStartVerse(firstSelected);
+                    setShowPulpitMode(true);
+                  }}
+                  className="hidden md:flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium bg-secondary text-secondary-foreground border border-border/80 hover:bg-secondary/80 hover:text-accent hover:border-accent/50 transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer shadow-xs hover:shadow-[0_0_14px_hsl(var(--accent)/0.25)]"
+                  title={t("present_desc")}
+                >
+                  <Presentation className="h-3.5 w-3.5 text-accent" />
+                  <span>{t("present")}</span>
+                  <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-accent/20 text-accent leading-none">
+                    Beta
+                  </span>
+                </button>
+              </BetaGate>
+            )}
             <button
               onClick={() => {
                 if (!authUser) { toast({ title: t("bilingual_login_needed") }); return; }
@@ -1353,20 +1360,22 @@ const Reader = () => {
       )}
 
       {/* MODO PÚLPITO — APRESENTAÇÃO SAGRADA & TELÃO (EXCLUSIVO PROGRAMA BETA) */}
-      <BetaGate>
-        <PulpitMode
-          isOpen={showPulpitMode}
-          onClose={() => setShowPulpitMode(false)}
-          initialBookAbbrev={abbrev || "gn"}
-          initialChapter={chapterNum}
-          initialVerseNumber={pulpitStartVerse}
-          translation={translation}
-          onTranslationChange={(newTr) => setTranslation(newTr)}
-          onNavigateChapter={(newAbbrev, newChapter) => {
-            navigate(`/livro/${newAbbrev}/${newChapter}`, { replace: true });
-          }}
-        />
-      </BetaGate>
+      {!hidePresentation && (
+        <BetaGate>
+          <PulpitMode
+            isOpen={showPulpitMode}
+            onClose={() => setShowPulpitMode(false)}
+            initialBookAbbrev={abbrev || "gn"}
+            initialChapter={chapterNum}
+            initialVerseNumber={pulpitStartVerse}
+            translation={translation}
+            onTranslationChange={(newTr) => setTranslation(newTr)}
+            onNavigateChapter={(newAbbrev, newChapter) => {
+              navigate(`/livro/${newAbbrev}/${newChapter}`, { replace: true });
+            }}
+          />
+        </BetaGate>
+      )}
     </div>
   );
 };
