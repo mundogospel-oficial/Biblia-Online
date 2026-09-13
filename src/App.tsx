@@ -19,7 +19,6 @@ import DevotionalPage from "./pages/DevotionalPage";
 import AccountPage from "./pages/AccountPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
-import ClockPage from "./pages/ClockPage";
 import { useSentinel } from "./hooks/useSentinel";
 import { checkInactivity, updateLastVisit, checkScheduledNotifications } from "@/services/notificationService";
 
@@ -64,7 +63,7 @@ const App = () => {
 
   useEffect(() => {
     const initOneSignal = async () => {
-      const appId = import.meta.env.VITE_ONESIGNAL_APP_ID;
+      const appId = import.meta.env.ONESIGNAL_APP_ID || (import.meta.env as any).VITE_ONESIGNAL_APP_ID;
       if (!appId || appId.startsWith("YOUR_")) {
         console.warn("[OneSignal] App ID is not configured or is a placeholder in the environment.");
         return;
@@ -135,7 +134,6 @@ const App = () => {
                 <Route path="/devocional" element={<Navigate to="/devocionais" replace />} />
                 <Route path="/conta" element={<AccountPage />} />
                 <Route path="/atualizar-senha" element={<ResetPasswordPage />} />
-                <Route path="/relogio" element={<ClockPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'biblia-online-v2.5.3';
+const CACHE_NAME = 'biblia-online-v2.5.2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -217,68 +217,4 @@ self.addEventListener('message', (event) => {
       keys.forEach((key) => caches.delete(key));
     });
   }
-
-  // Permite agendar / disparar notificação diretamente a partir do Service Worker
-  if (event.data.action === 'showNotification' && event.data.title) {
-    self.registration.showNotification(event.data.title, {
-      body: event.data.body || '',
-      icon: event.data.icon || '/icons/logo2.png',
-      badge: event.data.badge || '/apple-touch-icon.png',
-      vibrate: [200, 100, 200],
-      tag: event.data.tag || 'biblia-notification',
-      renotify: true,
-      data: {
-        url: event.data.url || '/'
-      }
-    });
-  }
 });
-
-// Push event handler - Para notificações recebidas mesmo com o app fechado
-self.addEventListener('push', (event) => {
-  let data = {};
-  if (event.data) {
-    try {
-      data = event.data.json();
-    } catch (e) {
-      data = { body: event.data.text() };
-    }
-  }
-
-  const title = data.title || 'Bíblia Online - Mensagem de Fé';
-  const options = {
-    body: data.body || 'Confira a palavra de Deus para hoje.',
-    icon: data.icon || '/icons/logo2.png',
-    badge: data.badge || '/apple-touch-icon.png',
-    vibrate: [200, 100, 200],
-    tag: data.tag || 'biblia-push-verse',
-    renotify: true,
-    data: {
-      url: data.url || '/'
-    }
-  };
-
-  event.waitUntil(self.registration.showNotification(title, options));
-});
-
-// Notification click handler - Abre ou foca a janela do app ao tocar na notificação
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  const targetUrl = event.notification.data?.url || '/';
-
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Se já houver uma aba aberta, foca nela
-      for (const client of clientList) {
-        if (client.url && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      // Se não houver, abre uma nova janela
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(targetUrl);
-      }
-    })
-  );
-});
-
