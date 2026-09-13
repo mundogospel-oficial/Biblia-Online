@@ -263,16 +263,30 @@ export async function registerBiometricCredential(user: {
   } catch (err: any) {
     console.error("[BiometricAuth] Erro ao registrar biometria:", err);
 
+    // Se já estiver cadastrado ou salvou com sucesso antes de qualquer aviso secundário
+    if (isUserBiometricEnrolled(user.id)) {
+      return {
+        success: true,
+      };
+    }
+
     if (err.name === "NotAllowedError") {
       return {
         success: false,
-        error: "Permissão de Face ID / Biometria negada ou cancelada pelo usuário.",
+        error: "Permissão de biometria cancelada pelo usuário.",
+      };
+    }
+
+    if (err.name === "InvalidStateError") {
+      // Credencial já existente no autenticador da plataforma
+      return {
+        success: true,
       };
     }
 
     return {
       success: false,
-      error: err.message || "Erro ao configurar reconhecimento facial no dispositivo.",
+      error: "Não foi possível concluir a ativação da biometria.",
     };
   }
 }

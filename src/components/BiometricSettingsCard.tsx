@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Smartphone, 
   ShieldCheck, 
-  Fingerprint,
+  ScanFace,
   KeyRound,
   X, 
   Lock,
@@ -84,7 +84,9 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
         name: userName,
       });
 
-      if (res.success) {
+      const isEnrolledNow = res.success || isUserBiometricEnrolled(userId);
+
+      if (isEnrolledNow) {
         setIsEnabled(true);
         setAppBiometricLockEnabled(true);
         setAppSessionUnlocked(true);
@@ -93,19 +95,18 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
           title: "Proteção do App Ativada!",
           description: "O app solicitará biometria ou PIN toda vez que for aberto.",
         });
-      } else {
+      }
+    } catch {
+      if (isUserBiometricEnrolled(userId)) {
+        setIsEnabled(true);
+        setAppBiometricLockEnabled(true);
+        setAppSessionUnlocked(true);
+        onStatusChange?.(true);
         toast({
-          title: "Não foi possível ativar",
-          description: res.error || "A autenticação foi cancelada ou não foi concluída.",
-          variant: "destructive",
+          title: "Proteção do App Ativada!",
+          description: "O app solicitará biometria ou PIN toda vez que for aberto.",
         });
       }
-    } catch (err: any) {
-      toast({
-        title: "Erro",
-        description: err?.message || "Erro ao configurar biometria.",
-        variant: "destructive",
-      });
     } finally {
       setLoading(false);
     }
@@ -121,11 +122,11 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
         className="flex w-full items-center justify-between rounded-xl bg-secondary/30 border border-white/5 p-3.5 transition-all hover:bg-secondary/50 hover:border-white/10 liquid-btn text-left disabled:opacity-70"
       >
         <div className="flex items-center gap-3">
-          <span className="text-muted-foreground">
+          <span className="text-muted-foreground flex items-center">
             {isEnabled ? (
-              <Fingerprint className="h-4 w-4 text-accent" />
+              <ScanFace className="h-4 w-4 text-accent" />
             ) : (
-              <Fingerprint className="h-4 w-4" />
+              <ScanFace className="h-4 w-4" />
             )}
           </span>
           <div className="text-left">
@@ -189,7 +190,7 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
                   </button>
 
                   <div className="relative mx-auto mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/15 border border-accent/30 text-accent shadow-lg shadow-accent/10">
-                    <Fingerprint className="h-7 w-7 text-accent" />
+                    <ScanFace className="h-7 w-7 text-accent" />
                   </div>
 
                   <h3 className="font-serif text-xl font-bold text-foreground">
@@ -213,8 +214,8 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
 
                     <div className="grid grid-cols-2 gap-2 text-center text-[10px] text-muted-foreground pb-2 border-b border-white/5">
                       <div className="flex flex-col items-center gap-1 p-1.5 rounded-lg bg-secondary/50">
-                        <Fingerprint className="h-4 w-4 text-accent" />
-                        <span>Biometria</span>
+                        <ScanFace className="h-4 w-4 text-accent" />
+                        <span>Biometria (Face ID)</span>
                       </div>
                       <div className="flex flex-col items-center gap-1 p-1.5 rounded-lg bg-secondary/50">
                         <KeyRound className="h-4 w-4 text-accent" />
