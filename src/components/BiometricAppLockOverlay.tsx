@@ -155,9 +155,20 @@ export const BiometricAppLockOverlay: React.FC = () => {
         <div className="pt-8 text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
             <img 
-              src="/favicon.png" 
+              src="/icons/logo2.png" 
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (!target.dataset.tried) {
+                  target.dataset.tried = "1";
+                  target.src = "/logo2.png";
+                } else if (target.dataset.tried === "1") {
+                  target.dataset.tried = "2";
+                  target.src = "/icons/logo3.png";
+                }
+              }}
               alt="Biblia Online" 
-              className="h-8 w-8 rounded-xl object-contain shadow-md border border-white/10" 
+              draggable={false}
+              className="h-8 w-8 rounded-xl object-contain shadow-md shrink-0 select-none" 
             />
             <span className="font-serif font-bold text-lg text-foreground tracking-tight">
               Biblia Online
