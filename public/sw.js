@@ -1,4 +1,4 @@
-const CACHE_NAME = 'biblia-online-v2.5.2';
+const CACHE_NAME = 'biblia-online-v2.5.3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -105,7 +105,7 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // Bypass Service Worker for external Map tile servers and GIS imagery
+  // Intercept and cache Map tile servers (ArcGIS, OSM, NatGeo) for full offline map support
   if (
     url.host.includes('arcgisonline.com') ||
     url.host.includes('cartocdn.com') ||
@@ -113,6 +113,28 @@ self.addEventListener('fetch', (event) => {
     url.host.includes('tile.osm.org') ||
     url.host.includes('os-content.com')
   ) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) {
+          return cached;
+        }
+        return fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, clone);
+            }).catch(() => {});
+          }
+          return networkResponse;
+        }).catch(() => {
+          // Fallback for offline map tiles that were not pre-cached: transparent 1px PNG
+          return new Response(TRANSPARENT_1PX_PNG, {
+            status: 200,
+            headers: { 'Content-Type': 'image/png' }
+          });
+        });
+      })
+    );
     return;
   }
 

@@ -138,8 +138,11 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
   }, [isFullscreen, handleToggleFullscreen]);
 
   const notifyMapError = useCallback(() => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      return;
+    }
     const now = Date.now();
-    if (now - lastToastTimeRef.current > 7000) {
+    if (now - lastToastTimeRef.current > 15000) {
       lastToastTimeRef.current = now;
       toast({
         title: "Aviso",

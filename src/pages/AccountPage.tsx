@@ -23,6 +23,7 @@ import { UserRoleBadge } from "@/components/UserRoleBadge";
 import { TwoFactorSettingsCard } from "@/components/TwoFactorSettingsCard";
 import { TwoFactorLoginModal } from "@/components/TwoFactorLoginModal";
 import { BiometricSettingsCard } from "@/components/BiometricSettingsCard";
+import { getBiblicalMapTileUrls } from "@/utils/offlineMapTiles";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
 const OFFLINE_KEY = "bible-offline-enabled";
@@ -993,6 +994,9 @@ const AccountPage = () => {
       const activeStyles = Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map(l => l.getAttribute('href')).filter(Boolean) as string[];
       const activeImages = Array.from(document.querySelectorAll('img')).map(i => i.getAttribute('src')).filter(Boolean) as string[];
 
+      // Obter todas as URLs de tiles dos mapas bíblicos (satélite, relevo, atlas histórico e rotas)
+      const mapTileUrls = getBiblicalMapTileUrls();
+
       const filesToCache = Array.from(new Set([
         '/',
         '/index.html',
@@ -1045,19 +1049,28 @@ const AccountPage = () => {
         'https://raw.githubusercontent.com/eversondeveloper/bibialivrejson/main/biblialivrecorrecao1.json',
         ...activeScripts,
         ...activeStyles,
-        ...activeImages
+        ...activeImages,
+        ...mapTileUrls
       ]));
 
+      const CONCURRENCY = 16;
       let completed = 0;
-      for (const url of filesToCache) {
-        try {
-          const response = await fetch(url);
-          if (response.ok) {
-            await cache.put(url, response.clone());
-          }
-        } catch {}
-        completed++;
-        setOfflineProgress(Math.round((completed / filesToCache.length) * 100));
+      const total = filesToCache.length;
+
+      for (let i = 0; i < total; i += CONCURRENCY) {
+        const batch = filesToCache.slice(i, i + CONCURRENCY);
+        await Promise.all(
+          batch.map(async (url) => {
+            try {
+              const response = await fetch(url);
+              if (response.ok) {
+                await cache.put(url, response.clone());
+              }
+            } catch {}
+            completed++;
+          })
+        );
+        setOfflineProgress(Math.min(99, Math.round((completed / total) * 100)));
       }
 
       setOfflineProgress(100);
@@ -1327,7 +1340,12 @@ const AccountPage = () => {
                                 await oneSignalService.requestPermission();
                               }
 
-                              await sendLocalNotification("Teste de Notificação", "Sua notificação de teste da Bíblia Online foi enviada com sucesso.");
+                              await sendLocalNotification(
+                                "Teste de Notificação", 
+                                "Sua notificação de teste da Bíblia Online foi enviada com sucesso.",
+                                `biblia-test-${Date.now()}`,
+                                true
+                              );
                               
                               toast({ 
                                 title: "Teste Enviado", 

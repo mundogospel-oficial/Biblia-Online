@@ -28,6 +28,17 @@ export const saveNotificationSettings = (settings: NotificationSettings) => {
   localStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(settings));
 };
 
+/**
+ * Retorna a data local formatada (YYYY-MM-DD) de acordo com o fuso horário do dispositivo do usuário.
+ * Evita bugs de UTC onde a data virava às 21h em fusos como o do Brasil (UTC-3).
+ */
+export const getLocalDateString = (d: Date = new Date()): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const requestNotificationPermission = async () => {
   if (!("Notification" in window)) {
     toast({
@@ -50,19 +61,30 @@ export const checkInactivity = () => {
   const lastVisit = localStorage.getItem(LAST_VISIT_KEY);
   if (!lastVisit) return;
 
-  const lastVisitDate = new Date(lastVisit);
   const now = new Date();
+  const todayStr = getLocalDateString(now);
+  const lastInactivity = localStorage.getItem("biblia_online_last_inactivity_notification");
+  
+  // Garante que o alerta de inatividade nunca dispare mais de 1 vez por dia
+  if (lastInactivity === todayStr) {
+    return;
+  }
+
+  const lastVisitDate = new Date(lastVisit);
   const diffInDays = (now.getTime() - lastVisitDate.getTime()) / (1000 * 3600 * 24);
 
   if (diffInDays >= 1) {
     const settings = getNotificationSettings();
     if (settings.enabled && settings.inactivityAlert) {
+      // Bloqueia imediatamente para evitar disparos duplicados por múltiplas abas ou re-renders
+      localStorage.setItem("biblia_online_last_inactivity_notification", todayStr);
+
       const lang = localStorage.getItem("app-language") || "pt";
       const title = lang === "en" ? "Forgot to read the Bible?" : "Esqueceu de ler a Bíblia?";
       const body = lang === "en"
         ? "Que tal ler um versículo e meditar na palavra de Deus hoje?"
         : "Que tal ler um versículo e meditar na palavra de Deus hoje?";
-      sendLocalNotification(title, body);
+      sendLocalNotification(title, body, `biblia-inactivity-${todayStr}`, false);
     }
   }
 };
@@ -84,36 +106,47 @@ export const checkScheduledNotifications = () => {
 
   const now = new Date();
   const currentHour = now.getHours();
-  const todayStr = now.toISOString().split('T')[0];
+  const todayStr = getLocalDateString(now);
 
-  // 8 AM (8h) window (from 8 to 12)
+  // 8 AM (8h) window (from 8 to 12) - Disparo único pela manhã
   if (currentHour >= 8 && currentHour < 12 && settings.morningVerse) {
     const lastMorning = localStorage.getItem("biblia_online_last_morning_notification");
     if (lastMorning !== todayStr) {
+      // Bloqueio atômico imediato no localStorage para evitar corridas entre abas/intervalos
+      localStorage.setItem("biblia_online_last_morning_notification", todayStr);
       const verse = getDailyVerseForSlot(false);
       sendLocalNotification(
         `Versículo do Dia - ${verse.reference}`,
-        verse.text
+        verse.text,
+        `biblia-morning-${todayStr}`,
+        false
       );
-      localStorage.setItem("biblia_online_last_morning_notification", todayStr);
     }
   }
 
-  // 8 PM (20h) window (from 20 to 24 / 8 PM to midnight)
+  // 8 PM (20h) window (from 20 to 24 / 8 PM to midnight) - Disparo único à noite
   if (currentHour >= 20 && currentHour < 24 && settings.eveningVerse) {
     const lastEvening = localStorage.getItem("biblia_online_last_evening_notification");
     if (lastEvening !== todayStr) {
+      // Bloqueio atômico imediato no localStorage para evitar corridas entre abas/intervalos
+      localStorage.setItem("biblia_online_last_evening_notification", todayStr);
       const verse = getDailyVerseForSlot(true);
       sendLocalNotification(
         `Versículo da Noite - ${verse.reference}`,
-        verse.text
+        verse.text,
+        `biblia-evening-${todayStr}`,
+        false
       );
-      localStorage.setItem("biblia_online_last_evening_notification", todayStr);
     }
   }
 };
 
-export const sendLocalNotification = async (title: string, body: string): Promise<void> => {
+export const sendLocalNotification = async (
+  title: string, 
+  body: string, 
+  tag: string = "biblia-notification",
+  renotify: boolean = false
+): Promise<void> => {
   if (!("Notification" in window)) {
     throw new Error("Seu navegador não suporta notificações.");
   }
@@ -141,11 +174,11 @@ export const sendLocalNotification = async (title: string, body: string): Promis
           icon: "/icons/logo2.png",
           badge: "/apple-touch-icon.png",
           vibrate: [200, 100, 200],
-          tag: "biblia-notification",
-          renotify: true,
+          tag,
+          renotify,
           data: {
-            isLocalTest: true,
-            notificationId: "local-test-notification",
+            isLocalTest: tag.includes("test"),
+            notificationId: tag,
             url: "/"
           }
         });
@@ -159,7 +192,7 @@ export const sendLocalNotification = async (title: string, body: string): Promis
         new Notification(title, {
           body,
           icon: "/icons/logo2.png",
-          tag: "biblia-notification",
+          tag,
         });
       } catch (fallbackErr: any) {
         throw new Error("Não foi possível exibir a notificação. Verifique as permissões do seu dispositivo.");
@@ -171,7 +204,7 @@ export const sendLocalNotification = async (title: string, body: string): Promis
       new Notification(title, {
         body,
         icon: "/icons/logo2.png",
-        tag: "biblia-notification",
+        tag,
       });
     } catch (err: any) {
       throw new Error("Não foi possível exibir a notificação. Verifique as permissões do seu dispositivo.");
