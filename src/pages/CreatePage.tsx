@@ -1245,26 +1245,26 @@ const CreatePage = () => {
           <div className="lg:col-span-7 lg:sticky lg:top-20 lg:self-start space-y-3">
             
             {/* Top Toolbar */}
-            <div className="flex items-center justify-between gap-2 px-1 min-w-0">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground shrink-0 whitespace-nowrap">
-                <Eye className="h-4 w-4 text-accent shrink-0" />
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                <Eye className="h-4 w-4 text-accent" />
                 <span>Pré-visualização da Arte</span>
               </div>
-              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <div className="flex items-center gap-2">
                 <select
                   value={exportQuality}
                   onChange={(e) => setExportQuality(e.target.value as QualityKey)}
-                  className="text-[10px] sm:text-[11px] font-semibold bg-secondary/90 hover:bg-secondary text-foreground border border-border/50 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer max-w-[125px] sm:max-w-[140px] truncate shrink-0"
+                  className="text-[11px] font-semibold bg-secondary/90 hover:bg-secondary text-foreground border border-border/50 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
                   title="Qualidade de Exportação"
                 >
                   {qualityOptions.map((q) => (
                     <option key={q.key} value={q.key}>
-                      {q.badge}
+                      {q.badge} ({q.label})
                     </option>
                   ))}
                 </select>
 
-                <span className="hidden xs:inline-block text-[10px] sm:text-[11px] font-mono font-medium text-muted-foreground bg-secondary/80 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full border border-border/40 shrink-0">
+                <span className="text-[11px] font-mono font-medium text-muted-foreground bg-secondary/80 px-2.5 py-1 rounded-full border border-border/40">
                   {formats.find(f => f.key === activeFormat)?.dim}
                 </span>
               </div>

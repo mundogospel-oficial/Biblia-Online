@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import zxcvbn from "zxcvbn";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
-import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2, AlertTriangle, Languages, X, Sparkles, Clock, RotateCcw, Shield, Compass, BookOpen } from "lucide-react";
+import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2, AlertTriangle, Languages, X, Sparkles, Clock, RotateCcw, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, forceSignOut, handleAuthError } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -23,11 +23,6 @@ import { UserRoleBadge } from "@/components/UserRoleBadge";
 import { TwoFactorSettingsCard } from "@/components/TwoFactorSettingsCard";
 import { TwoFactorLoginModal } from "@/components/TwoFactorLoginModal";
 import { BiometricSettingsCard } from "@/components/BiometricSettingsCard";
-import { 
-  isBiblicalMapsOffline, 
-  downloadBiblicalMapsOffline, 
-  removeBiblicalMapsOffline 
-} from "@/services/offlineMapsService";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
 const OFFLINE_KEY = "bible-offline-enabled";
@@ -1077,65 +1072,6 @@ const AccountPage = () => {
     }
   };
 
-  const [mapsOfflineEnabled, setMapsOfflineEnabled] = useState(false);
-  const [mapsOfflineProgress, setMapsOfflineProgress] = useState(0);
-  const [isDownloadingMaps, setIsDownloadingMaps] = useState(false);
-
-  useEffect(() => {
-    setMapsOfflineEnabled(isBiblicalMapsOffline());
-
-    const handleOfflineChanged = () => {
-      setMapsOfflineEnabled(isBiblicalMapsOffline());
-    };
-    window.addEventListener("biblical-maps-offline-changed", handleOfflineChanged);
-    return () => {
-      window.removeEventListener("biblical-maps-offline-changed", handleOfflineChanged);
-    };
-  }, []);
-
-  const toggleMapsOffline = async () => {
-    if (mapsOfflineEnabled) {
-      const ok = await removeBiblicalMapsOffline();
-      if (ok) {
-        setMapsOfflineEnabled(false);
-        toast({ title: "Mapas offline removidos", description: "O cache de mapas bíblicos foi liberado." });
-      } else {
-        toast({ title: "Erro ao remover mapas offline", variant: "destructive" });
-      }
-      return;
-    }
-
-    setIsDownloadingMaps(true);
-    setMapsOfflineProgress(0);
-    try {
-      const res = await downloadBiblicalMapsOffline((pct) => {
-        setMapsOfflineProgress(pct);
-      });
-      if (res.success) {
-        setMapsOfflineEnabled(true);
-        toast({ 
-          title: "Mapas Bíblicos Baixados!", 
-          description: "Cartografia e rotas sagradas disponíveis para uso offline." 
-        });
-      } else {
-        toast({ 
-          title: "Erro ao baixar mapas", 
-          description: "Verifique sua conexão e tente novamente.", 
-          variant: "destructive" 
-        });
-      }
-    } catch {
-      toast({ 
-        title: "Erro ao baixar mapas", 
-        description: "Verifique sua conexão.", 
-        variant: "destructive" 
-      });
-    } finally {
-      setIsDownloadingMaps(false);
-      setTimeout(() => setMapsOfflineProgress(0), 2000);
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -1457,131 +1393,27 @@ const AccountPage = () => {
                       />
                     )}
 
-                    {/* Modo Offline (Bíblia Sagrada e Mapas Bíblicos) */}
-                    <div className="rounded-xl bg-secondary/30 border border-white/5 p-3.5 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className="text-muted-foreground">
-                            <WifiOff className="h-4 w-4" />
-                          </span>
-                          <div className="text-left">
-                            <p className="text-sm font-medium text-foreground">Modo Offline</p>
-                            <p className="text-[10px] text-muted-foreground">
-                              Baixar conteúdos para usar sem internet
-                            </p>
-                          </div>
-                        </div>
-                        <span className="text-[10px] font-medium text-muted-foreground px-2 py-0.5 rounded-full bg-secondary/60 border border-white/5">
-                          {offlineEnabled && mapsOfflineEnabled
-                            ? "Bíblia e Mapas"
-                            : offlineEnabled
-                            ? "Bíblia Pronta"
-                            : mapsOfflineEnabled
-                            ? "Mapas Prontos"
-                            : "Nenhum baixado"}
+                    <button onClick={toggleOffline} disabled={isDownloading} className="flex w-full items-center justify-between rounded-xl bg-secondary/30 border border-white/5 p-3.5 transition-all hover:bg-secondary/50 hover:border-white/10 disabled:opacity-70 liquid-btn">
+                      <div className="flex items-center gap-3">
+                        <span className="text-muted-foreground">
+                          {offlineEnabled ? <CheckCircle className="h-4 w-4 text-accent" /> : isDownloading ? <Download className="h-4 w-4 animate-bounce text-accent" /> : <WifiOff className="h-4 w-4" />}
                         </span>
-                      </div>
-
-                      <div className="space-y-2 pt-1 border-t border-white/5">
-                        {/* Sub-item 1: Bíblia Sagrada */}
-                        <button
-                          type="button"
-                          onClick={toggleOffline}
-                          disabled={isDownloading}
-                          className="flex w-full items-center justify-between rounded-xl bg-secondary/40 border border-white/5 p-3 transition-all hover:bg-secondary/60 disabled:opacity-70 text-left cursor-pointer"
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="text-muted-foreground">
-                              {offlineEnabled ? (
-                                <CheckCircle className="h-4 w-4 text-accent" />
-                              ) : isDownloading ? (
-                                <Download className="h-4 w-4 animate-bounce text-accent" />
-                              ) : (
-                                <BookOpen className="h-4 w-4" />
-                              )}
-                            </span>
-                            <div className="text-left">
-                              <p className="text-xs font-semibold text-foreground">Bíblia Sagrada</p>
-                              <p className="text-[10px] text-muted-foreground">
-                                {isDownloading
-                                  ? `Baixando... ${offlineProgress}%`
-                                  : offlineEnabled
-                                  ? "Baixada • Funciona sem internet"
-                                  : "Baixar 66 livros para ler offline"}
-                              </p>
-                              {isDownloading && (
-                                <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
-                                  <div
-                                    className="h-full rounded-full bg-accent transition-all duration-300"
-                                    style={{ width: `${offlineProgress}%` }}
-                                  />
-                                </div>
-                              )}
+                        <div className="text-left">
+                          <p className="text-sm font-medium text-foreground">{t("offline_title")}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {isDownloading ? `${t("offline_desc_downloading")} ${offlineProgress}%` : offlineEnabled ? t("offline_desc_active") : t("offline_desc_inactive")}
+                          </p>
+                          {isDownloading && (
+                            <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
+                              <div className="h-full rounded-full bg-accent transition-all duration-300" style={{ width: `${offlineProgress}%` }} />
                             </div>
-                          </div>
-                          <div
-                            className={`h-5 w-9 rounded-full transition-colors duration-300 ease-in-out ${
-                              offlineEnabled ? "bg-accent" : "bg-muted/60"
-                            } flex items-center px-0.5 shrink-0`}
-                          >
-                            <div
-                              className={`h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300 ease-in-out ${
-                                offlineEnabled ? "translate-x-4" : "translate-x-0"
-                              }`}
-                            />
-                          </div>
-                        </button>
-
-                        {/* Sub-item 2: Mapas Bíblicos */}
-                        <button
-                          type="button"
-                          onClick={toggleMapsOffline}
-                          disabled={isDownloadingMaps}
-                          className="flex w-full items-center justify-between rounded-xl bg-secondary/40 border border-white/5 p-3 transition-all hover:bg-secondary/60 disabled:opacity-70 text-left cursor-pointer"
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="text-muted-foreground">
-                              {mapsOfflineEnabled ? (
-                                <CheckCircle className="h-4 w-4 text-accent" />
-                              ) : isDownloadingMaps ? (
-                                <Download className="h-4 w-4 animate-bounce text-accent" />
-                              ) : (
-                                <Compass className="h-4 w-4" />
-                              )}
-                            </span>
-                            <div className="text-left">
-                              <p className="text-xs font-semibold text-foreground">Mapas Bíblicos</p>
-                              <p className="text-[10px] text-muted-foreground">
-                                {isDownloadingMaps
-                                  ? `Baixando cartografia... ${mapsOfflineProgress}%`
-                                  : mapsOfflineEnabled
-                                  ? "Baixados • Prontos para navegar sem internet"
-                                  : "Baixar cartografia e rotas para usar offline"}
-                              </p>
-                              {isDownloadingMaps && (
-                                <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
-                                  <div
-                                    className="h-full rounded-full bg-accent transition-all duration-300"
-                                    style={{ width: `${mapsOfflineProgress}%` }}
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <div
-                            className={`h-5 w-9 rounded-full transition-colors duration-300 ease-in-out ${
-                              mapsOfflineEnabled ? "bg-accent" : "bg-muted/60"
-                            } flex items-center px-0.5 shrink-0`}
-                          >
-                            <div
-                              className={`h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300 ease-in-out ${
-                                mapsOfflineEnabled ? "translate-x-4" : "translate-x-0"
-                              }`}
-                            />
-                          </div>
-                        </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                      <div className={`h-5 w-9 rounded-full transition-colors duration-300 ease-in-out ${offlineEnabled ? "bg-accent" : "bg-muted/60"} flex items-center px-0.5`}>
+                        <div className={`h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300 ease-in-out ${offlineEnabled ? "translate-x-4" : "translate-x-0"}`} />
+                      </div>
+                    </button>
 
                     <button 
                       type="button" 

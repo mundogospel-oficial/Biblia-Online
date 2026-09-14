@@ -399,7 +399,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
             </p>
           </div>
 
-          {/* Top Right: Botão de Sair da Tela Cheia + Selo Beta */}
+          {/* Top Right: Botão de Sair da Tela Cheia (se em tela cheia) + Selo Beta no tema do app */}
           <div className="absolute top-4 right-4 sm:top-5 sm:right-6 flex items-center gap-2">
             {isFullscreen && (
               <button
