@@ -105,7 +105,7 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // Bypass Service Worker for external Map tile servers and GIS imagery
+  // Intercept external Map tile servers: serve from offline cache if available
   if (
     url.host.includes('arcgisonline.com') ||
     url.host.includes('cartocdn.com') ||
@@ -113,6 +113,29 @@ self.addEventListener('fetch', (event) => {
     url.host.includes('tile.osm.org') ||
     url.host.includes('os-content.com')
   ) {
+    event.respondWith(
+      caches.open('biblical-maps-offline').then(async (mapCache) => {
+        const cached = await mapCache.match(event.request);
+        if (cached) {
+          return cached;
+        }
+
+        return fetch(event.request)
+          .then((netRes) => {
+            if (netRes && netRes.status === 200) {
+              mapCache.put(event.request, netRes.clone());
+            }
+            return netRes;
+          })
+          .catch(() => {
+            // When offline and tile is not yet cached, return transparent 1px PNG cleanly
+            return new Response(TRANSPARENT_1PX_PNG, {
+              status: 200,
+              headers: { 'Content-Type': 'image/png' }
+            });
+          });
+      })
+    );
     return;
   }
 
