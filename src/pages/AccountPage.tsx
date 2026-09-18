@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import zxcvbn from "zxcvbn";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
-import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2, AlertTriangle, Languages, X, Sparkles, Clock, RotateCcw, Shield } from "lucide-react";
+import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2, AlertTriangle, Languages, X, Sparkles, Clock, RotateCcw, Shield, Zap, Smartphone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, forceSignOut, handleAuthError } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -24,6 +24,7 @@ import { TwoFactorSettingsCard } from "@/components/TwoFactorSettingsCard";
 import { TwoFactorLoginModal } from "@/components/TwoFactorLoginModal";
 import { BiometricSettingsCard } from "@/components/BiometricSettingsCard";
 import { getBiblicalMapTileUrls } from "@/utils/offlineMapTiles";
+import { isAndroidDevice, isBasicAndroidDevice, getAndroidPerfMode, setAndroidPerfMode, AndroidPerfMode } from "@/utils/androidPerformance";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
 const OFFLINE_KEY = "bible-offline-enabled";
@@ -107,6 +108,24 @@ const AccountPage = () => {
   const [pwnedLeakCount, setPwnedLeakCount] = useState(0);
   const [appVersion, setAppVersion] = useState("2.5.1");
   const [notificationTestError, setNotificationTestError] = useState<string | null>(null);
+
+  // Performance Android
+  const isAndroid = isAndroidDevice();
+  const [androidPerfMode, setLocalAndroidPerfMode] = useState<AndroidPerfMode>(() => getAndroidPerfMode());
+  const [isAndroidOptActive, setIsAndroidOptActive] = useState<boolean>(() => isBasicAndroidDevice());
+
+  const handleSetAndroidPerf = (mode: AndroidPerfMode) => {
+    setLocalAndroidPerfMode(mode);
+    const active = setAndroidPerfMode(mode);
+    setIsAndroidOptActive(active);
+    window.dispatchEvent(new CustomEvent("android-perf-changed"));
+    toast({
+      title: mode === "optimized" ? "Modo Rápido Ativado" : mode === "standard" ? "Modo Completo Ativado" : "Modo Automático Ativado",
+      description: active 
+        ? "Efeitos otimizados para máximo desempenho e fluidez no seu Android." 
+        : "Efeitos visuais completos ativados."
+    });
+  };
 
   useEffect(() => {
     setLoading(authCtx.loading);
@@ -1432,6 +1451,68 @@ const AccountPage = () => {
                         <div className={`h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300 ease-in-out ${offlineEnabled ? "translate-x-4" : "translate-x-0"}`} />
                       </div>
                     </button>
+
+                    {/* Otimização de Efeitos e Desempenho para Android */}
+                    {isAndroid && (
+                      <div className="rounded-xl bg-secondary/30 border border-white/5 p-3.5 flex flex-col gap-2.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span className="text-muted-foreground">
+                              <Smartphone className="h-4 w-4 text-accent" />
+                            </span>
+                            <div className="text-left">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-sm font-medium text-foreground">Otimização Android</p>
+                                {isAndroidOptActive ? (
+                                  <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                                    <Zap className="h-2.5 w-2.5" /> Modo Rápido Ativo
+                                  </span>
+                                ) : (
+                                  <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                                    Efeitos Completos
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-muted-foreground">
+                                {isAndroidOptActive 
+                                  ? "Efeitos de desfoque e animações pesadas otimizados para garantir 60 FPS fluido." 
+                                  : "Seu aparelho suporta os efeitos visuais completos sem perda de fluidez."}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-1 mt-1 p-1 rounded-xl bg-secondary/40 border border-white/10 select-none">
+                          <button
+                            type="button"
+                            onClick={() => handleSetAndroidPerf("auto")}
+                            className={`flex-1 rounded-lg py-1.5 text-[11px] font-semibold transition-all duration-200 ${
+                              androidPerfMode === "auto" ? "bg-accent/20 text-accent border border-accent/30 shadow-sm" : "text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            Automático
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSetAndroidPerf("optimized")}
+                            className={`flex-1 rounded-lg py-1.5 text-[11px] font-semibold transition-all duration-200 ${
+                              androidPerfMode === "optimized" ? "bg-accent/20 text-accent border border-accent/30 shadow-sm" : "text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            Ultra Rápido
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSetAndroidPerf("standard")}
+                            className={`flex-1 rounded-lg py-1.5 text-[11px] font-semibold transition-all duration-200 ${
+                              androidPerfMode === "standard" ? "bg-accent/20 text-accent border border-accent/30 shadow-sm" : "text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            Completo
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     <button 
                       type="button" 

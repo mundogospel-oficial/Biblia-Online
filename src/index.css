@@ -571,3 +571,98 @@ a[href*="lovable.dev"] {
   }
 }
 
+/* ==========================================================================
+   OTIMIZAÇÃO EXCLUSIVA PARA CELULARES ANDROID BÁSICOS (.android-low-end)
+   Objetivo: Garantir 60fps fluido em aparelhos de entrada (Mali, Unisoc, Snapdragon 4xx)
+   sem alterar nada para PCs, iPhones, iPads e Androids topo de linha.
+   ========================================================================== */
+
+.android-low-end {
+  /* Otimiza a velocidade de renderização de texto e rolagem */
+  text-rendering: optimizeSpeed;
+}
+
+/* 1. Desativa filtros de blur em tempo real que sufocam a GPU de entrada */
+.android-low-end .glass-card,
+.android-low-end .liquid-glass-card,
+.android-low-end .liquid-glass-input,
+.android-low-end .liquid-glass-pill,
+.android-low-end [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* 2. Cores sólidas elegantes e de alto contraste em substituição ao vidro translúcido */
+.android-low-end .glass-card,
+.android-low-end .liquid-glass-card {
+  background: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border) / 0.8) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.android-low-end .liquid-glass-input {
+  background: hsl(var(--secondary)) !important;
+  border: 1px solid hsl(var(--border) / 0.8) !important;
+  box-shadow: none !important;
+}
+
+.android-low-end .liquid-glass-pill {
+  background: hsl(var(--secondary)) !important;
+  border: 1px solid hsl(var(--border) / 0.8) !important;
+  box-shadow: none !important;
+}
+
+.android-low-end .liquid-glass-pill-active {
+  background: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground)) !important;
+  border: 1px solid hsl(var(--accent)) !important;
+  box-shadow: 0 2px 6px hsl(var(--accent) / 0.3) !important;
+}
+
+/* 3. Modais e overlays com opacidade alta e sem blur de fundo */
+.android-low-end .fixed[class*="backdrop-blur"],
+.android-low-end .absolute[class*="backdrop-blur"] {
+  background-color: rgba(11, 18, 31, 0.95) !important;
+}
+
+/* 4. Remove tracking de gradiente radial no pseudo-elemento de botões */
+.android-low-end .liquid-btn::after {
+  display: none !important;
+}
+
+.android-low-end .liquid-btn:active {
+  transform: scale(0.98) !important;
+  opacity: 0.9 !important;
+}
+
+/* 5. Aceleração de hardware e contenção de layout na rolagem */
+.android-low-end body,
+.android-low-end #root,
+.android-low-end .overflow-y-auto {
+  -webkit-overflow-scrolling: touch !important;
+  transform: translateZ(0);
+}
+
+/* 6. Desativa sombras multicamadas pesadas */
+.android-low-end .shadow-verse,
+.android-low-end .shadow-card,
+.android-low-end .shadow-2xl,
+.android-low-end .shadow-xl {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* 7. Reduz animações contínuas de fundo que consomem bateria e CPU */
+.android-low-end .animate-bounce {
+  animation: none !important;
+}
+
+.android-low-end .animate-pulse {
+  animation-duration: 3s !important;
+}
+
+/* 8. Evita vazamento de memória com will-change excessivo */
+.android-low-end * {
+  will-change: auto !important;
+}
+
+

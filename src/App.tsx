@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { MotionConfig } from "framer-motion";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { CookieConsent } from "./components/CookieConsent";
@@ -22,6 +23,7 @@ import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import { useSentinel } from "./hooks/useSentinel";
 import { checkInactivity, updateLastVisit, checkScheduledNotifications } from "@/services/notificationService";
+import { applyAndroidPerformanceMode, isBasicAndroidDevice } from "@/utils/androidPerformance";
 
 const queryClient = new QueryClient();
 
@@ -57,9 +59,18 @@ const ConfigErrorScreen = () => (
 
 const App = () => {
   const { SentinelOverlay, isBlocked } = useSentinel(); // Global security monitoring
+  const [isBasicAndroid, setIsBasicAndroid] = useState<boolean>(() => isBasicAndroidDevice());
 
   useEffect(() => {
     document.title = "Biblia Online";
+    const active = applyAndroidPerformanceMode();
+    setIsBasicAndroid(active);
+
+    const handlePerfChange = () => {
+      setIsBasicAndroid(isBasicAndroidDevice());
+    };
+    window.addEventListener("android-perf-changed", handlePerfChange);
+    return () => window.removeEventListener("android-perf-changed", handlePerfChange);
   }, []);
 
   useEffect(() => {
@@ -122,23 +133,25 @@ const App = () => {
             <SentinelOverlay />
             <BiometricAppLockOverlay />
             <AdBlockDetector />
-            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/livro/:abbrev/:chapter" element={<Reader />} />
-                <Route path="/criar" element={<CreatePage />} />
-                <Route path="/buscar" element={<SearchPage />} />
-                <Route path="/favoritos" element={<FavoritesPage />} />
-                <Route path="/reacoes" element={<Navigate to="/favoritos" replace />} />
-                <Route path="/reacao" element={<Navigate to="/favoritos" replace />} />
-                <Route path="/ia" element={<AIPage />} />
-                <Route path="/devocionais" element={<DevotionalPage />} />
-                <Route path="/devocional" element={<Navigate to="/devocionais" replace />} />
-                <Route path="/conta" element={<AccountPage />} />
-                <Route path="/atualizar-senha" element={<ResetPasswordPage />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
+            <MotionConfig reducedMotion={isBasicAndroid ? "always" : "user"}>
+              <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/livro/:abbrev/:chapter" element={<Reader />} />
+                  <Route path="/criar" element={<CreatePage />} />
+                  <Route path="/buscar" element={<SearchPage />} />
+                  <Route path="/favoritos" element={<FavoritesPage />} />
+                  <Route path="/reacoes" element={<Navigate to="/favoritos" replace />} />
+                  <Route path="/reacao" element={<Navigate to="/favoritos" replace />} />
+                  <Route path="/ia" element={<AIPage />} />
+                  <Route path="/devocionais" element={<DevotionalPage />} />
+                  <Route path="/devocional" element={<Navigate to="/devocionais" replace />} />
+                  <Route path="/conta" element={<AccountPage />} />
+                  <Route path="/atualizar-senha" element={<ResetPasswordPage />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+            </MotionConfig>
           </TooltipProvider>
         </QueryClientProvider>
         <CookieConsent />
