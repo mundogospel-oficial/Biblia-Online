@@ -153,40 +153,6 @@
     </script>
 
     <script>
-      // Detecção Instantânea e Otimização Pré-Pintura para Android Básico
-      (function() {
-        try {
-          var ua = navigator.userAgent || '';
-          var isAndroid = /Android/i.test(ua);
-          if (!isAndroid) return; // Nunca afeta PCs, Macs, iPhones ou iPads
-
-          var override = localStorage.getItem("biblia_android_perf_mode");
-          var isLowEnd = false;
-          if (override === "optimized") {
-            isLowEnd = true;
-          } else if (override === "standard") {
-            isLowEnd = false;
-          } else {
-            var memory = navigator.deviceMemory;
-            var cores = navigator.hardwareConcurrency;
-            var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-            var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-            var saveData = conn && (conn.saveData || conn.effectiveType === '2g' || conn.effectiveType === '3g');
-
-            if ((typeof memory === 'number' && memory > 0 && memory <= 4) ||
-                (typeof cores === 'number' && cores > 0 && cores <= 4) ||
-                reduceMotion || saveData) {
-              isLowEnd = true;
-            }
-          }
-
-          if (isLowEnd) {
-            document.documentElement.classList.add("android-low-end");
-            document.documentElement.setAttribute("data-android-optimized", "true");
-          }
-        } catch (e) {}
-      })();
-
       const isAllowedHost = 
         window.location.hostname === "online-biblia.vercel.app" || 
         window.location.hostname === "localhost" || 
