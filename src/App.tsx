@@ -133,7 +133,7 @@ const App = () => {
             <SentinelOverlay />
             <BiometricAppLockOverlay />
             <AdBlockDetector />
-            <MotionConfig reducedMotion={isBasicAndroid ? "always" : "user"}>
+            <MotionConfig reducedMotion="user">
               <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                 <Routes>
                   <Route path="/" element={<Index />} />

@@ -10,35 +10,60 @@ const Header = () => {
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
   useEffect(() => {
-    const handleFocusIn = (e: FocusEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+    const checkKeyboardState = () => {
+      const activeEl = document.activeElement as HTMLElement | null;
+      const isInputActive = !!activeEl && (
+        activeEl.tagName === "INPUT" ||
+        activeEl.tagName === "TEXTAREA" ||
+        activeEl.isContentEditable
+      );
+
+      if (!isInputActive) {
+        setIsKeyboardOpen(false);
+        return;
+      }
+
+      if (window.visualViewport) {
+        const isViewportSmall = window.visualViewport.height < window.innerHeight * 0.72;
+        setIsKeyboardOpen(isViewportSmall);
+      } else {
         setIsKeyboardOpen(true);
       }
     };
 
-    const handleFocusOut = () => {
-      setIsKeyboardOpen(false);
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        // Pequeno atraso para aguardar a animação do teclado
+        setTimeout(checkKeyboardState, 150);
+      }
     };
 
-    const handleViewportResize = () => {
-      if (window.visualViewport) {
-        const isViewportSmall = window.visualViewport.height < window.innerHeight * 0.82;
-        setIsKeyboardOpen(isViewportSmall);
-      }
+    const handleFocusOut = () => {
+      setTimeout(() => {
+        const activeEl = document.activeElement as HTMLElement | null;
+        const isInputActive = !!activeEl && (
+          activeEl.tagName === "INPUT" ||
+          activeEl.tagName === "TEXTAREA" ||
+          activeEl.isContentEditable
+        );
+        if (!isInputActive) {
+          setIsKeyboardOpen(false);
+        }
+      }, 100);
     };
 
     window.addEventListener("focusin", handleFocusIn);
     window.addEventListener("focusout", handleFocusOut);
     if (window.visualViewport) {
-      window.visualViewport.addEventListener("resize", handleViewportResize);
+      window.visualViewport.addEventListener("resize", checkKeyboardState);
     }
 
     return () => {
       window.removeEventListener("focusin", handleFocusIn);
       window.removeEventListener("focusout", handleFocusOut);
       if (window.visualViewport) {
-        window.visualViewport.removeEventListener("resize", handleViewportResize);
+        window.visualViewport.removeEventListener("resize", checkKeyboardState);
       }
     };
   }, []);
@@ -146,7 +171,10 @@ const Header = () => {
 
       {/* Mobile Bottom Navigation - Glass Bar with Oval Active Pills */}
       {!isKeyboardOpen && (
-        <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t border-border/50 bg-[hsl(215,40%,8%)]/95 backdrop-blur-xl safe-area-bottom">
+        <nav 
+          id="mobile-bottom-navigation"
+          className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t border-border/50 bg-[hsl(215,40%,8%)]/95 backdrop-blur-xl safe-area-bottom mobile-bottom-nav"
+        >
           <div className="flex items-center justify-around px-1 py-1">
             {mobileLinks.map((l) => {
               const active = isActiveRoute(l.to);
@@ -154,14 +182,14 @@ const Header = () => {
                 <Link
                   key={l.to}
                   to={l.to}
-                  className={`relative flex flex-col items-center justify-center p-2 rounded-full transition-colors ${
+                  className={`relative flex flex-col items-center justify-center p-2 rounded-full transition-colors select-none ${
                     active ? "text-accent font-semibold" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {active && (
                     <motion.div
                       layoutId="mobile-active-pill"
-                      className="absolute inset-0 rounded-full bg-accent/15 border border-accent/30"
+                      className="absolute inset-0 rounded-full bg-accent/15 border border-accent/30 pointer-events-none"
                       transition={{ type: "spring", stiffness: 400, damping: 30 }}
                     />
                   )}

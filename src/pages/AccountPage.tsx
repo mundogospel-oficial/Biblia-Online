@@ -1465,7 +1465,7 @@ const AccountPage = () => {
                                 <p className="text-sm font-medium text-foreground">Otimização Android</p>
                                 {isAndroidOptActive ? (
                                   <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                                    <Zap className="h-2.5 w-2.5" /> Modo Rápido Ativo
+                                    <Zap className="h-2.5 w-2.5" /> Liquid Glass Suave
                                   </span>
                                 ) : (
                                   <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/20 text-blue-400 border border-blue-500/30">
@@ -1475,7 +1475,7 @@ const AccountPage = () => {
                               </div>
                               <p className="text-[10px] text-muted-foreground">
                                 {isAndroidOptActive 
-                                  ? "Efeitos de desfoque e animações pesadas otimizados para garantir 60 FPS fluido." 
+                                  ? "Efeitos de Liquid Glass calibrados com desfoque leve para garantir 60 FPS e barra de navegação fluida." 
                                   : "Seu aparelho suporta os efeitos visuais completos sem perda de fluidez."}
                               </p>
                             </div>

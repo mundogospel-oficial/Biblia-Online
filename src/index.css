@@ -141,7 +141,6 @@ img[src*="logo"],
 
 #root {
   min-height: 100%;
-  overflow-y: auto !important;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   -ms-overflow-style: none;
@@ -573,56 +572,127 @@ a[href*="lovable.dev"] {
 
 /* ==========================================================================
    OTIMIZAÇÃO EXCLUSIVA PARA CELULARES ANDROID BÁSICOS (.android-low-end)
-   Objetivo: Garantir 60fps fluido em aparelhos de entrada (Mali, Unisoc, Snapdragon 4xx)
-   sem alterar nada para PCs, iPhones, iPads e Androids topo de linha.
+   Objetivo: Garantir 60fps fluido mantendo os belos efeitos de Liquid Glass
+   em intensidade leve ("Liquid Glass fraco") sem sobrecarregar a GPU.
+   NUNCA afeta PCs, Macs, iPhones, iPads e nem celulares topo de linha.
    ========================================================================== */
 
 .android-low-end {
-  /* Otimiza a velocidade de renderização de texto e rolagem */
   text-rendering: optimizeSpeed;
 }
 
-/* 1. Desativa filtros de blur em tempo real que sufocam a GPU de entrada */
-.android-low-end .glass-card,
-.android-low-end .liquid-glass-card,
-.android-low-end .liquid-glass-input,
-.android-low-end .liquid-glass-pill,
-.android-low-end [class*="backdrop-blur"] {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+/* NUNCA adicionar transform em html, body ou #root pois quebra elementos fixed */
+.android-low-end,
+.android-low-end body,
+.android-low-end #root {
+  transform: none !important;
 }
 
-/* 2. Cores sólidas elegantes e de alto contraste em substituição ao vidro translúcido */
+/* 1. Efeitos de Liquid Glass Fraco / Otimizado para Android Básico */
+/* Usa blur leve (4px a 5px) e gradientes translúcidos que mantêm o visual de vidro sem travar a GPU */
 .android-low-end .glass-card,
+.android-low-end [class*="backdrop-blur"] {
+  backdrop-filter: blur(5px) !important;
+  -webkit-backdrop-filter: blur(5px) !important;
+}
+
 .android-low-end .liquid-glass-card {
-  background: hsl(var(--card)) !important;
-  border: 1px solid hsl(var(--border) / 0.8) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    hsl(var(--card) / 0.8) 0%,
+    hsl(var(--secondary) / 0.55) 50%,
+    hsl(var(--background) / 0.8) 100%
+  ) !important;
+  backdrop-filter: blur(5px) !important;
+  -webkit-backdrop-filter: blur(5px) !important;
+  border: 1px solid hsl(var(--border) / 0.65) !important;
+  box-shadow:
+    0 2px 8px -1px rgba(0, 0, 0, 0.2),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
+.android-low-end .liquid-glass-card:hover {
+  background: linear-gradient(
+    135deg,
+    hsl(var(--card) / 0.85) 0%,
+    hsl(var(--secondary) / 0.6) 50%,
+    hsl(var(--background) / 0.85) 100%
+  ) !important;
+  border-color: hsl(var(--accent) / 0.45) !important;
 }
 
 .android-low-end .liquid-glass-input {
-  background: hsl(var(--secondary)) !important;
-  border: 1px solid hsl(var(--border) / 0.8) !important;
-  box-shadow: none !important;
+  background: linear-gradient(
+    135deg,
+    hsl(var(--secondary) / 0.75) 0%,
+    hsl(var(--background) / 0.65) 100%
+  ) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  border: 1px solid hsl(var(--border) / 0.7) !important;
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.1),
+    0 1px 4px rgba(0, 0, 0, 0.1) !important;
 }
 
 .android-low-end .liquid-glass-pill {
-  background: hsl(var(--secondary)) !important;
-  border: 1px solid hsl(var(--border) / 0.8) !important;
-  box-shadow: none !important;
+  background: linear-gradient(
+    135deg,
+    hsl(var(--secondary) / 0.75) 0%,
+    hsl(var(--background) / 0.6) 100%
+  ) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  border: 1px solid hsl(var(--border) / 0.6) !important;
+  box-shadow:
+    0 2px 6px -1px rgba(0, 0, 0, 0.14),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.12) !important;
 }
 
 .android-low-end .liquid-glass-pill-active {
-  background: hsl(var(--accent)) !important;
+  background: linear-gradient(
+    135deg,
+    hsl(var(--accent)) 0%,
+    hsl(var(--accent) / 0.88) 100%
+  ) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  border: 1px solid hsl(var(--accent) / 0.9) !important;
+  box-shadow:
+    0 2px 8px -1px hsl(var(--accent) / 0.35),
+    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.35) !important;
   color: hsl(var(--accent-foreground)) !important;
-  border: 1px solid hsl(var(--accent)) !important;
-  box-shadow: 0 2px 6px hsl(var(--accent) / 0.3) !important;
 }
 
-/* 3. Modais e overlays com opacidade alta e sem blur de fundo */
+/* 2. Barra de Navegação Móvel e Cabeçalhos: Sempre fixos na tela, livres de bugs */
+.mobile-bottom-nav {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 50 !important;
+  transform: none !important;
+  backface-visibility: hidden;
+}
+
+.android-low-end .mobile-bottom-nav {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  transform: none !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+  background-color: hsla(215, 40%, 8%, 0.94) !important;
+}
+
+/* 3. Modais e overlays com efeito de vidro suave */
 .android-low-end .fixed[class*="backdrop-blur"],
 .android-low-end .absolute[class*="backdrop-blur"] {
-  background-color: rgba(11, 18, 31, 0.95) !important;
+  backdrop-filter: blur(5px) !important;
+  -webkit-backdrop-filter: blur(5px) !important;
+  background-color: rgba(11, 18, 31, 0.9) !important;
 }
 
 /* 4. Remove tracking de gradiente radial no pseudo-elemento de botões */
@@ -632,35 +702,27 @@ a[href*="lovable.dev"] {
 
 .android-low-end .liquid-btn:active {
   transform: scale(0.98) !important;
-  opacity: 0.9 !important;
+  opacity: 0.92 !important;
 }
 
-/* 5. Aceleração de hardware e contenção de layout na rolagem */
-.android-low-end body,
-.android-low-end #root,
-.android-low-end .overflow-y-auto {
-  -webkit-overflow-scrolling: touch !important;
-  transform: translateZ(0);
-}
-
-/* 6. Desativa sombras multicamadas pesadas */
+/* 5. Sombras multicamadas otimizadas */
 .android-low-end .shadow-verse,
 .android-low-end .shadow-card,
 .android-low-end .shadow-2xl,
 .android-low-end .shadow-xl {
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22) !important;
 }
 
-/* 7. Reduz animações contínuas de fundo que consomem bateria e CPU */
+/* 6. Reduz animações contínuas desnecessárias */
 .android-low-end .animate-bounce {
   animation: none !important;
 }
 
 .android-low-end .animate-pulse {
-  animation-duration: 3s !important;
+  animation-duration: 2.5s !important;
 }
 
-/* 8. Evita vazamento de memória com will-change excessivo */
+/* 7. Evita vazamento de memória com will-change excessivo */
 .android-low-end * {
   will-change: auto !important;
 }
