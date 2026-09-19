@@ -24,7 +24,6 @@ import { TwoFactorSettingsCard } from "@/components/TwoFactorSettingsCard";
 import { TwoFactorLoginModal } from "@/components/TwoFactorLoginModal";
 import { BiometricSettingsCard } from "@/components/BiometricSettingsCard";
 import { useIsPWA } from "@/hooks/useIsPWA";
-import { getBiblicalMapTileUrls } from "@/utils/offlineMapTiles";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
 const OFFLINE_KEY = "bible-offline-enabled";
@@ -107,7 +106,7 @@ const AccountPage = () => {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [showPwnedModal, setShowPwnedModal] = useState(false);
   const [pwnedLeakCount, setPwnedLeakCount] = useState(0);
-  const [appVersion, setAppVersion] = useState("2.5.1");
+  const [appVersion, setAppVersion] = useState("2.5.2");
   const [notificationTestError, setNotificationTestError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -120,8 +119,8 @@ const AccountPage = () => {
       headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
     })
       .then(res => res.json())
-      .then(data => setAppVersion(data.version || "2.5.1"))
-      .catch(() => setAppVersion("2.5.1"));
+      .then(data => setAppVersion(data.version || "2.5.2"))
+      .catch(() => setAppVersion("2.5.2"));
 
     const loadProfile = async () => {
       if (authCtx.user?.sub) {
@@ -1018,9 +1017,6 @@ const AccountPage = () => {
       const activeStyles = Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map(l => l.getAttribute('href')).filter(Boolean) as string[];
       const activeImages = Array.from(document.querySelectorAll('img')).map(i => i.getAttribute('src')).filter(Boolean) as string[];
 
-      // Obter pacote completo de URLs de tiles dos mapas bíblicos (satélite, relevo, atlas histórico e rotas)
-      const mapTileUrls = getBiblicalMapTileUrls();
-
       const filesToCache = Array.from(new Set([
         '/',
         '/index.html',
@@ -1073,8 +1069,7 @@ const AccountPage = () => {
         'https://raw.githubusercontent.com/eversondeveloper/bibialivrejson/main/biblialivrecorrecao1.json',
         ...activeScripts,
         ...activeStyles,
-        ...activeImages,
-        ...mapTileUrls
+        ...activeImages
       ]));
 
       const CONCURRENCY = 12;
@@ -1107,7 +1102,7 @@ const AccountPage = () => {
       setOfflineProgress(100);
       setOfflineEnabled(true);
       localStorage.setItem(OFFLINE_KEY, "true");
-      toast({ title: "Bíblia e Mapas baixados com sucesso", description: "Disponíveis para uso 100% offline." });
+      toast({ title: "Bíblia baixada com sucesso", description: "Disponível para leitura 100% offline." });
     } catch {
       toast({ title: "Erro ao baixar", description: "Verifique sua conexão e tente novamente.", variant: "destructive" });
     } finally {
@@ -1677,7 +1672,7 @@ const AccountPage = () => {
 
           <div className="mt-8 pb-4 text-center">
             <p className="text-xs text-muted-foreground font-sans font-medium tracking-wide">
-              Biblia Online — Versão {appVersion || "2.5.1"}
+              Biblia Online — Versão {appVersion || "2.5.2"}
             </p>
           </div>
 

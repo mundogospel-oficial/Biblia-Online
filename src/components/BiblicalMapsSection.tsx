@@ -382,8 +382,8 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
   }
 
   return (
-    <div className={`space-y-4 ${isFullscreen ? "h-full flex flex-col flex-1 min-h-0" : ""}`}>
-      {/* Header com Título, Descrição, Selo Beta e Seletor de Rotas Bíblicas - Sempre presente sem mudar nada */}
+    <div className={`hidden md:block space-y-4 ${isFullscreen ? "md:flex md:flex-col md:flex-1 h-full min-h-0" : ""}`}>
+      {/* Header com Título, Descrição, Selo Beta e Seletor de Rotas Bíblicas */}
       <div className="relative glass-card rounded-2xl p-5 sm:p-6 border border-border bg-card/60 shadow-md flex flex-col gap-4 shrink-0">
         <div className="flex items-start justify-between gap-4 pr-0 sm:pr-28">
           <div className="space-y-1 max-w-2xl flex-1 min-w-0">
@@ -392,12 +392,6 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
                 <Compass className="h-5 w-5 sm:h-6 sm:w-6 text-accent shrink-0" />
                 <span>Mapas Bíblicos Realistas e Interativos</span>
               </h2>
-              {!isOnline && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold">
-                  <CheckCircle2 className="h-3 w-3" />
-                  Cartografia Offline 100% Ativa
-                </span>
-              )}
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
               Geografia sagrada em alta resolução com satélite realista, relevo topográfico, atlas histórico e contextualização bíblica versículo por versículo.

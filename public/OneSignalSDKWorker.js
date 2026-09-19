@@ -109,7 +109,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
+          if (cacheName !== CACHE_NAME && cacheName !== 'biblia-offline-data' && !cacheName.includes('offline-data')) {
             console.log('[SW] Cleaning up old cache:', cacheName);
             return caches.delete(cacheName);
           }

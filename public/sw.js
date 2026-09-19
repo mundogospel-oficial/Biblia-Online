@@ -1,4 +1,4 @@
-const CACHE_NAME = 'biblia-online-v2.5.4';
+const CACHE_NAME = 'biblia-online-v2.5.2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -110,38 +110,6 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
-
-  // Intercept and cache Map tile servers (ArcGIS, OSM, NatGeo) for full offline map support
-  if (
-    url.host.includes('arcgisonline.com') ||
-    url.host.includes('cartocdn.com') ||
-    url.host.includes('openstreetmap.org') ||
-    url.host.includes('tile.osm.org') ||
-    url.host.includes('os-content.com')
-  ) {
-    event.respondWith(
-      caches.match(event.request).then((cached) => {
-        if (cached) {
-          return cached;
-        }
-        return fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const clone = networkResponse.clone();
-            caches.open('biblia-offline-data').then((cache) => {
-              cache.put(event.request, clone);
-            }).catch(() => {});
-          }
-          return networkResponse;
-        }).catch(() => {
-          return new Response(TRANSPARENT_1PX_PNG, {
-            status: 200,
-            headers: { 'Content-Type': 'image/png' }
-          });
-        });
-      })
-    );
-    return;
-  }
 
   // Bypass Service Worker for PWA icons and apple-touch-icons
   if (

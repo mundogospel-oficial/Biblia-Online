@@ -669,7 +669,22 @@ function startServer() {
     res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     res.setHeader("Pragma", "no-cache");
     res.setHeader("Expires", "0");
-    res.json({ version: "2.5.1" });
+    res.json({ version: "2.5.2" });
+  });
+
+  // Garantir que Service Workers e manifests nunca fiquem em cache antigo no site final
+  app.use((req, res, next) => {
+    if (
+      req.path === "/OneSignalSDKWorker.js" ||
+      req.path === "/sw.js" ||
+      req.path === "/version.json" ||
+      req.path.startsWith("/manifest")
+    ) {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+    }
+    next();
   });
 
   // --- PERSISTÊNCIA ROBUSTA DE HISTÓRICO DE CHAT NO SERVIDOR ---

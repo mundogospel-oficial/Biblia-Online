@@ -59,7 +59,8 @@ window.addEventListener("error", (event) => {
   }
 });
 
-// PWA: Only register SW in production standalone, never in iframes or preview
+// PWA: Register SW and guarantee instant updates to version 2.5.2
+const CURRENT_VERSION = "2.5.2";
 const isInIframe = (() => {
   try { return window.self !== window.top; } catch { return true; }
 })();
@@ -67,13 +68,50 @@ const isPreviewHost =
   window.location.hostname.includes("id-preview--") ||
   window.location.hostname.includes("lovableproject.com");
 
+// Validação e limpeza de cache antigo entre versões
+if (typeof window !== "undefined") {
+  try {
+    const savedVer = localStorage.getItem("app_version");
+    if (savedVer && savedVer !== CURRENT_VERSION) {
+      console.log(`[Update] Atualizando da versão ${savedVer} para ${CURRENT_VERSION}...`);
+      if ("caches" in window) {
+        caches.keys().then((names) => {
+          names.forEach((name) => {
+            if (name !== "biblia-offline-data" && !name.includes("offline-data")) {
+              caches.delete(name).catch(() => {});
+            }
+          });
+        }).catch(() => {});
+      }
+    }
+    localStorage.setItem("app_version", CURRENT_VERSION);
+  } catch {}
+}
+
 if (!isInIframe && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/OneSignalSDKWorker.js", { scope: "/" }).then((reg) => {
-      console.log("Service Worker registered successfully:", reg);
-    }).catch((err) => {
-      console.warn("Service Worker registration failed:", err);
-    });
+    navigator.serviceWorker
+      .register("/OneSignalSDKWorker.js", { scope: "/" })
+      .then((reg) => {
+        console.log(`[SW] Service Worker v${CURRENT_VERSION} ativo:`, reg);
+        // Força busca imediata por atualizações do Service Worker no servidor
+        reg.update().catch(() => {});
+
+        // Se houver uma nova versão instalando, escuta quando terminar
+        reg.addEventListener("updatefound", () => {
+          const installingWorker = reg.installing;
+          if (installingWorker) {
+            installingWorker.addEventListener("statechange", () => {
+              if (installingWorker.state === "installed" && navigator.serviceWorker.controller) {
+                console.log("[SW] Nova versão instalada e pronta.");
+              }
+            });
+          }
+        });
+      })
+      .catch((err) => {
+        console.warn("Service Worker registration failed:", err);
+      });
   });
 } else if (isInIframe && "serviceWorker" in navigator) {
   // Unregister stale SWs in preview safely

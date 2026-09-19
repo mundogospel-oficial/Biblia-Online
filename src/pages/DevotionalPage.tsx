@@ -200,7 +200,9 @@ const DevotionalPage = () => {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as any)}
-                    className={`relative flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors select-none shrink-0 ${
+                    className={`relative items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors select-none shrink-0 ${
+                      tab.id === "mapas" ? "hidden md:inline-flex" : "inline-flex"
+                    } ${
                       isActive
                         ? "text-primary-foreground font-bold"
                         : "bg-secondary/70 text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -361,14 +363,14 @@ const DevotionalPage = () => {
               </motion.div>
             )}
 
-            {/* 3. MAPAS BÍBLICOS (EM TESTES) TAB */}
+            {/* 3. MAPAS BÍBLICOS (EM TESTES) TAB - Oculto em celulares */}
             {activeTab === "mapas" && canAccessBeta && (
               <motion.div
                 key="mapas-tab"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className={isMapsFullscreen ? "h-full flex flex-col flex-1 min-h-0" : ""}
+                className={`hidden md:block ${isMapsFullscreen ? "h-full flex flex-col flex-1 min-h-0" : ""}`}
               >
                 <BiblicalMapsSection
                   isFullscreen={isMapsFullscreen}
