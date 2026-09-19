@@ -63,12 +63,16 @@ export async function validateImageContent(file: File): Promise<{ isAppropriate:
     });
 
     if (res.ok) {
-      const serverResult = await res.json();
-      if (serverResult && serverResult.isAppropriate === false) {
-        return {
-          isAppropriate: false,
-          reason: serverResult.reason || "Imagem inapropriada ou fora do escopo cristão. Tente novamente."
-        };
+      const serverResult = await res.json().catch(() => null);
+      if (serverResult && typeof serverResult.isAppropriate === "boolean") {
+        if (!serverResult.isAppropriate) {
+          return {
+            isAppropriate: false,
+            reason: serverResult.reason || "Imagem inapropriada ou fora do escopo cristão. Tente novamente."
+          };
+        }
+        // Servidor já aprovou a moderação com sucesso, retorna instantaneamente
+        return { isAppropriate: true };
       }
     }
   } catch (serverErr) {
@@ -244,13 +248,17 @@ Responda EXATAMENTE E APENAS "INAPROPRIADO" se a imagem contiver QUALQUER um dos
 
 Caso seja uma imagem respeitosa, neutra, uma paisagem, Bíblia, igreja, texto ou foto de pessoa com roupa comum, responda EXATAMENTE E APENAS "APROPRIADO".`;
 
-    const modelsToTry = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-flash-latest"];
+    const modelsToTry = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-flash-latest"];
 
     for (const key of keysToTry) {
       for (const model of modelsToTry) {
         try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 4000);
+
           const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
             method: 'POST',
+            signal: controller.signal,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               contents: [{
@@ -270,6 +278,8 @@ Caso seja uma imagem respeitosa, neutra, uma paisagem, Bíblia, igreja, texto ou
               }
             })
           });
+
+          clearTimeout(timeoutId);
 
           if (res.ok) {
             const resData = await res.json();

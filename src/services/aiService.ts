@@ -92,7 +92,9 @@ const tryComplexGemini = async (
   
   const normalized = normalizeAttachments(attachments);
   const geminiModels = [
-    'gemini-3.6-flash',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-2.5-pro',
     'gemini-flash-latest'
   ];
   let lastErrorMessage = "";
@@ -398,7 +400,7 @@ REGRAS ABSOLUTAS:
 
     const combinedPrompt = `Tarefa: Crie um título curto de 3-5 palavras para o seguinte contexto: ${context}`;
 
-    const modelsToTry = ['gemini-3.6-flash', 'gemini-flash-latest'];
+    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
     const keysToTry = [googleKey, googleKey2].filter(Boolean) as string[];
 
     for (const key of keysToTry) {
@@ -474,8 +476,8 @@ REGRAS OBRIGATÓRIAS (RIGOROSAS):
 "${verseText}" — Referência: ${reference}`;
 
   const geminiModels = [
-    'gemini-3.6-flash',
-    'gemini-3.8-flash',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
     'gemini-flash-latest'
   ];
 
@@ -630,8 +632,15 @@ export const askBibleAI = async (
     : "";
 
   const { cleanPrompt } = sanitizeUserPrompt(rawClean);
+  const normalized = normalizeAttachments(attachments);
+  const hasImageAttachments = normalized.some(att => att.mimeType?.startsWith('image/') || att.base64?.startsWith('data:image/'));
 
   try {
+    // Se houver imagens anexadas para leitura e interpretação, prioriza os modelos de visão multimodal do Gemini
+    if (hasImageAttachments && (googleKey || googleKey2)) {
+      return await tryComplexGemini(cleanPrompt, googleKey, SYSTEM_RULE, attachments, signal, skipBracketRemoval, googleKey2);
+    }
+
     if (complexity === 'complex') {
       if (googleKey || googleKey2) {
         return await tryComplexGemini(cleanPrompt, googleKey, SYSTEM_RULE, attachments, signal, skipBracketRemoval, googleKey2);

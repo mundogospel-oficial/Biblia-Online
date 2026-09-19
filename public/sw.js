@@ -127,10 +127,17 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         }).catch(() => {
-          // Fallback for offline map tiles that were not pre-cached: transparent 1px PNG
-          return new Response(TRANSPARENT_1PX_PNG, {
+          // Fallback para tiles offline: Pergaminho Cartográfico Bíblico
+          const OFFLINE_TILE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+            <rect width="256" height="256" fill="#f5eee1"/>
+            <rect width="256" height="256" fill="rgba(220, 231, 235, 0.4)"/>
+            <path d="M0,128 Q64,120 128,128 T256,128" fill="none" stroke="rgba(162, 137, 110, 0.25)" stroke-dasharray="4,4"/>
+            <circle cx="128" cy="128" r="60" fill="none" stroke="rgba(162, 137, 110, 0.15)"/>
+            <text x="128" y="132" font-family="serif" font-size="10" fill="rgba(110, 90, 70, 0.5)" text-anchor="middle">Terra Santa &bull; Offline</text>
+          </svg>`;
+          return new Response(OFFLINE_TILE_SVG, {
             status: 200,
-            headers: { 'Content-Type': 'image/png' }
+            headers: { 'Content-Type': 'image/svg+xml' }
           });
         });
       })

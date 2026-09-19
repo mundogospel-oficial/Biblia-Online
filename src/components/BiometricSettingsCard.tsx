@@ -35,7 +35,7 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
   userName,
   onStatusChange,
 }) => {
-  const [inPWA, setInPWA] = useState(false);
+  const [inPWA, setInPWA] = useState(() => (typeof window !== "undefined" ? isPWAMode() : false));
   const [isEnabled, setIsEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPWAGuideModal, setShowPWAGuideModal] = useState(false);
@@ -43,15 +43,29 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
   const { toast } = useToast();
 
   useEffect(() => {
-    const isPwa = isPWAMode();
-    setInPWA(isPwa);
+    const checkPwa = () => {
+      setInPWA(isPWAMode());
+    };
+    checkPwa();
 
     const checkIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     setIsIOS(checkIOS);
 
     const enrolled = isUserBiometricEnrolled(userId);
     setIsEnabled(enrolled);
+
+    if (typeof window !== "undefined" && window.matchMedia) {
+      const mediaQuery = window.matchMedia("(display-mode: standalone)");
+      const handler = () => checkPwa();
+      mediaQuery.addEventListener?.("change", handler);
+      return () => mediaQuery.removeEventListener?.("change", handler);
+    }
   }, [userId]);
+
+  // Se não estiver em modo PWA (site normal no navegador), oculta o botão de biometria
+  if (!inPWA) {
+    return null;
+  }
 
   // Alterna ativação / desativação do Face ID / Touch ID / PIN
   const handleToggleBiometric = async () => {

@@ -1226,7 +1226,7 @@ ou
 {"isAppropriate": false, "reason": "Motivo da rejeição em português"}
 `;
 
-      const visionModelsToTry = ['gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-flash-latest'];
+      const visionModelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-flash-latest'];
       let visionAnalyzed = false;
 
       for (const key of keysToTry) {
@@ -1235,7 +1235,9 @@ ou
           try {
             const { GoogleGenAI } = await import("@google/genai");
             const ai = new GoogleGenAI({ apiKey: key });
-            const response = await ai.models.generateContent({
+
+            // Executa com timeout de 3.5s para nunca atrasar ou travar a experiência do usuário
+            const visionPromise = ai.models.generateContent({
               model: visionModel,
               contents: [
                 {
@@ -1257,6 +1259,12 @@ ou
               }
             });
 
+            const timeoutPromise = new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("Moderation timeout")), 3500)
+            );
+
+            const response = await Promise.race([visionPromise, timeoutPromise]);
+
             const responseText = response.text || "";
             let cleanedJson = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
             const parsed = JSON.parse(cleanedJson);
@@ -1268,8 +1276,9 @@ ou
                 reason: parsed.isAppropriate ? null : (parsed.reason || "Imagem não condiz com os padrões bíblicos e éticos do aplicativo.")
               });
             }
-          } catch (visionErr: any) {
-            console.warn(`[Moderation Backend] Erro na análise Gemini Vision (${visionModel}):`, visionErr?.message || visionErr);
+          } catch (_visionErr: any) {
+            // Continua para o próximo modelo/chave sem poluir os logs ou atrasar o usuário
+            continue;
           }
         }
       }

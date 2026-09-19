@@ -22,12 +22,18 @@ import {
   CheckCircle2,
   Maximize2,
   Minimize2,
+  WifiOff,
   X
 } from "lucide-react";
 import { biblicalMaps, BiblicalMapTheme, MapLocation } from "@/data/biblicalMapsData";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { 
+  createOfflineLeafletGridLayer, 
+  getOfflineTileDataUrl, 
+  CartographyTheme 
+} from "@/utils/biblicalOfflineCartography";
 
 interface BiblicalMapsSectionProps {
   onNavigateToVerse?: (bookAbbrev: string, chapter: number, verseNum?: number) => void;
@@ -35,19 +41,35 @@ interface BiblicalMapsSectionProps {
   onToggleFullscreen?: (fullscreen: boolean) => void;
 }
 
-type MapTileStyle = "satellite" | "physical" | "voyager" | "osm";
+type MapTileStyle = "offline_parchment" | "offline_dark" | "satellite" | "physical" | "voyager" | "osm";
 
 interface TileConfig {
-  url: string;
+  url?: string;
   attribution: string;
   name: string;
   icon: any;
   subdomains?: string[];
   maxZoom?: number;
   maxNativeZoom?: number;
+  isOffline?: boolean;
+  offlineTheme?: CartographyTheme;
 }
 
 const TILE_SERVERS: Record<MapTileStyle, TileConfig> = {
+  offline_parchment: {
+    attribution: "&copy; Cartografia Bíblica Histórica 100% Offline",
+    name: "Pergaminho Bíblico (Offline)",
+    icon: Compass,
+    isOffline: true,
+    offlineTheme: "parchment"
+  },
+  offline_dark: {
+    attribution: "&copy; Atlas Bíblico Cartográfico Offline",
+    name: "Atlas Sagrado Dark (Offline)",
+    icon: Globe2,
+    isOffline: true,
+    offlineTheme: "dark"
+  },
   satellite: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     attribution: "&copy; Esri &mdash; Imagens de Satélite da Terra Santa",
@@ -66,7 +88,7 @@ const TILE_SERVERS: Record<MapTileStyle, TileConfig> = {
   },
   voyager: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}",
-    attribution: "&copy; National Geographic, Esri &mdash; Atlas Histórico e Cartografia",
+    attribution: "&copy; National Geographic, Esri &mdash; Atlas Histórico",
     name: "Atlas Histórico",
     icon: Compass,
     maxZoom: 18,
@@ -95,9 +117,31 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
   const [selectedMapId, setSelectedMapId] = useState<string>("viagens-paulo");
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>("loc-jerusalem");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [tileStyle, setTileStyle] = useState<MapTileStyle>("satellite");
+  const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== "undefined" ? navigator.onLine : true);
+  const [tileStyle, setTileStyle] = useState<MapTileStyle>(() => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      return "offline_parchment";
+    }
+    return "satellite";
+  });
   const [internalFullscreen, setInternalFullscreen] = useState(false);
   const isFullscreen = propIsFullscreen !== undefined ? propIsFullscreen : internalFullscreen;
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => {
+      setIsOnline(false);
+      // Se offline, alternar amigavelmente para o modo pergaminho offline se estiver em camadas online
+      setTileStyle((prev) => (prev === "satellite" || prev === "physical" || prev === "voyager" || prev === "osm" ? "offline_parchment" : prev));
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   const handleToggleFullscreen = useCallback((val: boolean) => {
     if (onToggleFullscreen) {
@@ -111,7 +155,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const tileLayerRef = useRef<L.Layer | null>(null);
   const markersRef = useRef<Record<string, L.Marker>>({});
   const polylineRef = useRef<L.Polyline | null>(null);
   const lastToastTimeRef = useRef<number>(0);
@@ -146,14 +190,18 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
       lastToastTimeRef.current = now;
       toast({
         title: "Aviso",
-        description: "Erro, tente novamente mais tarde",
-        variant: "destructive"
+        description: "Erro de conexão ao carregar tiles online. Cartografia offline ativada.",
+        variant: "default"
       });
     }
   }, [toast]);
 
   const createSafeTileLayer = useCallback((config: TileConfig) => {
-    const layer = L.tileLayer(config.url, {
+    if (config.isOffline) {
+      return createOfflineLeafletGridLayer(config.offlineTheme || "parchment");
+    }
+
+    const layer = L.tileLayer(config.url!, {
       attribution: config.attribution,
       maxZoom: config.maxZoom || 18,
       maxNativeZoom: config.maxNativeZoom || config.maxZoom || 18,
@@ -162,17 +210,33 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
     });
 
     layer.on("tileerror", (errorEvent: any) => {
-      // Cleanly hide broken tile image without displaying logos or placeholders
+      // Fallback gracioso imediato para imagem gerada proceduramente em canvas
       if (errorEvent && errorEvent.tile) {
+        try {
+          const coords = errorEvent.coords || { z: 5, x: 0, y: 0 };
+          const offlineDataUrl = getOfflineTileDataUrl(
+            coords.z || 5, 
+            coords.x || 0, 
+            coords.y || 0, 
+            tileStyle === "satellite" || tileStyle === "offline_dark" ? "dark" : "parchment"
+          );
+          if (offlineDataUrl) {
+            errorEvent.tile.src = offlineDataUrl;
+            errorEvent.tile.style.opacity = "1";
+            errorEvent.tile.style.visibility = "visible";
+            errorEvent.tile.style.display = "block";
+            return;
+          }
+        } catch {
+          // Silent fallback
+        }
         errorEvent.tile.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-        errorEvent.tile.style.opacity = "0";
-        errorEvent.tile.style.visibility = "hidden";
       }
       notifyMapError();
     });
 
     return layer;
-  }, [notifyMapError]);
+  }, [notifyMapError, tileStyle]);
 
   const hasAccess = isBeta || isAdmin || role === "beta" || role === "admin";
 
@@ -393,10 +457,18 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
       <div className="relative glass-card rounded-2xl p-5 sm:p-6 border border-border bg-card/60 shadow-md flex flex-col gap-4 shrink-0">
         <div className="flex items-start justify-between gap-4 pr-0 sm:pr-28">
           <div className="space-y-1 max-w-2xl flex-1 min-w-0">
-            <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2.5 tracking-tight">
-              <Compass className="h-5 w-5 sm:h-6 sm:w-6 text-accent shrink-0" />
-              <span>Mapas Bíblicos Realistas e Interativos</span>
-            </h2>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2.5 tracking-tight">
+                <Compass className="h-5 w-5 sm:h-6 sm:w-6 text-accent shrink-0" />
+                <span>Mapas Bíblicos Realistas e Interativos</span>
+              </h2>
+              {!isOnline && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Cartografia Offline 100% Ativa
+                </span>
+              )}
+            </div>
             <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
               Geografia sagrada em alta resolução com satélite realista, relevo topográfico, atlas histórico e contextualização bíblica versículo por versículo.
             </p>

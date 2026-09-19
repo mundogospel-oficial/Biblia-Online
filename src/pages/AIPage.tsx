@@ -37,6 +37,11 @@ import { validateImageContent } from "@/services/imageModerationService";
 import { analyzeLetterbox } from "@/lib/imageCropUtils";
 import { ImageGeneratingMatrixSquare } from "@/components/ImageGeneratingMatrixSquare";
 import { formatFriendlyErrorMessage } from "@/lib/errorUtils";
+import {
+  useDailyAttachedFiles,
+  canAttachFiles,
+  DAILY_ATTACHED_FILES_LIMIT
+} from "@/services/imageIndexingLimitService";
 
 const formatMessageForDisplay = (text: string): string => {
   if (!text) return "";
@@ -357,97 +362,118 @@ interface Conversation {
   engine?: "simples" | "complexo";
 }
 
-interface ThinkingSpinnerProps {
+interface ThinkingIndicatorProps {
   engine?: "simples" | "complexo";
-  mode?: "chat" | "image" | "video" | "music";
+  mode?: "image" | "video" | "learning" | "music" | "chat" | string | null;
 }
 
-const ThinkingSpinner = ({ engine = "simples", mode = "chat" }: ThinkingSpinnerProps) => {
-  if (mode === "image") {
-    return (
-      <div className="relative flex items-center justify-center h-5 w-5 shrink-0">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-          className="absolute inset-0 rounded-full border border-dashed border-amber-500/60"
-        />
-        <motion.div
-          animate={{ scale: [0.85, 1.15, 0.85] }}
-          transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <Image className="h-3.5 w-3.5 text-amber-500" />
-        </motion.div>
-      </div>
-    );
-  }
+const THINKING_PHRASES: Record<string, string[]> = {
+  simples: [
+    "Pensando...",
+    "Buscando resposta direta...",
+    "Consultando as Escrituras...",
+    "Resumindo explicação bíblica...",
+    "Organizando resposta..."
+  ],
+  complexo: [
+    "Pensando...",
+    "Examinando o contexto bíblico...",
+    "Consultando referências e teologia...",
+    "Aprofundando no contexto histórico...",
+    "Estruturando resposta detalhada..."
+  ],
+  learning: [
+    "Pensando...",
+    "Pesquisando exegese e teologia...",
+    "Estruturando tópicos de estudo...",
+    "Compilando referências sagradas...",
+    "Preparando conteúdo educativo..."
+  ],
+  video: [
+    "Pensando...",
+    "Escrevendo roteiro bíblico...",
+    "Criando ganchos e cenas...",
+    "Ajustando narração cristã...",
+    "Finalizando estrutura do vídeo..."
+  ],
+  music: [
+    "Pensando...",
+    "Compondo versos do louvor...",
+    "Harmonizando estrofes e refrão...",
+    "Escrevendo acordes e melodia...",
+    "Ajustando métrica e rimas..."
+  ]
+};
 
-  if (mode === "video") {
-    return (
-      <div className="relative flex items-center justify-center h-5 w-5 shrink-0">
-        <motion.div
-          animate={{ rotate: -360 }}
-          transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
-          className="absolute inset-0 rounded-full border border-dotted border-purple-500/70"
-        />
-        <motion.div
-          animate={{ scale: [0.85, 1.15, 0.85] }}
-          transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <Video className="h-3.5 w-3.5 text-purple-500" />
-        </motion.div>
-      </div>
-    );
-  }
+const ThinkingIndicator = ({ engine = "simples", mode }: ThinkingIndicatorProps) => {
+  const effectiveKey = mode && THINKING_PHRASES[mode] ? mode : (engine === "complexo" ? "complexo" : "simples");
+  const phrases = THINKING_PHRASES[effectiveKey] || THINKING_PHRASES.simples;
+  const [phraseIndex, setPhraseIndex] = useState(0);
 
-  if (mode === "music") {
-    return (
-      <div className="relative flex items-center justify-center h-5 w-5 shrink-0">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          className="absolute inset-0 rounded-full border border-sky-400/50"
-        />
-        <motion.div
-          animate={{ y: [-1, 1, -1] }}
-          transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <Music className="h-3.5 w-3.5 text-sky-400" />
-        </motion.div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    setPhraseIndex(0);
+    const interval = setInterval(() => {
+      setPhraseIndex((prev) => (prev + 1) % phrases.length);
+    }, 2400);
+    return () => clearInterval(interval);
+  }, [effectiveKey, phrases.length]);
 
-  if (engine === "simples") {
-    return (
-      <div className="relative flex items-center justify-center h-5 w-5 shrink-0">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
-          className="absolute inset-0 rounded-full border-2 border-amber-500/30 border-t-amber-500"
-        />
-        <motion.div
-          animate={{ scale: [0.9, 1.2, 0.9] }}
-          transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <Zap className="h-3 w-3 text-amber-500 fill-amber-500/20" />
-        </motion.div>
-      </div>
-    );
-  }
+  const renderIcon = () => {
+    if (mode === "video") {
+      return <Video className="h-3.5 w-3.5 text-primary-foreground" />;
+    }
+    if (mode === "music") {
+      return <Music className="h-3.5 w-3.5 text-primary-foreground" />;
+    }
+    if (mode === "learning") {
+      return <GraduationCap className="h-3.5 w-3.5 text-primary-foreground" />;
+    }
+    if (engine === "complexo") {
+      return <Bot className="h-3.5 w-3.5 text-primary-foreground" />;
+    }
+    return <Zap className="h-3.5 w-3.5 text-primary-foreground" />;
+  };
+
+  const getGradient = () => {
+    if (mode === "video") return "from-purple-500 to-indigo-600";
+    if (mode === "music") return "from-sky-500 to-blue-600";
+    if (mode === "learning") return "from-emerald-500 to-teal-600";
+    if (engine === "complexo") return "from-accent to-primary";
+    return "from-amber-500 to-orange-500";
+  };
 
   return (
-    <div className="relative flex items-center justify-center h-5 w-5 shrink-0">
-      <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-        className="absolute inset-0 rounded-full border-2 border-accent/30 border-t-accent border-b-primary"
-      />
-      <motion.div
-        animate={{ scale: [0.85, 1.1, 0.85] }}
-        transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <Bot className="h-3.5 w-3.5 text-accent" />
-      </motion.div>
+    <div className="flex items-center gap-2.5 py-1.5 px-0.5 select-none animate-in fade-in duration-200">
+      {/* Ícone com animação circular e pulso sutil */}
+      <div className={`relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${getGradient()} shadow-xs`}>
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+          className="absolute -inset-0.5 rounded-full border border-dashed border-white/40"
+        />
+        <motion.div
+          animate={{ scale: [0.9, 1.08, 0.9] }}
+          transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+        >
+          {renderIcon()}
+        </motion.div>
+      </div>
+
+      {/* Texto alternando dinamicamente */}
+      <div className="flex items-center min-h-[20px]">
+        <AnimatePresence mode="wait">
+          <motion.span
+            key={`${effectiveKey}-${phraseIndex}`}
+            initial={{ opacity: 0, y: 2 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -2 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="text-xs sm:text-sm font-medium text-foreground/80 tracking-tight"
+          >
+            {phrases[phraseIndex]}
+          </motion.span>
+        </AnimatePresence>
+      </div>
     </div>
   );
 };
@@ -492,18 +518,29 @@ const ResilientImage: React.FC<ResilientImageProps> = ({ src, alt, className = "
 
   return (
     <div 
-      className={`relative w-full h-full bg-muted flex items-center justify-center overflow-hidden rounded-xl ${onClick ? 'cursor-pointer' : ''}`}
+      className={`relative w-full h-full bg-muted flex items-center justify-center overflow-hidden rounded-xl select-none protected-image ${onClick ? 'cursor-pointer' : ''}`}
       onClick={onClick}
+      draggable={false}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }}
+      onDragStart={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }}
     >
       {isLoading && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/60 p-4 text-center">
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/60 p-4 text-center select-none pointer-events-none">
           <Loader2 className="h-6 w-6 text-accent animate-spin mb-2" />
           <span className="text-xs text-muted-foreground font-medium">Carregando imagem...</span>
         </div>
       )}
 
       {hasError ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/95 p-4 text-center border border-border rounded-xl">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/95 p-4 text-center border border-border rounded-xl select-none pointer-events-none">
           <ImageOff className="h-8 w-8 text-muted-foreground/60 mb-2" />
           <span className="text-xs text-muted-foreground font-semibold">Falha ao carregar imagem</span>
           <p className="text-[10px] text-muted-foreground mt-1 max-w-[220px] leading-relaxed">
@@ -516,11 +553,26 @@ const ResilientImage: React.FC<ResilientImageProps> = ({ src, alt, className = "
           src={src}
           alt={alt}
           crossOrigin="anonymous"
+          draggable={false}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }}
+          onDragStart={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }}
           style={{
             transform: letterboxScale > 1 ? `scale(${letterboxScale})` : undefined,
-            transformOrigin: 'center center'
+            transformOrigin: 'center center',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            WebkitTouchCallout: 'none',
+            WebkitUserDrag: 'none' as any,
           }}
-          className={`${className} transition-transform duration-300 ${onClick ? 'hover:scale-[1.03]' : ''}`}
+          className={`${className} select-none protected-image transition-transform duration-300 ${onClick ? 'hover:scale-[1.03]' : ''}`}
           referrerPolicy="no-referrer"
           onLoad={(e) => evaluateLetterbox(e.currentTarget)}
           onError={() => {
@@ -632,6 +684,16 @@ const AIPage = () => {
       ? learningSuggestions
       : defaultSuggestions;
   const [aiEngine, setAiEngine] = useState<AIEngine>("simples");
+  const userIdentifier = user?.sub || user?.email;
+  const {
+    usedCount: dailyFilesUsed,
+    maxLimit: dailyFilesMax,
+    remainingCount: dailyFilesRemaining,
+    isLimitReached: dailyFilesLimitReached,
+    nextRechargeText: dailyFilesNextRecharge,
+    recordUsage: recordDailyFileAttached,
+    decrementUsage: decrementDailyFileAttached,
+  } = useDailyAttachedFiles(userIdentifier);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<Array<{ name: string; url: string | null; type: string; size: number }>>([]);
   const [brokenPreviews, setBrokenPreviews] = useState<Record<number, boolean>>({});
@@ -652,6 +714,46 @@ const AIPage = () => {
   const [messageFeedback, setMessageFeedback] = useState<Record<number, "like" | "dislike">>({});
   const [copiedAssistantIdx, setCopiedAssistantIdx] = useState<number | null>(null);
   const [copiedUserIdx, setCopiedUserIdx] = useState<number | null>(null);
+
+  // Bloqueio global contra menu de contexto (botão direito) e drag em imagens para impedir download/cópia indevida pelo menu nativo
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (
+        target.tagName === 'IMG' ||
+        target.closest('img') ||
+        target.closest('.protected-image') ||
+        target.closest('[data-protected-image="true"]')
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }
+    };
+
+    const handleDragStart = (e: DragEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (
+        target.tagName === 'IMG' ||
+        target.closest('img') ||
+        target.closest('.protected-image') ||
+        target.closest('[data-protected-image="true"]')
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }
+    };
+
+    document.addEventListener('contextmenu', handleContextMenu, true);
+    document.addEventListener('dragstart', handleDragStart, true);
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu, true);
+      document.removeEventListener('dragstart', handleDragStart, true);
+    };
+  }, []);
 
   useEffect(() => {
     if (!lightboxImage) {
@@ -1300,7 +1402,7 @@ const AIPage = () => {
     await downloadBibleImage(dataUrl, "Biblia-Online-IA");
   };
 
-  const validateAndAddFile = async (file: File) => {
+  const validateAndAddFile = (file: File) => {
     if (attachedFiles.length >= 2) {
       toast({ title: "Limite de arquivos atingido", description: "Você só pode anexar no máximo 2 arquivos por mensagem.", variant: "destructive" });
       return;
@@ -1336,21 +1438,36 @@ const AIPage = () => {
       return;
     }
 
-    // Filtro de segurança para imagem inapropriada/obscena/fora do escopo cristão
-    const moderation = await validateImageContent(file);
-    if (!moderation.isAppropriate) {
-      toast({ 
-        title: "Envio Bloqueado", 
-        description: moderation.reason || "Imagem não pode ser enviada pois contém conteúdo impróprio ou fora do escopo ético/cristão.", 
-        variant: "destructive" 
+    const { allowed } = canAttachFiles(1, userIdentifier);
+    if (!allowed || dailyFilesRemaining <= 0 || dailyFilesLimitReached) {
+      toast({
+        title: "Limite de anexos atingido",
+        description: `Você atingiu o limite de ${DAILY_ATTACHED_FILES_LIMIT} arquivos anexados. Recarga em até 12h${dailyFilesNextRecharge ? ` (próxima liberação em ${dailyFilesNextRecharge})` : ''}.`,
+        variant: "destructive"
       });
       return;
     }
 
-    setAttachedFiles(prev => [...prev, file]);
+    // Indexa e anexa instantaneamente no chat sem atrasos ou bloqueios
+    setAttachedFiles(prev => {
+      if (prev.length >= 2) return prev;
+      return [...prev, file];
+    });
+
+    recordDailyFileAttached(1);
   };
 
   const handleFileAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (dailyFilesLimitReached || dailyFilesRemaining <= 0) {
+      toast({
+        title: "Limite de anexos atingido",
+        description: `Você atingiu o limite de ${DAILY_ATTACHED_FILES_LIMIT} arquivos anexados. Recarga em até 12h${dailyFilesNextRecharge ? ` (próxima liberação em ${dailyFilesNextRecharge})` : ''}.`,
+        variant: "destructive"
+      });
+      e.target.value = '';
+      return;
+    }
+
     const files = e.target.files;
     if (files) {
       Array.from(files).forEach(file => {
@@ -1363,11 +1480,21 @@ const AIPage = () => {
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     if (limitReached || !isOnline) return;
     
-    const items = e.clipboardData.items;
+    const items = e.clipboardData?.items;
+    if (!items) return;
     for (let i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf("image") !== -1) {
+      if (items[i].kind === "file" || items[i].type.indexOf("image") !== -1) {
         const file = items[i].getAsFile();
         if (file) {
+          if (dailyFilesLimitReached || dailyFilesRemaining <= 0) {
+            e.preventDefault();
+            toast({
+              title: "Limite de anexos atingido",
+              description: `Você atingiu o limite de ${DAILY_ATTACHED_FILES_LIMIT} arquivos anexados. Recarga em até 12h${dailyFilesNextRecharge ? ` (próxima liberação em ${dailyFilesNextRecharge})` : ''}.`,
+              variant: "destructive"
+            });
+            return;
+          }
           validateAndAddFile(file);
           e.preventDefault();
           break;
@@ -1378,8 +1505,14 @@ const AIPage = () => {
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    if (!limitReached && isOnline) {
-      setIsDragging(true);
+    if (!limitReached && isOnline && !dailyFilesLimitReached && dailyFilesRemaining > 0) {
+      // Somente ativa o overlay de anexar se houver arquivos externos sendo arrastados
+      if (e.dataTransfer && e.dataTransfer.types) {
+        const types = Array.from(e.dataTransfer.types);
+        if (types.includes("Files")) {
+          setIsDragging(true);
+        }
+      }
     }
   };
 
@@ -1393,11 +1526,36 @@ const AIPage = () => {
     setIsDragging(false);
     if (limitReached || !isOnline) return;
 
-    const files = e.dataTransfer.files;
+    if (dailyFilesLimitReached || dailyFilesRemaining <= 0) {
+      toast({
+        title: "Limite de anexos atingido",
+        description: `Você atingiu o limite de ${DAILY_ATTACHED_FILES_LIMIT} arquivos anexados. Recarga em até 12h${dailyFilesNextRecharge ? ` (próxima liberação em ${dailyFilesNextRecharge})` : ''}.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const files = e.dataTransfer?.files;
     if (files && files.length > 0) {
-      Array.from(files).forEach(file => {
+      const fileArray = Array.from(files);
+      let blockedFilesCount = 0;
+
+      fileArray.forEach(file => {
+        const { allowed } = canAttachFiles(1, userIdentifier);
+        if (!allowed || dailyFilesRemaining <= 0) {
+          blockedFilesCount++;
+          return;
+        }
         validateAndAddFile(file);
       });
+
+      if (blockedFilesCount > 0) {
+        toast({
+          title: "Limite de anexos atingido",
+          description: `Não foi possível anexar ${blockedFilesCount} arquivo(s). Recarga em até 12h${dailyFilesNextRecharge ? ` (próxima liberação em ${dailyFilesNextRecharge})` : ''}.`,
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -2259,7 +2417,18 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
     const renderImageCard = (imgUrl: string, key?: any) => (
       <div 
         key={key} 
-        className="relative w-[280px] sm:w-[320px] aspect-square rounded-2xl overflow-hidden border border-white/15 bg-card/60 shadow-2xl group select-none my-1"
+        draggable={false}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }}
+        onDragStart={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }}
+        className="relative w-[280px] sm:w-[320px] aspect-square rounded-2xl overflow-hidden border border-white/15 bg-card/60 shadow-2xl group select-none protected-image my-1"
       >
         <ResilientImage 
           src={imgUrl} 
@@ -2449,6 +2618,258 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
     );
   }
 
+  const renderSidebarContent = () => (
+    <>
+      {/* Header do Menu Lateral com Logo */}
+      <div className="flex items-center justify-between p-3.5 border-b border-border/70 shrink-0 bg-background/50">
+        <div className="flex items-center gap-2.5 p-1 rounded-xl select-none text-left">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-primary shadow-xs shrink-0">
+            <Bot className="h-4.5 w-4.5 text-primary-foreground" />
+          </div>
+          
+          <div className="flex flex-col">
+            <span className="font-serif text-sm font-bold text-foreground leading-tight">
+              IA Bíblia
+            </span>
+            <p className="text-[10px] text-muted-foreground leading-tight">
+              {conversations.length} {conversations.length === 1 ? "conversa salva" : "conversas salvas"}
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setIsSidebarOpen(false)}
+          className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+          title="Fechar menu lateral"
+          aria-label="Fechar menu lateral"
+        >
+          <PanelLeftClose className="h-4.5 w-4.5" />
+        </button>
+      </div>
+
+      {/* Botão de Nova Conversa */}
+      <div className="p-3 pb-2 shrink-0">
+        <button
+          onClick={() => {
+            startNewChat();
+            setIsSidebarOpen(false);
+            toast({
+              title: "Nova Conversa",
+              description: "Conversa reiniciada. Faça sua pergunta para a IA Bíblica.",
+            });
+          }}
+          className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground font-bold text-xs shadow-xs transition-all active:scale-98 liquid-btn cursor-pointer"
+        >
+          <MessageSquarePlus className="h-4 w-4" />
+          <span>Nova Conversa</span>
+        </button>
+      </div>
+
+      {/* Resumo de Cota Diária */}
+      <div className="px-3 pb-2 shrink-0">
+        <div className="glass-card rounded-xl p-2 bg-secondary/40 border border-border/60">
+          <div className="flex items-center justify-between mb-1.5 px-0.5">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-accent flex items-center gap-1">
+              <Zap className="h-2.5 w-2.5" /> Cotas Restantes
+            </span>
+            <span className="text-[9px] text-muted-foreground">12h</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1.5 text-center">
+            <div className="bg-background/70 rounded-lg p-1 border border-border/40">
+              <p className="text-xs font-bold text-foreground leading-none">{Math.max(0, chatRemaining)}</p>
+              <p className="text-[8px] text-muted-foreground mt-0.5 truncate">Complexa</p>
+            </div>
+            <div className="bg-background/70 rounded-lg p-1 border border-border/40">
+              <p className="text-xs font-bold text-foreground leading-none">{Math.max(0, geminiRemaining)}</p>
+              <p className="text-[8px] text-muted-foreground mt-0.5 truncate">Simples</p>
+            </div>
+            <div className="bg-background/70 rounded-lg p-1 border border-border/40">
+              <p className="text-xs font-bold text-foreground leading-none">{Math.max(0, imageRemaining)}</p>
+              <p className="text-[8px] text-muted-foreground mt-0.5 truncate">Imagens</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Campo de Busca e Filtros com efeito Liquid Glass */}
+      <div className="px-3 pb-2 shrink-0 space-y-2">
+        <div className="relative flex items-center group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-accent/80 group-focus-within:text-accent group-focus-within:scale-105 transition-all duration-200 pointer-events-none z-10 shrink-0" />
+          <input
+            type="text"
+            value={historySearchQuery}
+            onChange={(e) => setHistorySearchQuery(e.target.value)}
+            placeholder="Buscar histórico..."
+            className="w-full liquid-glass-input rounded-xl pl-9 pr-8 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none transition-all"
+          />
+          {historySearchQuery && (
+            <button
+              onClick={() => setHistorySearchQuery("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground hover:bg-white/10 rounded-full transition-colors cursor-pointer z-10"
+              title="Limpar busca"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
+          {[
+            { key: "all", label: "Todas" },
+            { key: "simple", label: "Simples" },
+            { key: "complex", label: "Complexa" },
+            { key: "image", label: "Imagens" },
+          ].map((cat) => (
+            <button
+              key={cat.key}
+              onClick={() => setHistoryFilterCategory(cat.key as any)}
+              className={`px-2.5 py-1 rounded-lg text-[10px] transition-all whitespace-nowrap cursor-pointer ${
+                historyFilterCategory === cat.key
+                  ? "liquid-glass-pill-active font-semibold shadow-xs"
+                  : "liquid-glass-pill text-muted-foreground hover:text-foreground font-medium"
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Lista do Histórico de Conversas com efeito Liquid Glass */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 py-1 space-y-2.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        {filteredConversations.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 px-2 text-center text-muted-foreground">
+            <div className="h-10 w-10 rounded-xl liquid-glass-card flex items-center justify-center mb-2">
+              <Bot className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <p className="text-xs font-semibold text-foreground mb-1">
+              {historySearchQuery ? "Nenhuma conversa encontrada" : "Sem conversas salvas"}
+            </p>
+            <p className="text-[10px] text-muted-foreground leading-relaxed max-w-[200px]">
+              {historySearchQuery
+                ? `Nenhum resultado para "${historySearchQuery}".`
+                : "Suas conversas anteriores aparecem aqui de forma privada."}
+            </p>
+          </div>
+        ) : (
+          <AnimatePresence mode="popLayout">
+            {filteredConversations.map((conv, idx) => {
+              const categoryInfo = getConversationCategoryInfo(conv);
+              const CategoryIcon = categoryInfo.icon;
+              const isEditing = editingTitleId === conv.id;
+              const isActive = currentChatIdRef.current === conv.id;
+
+              return (
+                <motion.div
+                  key={conv.id ? `${conv.id}-${idx}` : `conv-${idx}`}
+                  layout
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  onClick={() => !isEditing && loadConversation(conv)}
+                  className={`group relative flex flex-col rounded-xl p-3 transition-all cursor-pointer overflow-hidden ${
+                    isActive 
+                      ? "liquid-glass-card liquid-glass-card-active" 
+                      : "liquid-glass-card"
+                  }`}
+                >
+                  {/* Reflexo de luz na borda superior (Liquid Glass Specular Highlight) */}
+                  <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
+
+                  <div className="flex items-center justify-between gap-1 mb-1.5">
+                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold border backdrop-blur-md ${categoryInfo.badgeBg}`}>
+                      <CategoryIcon className="h-2.5 w-2.5" />
+                      {categoryInfo.label}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground flex items-center gap-1 font-medium">
+                      <Clock className="h-2.5 w-2.5 text-muted-foreground/70" />
+                      {formatRelativeDate(conv.timestamp)}
+                    </span>
+                  </div>
+
+                  {isEditing ? (
+                    <div className="flex items-center gap-1 mt-1" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="text"
+                        value={editingTitleInput}
+                        onChange={(e) => setEditingTitleInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSaveTitle(conv.id);
+                          if (e.key === "Escape") setEditingTitleId(null);
+                        }}
+                        className="flex-1 liquid-glass-input rounded-lg px-2.5 py-1 text-xs text-foreground focus:outline-none"
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => handleSaveTitle(conv.id)}
+                        className="p-1.5 rounded-lg bg-accent text-accent-foreground hover:bg-accent/90 cursor-pointer transition-colors"
+                      >
+                        <Check className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={() => setEditingTitleId(null)}
+                        className="p-1.5 rounded-lg bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-start justify-between gap-1.5">
+                      <div className="text-left flex-1 min-w-0">
+                        <h4 className="text-xs font-semibold text-foreground line-clamp-1 group-hover:text-accent transition-colors">
+                          {conv.title || "Conversa Bíblica"}
+                        </h4>
+                        <p className="text-[10px] text-muted-foreground/90 line-clamp-1 mt-0.5">
+                          {getConversationPreview(conv)}
+                        </p>
+                      </div>
+
+                      <div 
+                        className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          onClick={() => {
+                            setEditingTitleId(conv.id);
+                            setEditingTitleInput(conv.title || "");
+                          }}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors cursor-pointer"
+                          title="Renomear título"
+                        >
+                          <Edit3 className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => deleteConversation(conv.id)}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/15 transition-colors cursor-pointer"
+                          title="Excluir conversa"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        )}
+      </div>
+
+      {/* Rodapé do Menu Lateral com Limpar Todo Histórico */}
+      {conversations.length > 0 && (
+        <div className="p-3 border-t border-border/70 shrink-0 bg-background/40">
+          <button
+            onClick={() => setShowClearAllModal(true)}
+            className="flex items-center justify-center gap-1.5 w-full py-1.5 px-3 rounded-xl border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-medium transition-all cursor-pointer"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            <span>Limpar todo o histórico</span>
+          </button>
+        </div>
+      )}
+    </>
+  );
+
   return (
     <div 
       className="flex flex-col bg-background fixed inset-0 w-full overflow-hidden"
@@ -2463,282 +2884,50 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
     >
       <Header />
 
-      {/* Menu Lateral com Histórico de Conversas e Nova Conversa */}
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <>
-            {/* Backdrop com desfoque */}
-            <motion.div
-              key="sidebar-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              onClick={() => setIsSidebarOpen(false)}
-              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs"
-              aria-hidden="true"
-            />
+      {/* Área Principal (Barra Lateral + Chat) */}
+      <div className="flex flex-1 min-h-0 w-full overflow-hidden relative">
+        {/* Menu Lateral no Desktop (Docked lado a lado empurrando o chat com transição rápida e sem bugs) */}
+        <aside
+          className={`hidden md:flex flex-col shrink-0 h-full border-r border-border bg-card overflow-hidden z-20 transition-[width,opacity] duration-150 ease-out ${
+            isSidebarOpen ? "w-[300px] lg:w-[320px] opacity-100" : "w-0 opacity-0 pointer-events-none border-r-0"
+          }`}
+        >
+          <div className="w-[300px] lg:w-[320px] h-full flex flex-col shrink-0">
+            {renderSidebarContent()}
+          </div>
+        </aside>
 
-            {/* Painel Lateral (Drawer) */}
-            <motion.aside
-              key="sidebar-panel"
-              initial={{ x: "-100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
-              transition={{ type: "spring", damping: 28, stiffness: 280 }}
-              className="fixed inset-y-0 left-0 z-50 flex flex-col w-[85vw] max-w-[340px] sm:w-[320px] bg-card border-r border-border shadow-2xl safe-area-top safe-area-bottom overflow-hidden"
-            >
-              {/* Header do Menu Lateral com Logo */}
-              <div className="flex items-center justify-between p-3.5 border-b border-border/70 shrink-0 bg-background/50">
-                <div className="flex items-center gap-2.5 p-1 rounded-xl select-none text-left">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-primary shadow-xs shrink-0">
-                    <Bot className="h-4.5 w-4.5 text-primary-foreground" />
-                  </div>
-                  
-                  <div className="flex flex-col">
-                    <span className="font-serif text-sm font-bold text-foreground leading-tight">
-                      IA Bíblia
-                    </span>
-                    <p className="text-[10px] text-muted-foreground leading-tight">
-                      {conversations.length} {conversations.length === 1 ? "conversa salva" : "conversas salvas"}
-                    </p>
-                  </div>
+        {/* Menu Lateral no Mobile (Drawer Overlay rápido) */}
+        <AnimatePresence>
+          {isSidebarOpen && (
+            <>
+              {/* Backdrop com desfoque (apenas em telas menores / mobile) */}
+              <motion.div
+                key="sidebar-backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                onClick={() => setIsSidebarOpen(false)}
+                className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs md:hidden"
+                aria-hidden="true"
+              />
+
+              <motion.aside
+                key="sidebar-mobile"
+                initial={{ x: "-100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "-100%" }}
+                transition={{ duration: 0.18, ease: "easeOut" }}
+                className="fixed inset-y-0 left-0 z-50 flex flex-col w-[85vw] max-w-[320px] bg-card border-r border-border shadow-2xl md:hidden safe-area-top safe-area-bottom overflow-hidden h-full"
+              >
+                <div className="w-full h-full flex flex-col">
+                  {renderSidebarContent()}
                 </div>
-
-                <button
-                  onClick={() => setIsSidebarOpen(false)}
-                  className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
-                  title="Fechar menu lateral"
-                  aria-label="Fechar menu lateral"
-                >
-                  <PanelLeftClose className="h-4.5 w-4.5" />
-                </button>
-              </div>
-
-              {/* Botão de Nova Conversa */}
-              <div className="p-3 pb-2 shrink-0">
-                <button
-                  onClick={() => {
-                    startNewChat();
-                    setIsSidebarOpen(false);
-                    toast({
-                      title: "Nova Conversa",
-                      description: "Conversa reiniciada. Faça sua pergunta para a IA Bíblica.",
-                    });
-                  }}
-                  className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground font-bold text-xs shadow-xs transition-all active:scale-98 liquid-btn cursor-pointer"
-                >
-                  <MessageSquarePlus className="h-4 w-4" />
-                  <span>Nova Conversa</span>
-                </button>
-              </div>
-
-              {/* Resumo de Cota Diária */}
-              <div className="px-3 pb-2 shrink-0">
-                <div className="glass-card rounded-xl p-2 bg-secondary/40 border border-border/60">
-                  <div className="flex items-center justify-between mb-1.5 px-0.5">
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-accent flex items-center gap-1">
-                      <Zap className="h-2.5 w-2.5" /> Cotas Restantes
-                    </span>
-                    <span className="text-[9px] text-muted-foreground">12h</span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-1.5 text-center">
-                    <div className="bg-background/70 rounded-lg p-1 border border-border/40">
-                      <p className="text-xs font-bold text-foreground leading-none">{Math.max(0, chatRemaining)}</p>
-                      <p className="text-[8px] text-muted-foreground mt-0.5 truncate">Complexa</p>
-                    </div>
-                    <div className="bg-background/70 rounded-lg p-1 border border-border/40">
-                      <p className="text-xs font-bold text-foreground leading-none">{Math.max(0, geminiRemaining)}</p>
-                      <p className="text-[8px] text-muted-foreground mt-0.5 truncate">Simples</p>
-                    </div>
-                    <div className="bg-background/70 rounded-lg p-1 border border-border/40">
-                      <p className="text-xs font-bold text-foreground leading-none">{Math.max(0, imageRemaining)}</p>
-                      <p className="text-[8px] text-muted-foreground mt-0.5 truncate">Imagens</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Campo de Busca e Filtros com efeito Liquid Glass */}
-              <div className="px-3 pb-2 shrink-0 space-y-2">
-                <div className="relative flex items-center group">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-accent/80 group-focus-within:text-accent group-focus-within:scale-105 transition-all duration-200 pointer-events-none z-10 shrink-0" />
-                  <input
-                    type="text"
-                    value={historySearchQuery}
-                    onChange={(e) => setHistorySearchQuery(e.target.value)}
-                    placeholder="Buscar histórico..."
-                    className="w-full liquid-glass-input rounded-xl pl-9 pr-8 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none transition-all"
-                  />
-                  {historySearchQuery && (
-                    <button
-                      onClick={() => setHistorySearchQuery("")}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground hover:bg-white/10 rounded-full transition-colors cursor-pointer z-10"
-                      title="Limpar busca"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
-                  {[
-                    { key: "all", label: "Todas" },
-                    { key: "simple", label: "Simples" },
-                    { key: "complex", label: "Complexa" },
-                    { key: "image", label: "Imagens" },
-                  ].map((cat) => (
-                    <button
-                      key={cat.key}
-                      onClick={() => setHistoryFilterCategory(cat.key as any)}
-                      className={`px-2.5 py-1 rounded-lg text-[10px] transition-all whitespace-nowrap cursor-pointer ${
-                        historyFilterCategory === cat.key
-                          ? "liquid-glass-pill-active font-semibold shadow-xs"
-                          : "liquid-glass-pill text-muted-foreground hover:text-foreground font-medium"
-                      }`}
-                    >
-                      {cat.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Lista do Histórico de Conversas com efeito Liquid Glass */}
-              <div className="flex-1 min-h-0 overflow-y-auto px-3 py-1 space-y-2.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                {filteredConversations.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 px-2 text-center text-muted-foreground">
-                    <div className="h-10 w-10 rounded-xl liquid-glass-card flex items-center justify-center mb-2">
-                      <Bot className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <p className="text-xs font-semibold text-foreground mb-1">
-                      {historySearchQuery ? "Nenhuma conversa encontrada" : "Sem conversas salvas"}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground leading-relaxed max-w-[200px]">
-                      {historySearchQuery
-                        ? `Nenhum resultado para "${historySearchQuery}".`
-                        : "Suas conversas anteriores aparecem aqui de forma privada."}
-                    </p>
-                  </div>
-                ) : (
-                  <AnimatePresence mode="popLayout">
-                    {filteredConversations.map((conv, idx) => {
-                      const categoryInfo = getConversationCategoryInfo(conv);
-                      const CategoryIcon = categoryInfo.icon;
-                      const isEditing = editingTitleId === conv.id;
-                      const isActive = currentChatIdRef.current === conv.id;
-
-                      return (
-                        <motion.div
-                          key={conv.id ? `${conv.id}-${idx}` : `conv-${idx}`}
-                          layout
-                          initial={{ opacity: 0, y: 6 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          onClick={() => !isEditing && loadConversation(conv)}
-                          className={`group relative flex flex-col rounded-xl p-3 transition-all cursor-pointer overflow-hidden ${
-                            isActive 
-                              ? "liquid-glass-card liquid-glass-card-active" 
-                              : "liquid-glass-card"
-                          }`}
-                        >
-                          {/* Reflexo de luz na borda superior (Liquid Glass Specular Highlight) */}
-                          <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
-
-                          <div className="flex items-center justify-between gap-1 mb-1.5">
-                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold border backdrop-blur-md ${categoryInfo.badgeBg}`}>
-                              <CategoryIcon className="h-2.5 w-2.5" />
-                              {categoryInfo.label}
-                            </span>
-                            <span className="text-[9px] text-muted-foreground flex items-center gap-1 font-medium">
-                              <Clock className="h-2.5 w-2.5 text-muted-foreground/70" />
-                              {formatRelativeDate(conv.timestamp)}
-                            </span>
-                          </div>
-
-                          {isEditing ? (
-                            <div className="flex items-center gap-1 mt-1" onClick={(e) => e.stopPropagation()}>
-                              <input
-                                type="text"
-                                value={editingTitleInput}
-                                onChange={(e) => setEditingTitleInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") handleSaveTitle(conv.id);
-                                  if (e.key === "Escape") setEditingTitleId(null);
-                                }}
-                                className="flex-1 liquid-glass-input rounded-lg px-2.5 py-1 text-xs text-foreground focus:outline-none"
-                                autoFocus
-                              />
-                              <button
-                                onClick={() => handleSaveTitle(conv.id)}
-                                className="p-1.5 rounded-lg bg-accent text-accent-foreground hover:bg-accent/90 cursor-pointer transition-colors"
-                              >
-                                <Check className="h-3 w-3" />
-                              </button>
-                              <button
-                                onClick={() => setEditingTitleId(null)}
-                                className="p-1.5 rounded-lg bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-start justify-between gap-1.5">
-                              <div className="text-left flex-1 min-w-0">
-                                <h4 className="text-xs font-semibold text-foreground line-clamp-1 group-hover:text-accent transition-colors">
-                                  {conv.title || "Conversa Bíblica"}
-                                </h4>
-                                <p className="text-[10px] text-muted-foreground/90 line-clamp-1 mt-0.5">
-                                  {getConversationPreview(conv)}
-                                </p>
-                              </div>
-
-                              <div 
-                                className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity shrink-0"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <button
-                                  onClick={() => {
-                                    setEditingTitleId(conv.id);
-                                    setEditingTitleInput(conv.title || "");
-                                  }}
-                                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors cursor-pointer"
-                                  title="Renomear título"
-                                >
-                                  <Edit3 className="h-3 w-3" />
-                                </button>
-                                <button
-                                  onClick={() => deleteConversation(conv.id)}
-                                  className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/15 transition-colors cursor-pointer"
-                                  title="Excluir conversa"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </motion.div>
-                      );
-                    })}
-                  </AnimatePresence>
-                )}
-              </div>
-
-              {/* Rodapé do Menu Lateral com Limpar Todo Histórico */}
-              {conversations.length > 0 && (
-                <div className="p-3 border-t border-border/70 shrink-0 bg-background/40">
-                  <button
-                    onClick={() => setShowClearAllModal(true)}
-                    className="flex items-center justify-center gap-1.5 w-full py-1.5 px-3 rounded-xl border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-medium transition-all cursor-pointer"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    <span>Limpar todo o histórico</span>
-                  </button>
-                </div>
-              )}
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+              </motion.aside>
+            </>
+          )}
+        </AnimatePresence>
 
       {/* Modal de Confirmação para Apagar Todo o Histórico */}
       <AnimatePresence>
@@ -2783,15 +2972,15 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
         )}
       </AnimatePresence>
 
-      <div className="flex min-w-0 flex-1 min-h-0 flex-col overflow-hidden container mx-auto max-w-4xl px-3">
+      <div className="flex min-w-0 flex-1 min-h-0 flex-col overflow-hidden container mx-auto max-w-4xl px-3 transition-all duration-150 ease-out">
         <div className="flex shrink-0 items-center justify-between gap-1.5 sm:gap-2 py-2.5 sm:py-3">
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Botão de Menu Lateral com o Ícone da IA Bíblica que exibe o ícone de menu ao passar o mouse */}
             <button
-              onClick={() => setIsSidebarOpen(true)}
+              onClick={() => setIsSidebarOpen(prev => !prev)}
               className="group relative flex items-center justify-center rounded-lg bg-gradient-to-br from-accent to-primary p-1.5 sm:p-2 text-primary-foreground shadow-xs hover:shadow-md hover:brightness-110 active:scale-95 transition-all duration-200 liquid-btn cursor-pointer shrink-0"
-              title="Menu lateral e histórico"
-              aria-label="Abrir menu lateral e histórico"
+              title={isSidebarOpen ? "Fechar menu lateral" : "Menu lateral e histórico"}
+              aria-label={isSidebarOpen ? "Fechar menu lateral" : "Abrir menu lateral e histórico"}
             >
               <div className="relative flex items-center justify-center h-4 w-4 sm:h-5 sm:w-5">
                 {/* Ícone da IA Bíblica (visível por padrão, desaparece no hover) */}
@@ -3025,24 +3214,22 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                       : "glass-card rounded-2xl rounded-bl-md px-3.5 sm:px-4 py-2 sm:py-2.5"
                 }`}>
                 {m.role === "user" && getFilesForMessage(m).length > 0 && (
-                  <div className="flex flex-col gap-1.5 mb-2 mt-0.5">
+                  <div className="flex flex-wrap gap-1.5 mb-1.5 mt-0.5">
                     {getFilesForMessage(m).map((file, idx) => {
                       const isImg = file.type ? file.type.startsWith("image/") : file.name.toLowerCase().match(/\.(jpe?g|png|gif|webp|svg)$/);
                       return (
-                        <div key={idx} className="flex items-center gap-2.5 bg-white/10 border border-white/10 rounded-xl px-3 py-2 w-full max-w-[240px]">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white">
-                            {isImg ? (
-                              <Image className="h-4.5 w-4.5" />
-                            ) : (
-                              <FileText className="h-4.5 w-4.5" />
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-semibold text-white truncate">{file.name}</p>
-                            <p className="text-[10px] text-white/70">
-                              {file.size ? `${(file.size / 1024).toFixed(1)} KB` : "Anexo"}
-                            </p>
-                          </div>
+                        <div key={idx} className="inline-flex items-center gap-1.5 bg-white/15 hover:bg-white/20 border border-white/20 rounded-lg px-2 py-0.5 max-w-full w-fit shadow-xs transition-colors">
+                          {isImg ? (
+                            <Image className="h-3.5 w-3.5 shrink-0 text-white/90" />
+                          ) : (
+                            <FileText className="h-3.5 w-3.5 shrink-0 text-white/90" />
+                          )}
+                          <span className="text-[11px] font-medium text-white truncate max-w-[140px] leading-tight">{file.name}</span>
+                          {file.size ? (
+                            <span className="text-[9.5px] text-white/75 shrink-0 leading-tight">
+                              · {(file.size / 1024).toFixed(0)} KB
+                            </span>
+                          ) : null}
                         </div>
                       );
                     })}
@@ -3165,23 +3352,16 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
         })}
 
           {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-              <div className="mr-1.5 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-primary">
-                {aiEngine === "simples" ? <Zap className="h-3.5 w-3.5 text-primary-foreground" /> : <Bot className="h-3.5 w-3.5 text-primary-foreground" />}
-              </div>
+            <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex justify-start my-1">
               {activeMode === "image" || /\[Modo:\s*(?:Gerar\s*)?Imagem\]/i.test(messages[messages.length - 1]?.content || "") ? (
-                <ImageGeneratingBubble />
-              ) : (
-                <div className="glass-card rounded-2xl px-4 py-3 flex items-center gap-2">
-                  <ThinkingSpinner engine={aiEngine} mode={activeMode} />
-                  <span className="text-xs text-muted-foreground">
-                    {activeMode === "video"
-                      ? "Escrevendo roteiro..."
-                      : activeMode === "music"
-                      ? "Compondo louvor..."
-                      : "Pensando..."}
-                  </span>
+                <div className="flex justify-start items-start gap-2">
+                  <div className="mr-1.5 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 shadow-xs">
+                    <Image className="h-3.5 w-3.5 text-primary-foreground" />
+                  </div>
+                  <ImageGeneratingBubble />
                 </div>
+              ) : (
+                <ThinkingIndicator engine={aiEngine} mode={activeMode} />
               )}
             </motion.div>
           )}
@@ -3316,9 +3496,14 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                             <button 
                               type="button" 
                               onClick={() => {
+                                const fileToRemove = attachedFiles[index];
+                                if (fileToRemove) {
+                                  decrementDailyFileAttached(1);
+                                }
                                 setAttachedFiles(files => files.filter((_, idx) => idx !== index));
                               }}
                               className="absolute top-2 right-2 h-4.5 w-4.5 flex items-center justify-center rounded-full bg-muted hover:bg-destructive hover:text-destructive-foreground text-muted-foreground transition-all"
+                              title="Remover anexo"
                             >
                               <X className="h-2.5 w-2.5" />
                             </button>
@@ -3371,14 +3556,51 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                       <Plus className={`h-4 w-4 transition-transform duration-200 ${showModes ? "rotate-45 text-foreground" : ""}`} />
                     </button>
                   )}
-                  <button type="button" onClick={() => fileInputRef.current?.click()}
-                    disabled={limitReached}
-                    title="Anexar arquivos ou imagens"
-                    className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground active:scale-95 transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Upload size={16} className="stroke-[2.2]" />
-                  </button>
-                  <input ref={fileInputRef} type="file" className="hidden" accept="image/*,.pdf,.doc,.docx" multiple onChange={handleFileAttach} />
+                  <div className="relative shrink-0">
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        if (dailyFilesLimitReached || dailyFilesRemaining <= 0) {
+                          toast({
+                            title: "Limite de anexos atingido",
+                            description: `Você atingiu o limite de ${DAILY_ATTACHED_FILES_LIMIT} arquivos anexados. Recarga em até 12h${dailyFilesNextRecharge ? ` (próxima liberação em ${dailyFilesNextRecharge})` : ''}.`,
+                            variant: "destructive"
+                          });
+                          return;
+                        }
+                        if (limitReached) {
+                          toast({
+                            title: "Limite de mensagens atingido",
+                            description: "Sua cota diária de mensagens acabou. Recarga em até 12h.",
+                            variant: "destructive"
+                          });
+                          return;
+                        }
+                        fileInputRef.current?.click();
+                      }}
+                      title={
+                        dailyFilesLimitReached
+                          ? `Limite de anexos atingido. Recarga em ${dailyFilesNextRecharge || 'até 12h'}`
+                          : limitReached
+                          ? "Limite de mensagens atingido"
+                          : "Anexar arquivos"
+                      }
+                      aria-label="Anexar arquivos"
+                      className={`flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground active:scale-95 transition-all shadow-xs ${
+                        dailyFilesLimitReached || limitReached ? "opacity-50 cursor-pointer" : ""
+                      }`}
+                    >
+                      <Upload size={16} className="stroke-[2.2]" />
+                    </button>
+                    <input 
+                      ref={fileInputRef} 
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*,.pdf,.doc,.docx" 
+                      multiple 
+                      onChange={handleFileAttach} 
+                    />
+                  </div>
 
                   {/* Botão de Estilo de Imagem (Modo Gerar Imagens) */}
                   {activeMode === "image" && (
@@ -3521,6 +3743,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
           </p>
         </div>
       </div>
+      </div>
 
       {/* Lightbox Modal de Imagem em Tela Cheia */}
       <AnimatePresence>
@@ -3562,19 +3785,39 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.94, opacity: 0 }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                className="w-full flex-1 min-h-0 flex items-center justify-center relative overflow-hidden rounded-2xl my-0.5"
+                className="w-full flex-1 min-h-0 flex items-center justify-center relative overflow-hidden rounded-2xl my-0.5 protected-image select-none"
                 onClick={(e) => e.stopPropagation()}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  return false;
+                }}
               >
                 <img
                   ref={lightboxImgRef}
                   src={lightboxImage}
                   alt="Arte bíblica em alta definição"
                   crossOrigin="anonymous"
-                  className="max-w-full max-h-[58vh] sm:max-h-[66vh] object-contain rounded-2xl shadow-2xl border border-white/10 block mx-auto touch-none transition-transform duration-100 ease-out"
+                  draggable={false}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                  }}
+                  onDragStart={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                  }}
+                  className="max-w-full max-h-[58vh] sm:max-h-[66vh] object-contain rounded-2xl shadow-2xl border border-white/10 block mx-auto touch-none select-none protected-image transition-transform duration-100 ease-out"
                   style={{
                     transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomScale * lightboxLetterboxScale})`,
                     cursor: zoomScale > 1 ? (isDraggingImage ? 'grabbing' : 'grab') : 'zoom-in',
                     imageRendering: 'auto',
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none',
+                    WebkitTouchCallout: 'none',
+                    WebkitUserDrag: 'none' as any,
                   }}
                   referrerPolicy="no-referrer"
                   onLoad={(e) => {
