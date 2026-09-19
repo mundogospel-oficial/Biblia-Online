@@ -1,15 +1,16 @@
 import { biblicalMaps } from "@/data/biblicalMapsData";
 
 /**
- * Converte latitude e longitude em coordenadas de tiles (x, y) de acordo com o nível de zoom (Slippy Map).
+ * Converte latitude e longitude em coordenadas de tiles (x, y) de acordo com o nível de zoom (Web Mercator / Slippy Map).
  */
 export function latLngToTile(lat: number, lng: number, zoom: number): { x: number; y: number } {
-  const x = Math.floor(((lng + 180) / 360) * Math.pow(2, zoom));
+  const n = Math.pow(2, zoom);
+  const x = Math.floor(((lng + 180) / 360) * n);
   const latRad = (lat * Math.PI) / 180;
   const y = Math.floor(
-    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * Math.pow(2, zoom)
+    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n
   );
-  const maxTile = Math.pow(2, zoom) - 1;
+  const maxTile = n - 1;
   return { 
     x: Math.max(0, Math.min(maxTile, x)), 
     y: Math.max(0, Math.min(maxTile, y)) 
@@ -17,22 +18,22 @@ export function latLngToTile(lat: number, lng: number, zoom: number): { x: numbe
 }
 
 /**
- * Retorna todas as URLs de tiles dos mapas bíblicos para serem pré-carregadas no cache offline.
+ * Retorna o pacote de URLs de tiles dos mapas bíblicos para serem pré-carregadas no cache offline.
  * Cobre satélite realista (Esri), relevo topográfico, atlas histórico (NatGeo) e mapa padrão (OSM)
- * para todas as rotas bíblicas, centros de mapas e locais históricos em vários níveis de zoom.
+ * para todas as rotas bíblicas, centros de mapas e locais históricos da Terra Santa e do Mediterrâneo.
  */
 export function getBiblicalMapTileUrls(): string[] {
   const urls = new Set<string>();
 
   const tileServers = [
     // 1. Satélite Realista (Esri World Imagery) - Principal
-    (z: number, y: number, x: number) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`,
+    (z: number, x: number, y: number) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`,
     // 2. Relevo Físico e Topografia (Esri World Physical)
-    (z: number, y: number, x: number) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/${z}/${y}/${x}`,
+    (z: number, x: number, y: number) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/${z}/${y}/${x}`,
     // 3. Atlas Histórico (NatGeo World Map)
-    (z: number, y: number, x: number) => `https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/${z}/${y}/${x}`,
+    (z: number, x: number, y: number) => `https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/${z}/${y}/${x}`,
     // 4. Mapa Padrão (OpenStreetMap)
-    (z: number, y: number, x: number) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`
+    (z: number, x: number, y: number) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`
   ];
 
   function addTile(lat: number, lng: number, zoom: number, radius = 0) {
@@ -44,7 +45,7 @@ export function getBiblicalMapTileUrls(): string[] {
         const cy = y + dy;
         if (cx >= 0 && cx <= max && cy >= 0 && cy <= max) {
           tileServers.forEach(server => {
-            urls.add(server(zoom, cy, cx));
+            urls.add(server(zoom, cx, cy));
           });
         }
       }
@@ -53,8 +54,8 @@ export function getBiblicalMapTileUrls(): string[] {
 
   // 1. Visão Geral do Mediterrâneo e Oriente Médio (Zooms 3 a 6)
   for (let z = 3; z <= 6; z++) {
-    for (let lat = 28; lat <= 42; lat += 3) {
-      for (let lng = 12; lng <= 38; lng += 3) {
+    for (let lat = 27; lat <= 43; lat += 2.5) {
+      for (let lng = 11; lng <= 46; lng += 2.5) {
         addTile(lat, lng, z, 0);
       }
     }
@@ -75,10 +76,10 @@ export function getBiblicalMapTileUrls(): string[] {
       });
     });
 
-    // 4. Coordenadas de Rotas Bíblicas (Zooms 5 a 7)
+    // 4. Coordenadas de Rotas Bíblicas (Zooms 5 a 8)
     if (map.routeCoordinates && map.routeCoordinates.length > 0) {
       map.routeCoordinates.forEach(coord => {
-        [5, 6, 7].forEach(z => {
+        [5, 6, 7, 8].forEach(z => {
           addTile(coord[0], coord[1], z, 0);
         });
       });

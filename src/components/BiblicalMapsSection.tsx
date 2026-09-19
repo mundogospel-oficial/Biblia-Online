@@ -29,11 +29,6 @@ import { biblicalMaps, BiblicalMapTheme, MapLocation } from "@/data/biblicalMaps
 import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  createOfflineLeafletGridLayer, 
-  getOfflineTileDataUrl, 
-  CartographyTheme 
-} from "@/utils/biblicalOfflineCartography";
 
 interface BiblicalMapsSectionProps {
   onNavigateToVerse?: (bookAbbrev: string, chapter: number, verseNum?: number) => void;
@@ -41,35 +36,19 @@ interface BiblicalMapsSectionProps {
   onToggleFullscreen?: (fullscreen: boolean) => void;
 }
 
-type MapTileStyle = "offline_parchment" | "offline_dark" | "satellite" | "physical" | "voyager" | "osm";
+type MapTileStyle = "satellite" | "physical" | "voyager" | "osm";
 
 interface TileConfig {
-  url?: string;
+  url: string;
   attribution: string;
   name: string;
   icon: any;
   subdomains?: string[];
   maxZoom?: number;
   maxNativeZoom?: number;
-  isOffline?: boolean;
-  offlineTheme?: CartographyTheme;
 }
 
 const TILE_SERVERS: Record<MapTileStyle, TileConfig> = {
-  offline_parchment: {
-    attribution: "&copy; Cartografia Bíblica Histórica 100% Offline",
-    name: "Pergaminho Bíblico (Offline)",
-    icon: Compass,
-    isOffline: true,
-    offlineTheme: "parchment"
-  },
-  offline_dark: {
-    attribution: "&copy; Atlas Bíblico Cartográfico Offline",
-    name: "Atlas Sagrado Dark (Offline)",
-    icon: Globe2,
-    isOffline: true,
-    offlineTheme: "dark"
-  },
   satellite: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     attribution: "&copy; Esri &mdash; Imagens de Satélite da Terra Santa",
@@ -118,22 +97,13 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>("loc-jerusalem");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== "undefined" ? navigator.onLine : true);
-  const [tileStyle, setTileStyle] = useState<MapTileStyle>(() => {
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      return "offline_parchment";
-    }
-    return "satellite";
-  });
+  const [tileStyle, setTileStyle] = useState<MapTileStyle>("satellite");
   const [internalFullscreen, setInternalFullscreen] = useState(false);
   const isFullscreen = propIsFullscreen !== undefined ? propIsFullscreen : internalFullscreen;
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => {
-      setIsOnline(false);
-      // Se offline, alternar amigavelmente para o modo pergaminho offline se estiver em camadas online
-      setTileStyle((prev) => (prev === "satellite" || prev === "physical" || prev === "voyager" || prev === "osm" ? "offline_parchment" : prev));
-    };
+    const handleOffline = () => setIsOnline(false);
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
@@ -158,7 +128,6 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
   const tileLayerRef = useRef<L.Layer | null>(null);
   const markersRef = useRef<Record<string, L.Marker>>({});
   const polylineRef = useRef<L.Polyline | null>(null);
-  const lastToastTimeRef = useRef<number>(0);
 
   // Redimensiona o mapa de forma fluida ao alternar tela cheia sem recriar elementos
   useEffect(() => {
@@ -181,27 +150,8 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isFullscreen, handleToggleFullscreen]);
 
-  const notifyMapError = useCallback(() => {
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      return;
-    }
-    const now = Date.now();
-    if (now - lastToastTimeRef.current > 15000) {
-      lastToastTimeRef.current = now;
-      toast({
-        title: "Aviso",
-        description: "Erro de conexão ao carregar tiles online. Cartografia offline ativada.",
-        variant: "default"
-      });
-    }
-  }, [toast]);
-
   const createSafeTileLayer = useCallback((config: TileConfig) => {
-    if (config.isOffline) {
-      return createOfflineLeafletGridLayer(config.offlineTheme || "parchment");
-    }
-
-    const layer = L.tileLayer(config.url!, {
+    const layer = L.tileLayer(config.url, {
       attribution: config.attribution,
       maxZoom: config.maxZoom || 18,
       maxNativeZoom: config.maxNativeZoom || config.maxZoom || 18,
@@ -210,33 +160,13 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
     });
 
     layer.on("tileerror", (errorEvent: any) => {
-      // Fallback gracioso imediato para imagem gerada proceduramente em canvas
       if (errorEvent && errorEvent.tile) {
-        try {
-          const coords = errorEvent.coords || { z: 5, x: 0, y: 0 };
-          const offlineDataUrl = getOfflineTileDataUrl(
-            coords.z || 5, 
-            coords.x || 0, 
-            coords.y || 0, 
-            tileStyle === "satellite" || tileStyle === "offline_dark" ? "dark" : "parchment"
-          );
-          if (offlineDataUrl) {
-            errorEvent.tile.src = offlineDataUrl;
-            errorEvent.tile.style.opacity = "1";
-            errorEvent.tile.style.visibility = "visible";
-            errorEvent.tile.style.display = "block";
-            return;
-          }
-        } catch {
-          // Silent fallback
-        }
         errorEvent.tile.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
       }
-      notifyMapError();
     });
 
     return layer;
-  }, [notifyMapError, tileStyle]);
+  }, []);
 
   const hasAccess = isBeta || isAdmin || role === "beta" || role === "admin";
 

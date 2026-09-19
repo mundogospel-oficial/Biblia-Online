@@ -75,6 +75,38 @@ const isInvalidName = (name?: string | null) => {
   return clean.includes("@") || clean.includes("gmail") || clean.includes("outlook");
 };
 
+export const extractAvatarUrl = (su: SupaUser | null | undefined): string => {
+  if (!su) return "";
+  const meta = su.user_metadata || {};
+  
+  const candidates: any[] = [
+    meta.avatar_url,
+    meta.picture,
+    meta.avatar,
+    meta.profile_image,
+  ];
+
+  // Procura nas identities do provedor (Google, etc.)
+  if (Array.isArray(su.identities)) {
+    for (const ident of su.identities) {
+      const idData = ident.identity_data || {};
+      candidates.push(idData.avatar_url, idData.picture, idData.avatar);
+    }
+  }
+
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim() && c.trim() !== "null" && c.trim() !== "undefined") {
+      let clean = c.trim();
+      if (clean.startsWith("http://")) {
+        clean = "https://" + clean.slice(7);
+      }
+      return clean;
+    }
+  }
+
+  return "";
+};
+
 function mapSupabaseUser(su: SupaUser): GoogleUser {
   const meta = su.user_metadata || {};
   
@@ -84,12 +116,20 @@ function mapSupabaseUser(su: SupaUser): GoogleUser {
     meta.name,
   ];
 
+  if (Array.isArray(su.identities)) {
+    for (const ident of su.identities) {
+      const idData = ident.identity_data || {};
+      candidates.push(idData.full_name, idData.name, idData.display_name);
+    }
+  }
+
   const validName = candidates.find(n => typeof n === "string" && !isInvalidName(n)) || "";
+  const picture = extractAvatarUrl(su);
 
   return {
     name: validName,
     email: su.email || meta.email || "",
-    picture: meta.avatar_url || meta.picture || "",
+    picture: picture,
     sub: su.id,
   };
 }

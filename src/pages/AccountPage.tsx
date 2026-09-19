@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
 import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2, AlertTriangle, Languages, X, Sparkles, Clock, RotateCcw, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth, forceSignOut, handleAuthError } from "@/contexts/AuthContext";
+import { useAuth, forceSignOut, handleAuthError, extractAvatarUrl } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { Turnstile } from '@marsidev/react-turnstile';
@@ -23,6 +23,7 @@ import { UserRoleBadge } from "@/components/UserRoleBadge";
 import { TwoFactorSettingsCard } from "@/components/TwoFactorSettingsCard";
 import { TwoFactorLoginModal } from "@/components/TwoFactorLoginModal";
 import { BiometricSettingsCard } from "@/components/BiometricSettingsCard";
+import { useIsPWA } from "@/hooks/useIsPWA";
 import { getBiblicalMapTileUrls } from "@/utils/offlineMapTiles";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
@@ -85,6 +86,7 @@ const AccountPage = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [offlineEnabled, setOfflineEnabled] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarImgFailed, setAvatarImgFailed] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -126,7 +128,8 @@ const AccountPage = () => {
         const userId = authCtx.user.sub;
         try {
           const { data: { session } } = await supabase.auth.getSession();
-          const meta = session?.user?.user_metadata || {};
+          const su = session?.user;
+          const meta = su?.user_metadata || {};
 
           const { data: profile } = await supabase
             .from('profiles')
@@ -143,12 +146,29 @@ const AccountPage = () => {
             validName = meta.full_name;
           } else if (meta.name && !isInvalidName(meta.name)) {
             validName = meta.name;
-          } else if (authCtx.user.name && !isInvalidName(authCtx.user.name)) {
+          } else if (authCtx.user?.name && !isInvalidName(authCtx.user.name)) {
             validName = authCtx.user.name;
           }
 
           setDisplayName(validName);
-          setAvatarUrl(profile?.avatar_url || meta.avatar_url || meta.picture || authCtx.user.picture || null);
+
+          const googleAvatar = su ? extractAvatarUrl(su) : (authCtx.user?.picture || "");
+          const effectiveAvatar = profile?.avatar_url || googleAvatar || null;
+          setAvatarUrl(effectiveAvatar);
+          setAvatarImgFailed(false);
+
+          // Se o perfil no banco ainda não tem o avatar salvo do Google, sincroniza no banco
+          if (userId && googleAvatar && !profile?.avatar_url) {
+            try {
+              await supabase.from('profiles').upsert({
+                id: userId,
+                avatar_url: googleAvatar,
+                updated_at: new Date().toISOString()
+              });
+            } catch (e) {
+              console.warn("Notice syncing google avatar to Supabase profile:", e);
+            }
+          }
 
           if (profile && (profile as any).role) {
             const rawRole = String((profile as any).role).trim();
@@ -245,6 +265,7 @@ const AccountPage = () => {
         const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path);
         const avatarWithBuster = `${publicUrl}?t=${Date.now()}`;
         setAvatarUrl(avatarWithBuster);
+        setAvatarImgFailed(false);
         await supabase.from('profiles').upsert({ id: userId, avatar_url: avatarWithBuster });
         if (authCtx.user) {
           authCtx.login({ ...authCtx.user, picture: avatarWithBuster });
@@ -286,6 +307,7 @@ const AccountPage = () => {
         // Atualiza perfil no banco de dados para nulo
         await supabase.from('profiles').upsert({ id: userId, avatar_url: null });
         setAvatarUrl(null);
+        setAvatarImgFailed(false);
         if (authCtx.user) {
           authCtx.login({ ...authCtx.user, picture: "" });
         }
@@ -807,10 +829,11 @@ const AccountPage = () => {
 
   const handleGoogleLogin = async () => {
     try {
+      const redirectUrl = typeof window !== "undefined" ? window.location.origin : 'https://online-biblia.vercel.app';
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `https://online-biblia.vercel.app`
+          redirectTo: redirectUrl
         }
       });
       if (error) throw error;
@@ -968,6 +991,7 @@ const AccountPage = () => {
     }
   };
 
+  const isPWA = useIsPWA();
   const [offlineProgress, setOfflineProgress] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -994,7 +1018,7 @@ const AccountPage = () => {
       const activeStyles = Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map(l => l.getAttribute('href')).filter(Boolean) as string[];
       const activeImages = Array.from(document.querySelectorAll('img')).map(i => i.getAttribute('src')).filter(Boolean) as string[];
 
-      // Obter todas as URLs de tiles dos mapas bíblicos (satélite, relevo, atlas histórico e rotas)
+      // Obter pacote completo de URLs de tiles dos mapas bíblicos (satélite, relevo, atlas histórico e rotas)
       const mapTileUrls = getBiblicalMapTileUrls();
 
       const filesToCache = Array.from(new Set([
@@ -1053,7 +1077,7 @@ const AccountPage = () => {
         ...mapTileUrls
       ]));
 
-      const CONCURRENCY = 16;
+      const CONCURRENCY = 12;
       let completed = 0;
       const total = filesToCache.length;
 
@@ -1062,11 +1086,18 @@ const AccountPage = () => {
         await Promise.all(
           batch.map(async (url) => {
             try {
-              const response = await fetch(url);
+              const response = await fetch(url, { mode: 'cors' });
               if (response.ok) {
                 await cache.put(url, response.clone());
               }
-            } catch {}
+            } catch {
+              try {
+                const response = await fetch(url);
+                if (response.ok) {
+                  await cache.put(url, response.clone());
+                }
+              } catch {}
+            }
             completed++;
           })
         );
@@ -1076,9 +1107,9 @@ const AccountPage = () => {
       setOfflineProgress(100);
       setOfflineEnabled(true);
       localStorage.setItem(OFFLINE_KEY, "true");
-      toast({ title: "Bíblia baixada com sucesso", description: "Disponível para uso offline." });
+      toast({ title: "Bíblia e Mapas baixados com sucesso", description: "Disponíveis para uso 100% offline." });
     } catch {
-      toast({ title: "Erro ao baixar", description: "Verifique sua conexão.", variant: "destructive" });
+      toast({ title: "Erro ao baixar", description: "Verifique sua conexão e tente novamente.", variant: "destructive" });
     } finally {
       setIsDownloading(false);
       setTimeout(() => setOfflineProgress(0), 2000);
@@ -1111,24 +1142,22 @@ const AccountPage = () => {
                 </div>
 
                 <div className="relative mx-auto mb-3 h-24 w-24">
-                  {avatarUrl ? (
+                  {avatarUrl && !avatarImgFailed ? (
                     <img 
                       src={avatarUrl} 
-                      alt="" 
-                      className="h-24 w-24 rounded-full object-cover ring-2 ring-accent/40 ring-offset-2 ring-offset-background/80 shadow-lg shadow-accent/20"
+                      alt={displayName || "Perfil"} 
+                      className="h-24 w-24 rounded-full object-cover ring-2 ring-accent/40 ring-offset-2 ring-offset-background/80 shadow-lg shadow-accent/20 select-none pointer-events-none"
                       referrerPolicy="no-referrer"
+                      crossOrigin="anonymous"
+                      loading="eager"
                       onError={() => {
-                        console.warn("Avatar image failed to load, trying fallback");
-                        if (avatarUrl !== authCtx.user?.picture && authCtx.user?.picture) {
-                          setAvatarUrl(authCtx.user.picture);
-                        } else {
-                          setAvatarUrl(null);
-                        }
+                        console.warn("Avatar image failed to load on device, switching to clean fallback icon");
+                        setAvatarImgFailed(true);
                       }}
                     />
                   ) : (
-                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-accent/80 to-primary/80 ring-2 ring-accent/40 ring-offset-2 ring-offset-background/80 shadow-lg shadow-accent/20">
-                      <User className="h-11 w-11 text-primary-foreground" />
+                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-accent/80 to-primary/80 ring-2 ring-accent/40 ring-offset-2 ring-offset-background/80 shadow-lg shadow-accent/20 select-none">
+                      <User className="h-11 w-11 text-primary-foreground shrink-0" />
                     </div>
                   )}
                   <button 
@@ -1163,7 +1192,7 @@ const AccountPage = () => {
                             className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary/60 hover:text-accent transition-all"
                           >
                             <Camera className="h-4 w-4 text-accent" />
-                            <span>{avatarUrl ? "Alterar foto" : "Colocar foto"}</span>
+                            <span>{avatarUrl && !avatarImgFailed ? "Alterar foto" : "Colocar foto"}</span>
                           </button>
 
                           {avatarUrl && (
@@ -1411,27 +1440,30 @@ const AccountPage = () => {
                       />
                     )}
 
-                    <button onClick={toggleOffline} disabled={isDownloading} className="flex w-full items-center justify-between rounded-xl bg-secondary/30 border border-white/5 p-3.5 transition-all hover:bg-secondary/50 hover:border-white/10 disabled:opacity-70 liquid-btn">
-                      <div className="flex items-center gap-3">
-                        <span className="text-muted-foreground">
-                          {offlineEnabled ? <CheckCircle className="h-4 w-4 text-accent" /> : isDownloading ? <Download className="h-4 w-4 animate-bounce text-accent" /> : <WifiOff className="h-4 w-4" />}
-                        </span>
-                        <div className="text-left">
-                          <p className="text-sm font-medium text-foreground">{t("offline_title")}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {isDownloading ? `${t("offline_desc_downloading")} ${offlineProgress}%` : offlineEnabled ? t("offline_desc_active") : t("offline_desc_inactive")}
-                          </p>
-                          {isDownloading && (
-                            <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
-                              <div className="h-full rounded-full bg-accent transition-all duration-300" style={{ width: `${offlineProgress}%` }} />
-                            </div>
-                          )}
+                    {/* Bíblia e Mapas Offline - Exibido EXCLUSIVAMENTE para usuários que utilizam o PWA instalado */}
+                    {isPWA && (
+                      <button onClick={toggleOffline} disabled={isDownloading} className="flex w-full items-center justify-between rounded-xl bg-secondary/30 border border-white/5 p-3.5 transition-all hover:bg-secondary/50 hover:border-white/10 disabled:opacity-70 liquid-btn">
+                        <div className="flex items-center gap-3">
+                          <span className="text-muted-foreground">
+                            {offlineEnabled ? <CheckCircle className="h-4 w-4 text-accent" /> : isDownloading ? <Download className="h-4 w-4 animate-bounce text-accent" /> : <WifiOff className="h-4 w-4" />}
+                          </span>
+                          <div className="text-left">
+                            <p className="text-sm font-medium text-foreground">{t("offline_title")}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {isDownloading ? `${t("offline_desc_downloading")} ${offlineProgress}%` : offlineEnabled ? t("offline_desc_active") : t("offline_desc_inactive")}
+                            </p>
+                            {isDownloading && (
+                              <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
+                                <div className="h-full rounded-full bg-accent transition-all duration-300" style={{ width: `${offlineProgress}%` }} />
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <div className={`h-5 w-9 rounded-full transition-colors duration-300 ease-in-out ${offlineEnabled ? "bg-accent" : "bg-muted/60"} flex items-center px-0.5`}>
-                        <div className={`h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300 ease-in-out ${offlineEnabled ? "translate-x-4" : "translate-x-0"}`} />
-                      </div>
-                    </button>
+                        <div className={`h-5 w-9 rounded-full transition-colors duration-300 ease-in-out ${offlineEnabled ? "bg-accent" : "bg-muted/60"} flex items-center px-0.5`}>
+                          <div className={`h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300 ease-in-out ${offlineEnabled ? "translate-x-4" : "translate-x-0"}`} />
+                        </div>
+                      </button>
+                    )}
 
                     <button 
                       type="button" 

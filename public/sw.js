@@ -1,4 +1,4 @@
-const CACHE_NAME = 'biblia-online-v2.5.3';
+const CACHE_NAME = 'biblia-online-v2.5.4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -82,13 +82,19 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate Event - Clean up stale caches
+// Activate Event - Clean up stale caches while preserving offline user downloads
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
+          // Never delete user offline downloaded content
+          if (
+            cacheName !== CACHE_NAME && 
+            cacheName !== 'biblia-offline-data' && 
+            cacheName !== 'biblia-offline-v1' &&
+            !cacheName.includes('offline')
+          ) {
             console.log('[SW] Cleaning up old cache:', cacheName);
             return caches.delete(cacheName);
           }
@@ -121,23 +127,15 @@ self.addEventListener('fetch', (event) => {
         return fetch(event.request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const clone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
+            caches.open('biblia-offline-data').then((cache) => {
               cache.put(event.request, clone);
             }).catch(() => {});
           }
           return networkResponse;
         }).catch(() => {
-          // Fallback para tiles offline: Pergaminho Cartográfico Bíblico
-          const OFFLINE_TILE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-            <rect width="256" height="256" fill="#f5eee1"/>
-            <rect width="256" height="256" fill="rgba(220, 231, 235, 0.4)"/>
-            <path d="M0,128 Q64,120 128,128 T256,128" fill="none" stroke="rgba(162, 137, 110, 0.25)" stroke-dasharray="4,4"/>
-            <circle cx="128" cy="128" r="60" fill="none" stroke="rgba(162, 137, 110, 0.15)"/>
-            <text x="128" y="132" font-family="serif" font-size="10" fill="rgba(110, 90, 70, 0.5)" text-anchor="middle">Terra Santa &bull; Offline</text>
-          </svg>`;
-          return new Response(OFFLINE_TILE_SVG, {
+          return new Response(TRANSPARENT_1PX_PNG, {
             status: 200,
-            headers: { 'Content-Type': 'image/svg+xml' }
+            headers: { 'Content-Type': 'image/png' }
           });
         });
       })

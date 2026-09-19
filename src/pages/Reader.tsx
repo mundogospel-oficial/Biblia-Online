@@ -825,7 +825,9 @@ const Reader = () => {
                 <div className="space-y-2">
                   <h3 className="font-serif text-xl font-bold text-foreground">Modo Offline</h3>
                   <p className="mx-auto max-w-xs text-sm text-muted-foreground">
-                    Sem conexão e sem dados offline baixados. Para ler sem internet, baixe a Bíblia.
+                    {isPWA 
+                      ? "Sem conexão e sem dados offline baixados. Para ler sem internet, baixe a Bíblia."
+                      : "Sem conexão com a internet. Verifique sua rede para continuar a leitura."}
                   </p>
                 </div>
                 <div className="flex flex-wrap justify-center gap-3">
@@ -836,13 +838,15 @@ const Reader = () => {
                     <RotateCw className="h-4 w-4" />
                     Tentar Novamente
                   </button>
-                  <button
-                    onClick={() => navigate("/conta")}
-                    className="inline-flex items-center gap-2 rounded-xl bg-accent px-6 py-2.5 text-sm font-semibold text-accent-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
-                  >
-                    <Download className="h-4 w-4" />
-                    Baixar Bíblia Offline
-                  </button>
+                  {isPWA && (
+                    <button
+                      onClick={() => navigate("/conta")}
+                      className="inline-flex items-center gap-2 rounded-xl bg-accent px-6 py-2.5 text-sm font-semibold text-accent-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
+                    >
+                      <Download className="h-4 w-4" />
+                      Baixar Bíblia Offline
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
