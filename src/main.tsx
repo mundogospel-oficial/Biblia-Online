@@ -1,6 +1,10 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { initDeviceOptimization } from "./services/deviceCapabilityService";
+
+// Detecta capacidades do dispositivo (Android, iOS, PC e RAM) e otimiza seletivamente
+initDeviceOptimization();
 
 // Soften console.error for transient network glitches
 const originalConsoleError = console.error.bind(console);
