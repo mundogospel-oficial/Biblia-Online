@@ -124,6 +124,28 @@ export const ensureWatermarkedImage = async (imageUrl: string): Promise<string> 
 };
 
 /**
+ * Garante que no Modo Gerar Imagens do Chat, qualquer representação de cruz
+ * seja OBRIGATORIAMENTE uma cruz vazia, sem Cristo e sem ninguém pendurado na cruz.
+ */
+export const enforceEmptyCrossPromptForChat = (prompt: string): string => {
+  if (!prompt) return prompt;
+  const isCross = /\b(cruz|cruzes|cross|crosses|crucif|calv[aá]rio|calvary|g[oó]lgota|golgotha)\b/i.test(prompt);
+  if (!isCross) return prompt;
+
+  let cleaned = prompt
+    .replace(/\b(jesus|cristo|jesus\s+cristo|christ)\s+(na|no|sobre\s+a|pendurado\s+na|pregado\s+na)\s+(cruz|madeiro)\b/gi, 'cruz vazia')
+    .replace(/\b(jesus|christ)\s+(on|upon|hanging\s+on|crucified\s+on)\s+(the\s+)?cross\b/gi, 'empty wooden cross')
+    .replace(/\b(crucificado|crucificada|crucificados|crucified|pregad[oa]s?|pendurad[oa]s?)\b/gi, '')
+    .trim();
+
+  if (!/cruz vazia|empty cross|sem corpo|desocupada/i.test(cleaned)) {
+    cleaned += " (cruz vazia de madeira rústica, sem Cristo e sem ninguém pendurado na cruz, cruz desocupada da ressurreição)";
+  }
+
+  return cleaned;
+};
+
+/**
  * Geração de Imagens Bíblicas:
  * - Se source === 'create', delega 100% para o serviço dedicado do Modo Criar (Pollinations IA).
  * - Se source === 'chat', aciona exclusivamente o motor de IA dedicado no backend.
@@ -148,11 +170,16 @@ export const generateBiblicalImage = async (
   }
 
   // Limpar apenas tags internas de sistema/arquivos, PRESERVANDO a tag de [Estilo: ...]
-  const cleanPrompt = userPrompt
+  let cleanPrompt = userPrompt
     .replace(/\[Modo:[^\]]+\]/g, "")
     .replace(/\[Arquivo:[^\]]+\]/g, "")
     .replace(/[\r\n]+/g, " ")
     .trim();
+
+  // No modo chat, quando gerar uma cruz não pode ter Cristo pendurado, só a cruz vazia
+  if (source === 'chat') {
+    cleanPrompt = enforceEmptyCrossPromptForChat(cleanPrompt);
+  }
 
   const displayPrompt = cleanPrompt.replace(/\[Estilo:\s*[^\]]+\]/gi, '').trim() || cleanPrompt;
   const shouldWatermark = true;
@@ -251,8 +278,12 @@ export const refinePromptWithAI = async (
   previousPrompt?: string,
   changeRequested?: string
 ): Promise<{ refinedPrompt: string; isBlocked?: boolean }> => {
-  const clean = (prompt || "").trim();
+  let clean = (prompt || "").trim();
   if (!clean) return { refinedPrompt: "" };
+
+  if (mode === 'image') {
+    clean = enforceEmptyCrossPromptForChat(clean);
+  }
 
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -279,7 +310,8 @@ export const refinePromptWithAI = async (
     if (response.ok) {
       const data = await response.json();
       if (data?.refinedPrompt) {
-        return { refinedPrompt: data.refinedPrompt, isBlocked: false };
+        const finalRefined = mode === 'image' ? enforceEmptyCrossPromptForChat(data.refinedPrompt) : data.refinedPrompt;
+        return { refinedPrompt: finalRefined, isBlocked: false };
       }
     } else {
       const err = await response.json().catch(() => ({}));

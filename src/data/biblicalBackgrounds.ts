@@ -328,13 +328,13 @@ export const BIBLICAL_BACKGROUNDS: BiblicalBackgroundDefinition[] = [
     modestyRequired: false
   },
 
-  // 26. CRUCIFICAÇÃO NO MONTE CALVÁRIO / GÓLGOTA
+  // 26. CRUCIFICAÇÃO NO MONTE CALVÁRIO / GÓLGOTA (SEMPRE CRUZ VAZIA DE RESSURREIÇÃO)
   {
     id: 'cruz-monte-calvario-golgota',
     title: 'Cruz no Monte Calvário (Gólgota)',
     category: 'novo-testamento',
     triggers: /\b(cruz|cross|crucifica|crucifixo|calvario|calvary|golgota|golgotha|esta\s+consumado|it\s+is\s+finished)\b/i,
-    storySubjectEn: "The rugged weathered wooden Christian cross standing on the sacred rocky mount",
+    storySubjectEn: "The solitary, completely empty rugged weathered wooden Christian cross standing tall on the sacred rocky mount, with zero bodies, no person and no Christ hanging on the cross, pure unoccupied cross of resurrection",
     ultraRealisticBackgroundEn: "background of the rocky windswept summit of Mount Calvary (Golgotha) at dramatic late afternoon sunset, breathtaking fiery amber, deep crimson and violet volumetric light rays piercing through heavy parted stormy clouds, distant rugged Judean mountain ridges, awe-inspiring sacred atmosphere, photorealistic cinematic lighting",
     modestyRequired: false
   },
@@ -481,6 +481,22 @@ export function buildUltraRealisticChatPrompt(userPrompt: string, styleEn: strin
     }
   }
 
+  // Regra absoluta inviolável: Quando gerar uma cruz no chat, NÃO PODE ter Cristo pendurado, somente a cruz vazia de madeira
+  const isCrossPrompt = match.id === 'cruz-monte-calvario-golgota' ||
+    /\b(cruz|cruzes|cross|crosses|crucif|calv[aá]rio|calvary|g[oó]lgota|golgotha)\b/i.test(userPrompt) ||
+    /\b(cruz|cruzes|cross|crosses|crucif|calv[aá]rio|calvary|g[oó]lgota|golgotha)\b/i.test(translatedSubject);
+
+  if (isCrossPrompt) {
+    // Purga menções a corpo pendurado
+    finalPrompt = finalPrompt
+      .replace(/\b(jesus|christ|cristo)\s+(on|upon|na|no|sobre\s+a|hanging\s+on)\s+(the\s+)?(cross|cruz)\b/gi, 'empty wooden cross')
+      .replace(/\b(crucificado|crucified|pregad[oa]|hanging\s+body|pendurad[oa])\b/gi, '');
+
+    if (!/empty wooden cross|empty cross|completely empty|vacant/i.test(finalPrompt)) {
+      finalPrompt += ", depicting strictly an empty wooden cross, solitary empty cross, completely vacant wooden cross standing tall, no body on the cross, no Jesus hanging, no corpse on cross, no human figure on the cross, unoccupied sacred Christian cross of resurrection and victory";
+    }
+  }
+
   // Adicionar o estilo visual se especificado
   if (styleEn) {
     finalPrompt += `, ${styleEn}`;
@@ -495,6 +511,7 @@ export function buildUltraRealisticChatPrompt(userPrompt: string, styleEn: strin
   return {
     finalPrompt,
     matchedStory: match.matchedStory,
-    isAdamAndEve
+    isAdamAndEve,
+    isCrossPrompt
   };
 }

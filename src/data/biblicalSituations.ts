@@ -284,10 +284,10 @@ export function resolveBiblicalSituationSubject(rawPrompt: string): ResolvedSubj
   // 2. Mapeamento determinístico de termos para garantir ZERO aleatoriedade em objetos e cenários
   const hasHumanRequest = /\b(homem|mulher|pessoa|pessoas|menino|menina|criança|apóstolo|apóstolos|discípulo|discípulos|profeta|profetas|rosto|rostos|mãos|pregado|crucificado)\b/i.test(clean);
 
-  // Cruz / Calvário (sem humanos)
-  if (/cruz|cross|crucifixo|calv[aá]rio|g[oó]lgota/i.test(clean) && !hasHumanRequest) {
+  // Cruz / Calvário (REGRA ESTRITA: SEMPRE CRUZ VAZIA, SEM CRISTO OU CORPO PENDURADO)
+  if (/cruz|cross|crucifixo|calv[aá]rio|g[oó]lgota/i.test(clean)) {
     return {
-      englishSubject: "A solitary, empty, rugged weathered wooden Christian cross standing tall on the rocky hill of Golgotha at dramatic golden hour sunset, breathtaking fiery orange and amber volumetric light rays piercing through parted clouds, empty landscape, no people, no humans, no woman, no man, no human figures, no faces, no hands",
+      englishSubject: "A solitary, completely empty, rugged weathered wooden Christian cross standing tall on the rocky hill of Golgotha at dramatic golden hour sunset, breathtaking fiery orange and amber volumetric light rays piercing through parted clouds, empty landscape, no body on the cross, no Jesus hanging, no corpse on cross, no people, no humans, no woman, no man, no human figures, no faces, no hands, pure empty cross of resurrection",
       requiresHuman: false,
       matchedSituation: "Cruz de Cristo ao Pôr do Sol"
     };

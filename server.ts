@@ -1068,6 +1068,8 @@ Sua missão é inspecionar o prompt enviado pelo usuário para geração de imag
    - Frases e reforços de modéstia como "vestidos com roupas bíblicas de linho", "túnicas modestas", "sem nenhuma nudez", "homem e mulher vestidos" são declarações santas de decência e DEVEM SER SEMPRE APROVADOS.
 4. PASSAGENS BÍBLICAS E VERSÍCULOS:
    - Versículos literais da Bíblia Sagrada (como Jó 1:21, Gênesis, Salmos, Isaías, etc.), orações e estudos bíblicos DEVEM SER SEMPRE APROVADOS.
+5. A CRUZ VAZIA, MONTE CALVÁRIO, GÓLGOTA E SÍMBOLOS CRISTÃOS:
+   - Solicitações envolvendo a cruz de madeira, monte Calvário, Gólgota, redenção e vitória da ressurreição SÃO 100% SAGRADOS E DEVEM SER SEMPRE APROVADOS.
 
 ✅ SE O PROMPT FOR RESPEITOSO, PURO E PERTENCENTE AO UNIVERSO BÍBLICO / CRISTÃO OU FOR UM AJUSTE ARTÍSTICO LEGÍTIMO:
 Responda EXATAMENTE E APENAS: "APROVADO".`;
@@ -1741,6 +1743,19 @@ REGRAS DE SAÍDA:
           result += ", obrigatoriamente vestidos com roupas modestas, sem nenhuma nudez";
         }
       }
+
+      // Regra obrigatória: Quando gerar uma cruz no modo chat, não pode ter Cristo pendurado, só a cruz vazia
+      const isCross = /\b(cruz|cruzes|cross|crosses|crucif|calv[aá]rio|calvary|g[oó]lgota|golgotha)\b/i.test(combinedForCheck);
+      if (isCross) {
+        result = result
+          .replace(/\b(jesus|cristo|christ)\s+(na|no|sobre\s+a|pendurado\s+na|pregado\s+na)\s+(cruz|madeiro)\b/gi, 'cruz vazia')
+          .replace(/\b(jesus|christ)\s+(on|upon|hanging\s+on|crucified\s+on)\s+(the\s+)?cross\b/gi, 'empty wooden cross')
+          .replace(/\b(crucificado|crucificada|crucificados|crucified|pregad[oa]s?|pendurad[oa]s?)\b/gi, '');
+        if (!/cruz vazia|empty cross|sem corpo|desocupada/i.test(result)) {
+          result += ", retratando exclusivamente a cruz de madeira rústica completamente vazia, sem Cristo e sem ninguém pendurado na cruz, cruz desocupada simbolizando a ressurreição (solitary empty wooden cross, no body on the cross, completely unoccupied cross)";
+        }
+      }
+
       return result;
     };
 
@@ -1801,6 +1816,13 @@ Sua missão é analisar o prompt fornecido pelo usuário e aprimorá-lo para má
   1. Os personagens DEVEM OBRIGATORIAMENTE aparecer vestidos com roupas ("vestindo túnicas bíblicas modestas de linho, completamente vestidos, sem nenhuma nudez").
   2. Deve aparecer OBRIGATORIAMENTE um homem de cabelo curto (Adão com cabelo curto bem alinhado) e uma mulher (Eva), ambos vestidos com roupas bíblicas modestas.
 - Todas as figuras bíblicas DEVEM OBRIGATORIAMENTE estar descritas com roupas antigas dignas e modestas. Nudez é estritamente proibida.
+
+✝️ REGRA ABSOLUTA E INVIOLÁVEL: CRUZ SEMPRE VAZIA (SEM CRISTO PENDURADO):
+- Quando a solicitação envolver uma cruz, cruzes, crucificação, monte Calvário ou Gólgota:
+  1. A CRUZ DEVE SER SEMPRE E EXCLUSIVAMENTE UMA CRUZ VAZIA ("cruz de madeira rústica completamente vazia, sem ninguém pendurado, sem corpo na cruz, cruz desocupada, solitary empty wooden cross, no body on cross").
+  2. NÃO PODE TER CRISTO NEM NENHUMA PESSOA PENDURADA OU PREGADA NA CRUZ. É ESTRITAMENTE PROIBIDO incluir Jesus ou qualquer corpo humano pregado ou suspenso na cruz.
+  3. A cruz representa a ressurreição, vitória e redenção cristã: uma cruz vazia no topo da colina sob os raios dourados do pôr do sol ou luz celestial ("empty wooden cross of resurrection, unoccupied sacred cross").
+  4. Mesmo se o usuário mencionar "Jesus na cruz", "Cristo na cruz", "crucificação" ou "crucifixo", retrate OBRIGATORIAMENTE a CRUZ VAZIA após a ressurreição, mantendo o monte sagrado intacto, com a cruz desocupada e solitária.
 
 🛑 PROIBIÇÃO TOTAL DE TEXTO NA IMAGEM:
 - A imagem DEVE SER 100% LIMPA E TOTALMENTE LIVRE DE TEXTO, PALAVRAS OU LETRAS.
@@ -2158,7 +2180,7 @@ SUA TAREFA OBRIGATÓRIA:
       }
 
       // 2. Leitura da definição de fundos bíblicos ultra-realistas ancorando o cenário original
-      const { finalPrompt: richChatPrompt, matchedStory, isAdamAndEve } = buildUltraRealisticChatPrompt(promptForGeneration, styleEn);
+      const { finalPrompt: richChatPrompt, matchedStory, isAdamAndEve, isCrossPrompt: isCrossFromBg } = buildUltraRealisticChatPrompt(promptForGeneration, styleEn);
       let finalChatPrompt = richChatPrompt;
 
       const isAdamEvePrompt = isAdamAndEve || /\b(ad[aã]o|adam|eva|eve)\b/i.test(cleanPrompt) || /\b(ad[aã]o|adam|eva|eve)\b/i.test(promptForGeneration);
@@ -2168,9 +2190,28 @@ SUA TAREFA OBRIGATÓRIA:
         }
       }
 
+      // Regra absoluta inviolável (Modo Chat): Quando gerar uma cruz, não pode ter Cristo pendurado, só a cruz vazia
+      const isCrossPrompt = isCrossFromBg ||
+        /\b(cruz|cruzes|cross|crosses|crucif|calv[aá]rio|calvary|g[oó]lgota|golgotha)\b/i.test(cleanPrompt) ||
+        /\b(cruz|cruzes|cross|crosses|crucif|calv[aá]rio|calvary|g[oó]lgota|golgotha)\b/i.test(promptForGeneration) ||
+        /\b(cruz|cruzes|cross|crosses|crucif|calv[aá]rio|calvary|g[oó]lgota|golgotha)\b/i.test(finalChatPrompt);
+
+      if (isCrossPrompt) {
+        finalChatPrompt = finalChatPrompt
+          .replace(/\b(jesus|christ|cristo)\s+(on|upon|na|no|sobre\s+a|hanging\s+on)\s+(the\s+)?(cross|cruz)\b/gi, 'empty wooden cross')
+          .replace(/\b(crucificado|crucified|pregad[oa]|hanging\s+body|pendurad[oa])\b/gi, '');
+
+        if (!/empty wooden cross|empty cross|completely empty|unoccupied/i.test(finalChatPrompt)) {
+          finalChatPrompt += ", depicting strictly an empty wooden cross, solitary empty cross, completely vacant wooden cross standing tall, no body on the cross, no Jesus hanging, no corpse on cross, no human figure on the cross, unoccupied sacred Christian cross of resurrection and victory";
+        }
+      }
+
       let finalNegativePrompt = "nudity, naked, nude, topless, bare breasts, bare shoulders, cleavage, unclothed, sensual, revealing clothes, erotic, text, words, letters, typography, font, watermark, signature, username, title, caption, subtitles, writing, label, banner, logo, watermark text, fake words, gibberish text, script, latin words, quote";
       if (isAdamEvePrompt) {
         finalNegativePrompt += ", long hair on man, man with long hair, unclothed, bare chest, shirtless";
+      }
+      if (isCrossPrompt) {
+        finalNegativePrompt += ", crucifix, body on cross, person on cross, human on cross, Jesus on cross, Christ on cross, man hanging on cross, crucified person, crucified body, corpse on cross, hanging body, figure on cross, nailed to cross, suffering on cross, dying on cross, bleeding body";
       }
 
       finalChatPrompt += ", completely textless, pure visual imagery, clean image, no text, no words, no letters, no typography, no font, no signatures, no watermark, no subtitles, no captions, no labels";

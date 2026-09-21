@@ -29,7 +29,7 @@ import {
   clearAllHistoryOnServer,
   mergeChatConversations
 } from "@/services/chatHistoryService";
-import { generateBiblicalImage, refinePromptWithAI } from "@/services/imageGenerationService";
+import { generateBiblicalImage, refinePromptWithAI, enforceEmptyCrossPromptForChat } from "@/services/imageGenerationService";
 import { APP_WHITE_LOGO_DATA_URL } from "@/assets/appLogoWhite";
 import { encryptConversationMessages, decryptConversationMessages } from "@/lib/security/cryptoService";
 import { maskPiiInText } from "@/lib/security/privacyGuard";
@@ -1621,6 +1621,9 @@ const AIPage = () => {
     if (mode === 'image') {
       try {
         let cleanPrompt = text.replace(/\[Modo:.*?\]\s*/g, "").trim();
+        // Regra estrita: Quando gerar uma cruz no modo chat, não pode ter Cristo pendurado, só a cruz vazia
+        cleanPrompt = enforceEmptyCrossPromptForChat(cleanPrompt);
+
         if (selectedImageStyle && selectedImageStyle.id !== 'cinematic' && selectedImageStyle.promptAddon) {
           cleanPrompt = `${cleanPrompt} [Estilo: ${selectedImageStyle.label}]`;
         }
