@@ -65,6 +65,7 @@
     "input-otp": "^1.4.2",
     "jimp": "^1.6.1",
     "leaflet": "^1.9.4",
+    "lottie-react": "^3.1.2",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
     "otplib": "^13.5.0",

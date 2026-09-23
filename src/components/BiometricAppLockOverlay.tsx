@@ -9,6 +9,7 @@ import {
   LogOut
 } from "lucide-react";
 import { BiometricFaceIcon } from "./BiometricFaceIcon";
+import { FaceIdLottieAnimation } from "./FaceIdLottieAnimation";
 import { 
   isPWAMode, 
   isAppBiometricLockEnabled, 
@@ -67,7 +68,7 @@ export const BiometricAppLockOverlay: React.FC = () => {
           setIsLocked(false);
           setIsSuccess(false);
           setAuthenticating(false);
-        }, 600);
+        }, 1100);
       } else {
         setAuthenticating(false);
         if (!isAuto) {
@@ -179,26 +180,26 @@ export const BiometricAppLockOverlay: React.FC = () => {
           animate={{ scale: 1, y: 0 }}
           className="w-full max-w-xs flex flex-col items-center text-center space-y-5"
         >
-          {/* Ícone Pulsante de Biometria */}
+          {/* Ícone Pulsante de Biometria com Animação Face ID */}
           <button
             type="button"
             onClick={() => handleUnlock(false)}
             disabled={authenticating}
-            className={`relative group flex h-24 w-24 items-center justify-center rounded-3xl border transition-all duration-300 shadow-2xl ${
+            className={`relative group flex h-28 w-28 items-center justify-center rounded-[2rem] border transition-all duration-300 shadow-2xl overflow-hidden ${
               isSuccess
                 ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400 scale-105"
                 : authenticating
-                ? "bg-accent/20 border-accent/60 text-accent animate-pulse"
+                ? "bg-accent/20 border-accent/60 text-accent"
                 : "bg-secondary/40 border-white/10 text-accent hover:bg-secondary/70 hover:scale-105 active:scale-95"
             }`}
           >
-            <div className="absolute inset-0 rounded-3xl bg-accent/10 blur-xl group-hover:bg-accent/20 transition-all pointer-events-none" />
+            <div className="absolute inset-0 rounded-[2rem] bg-accent/10 blur-xl group-hover:bg-accent/20 transition-all pointer-events-none" />
             
-            {isSuccess ? (
-              <Unlock className="h-10 w-10 text-emerald-400" />
-            ) : (
-              <BiometricFaceIcon className="h-12 w-12 text-accent transition-transform group-hover:scale-110" />
-            )}
+            <FaceIdLottieAnimation
+              className="w-24 h-24 pointer-events-none"
+              isSuccess={isSuccess}
+              loop={authenticating || !isSuccess}
+            />
           </button>
 
           <div className="space-y-1">

@@ -11,6 +11,7 @@ import {
   Info
 } from "lucide-react";
 import { BiometricFaceIcon } from "./BiometricFaceIcon";
+import { FaceIdLottieAnimation } from "./FaceIdLottieAnimation";
 import { 
   isPWAMode, 
   isBiometricAvailable, 
@@ -203,8 +204,8 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
                     <X className="h-4 w-4" />
                   </button>
 
-                  <div className="relative mx-auto mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/15 border border-accent/30 text-accent shadow-lg shadow-accent/10">
-                    <BiometricFaceIcon className="h-7 w-7 text-accent" />
+                  <div className="relative mx-auto mb-3.5 flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary/50 border border-white/10 overflow-hidden shadow-lg shadow-accent/10">
+                    <FaceIdLottieAnimation className="w-14 h-14" />
                   </div>
 
                   <h3 className="font-serif text-xl font-bold text-foreground">
