@@ -109,20 +109,6 @@ const AccountPage = () => {
   const [appVersion, setAppVersion] = useState("2.5.2");
   const [notificationTestError, setNotificationTestError] = useState<string | null>(null);
 
-  const getInitials = (name?: string, email?: string) => {
-    if (name && name.trim()) {
-      const parts = name.trim().split(/\s+/).filter(Boolean);
-      if (parts.length >= 2) {
-        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-      }
-      return parts[0].slice(0, 2).toUpperCase();
-    }
-    if (email && email.trim()) {
-      return email.trim()[0].toUpperCase();
-    }
-    return "MG";
-  };
-
   useEffect(() => {
     setLoading(authCtx.loading);
   }, [authCtx.loading]);
@@ -1151,9 +1137,9 @@ const AccountPage = () => {
                 </div>
 
                 <div className="relative mx-auto mb-3 h-24 w-24">
-                  {/* Fallback base com gradiente moderno e iniciais/ícone (Sempre visível por baixo ou quando não há logo) */}
-                  <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-700 text-white font-bold text-2xl tracking-wider ring-2 ring-accent/50 ring-offset-2 ring-offset-background shadow-xl shadow-accent/25 select-none overflow-hidden">
-                    {getInitials(displayName, authCtx.user?.email)}
+                  {/* Fallback clássico com ícone do boneco (User) */}
+                  <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-accent/80 to-primary/80 ring-2 ring-accent/40 ring-offset-2 ring-offset-background/80 shadow-lg shadow-accent/20 select-none overflow-hidden">
+                    <User className="h-12 w-12 text-primary-foreground shrink-0" />
                   </div>
 
                   {/* Foto de perfil / Logo real (se informada e carregada com sucesso) */}
@@ -1161,10 +1147,10 @@ const AccountPage = () => {
                     <img 
                       src={avatarUrl} 
                       alt={displayName || "Perfil"} 
-                      className="absolute inset-0 h-24 w-24 rounded-full object-cover ring-2 ring-accent/50 ring-offset-2 ring-offset-background shadow-xl shadow-accent/25 select-none pointer-events-none transition-opacity duration-300"
+                      className="absolute inset-0 h-24 w-24 rounded-full object-cover ring-2 ring-accent/40 ring-offset-2 ring-offset-background/80 shadow-lg shadow-accent/20 select-none pointer-events-none transition-opacity duration-300"
                       loading="eager"
                       onError={() => {
-                        console.warn("Avatar image not available on CDN, displaying stylish fallback initials");
+                        console.warn("Avatar image not available on CDN, displaying fallback user icon");
                         setAvatarImgFailed(true);
                       }}
                     />

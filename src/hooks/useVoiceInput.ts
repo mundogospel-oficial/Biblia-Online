@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 interface UseVoiceInputOptions {
   onTranscript: (text: string) => void;
   lang?: string;
-  silenceTimeoutMs?: number; // Tempo de silêncio após a fala para parar automaticamente (padrão: 1200ms)
+  silenceTimeoutMs?: number; // Tempo de silêncio após a fala para finalizar automaticamente (padrão: 1300ms)
   maxListeningDurationMs?: number; // Duração máxima contínua de segurança (padrão: 45s)
 }
 
@@ -38,15 +38,14 @@ export function useVoiceInput({
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
-  
+
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
+  const sessionIdRef = useRef<number>(0);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const maxDurationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const noSpeechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const accumulatedTranscriptRef = useRef<string>("");
-  const isStoppingRef = useRef<boolean>(false);
   const onTranscriptRef = useRef(onTranscript);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
 
   const { toast } = useToast();
 
@@ -55,12 +54,12 @@ export function useVoiceInput({
     onTranscriptRef.current = onTranscript;
   }, [onTranscript]);
 
-  // Verifica compatibilidade inicial
+  // Checagem de suporte do navegador
   useEffect(() => {
-    const SpeechRecognition =
+    const SpeechRecognitionClass =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-    if (!SpeechRecognition) {
+    if (!SpeechRecognitionClass) {
       setIsSupported(false);
     }
   }, []);
@@ -81,34 +80,11 @@ export function useVoiceInput({
     }
   }, []);
 
-  // Finaliza a escuta e entrega o texto reconhecido
+  // Finaliza a escuta de forma limpa e entrega o texto reconhecido
   const stopListening = useCallback(() => {
     clearAllTimers();
-    isStoppingRef.current = true;
     setIsListening(false);
     setIsSpeaking(false);
-
-    // Fecha stream de mídia se aberto
-    if (mediaStreamRef.current) {
-      try {
-        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
-        mediaStreamRef.current = null;
-      } catch (e) {
-        // ignore
-      }
-    }
-
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (err) {
-        try {
-          recognitionRef.current.abort();
-        } catch (e) {
-          // ignore
-        }
-      }
-    }
 
     // Entrega o texto acumulado final se houver
     const finalTrimmed = accumulatedTranscriptRef.current.trim();
@@ -116,10 +92,32 @@ export function useVoiceInput({
       onTranscriptRef.current(finalTrimmed);
       accumulatedTranscriptRef.current = "";
     }
+
+    if (recognitionRef.current) {
+      const rec = recognitionRef.current;
+      // Remove listeners para evitar disparos zumbis após o stop
+      rec.onstart = null;
+      rec.onspeechstart = null;
+      rec.onspeechend = null;
+      rec.onresult = null;
+      rec.onerror = null;
+      rec.onend = null;
+
+      try {
+        rec.stop();
+      } catch (err) {
+        try {
+          rec.abort();
+        } catch (e) {
+          // ignore
+        }
+      }
+      recognitionRef.current = null;
+    }
   }, [clearAllTimers]);
 
   // Inicia a escuta com detecção inteligente de silêncio
-  const startListening = useCallback(async () => {
+  const startListening = useCallback(() => {
     const SpeechRecognitionClass =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
@@ -127,59 +125,52 @@ export function useVoiceInput({
       setIsSupported(false);
       toast({
         title: "Microfone não suportado",
-        description: "Seu navegador atual não suporta reconhecimento de voz direto. Recomendamos usar o Google Chrome.",
+        description: "Seu navegador não suporta reconhecimento de voz direto. Recomendamos usar o Google Chrome.",
         variant: "destructive",
       });
       return;
     }
 
-    // Cancela qualquer sessão anterior
+    // 1. Limpa completamente qualquer sessão e instância anterior
     clearAllTimers();
     if (recognitionRef.current) {
+      const oldRec = recognitionRef.current;
+      oldRec.onstart = null;
+      oldRec.onspeechstart = null;
+      oldRec.onspeechend = null;
+      oldRec.onresult = null;
+      oldRec.onerror = null;
+      oldRec.onend = null;
       try {
-        recognitionRef.current.abort();
+        oldRec.abort();
       } catch (e) {
         // ignore
       }
       recognitionRef.current = null;
     }
 
+    // Gera um novo ID de sessão para isolar eventos de execuções anteriores
+    const currentSessionId = Date.now();
+    sessionIdRef.current = currentSessionId;
     accumulatedTranscriptRef.current = "";
-    isStoppingRef.current = false;
-
-    // Solicita permissão prévia do microfone no dispositivo (evita falhas silenciosas no mobile/PWA)
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaStreamRef.current = stream;
-      } catch (err: any) {
-        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-          setIsListening(false);
-          toast({
-            title: "Microfone Bloqueado",
-            description: "Por favor, autorize o acesso ao microfone nas permissões do seu navegador.",
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-    }
 
     try {
       const recognition: ISpeechRecognition = new SpeechRecognitionClass();
       recognition.lang = lang;
-      recognition.continuous = true; // Permite fala contínua e natural
-      recognition.interimResults = true; // Captura palavras em tempo real
+      recognition.continuous = true;
+      recognition.interimResults = true;
       recognition.maxAlternatives = 1;
 
       // Reseta o temporizador de silêncio após cada palavra detectada
       const resetSilenceTimer = () => {
+        if (sessionIdRef.current !== currentSessionId) return;
+
         if (silenceTimerRef.current) {
           clearTimeout(silenceTimerRef.current);
         }
         // Se a pessoa parar de falar por silenceTimeoutMs (1.3s), encerra automaticamente
         silenceTimerRef.current = setTimeout(() => {
-          if (!isStoppingRef.current) {
+          if (sessionIdRef.current === currentSessionId) {
             // Vibração tátil sutil de conclusão
             if (typeof window !== "undefined" && "navigator" in window && navigator.vibrate) {
               try {
@@ -194,10 +185,11 @@ export function useVoiceInput({
       };
 
       recognition.onstart = () => {
+        if (sessionIdRef.current !== currentSessionId) return;
         setIsListening(true);
         setIsSpeaking(false);
 
-        // Haptic feedback de ativação
+        // Feedback tátil de ativação
         if (typeof window !== "undefined" && "navigator" in window && navigator.vibrate) {
           try {
             navigator.vibrate(30);
@@ -206,22 +198,23 @@ export function useVoiceInput({
           }
         }
 
-        // Timeout inicial de 8s caso o usuário ative o microfone mas não fale nada
+        // Timeout inicial de 8s se o usuário abrir o microfone e não falar nada
         noSpeechTimeoutRef.current = setTimeout(() => {
-          if (!accumulatedTranscriptRef.current.trim() && !isStoppingRef.current) {
+          if (sessionIdRef.current === currentSessionId && !accumulatedTranscriptRef.current.trim()) {
             stopListening();
           }
         }, 8000);
 
-        // Timeout de segurança máxima
+        // Timeout máximo de segurança
         maxDurationTimerRef.current = setTimeout(() => {
-          if (!isStoppingRef.current) {
+          if (sessionIdRef.current === currentSessionId) {
             stopListening();
           }
         }, maxListeningDurationMs);
       };
 
       recognition.onspeechstart = () => {
+        if (sessionIdRef.current !== currentSessionId) return;
         setIsSpeaking(true);
         if (noSpeechTimeoutRef.current) {
           clearTimeout(noSpeechTimeoutRef.current);
@@ -230,12 +223,15 @@ export function useVoiceInput({
       };
 
       recognition.onspeechend = () => {
+        if (sessionIdRef.current !== currentSessionId) return;
         setIsSpeaking(false);
         resetSilenceTimer();
       };
 
       recognition.onresult = (event: any) => {
+        if (sessionIdRef.current !== currentSessionId) return;
         setIsSpeaking(true);
+
         if (noSpeechTimeoutRef.current) {
           clearTimeout(noSpeechTimeoutRef.current);
           noSpeechTimeoutRef.current = null;
@@ -244,7 +240,7 @@ export function useVoiceInput({
         let interimTranscript = "";
         let finalTranscript = "";
 
-        for (let i = event.resultIndex; i < event.results.length; i++) {
+        for (let i = 0; i < event.results.length; i++) {
           const res = event.results[i];
           const text = res[0]?.transcript || "";
           if (res.isFinal) {
@@ -259,33 +255,32 @@ export function useVoiceInput({
           accumulatedTranscriptRef.current = currentText;
         }
 
-        // Cada vez que uma palavra é falada, reinicia o contador de silêncio
+        // Reinicia o contador de silêncio a cada palavra falada
         resetSilenceTimer();
       };
 
       recognition.onerror = (event: any) => {
+        if (sessionIdRef.current !== currentSessionId) return;
         const error = event.error;
 
         if (error === "no-speech") {
-          // Apenas silêncio — encerra sem exibir alerta destrutivo
+          // Apenas silêncio — encerra sem toast de erro
           stopListening();
         } else if (error === "not-allowed" || error === "service-not-allowed") {
           setIsListening(false);
           clearAllTimers();
           toast({
             title: "Microfone Bloqueado",
-            description: "Permita o acesso ao microfone no navegador para usar a fala por voz.",
+            description: "Permita o acesso ao microfone no seu navegador para usar a transcrição por voz.",
             variant: "destructive",
           });
         } else if (error !== "aborted") {
-          // Erro de rede ou desconexão temporária
           stopListening();
         }
       };
 
       recognition.onend = () => {
-        if (!isStoppingRef.current) {
-          // Se encerrou naturalmente pelo navegador
+        if (sessionIdRef.current === currentSessionId) {
           stopListening();
         }
       };
@@ -293,13 +288,15 @@ export function useVoiceInput({
       recognitionRef.current = recognition;
       recognition.start();
     } catch (error) {
-      setIsListening(false);
-      clearAllTimers();
-      toast({
-        title: "Erro ao ativar microfone",
-        description: "Não foi possível abrir o microfone. Tente clicar novamente.",
-        variant: "destructive",
-      });
+      if (sessionIdRef.current === currentSessionId) {
+        setIsListening(false);
+        clearAllTimers();
+        toast({
+          title: "Erro ao ativar microfone",
+          description: "Não foi possível abrir o microfone. Tente clicar novamente.",
+          variant: "destructive",
+        });
+      }
     }
   }, [
     lang,
@@ -310,7 +307,7 @@ export function useVoiceInput({
     toast,
   ]);
 
-  // Alterna o estado do microfone ao clicar
+  // Alterna com segurança entre ligar e desligar
   const toggleListening = useCallback(() => {
     if (isListening) {
       stopListening();
@@ -319,23 +316,23 @@ export function useVoiceInput({
     }
   }, [isListening, startListening, stopListening]);
 
-  // Limpeza ao desmontar o componente
+  // Limpeza ao desmontar
   useEffect(() => {
     return () => {
+      sessionIdRef.current = 0;
       clearAllTimers();
       if (recognitionRef.current) {
+        const oldRec = recognitionRef.current;
+        oldRec.onstart = null;
+        oldRec.onresult = null;
+        oldRec.onerror = null;
+        oldRec.onend = null;
         try {
-          recognitionRef.current.abort();
+          oldRec.abort();
         } catch (e) {
           // ignore
         }
-      }
-      if (mediaStreamRef.current) {
-        try {
-          mediaStreamRef.current.getTracks().forEach((track) => track.stop());
-        } catch (e) {
-          // ignore
-        }
+        recognitionRef.current = null;
       }
     };
   }, [clearAllTimers]);
@@ -349,4 +346,5 @@ export function useVoiceInput({
     toggleListening,
   };
 }
+
 export default useVoiceInput;
