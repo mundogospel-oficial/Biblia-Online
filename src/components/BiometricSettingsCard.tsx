@@ -4,13 +4,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Smartphone, 
   ShieldCheck, 
-  ScanFace,
   KeyRound,
   X, 
   Lock,
   ChevronRight,
   Info
 } from "lucide-react";
+import { BiometricFaceIcon } from "./BiometricFaceIcon";
 import { 
   isPWAMode, 
   isBiometricAvailable, 
@@ -138,9 +138,9 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
         <div className="flex items-center gap-3">
           <span className="text-muted-foreground flex items-center">
             {isEnabled ? (
-              <ScanFace className="h-4 w-4 text-accent" />
+              <BiometricFaceIcon className="h-4 w-4 text-accent" />
             ) : (
-              <ScanFace className="h-4 w-4" />
+              <BiometricFaceIcon className="h-4 w-4" />
             )}
           </span>
           <div className="text-left">
@@ -204,7 +204,7 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
                   </button>
 
                   <div className="relative mx-auto mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/15 border border-accent/30 text-accent shadow-lg shadow-accent/10">
-                    <ScanFace className="h-7 w-7 text-accent" />
+                    <BiometricFaceIcon className="h-7 w-7 text-accent" />
                   </div>
 
                   <h3 className="font-serif text-xl font-bold text-foreground">
@@ -228,7 +228,7 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
 
                     <div className="grid grid-cols-2 gap-2 text-center text-[10px] text-muted-foreground pb-2 border-b border-white/5">
                       <div className="flex flex-col items-center gap-1 p-1.5 rounded-lg bg-secondary/50">
-                        <ScanFace className="h-4 w-4 text-accent" />
+                        <BiometricFaceIcon className="h-4 w-4 text-accent" />
                         <span>Biometria (Face ID)</span>
                       </div>
                       <div className="flex flex-col items-center gap-1 p-1.5 rounded-lg bg-secondary/50">

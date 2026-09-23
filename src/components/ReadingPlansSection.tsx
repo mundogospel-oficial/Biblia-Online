@@ -41,6 +41,7 @@ import {
 } from "@/services/readingPlanService";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import VoiceInputButton from "@/components/VoiceInputButton";
 
 export const ReadingPlansSection = () => {
   const { user } = useAuth();
@@ -752,16 +753,32 @@ export const ReadingPlansSection = () => {
                     <StickyNote className="h-4 w-4 text-accent" />
                     O que você entendeu desta lição?
                   </span>
-                  <span className="text-[10px] text-muted-foreground font-normal">Sua reflexão pessoal ({reflectionInput.length}/1500)</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground font-normal">Sua reflexão pessoal ({reflectionInput.length}/1500)</span>
+                  </div>
                 </label>
-                <textarea
-                  maxLength={1500}
-                  value={reflectionInput}
-                  onChange={(e) => setReflectionInput(e.target.value.slice(0, 1500))}
-                  placeholder="Escreva aqui o que você entendeu, aprendeu ou sentiu ao ler este capítulo e lição da Palavra de Deus..."
-                  rows={4}
-                  className="w-full rounded-xl border border-border bg-background p-3.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/50 leading-relaxed resize-none custom-scrollbar"
-                />
+                <div className="relative">
+                  <textarea
+                    maxLength={1500}
+                    value={reflectionInput}
+                    onChange={(e) => setReflectionInput(e.target.value.slice(0, 1500))}
+                    placeholder="Escreva aqui o que você entendeu, aprendeu ou sentiu ao ler este capítulo e lição da Palavra de Deus..."
+                    rows={4}
+                    className="w-full rounded-xl border border-border bg-background p-3.5 pr-10 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/50 leading-relaxed resize-none custom-scrollbar"
+                  />
+                  <div className="absolute right-2.5 top-2.5">
+                    <VoiceInputButton
+                      onTranscript={(transcript) => {
+                        setReflectionInput((prev) => {
+                          const next = prev ? `${prev.trim()} ${transcript}` : transcript;
+                          return next.slice(0, 1500);
+                        });
+                      }}
+                      size="sm"
+                      title="Ditar reflexão por voz"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">

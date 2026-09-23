@@ -17,6 +17,7 @@ import { getFavorites, removeFavorite, addFavorite, isFavorite, updateNote, Favo
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { bibleBooks } from "@/lib/bibleData";
+import VoiceInputButton from "@/components/VoiceInputButton";
 
 interface RecommendationItem {
   text: string;
@@ -223,14 +224,28 @@ const FavoritesPage = () => {
                           <div className="mt-2">
                             {isEditingNote ? (
                               <div className="space-y-2 rounded-md bg-secondary/60 p-2.5">
-                                <textarea
-                                  maxLength={1000}
-                                  value={noteInputValue}
-                                  onChange={(e) => setNoteInputValue(e.target.value.slice(0, 1000))}
-                                  placeholder="Escreva sua reflexão, oração ou notas sobre este versículo... (máx. 1000 caracteres)"
-                                  rows={3}
-                                  className="w-full resize-none rounded border border-border/50 bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent custom-scrollbar"
-                                />
+                                <div className="relative">
+                                  <textarea
+                                    maxLength={1000}
+                                    value={noteInputValue}
+                                    onChange={(e) => setNoteInputValue(e.target.value.slice(0, 1000))}
+                                    placeholder="Escreva sua reflexão, oração ou notas sobre este versículo... (máx. 1000 caracteres)"
+                                    rows={3}
+                                    className="w-full resize-none rounded border border-border/50 bg-background p-2 pr-9 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent custom-scrollbar"
+                                  />
+                                  <div className="absolute right-2 top-2">
+                                    <VoiceInputButton
+                                      onTranscript={(transcript) => {
+                                        setNoteInputValue((prev) => {
+                                          const next = prev ? `${prev.trim()} ${transcript}` : transcript;
+                                          return next.slice(0, 1000);
+                                        });
+                                      }}
+                                      size="xs"
+                                      title="Ditar anotação por voz"
+                                    />
+                                  </div>
+                                </div>
                                 <div className="flex justify-end gap-2">
                                   <button
                                     onClick={() => setEditingNoteId(null)}

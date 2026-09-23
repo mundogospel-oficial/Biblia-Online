@@ -66,9 +66,11 @@ export const ImageGeneratingMatrixSquare: React.FC = () => {
 
     const handleResize = () => {
       const rect = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = rect.width || (window.innerWidth < 640 ? 280 : 320);
+      const h = rect.height || (window.innerWidth < 640 ? 280 : 320);
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
       ctx.scale(dpr, dpr);
     };
 
@@ -149,13 +151,13 @@ export const ImageGeneratingMatrixSquare: React.FC = () => {
   return (
     <div
       ref={containerRef}
-      className="relative w-full max-w-[280px] sm:max-w-[320px] aspect-square rounded-2xl bg-[#04060a] border border-white/[0.08] shadow-[0_16px_48px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col justify-between p-3.5 sm:p-4 select-none my-1"
+      className="relative w-[280px] h-[280px] min-w-[280px] min-h-[280px] max-w-[280px] max-h-[280px] sm:w-[320px] sm:h-[320px] sm:min-w-[320px] sm:min-h-[320px] sm:max-w-[320px] sm:max-h-[320px] shrink-0 aspect-square rounded-2xl bg-[#04060a] border border-white/[0.08] shadow-[0_16px_48px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col justify-between px-3.5 pb-3.5 pt-2.5 sm:px-4 sm:pb-4 sm:pt-3 select-none my-1"
     >
       {/* Subtle top ambient glow */}
       <div className="absolute top-0 inset-x-0 h-14 bg-gradient-to-b from-sky-500/10 to-transparent pointer-events-none" />
 
-      {/* Top Header with changing phrase - Posicionado no topo com margem limpa */}
-      <div className="relative z-10 flex items-center justify-between w-full pt-1 px-1">
+      {/* Top Header with changing phrase - Posicionado mais para cima */}
+      <div className="relative z-10 flex items-center justify-between w-full pt-0 px-0.5">
         <div className="flex items-center gap-2 overflow-hidden w-full">
           <div className="h-5 relative overflow-hidden flex items-center w-full">
             <AnimatePresence mode="wait">
@@ -175,7 +177,7 @@ export const ImageGeneratingMatrixSquare: React.FC = () => {
       </div>
 
       {/* Center Matrix Dot Canvas - Delimitado abaixo do texto */}
-      <div className="absolute inset-x-0 top-9 bottom-9 px-3 flex items-center justify-center pointer-events-none">
+      <div className="absolute inset-x-0 top-10 sm:top-11 bottom-8 sm:bottom-9 px-3 flex items-center justify-center pointer-events-none">
         <canvas
           ref={canvasRef}
           className="w-full h-full block"

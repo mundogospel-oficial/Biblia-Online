@@ -3,6 +3,9 @@ export interface SearchResult {
   chapter: number;
   verse: number;
   text: string;
+  contextReason?: string;
+  conceptEmoji?: string;
+  conceptName?: string;
 }
 
 export function stripLeadingNumber(str?: string): string {

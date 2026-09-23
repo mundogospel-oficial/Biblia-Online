@@ -5,10 +5,10 @@ import {
   Lock, 
   Unlock, 
   AlertCircle, 
-  ScanFace,
   KeyRound, 
   LogOut
 } from "lucide-react";
+import { BiometricFaceIcon } from "./BiometricFaceIcon";
 import { 
   isPWAMode, 
   isAppBiometricLockEnabled, 
@@ -197,7 +197,7 @@ export const BiometricAppLockOverlay: React.FC = () => {
             {isSuccess ? (
               <Unlock className="h-10 w-10 text-emerald-400" />
             ) : (
-              <ScanFace className="h-12 w-12 text-accent transition-transform group-hover:scale-110" />
+              <BiometricFaceIcon className="h-12 w-12 text-accent transition-transform group-hover:scale-110" />
             )}
           </button>
 
@@ -225,7 +225,7 @@ export const BiometricAppLockOverlay: React.FC = () => {
             disabled={authenticating}
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-accent py-3 px-4 text-xs font-bold text-accent-foreground shadow-lg shadow-accent/20 hover:shadow-accent/35 active:scale-[0.98] transition-all liquid-btn disabled:opacity-50"
           >
-            <ScanFace className="h-4 w-4 shrink-0" />
+            <BiometricFaceIcon className="h-4 w-4 shrink-0" />
             <span>{authenticating ? "Lendo Biometria..." : "Desbloquear com Biometria"}</span>
           </button>
         </motion.div>
@@ -234,7 +234,7 @@ export const BiometricAppLockOverlay: React.FC = () => {
         <div className="pb-6 text-center space-y-3">
           <div className="flex items-center justify-center gap-4 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <ScanFace className="h-3.5 w-3.5 text-accent/80" />
+              <BiometricFaceIcon className="h-3.5 w-3.5 text-accent/80" />
               <span>Biometria</span>
             </span>
             <span>•</span>

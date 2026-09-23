@@ -37,6 +37,7 @@ import { validateImageContent } from "@/services/imageModerationService";
 import { analyzeLetterbox } from "@/lib/imageCropUtils";
 import { ImageGeneratingMatrixSquare } from "@/components/ImageGeneratingMatrixSquare";
 import { formatFriendlyErrorMessage } from "@/lib/errorUtils";
+import VoiceInputButton from "@/components/VoiceInputButton";
 import {
   useDailyAttachedFiles,
   canAttachFiles,
@@ -480,7 +481,11 @@ const ThinkingIndicator = ({ engine = "simples", mode }: ThinkingIndicatorProps)
 
 
 const ImageGeneratingBubble = () => {
-  return <ImageGeneratingMatrixSquare />;
+  return (
+    <div className="w-[280px] h-[280px] min-w-[280px] min-h-[280px] max-w-[280px] max-h-[280px] sm:w-[320px] sm:h-[320px] sm:min-w-[320px] sm:min-h-[320px] sm:max-w-[320px] sm:max-h-[320px] shrink-0">
+      <ImageGeneratingMatrixSquare />
+    </div>
+  );
 };
 
 interface ResilientImageProps {
@@ -3357,11 +3362,13 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
           {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
             <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex justify-start my-1">
               {activeMode === "image" || /\[Modo:\s*(?:Gerar\s*)?Imagem\]/i.test(messages[messages.length - 1]?.content || "") ? (
-                <div className="flex justify-start items-start gap-2">
+                <div className="flex justify-start items-start gap-2 shrink-0">
                   <div className="mr-1.5 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 shadow-xs">
                     <Image className="h-3.5 w-3.5 text-primary-foreground" />
                   </div>
-                  <ImageGeneratingBubble />
+                  <div className="shrink-0">
+                    <ImageGeneratingBubble />
+                  </div>
                 </div>
               ) : (
                 <ThinkingIndicator engine={aiEngine} mode={activeMode} />
@@ -3702,6 +3709,19 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                     {input.length}/2000
                   </span>
                 )}
+                {/* Botão de Ditar por Voz (IA Bíblica e Modo Gerar Imagens) */}
+                <VoiceInputButton
+                  onTranscript={(transcript) => {
+                    setInput((prev) => {
+                      const newText = prev ? `${prev.trim()} ${transcript}` : transcript;
+                      return newText.slice(0, 2000);
+                    });
+                  }}
+                  disabled={isLoading || limitReached || !isOnline}
+                  size="icon"
+                  title={activeMode === "image" ? "Ditar descrição da imagem bíblica" : "Ditar pergunta para a IA Bíblica"}
+                  className="bg-secondary/70 hover:bg-accent/20 hover:text-accent"
+                />
                 {/* Botão do Aprimorador de Prompts (apenas para o modo gerar imagens) */}
                 {activeMode === "image" && input.trim() && !isLoading && (
                   <button

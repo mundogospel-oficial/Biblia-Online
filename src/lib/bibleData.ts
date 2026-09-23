@@ -3,77 +3,78 @@ export interface BibleBook {
   abbrev: string;
   chapters: number;
   testament: 'old' | 'new';
+  usfm: string;
 }
 
 export const bibleBooks: BibleBook[] = [
   // Antigo Testamento
-  { name: 'Gênesis', abbrev: 'gn', chapters: 50, testament: 'old' },
-  { name: 'Êxodo', abbrev: 'ex', chapters: 40, testament: 'old' },
-  { name: 'Levítico', abbrev: 'lv', chapters: 27, testament: 'old' },
-  { name: 'Números', abbrev: 'nm', chapters: 36, testament: 'old' },
-  { name: 'Deuteronômio', abbrev: 'dt', chapters: 34, testament: 'old' },
-  { name: 'Josué', abbrev: 'js', chapters: 24, testament: 'old' },
-  { name: 'Juízes', abbrev: 'jz', chapters: 21, testament: 'old' },
-  { name: 'Rute', abbrev: 'rt', chapters: 4, testament: 'old' },
-  { name: '1 Samuel', abbrev: '1sm', chapters: 31, testament: 'old' },
-  { name: '2 Samuel', abbrev: '2sm', chapters: 24, testament: 'old' },
-  { name: '1 Reis', abbrev: '1rs', chapters: 22, testament: 'old' },
-  { name: '2 Reis', abbrev: '2rs', chapters: 25, testament: 'old' },
-  { name: '1 Crônicas', abbrev: '1cr', chapters: 29, testament: 'old' },
-  { name: '2 Crônicas', abbrev: '2cr', chapters: 36, testament: 'old' },
-  { name: 'Esdras', abbrev: 'ed', chapters: 10, testament: 'old' },
-  { name: 'Neemias', abbrev: 'ne', chapters: 13, testament: 'old' },
-  { name: 'Ester', abbrev: 'et', chapters: 10, testament: 'old' },
-  { name: 'Jó', abbrev: 'job', chapters: 42, testament: 'old' },
-  { name: 'Salmos', abbrev: 'sl', chapters: 150, testament: 'old' },
-  { name: 'Provérbios', abbrev: 'pv', chapters: 31, testament: 'old' },
-  { name: 'Eclesiastes', abbrev: 'ec', chapters: 12, testament: 'old' },
-  { name: 'Cânticos', abbrev: 'ct', chapters: 8, testament: 'old' },
-  { name: 'Isaías', abbrev: 'is', chapters: 66, testament: 'old' },
-  { name: 'Jeremias', abbrev: 'jr', chapters: 52, testament: 'old' },
-  { name: 'Lamentações', abbrev: 'lm', chapters: 5, testament: 'old' },
-  { name: 'Ezequiel', abbrev: 'ez', chapters: 48, testament: 'old' },
-  { name: 'Daniel', abbrev: 'dn', chapters: 12, testament: 'old' },
-  { name: 'Oséias', abbrev: 'os', chapters: 14, testament: 'old' },
-  { name: 'Joel', abbrev: 'jl', chapters: 3, testament: 'old' },
-  { name: 'Amós', abbrev: 'am', chapters: 9, testament: 'old' },
-  { name: 'Obadias', abbrev: 'ob', chapters: 1, testament: 'old' },
-  { name: 'Jonas', abbrev: 'jn', chapters: 4, testament: 'old' },
-  { name: 'Miquéias', abbrev: 'mq', chapters: 7, testament: 'old' },
-  { name: 'Naum', abbrev: 'na', chapters: 3, testament: 'old' },
-  { name: 'Habacuque', abbrev: 'hc', chapters: 3, testament: 'old' },
-  { name: 'Sofonias', abbrev: 'sf', chapters: 3, testament: 'old' },
-  { name: 'Ageu', abbrev: 'ag', chapters: 2, testament: 'old' },
-  { name: 'Zacarias', abbrev: 'zc', chapters: 14, testament: 'old' },
-  { name: 'Malaquias', abbrev: 'ml', chapters: 4, testament: 'old' },
+  { name: 'Gênesis', abbrev: 'gn', chapters: 50, testament: 'old', usfm: 'GEN' },
+  { name: 'Êxodo', abbrev: 'ex', chapters: 40, testament: 'old', usfm: 'EXO' },
+  { name: 'Levítico', abbrev: 'lv', chapters: 27, testament: 'old', usfm: 'LEV' },
+  { name: 'Números', abbrev: 'nm', chapters: 36, testament: 'old', usfm: 'NUM' },
+  { name: 'Deuteronômio', abbrev: 'dt', chapters: 34, testament: 'old', usfm: 'DEU' },
+  { name: 'Josué', abbrev: 'js', chapters: 24, testament: 'old', usfm: 'JOS' },
+  { name: 'Juízes', abbrev: 'jz', chapters: 21, testament: 'old', usfm: 'JDG' },
+  { name: 'Rute', abbrev: 'rt', chapters: 4, testament: 'old', usfm: 'RUT' },
+  { name: '1 Samuel', abbrev: '1sm', chapters: 31, testament: 'old', usfm: '1SA' },
+  { name: '2 Samuel', abbrev: '2sm', chapters: 24, testament: 'old', usfm: '2SA' },
+  { name: '1 Reis', abbrev: '1rs', chapters: 22, testament: 'old', usfm: '1KI' },
+  { name: '2 Reis', abbrev: '2rs', chapters: 25, testament: 'old', usfm: '2KI' },
+  { name: '1 Crônicas', abbrev: '1cr', chapters: 29, testament: 'old', usfm: '1CH' },
+  { name: '2 Crônicas', abbrev: '2cr', chapters: 36, testament: 'old', usfm: '2CH' },
+  { name: 'Esdras', abbrev: 'ed', chapters: 10, testament: 'old', usfm: 'EZR' },
+  { name: 'Neemias', abbrev: 'ne', chapters: 13, testament: 'old', usfm: 'NEH' },
+  { name: 'Ester', abbrev: 'et', chapters: 10, testament: 'old', usfm: 'EST' },
+  { name: 'Jó', abbrev: 'job', chapters: 42, testament: 'old', usfm: 'JOB' },
+  { name: 'Salmos', abbrev: 'sl', chapters: 150, testament: 'old', usfm: 'PSA' },
+  { name: 'Provérbios', abbrev: 'pv', chapters: 31, testament: 'old', usfm: 'PRO' },
+  { name: 'Eclesiastes', abbrev: 'ec', chapters: 12, testament: 'old', usfm: 'ECC' },
+  { name: 'Cânticos', abbrev: 'ct', chapters: 8, testament: 'old', usfm: 'SNG' },
+  { name: 'Isaías', abbrev: 'is', chapters: 66, testament: 'old', usfm: 'ISA' },
+  { name: 'Jeremias', abbrev: 'jr', chapters: 52, testament: 'old', usfm: 'JER' },
+  { name: 'Lamentações', abbrev: 'lm', chapters: 5, testament: 'old', usfm: 'LAM' },
+  { name: 'Ezequiel', abbrev: 'ez', chapters: 48, testament: 'old', usfm: 'EZK' },
+  { name: 'Daniel', abbrev: 'dn', chapters: 12, testament: 'old', usfm: 'DAN' },
+  { name: 'Oséias', abbrev: 'os', chapters: 14, testament: 'old', usfm: 'HOS' },
+  { name: 'Joel', abbrev: 'jl', chapters: 3, testament: 'old', usfm: 'JOL' },
+  { name: 'Amós', abbrev: 'am', chapters: 9, testament: 'old', usfm: 'AMO' },
+  { name: 'Obadias', abbrev: 'ob', chapters: 1, testament: 'old', usfm: 'OBA' },
+  { name: 'Jonas', abbrev: 'jn', chapters: 4, testament: 'old', usfm: 'JON' },
+  { name: 'Miquéias', abbrev: 'mq', chapters: 7, testament: 'old', usfm: 'MIC' },
+  { name: 'Naum', abbrev: 'na', chapters: 3, testament: 'old', usfm: 'NAM' },
+  { name: 'Habacuque', abbrev: 'hc', chapters: 3, testament: 'old', usfm: 'HAB' },
+  { name: 'Sofonias', abbrev: 'sf', chapters: 3, testament: 'old', usfm: 'ZEP' },
+  { name: 'Ageu', abbrev: 'ag', chapters: 2, testament: 'old', usfm: 'HAG' },
+  { name: 'Zacarias', abbrev: 'zc', chapters: 14, testament: 'old', usfm: 'ZEC' },
+  { name: 'Malaquias', abbrev: 'ml', chapters: 4, testament: 'old', usfm: 'MAL' },
   // Novo Testamento
-  { name: 'Mateus', abbrev: 'mt', chapters: 28, testament: 'new' },
-  { name: 'Marcos', abbrev: 'mc', chapters: 16, testament: 'new' },
-  { name: 'Lucas', abbrev: 'lc', chapters: 24, testament: 'new' },
-  { name: 'João', abbrev: 'jo', chapters: 21, testament: 'new' },
-  { name: 'Atos', abbrev: 'at', chapters: 28, testament: 'new' },
-  { name: 'Romanos', abbrev: 'rm', chapters: 16, testament: 'new' },
-  { name: '1 Coríntios', abbrev: '1co', chapters: 16, testament: 'new' },
-  { name: '2 Coríntios', abbrev: '2co', chapters: 13, testament: 'new' },
-  { name: 'Gálatas', abbrev: 'gl', chapters: 6, testament: 'new' },
-  { name: 'Efésios', abbrev: 'ef', chapters: 6, testament: 'new' },
-  { name: 'Filipenses', abbrev: 'fp', chapters: 4, testament: 'new' },
-  { name: 'Colossenses', abbrev: 'cl', chapters: 4, testament: 'new' },
-  { name: '1 Tessalonicenses', abbrev: '1ts', chapters: 5, testament: 'new' },
-  { name: '2 Tessalonicenses', abbrev: '2ts', chapters: 3, testament: 'new' },
-  { name: '1 Timóteo', abbrev: '1tm', chapters: 6, testament: 'new' },
-  { name: '2 Timóteo', abbrev: '2tm', chapters: 4, testament: 'new' },
-  { name: 'Tito', abbrev: 'tt', chapters: 3, testament: 'new' },
-  { name: 'Filemom', abbrev: 'fm', chapters: 1, testament: 'new' },
-  { name: 'Hebreus', abbrev: 'hb', chapters: 13, testament: 'new' },
-  { name: 'Tiago', abbrev: 'tg', chapters: 5, testament: 'new' },
-  { name: '1 Pedro', abbrev: '1pe', chapters: 5, testament: 'new' },
-  { name: '2 Pedro', abbrev: '2pe', chapters: 3, testament: 'new' },
-  { name: '1 João', abbrev: '1jo', chapters: 5, testament: 'new' },
-  { name: '2 João', abbrev: '2jo', chapters: 1, testament: 'new' },
-  { name: '3 João', abbrev: '3jo', chapters: 1, testament: 'new' },
-  { name: 'Judas', abbrev: 'jd', chapters: 1, testament: 'new' },
-  { name: 'Apocalipse', abbrev: 'ap', chapters: 22, testament: 'new' },
+  { name: 'Mateus', abbrev: 'mt', chapters: 28, testament: 'new', usfm: 'MAT' },
+  { name: 'Marcos', abbrev: 'mc', chapters: 16, testament: 'new', usfm: 'MRK' },
+  { name: 'Lucas', abbrev: 'lc', chapters: 24, testament: 'new', usfm: 'LUK' },
+  { name: 'João', abbrev: 'jo', chapters: 21, testament: 'new', usfm: 'JHN' },
+  { name: 'Atos', abbrev: 'at', chapters: 28, testament: 'new', usfm: 'ACT' },
+  { name: 'Romanos', abbrev: 'rm', chapters: 16, testament: 'new', usfm: 'ROM' },
+  { name: '1 Coríntios', abbrev: '1co', chapters: 16, testament: 'new', usfm: '1CO' },
+  { name: '2 Coríntios', abbrev: '2co', chapters: 13, testament: 'new', usfm: '2CO' },
+  { name: 'Gálatas', abbrev: 'gl', chapters: 6, testament: 'new', usfm: 'GAL' },
+  { name: 'Efésios', abbrev: 'ef', chapters: 6, testament: 'new', usfm: 'EPH' },
+  { name: 'Filipenses', abbrev: 'fp', chapters: 4, testament: 'new', usfm: 'PHP' },
+  { name: 'Colossenses', abbrev: 'cl', chapters: 4, testament: 'new', usfm: 'COL' },
+  { name: '1 Tessalonicenses', abbrev: '1ts', chapters: 5, testament: 'new', usfm: '1TH' },
+  { name: '2 Tessalonicenses', abbrev: '2ts', chapters: 3, testament: 'new', usfm: '2TH' },
+  { name: '1 Timóteo', abbrev: '1tm', chapters: 6, testament: 'new', usfm: '1TI' },
+  { name: '2 Timóteo', abbrev: '2tm', chapters: 4, testament: 'new', usfm: '2TI' },
+  { name: 'Tito', abbrev: 'tt', chapters: 3, testament: 'new', usfm: 'TIT' },
+  { name: 'Filemom', abbrev: 'fm', chapters: 1, testament: 'new', usfm: 'PHM' },
+  { name: 'Hebreus', abbrev: 'hb', chapters: 13, testament: 'new', usfm: 'HEB' },
+  { name: 'Tiago', abbrev: 'tg', chapters: 5, testament: 'new', usfm: 'JAS' },
+  { name: '1 Pedro', abbrev: '1pe', chapters: 5, testament: 'new', usfm: '1PE' },
+  { name: '2 Pedro', abbrev: '2pe', chapters: 3, testament: 'new', usfm: '2PE' },
+  { name: '1 João', abbrev: '1jo', chapters: 5, testament: 'new', usfm: '1JN' },
+  { name: '2 João', abbrev: '2jo', chapters: 1, testament: 'new', usfm: '2JN' },
+  { name: '3 João', abbrev: '3jo', chapters: 1, testament: 'new', usfm: '3JN' },
+  { name: 'Judas', abbrev: 'jd', chapters: 1, testament: 'new', usfm: 'JUD' },
+  { name: 'Apocalipse', abbrev: 'ap', chapters: 22, testament: 'new', usfm: 'REV' },
 ];
 
 export interface BibleTranslation {
@@ -91,45 +92,75 @@ export const translations: BibleTranslation[] = [
 ];
 
 // ── Bible API book name mappings ──
-// bible-api.com uses English names; we try multiple variants for reliability.
+// Prioritizes standard 3-letter USFM code to eliminate book/chapter collisions (e.g., Judges vs Jude),
+// followed by unambiguous Portuguese and English names.
 const apiBookNames: Record<string, string[]> = {
-  'gn': ['Genesis', 'Gênesis'], 'ex': ['Exodus', 'Êxodo'], 'lv': ['Leviticus', 'Levítico'],
-  'nm': ['Numbers', 'Números'], 'dt': ['Deuteronomy', 'Deuteronômio'],
-  'js': ['Joshua', 'Josué'], 'jz': ['Judges', 'Juízes'], 'rt': ['Ruth', 'Rute'],
-  '1sm': ['1 Samuel', '1Samuel'], '2sm': ['2 Samuel', '2Samuel'],
-  '1rs': ['1 Kings', '1Kings', '1 Reis'], '2rs': ['2 Kings', '2Kings', '2 Reis'],
-  '1cr': ['1 Chronicles', '1Chronicles', '1 Crônicas'], '2cr': ['2 Chronicles', '2Chronicles', '2 Crônicas'],
-  'ed': ['Ezra', 'Esdras'], 'ne': ['Nehemiah', 'Neemias'],
-  'et': ['Esther', 'Ester'], 'job': ['Job', 'Jó'],
-  'sl': ['Psalms', 'Psalm', 'Salmos'],
-  'pv': ['Proverbs', 'Provérbios'], 'ec': ['Ecclesiastes', 'Eclesiastes'],
-  'ct': ['Song of Solomon', 'SongOfSolomon', 'Cânticos'],
-  'is': ['Isaiah', 'Isaías'], 'jr': ['Jeremiah', 'Jeremias'],
-  'lm': ['Lamentations', 'Lamentações'], 'ez': ['Ezekiel', 'Ezequiel'],
-  'dn': ['Daniel'],
-  'os': ['Hosea', 'Oséias'], 'jl': ['Joel'], 'am': ['Amos', 'Amós'],
-  'ob': ['Obadiah', 'Obadias'], 'jn': ['Jonah', 'Jonas'],
-  'mq': ['Micah', 'Miquéias'], 'na': ['Nahum', 'Naum'],
-  'hc': ['Habakkuk', 'Habacuque'], 'sf': ['Zephaniah', 'Sofonias'],
-  'ag': ['Haggai', 'Ageu'], 'zc': ['Zechariah', 'Zacarias'],
-  'ml': ['Malachi', 'Malaquias'],
-  'mt': ['Matthew', 'Mateus'], 'mc': ['Mark', 'Marcos'],
-  'lc': ['Luke', 'Lucas'], 'jo': ['John', 'João'],
-  'at': ['Acts', 'Atos'], 'rm': ['Romans', 'Romanos'],
-  '1co': ['1 Corinthians', '1Corinthians', '1 Coríntios'],
-  '2co': ['2 Corinthians', '2Corinthians', '2 Coríntios'],
-  'gl': ['Galatians', 'Gálatas'], 'ef': ['Ephesians', 'Efésios'],
-  'fp': ['Philippians', 'Filipenses'], 'cl': ['Colossians', 'Colossenses'],
-  '1ts': ['1 Thessalonians', '1Thessalonians', '1 Tessalonicenses'],
-  '2ts': ['2 Thessalonians', '2Thessalonians', '2 Tessalonicenses'],
-  '1tm': ['1 Timothy', '1Timothy', '1 Timóteo'],
-  '2tm': ['2 Timothy', '2Timothy', '2 Timóteo'],
-  'tt': ['Titus', 'Tito'], 'fm': ['Philemon', 'Filemom'],
-  'hb': ['Hebrews', 'Hebreus'], 'tg': ['James', 'Tiago'],
-  '1pe': ['1 Peter', '1Peter', '1 Pedro'], '2pe': ['2 Peter', '2Peter', '2 Pedro'],
-  '1jo': ['1 John', '1John', '1 João'], '2jo': ['2 John', '2John', '2 João'],
-  '3jo': ['3 John', '3John', '3 João'], 'jd': ['Jude', 'Judas'],
-  'ap': ['Revelation', 'Apocalipse'],
+  'gn': ['GEN', 'Genesis', 'Gênesis'],
+  'ex': ['EXO', 'Exodus', 'Êxodo', 'Exodo'],
+  'lv': ['LEV', 'Leviticus', 'Levítico', 'Levitico'],
+  'nm': ['NUM', 'Numbers', 'Números', 'Numeros'],
+  'dt': ['DEU', 'Deuteronomy', 'Deuteronômio', 'Deuteronomio'],
+  'js': ['JOS', 'Joshua', 'Josué', 'Josue'],
+  'jz': ['JDG', 'Juízes', 'Juizes', 'Judges'],
+  'rt': ['RUT', 'Ruth', 'Rute'],
+  '1sm': ['1SA', '1 Samuel', '1Samuel'],
+  '2sm': ['2SA', '2 Samuel', '2Samuel'],
+  '1rs': ['1KI', '1 Kings', '1Kings', '1 Reis', '1Reis'],
+  '2rs': ['2KI', '2 Kings', '2Kings', '2 Reis', '2Reis'],
+  '1cr': ['1CH', '1 Chronicles', '1Chronicles', '1 Crônicas', '1 Cronicas'],
+  '2cr': ['2CH', '2 Chronicles', '2Chronicles', '2 Crônicas', '2 Cronicas'],
+  'ed': ['EZR', 'Ezra', 'Esdras'],
+  'ne': ['NEH', 'Nehemiah', 'Neemias'],
+  'et': ['EST', 'Esther', 'Ester'],
+  'job': ['JOB', 'Job', 'Jó', 'Jo'],
+  'sl': ['PSA', 'Psalms', 'Psalm', 'Salmos'],
+  'pv': ['PRO', 'Proverbs', 'Provérbios', 'Proverbios'],
+  'ec': ['ECC', 'Ecclesiastes', 'Eclesiastes'],
+  'ct': ['SNG', 'Song of Solomon', 'Cânticos', 'Canticos', 'Cantares'],
+  'is': ['ISA', 'Isaiah', 'Isaías', 'Isaias'],
+  'jr': ['JER', 'Jeremiah', 'Jeremias'],
+  'lm': ['LAM', 'Lamentations', 'Lamentações', 'Lamentacoes'],
+  'ez': ['EZK', 'Ezekiel', 'Ezequiel'],
+  'dn': ['DAN', 'Daniel'],
+  'os': ['HOS', 'Hosea', 'Oséias', 'Oseias'],
+  'jl': ['JOL', 'Joel'],
+  'am': ['AMO', 'Amos', 'Amós'],
+  'ob': ['OBA', 'Obadiah', 'Obadias'],
+  'jn': ['JON', 'Jonah', 'Jonas'],
+  'mq': ['MIC', 'Micah', 'Miquéias', 'Miqueias'],
+  'na': ['NAM', 'Nahum', 'Naum'],
+  'hc': ['HAB', 'Habakkuk', 'Habacuque'],
+  'sf': ['ZEP', 'Zephaniah', 'Sofonias'],
+  'ag': ['HAG', 'Haggai', 'Ageu'],
+  'zc': ['ZEC', 'Zechariah', 'Zacarias'],
+  'ml': ['MAL', 'Malachi', 'Malaquias'],
+  'mt': ['MAT', 'Matthew', 'Mateus'],
+  'mc': ['MRK', 'Mark', 'Marcos'],
+  'lc': ['LUK', 'Luke', 'Lucas'],
+  'jo': ['JHN', 'John', 'João', 'Joao'],
+  'at': ['ACT', 'Acts', 'Atos'],
+  'rm': ['ROM', 'Romans', 'Romanos'],
+  '1co': ['1CO', '1 Corinthians', '1Corinthians', '1 Coríntios', '1 Corintios'],
+  '2co': ['2CO', '2 Corinthians', '2Corinthians', '2 Coríntios', '2 Corintios'],
+  'gl': ['GAL', 'Galatians', 'Gálatas', 'Galatas'],
+  'ef': ['EPH', 'Ephesians', 'Efésios', 'Efesios'],
+  'fp': ['PHP', 'Philippians', 'Filipenses'],
+  'cl': ['COL', 'Colossians', 'Colossenses'],
+  '1ts': ['1TH', '1 Thessalonians', '1Thessalonians', '1 Tessalonicenses'],
+  '2ts': ['2TH', '2 Thessalonians', '2Thessalonians', '2 Tessalonicenses'],
+  '1tm': ['1TI', '1 Timothy', '1Timothy', '1 Timóteo', '1 Timoteo'],
+  '2tm': ['2TI', '2 Timothy', '2Timothy', '2 Timóteo', '2 Timoteo'],
+  'tt': ['TIT', 'Titus', 'Tito'],
+  'fm': ['PHM', 'Philemon', 'Filemom'],
+  'hb': ['HEB', 'Hebrews', 'Hebreus'],
+  'tg': ['JAS', 'James', 'Tiago'],
+  '1pe': ['1PE', '1 Peter', '1Peter', '1 Pedro'],
+  '2pe': ['2PE', '2 Peter', '2Peter', '2 Pedro'],
+  '1jo': ['1JN', '1 John', '1John', '1 João', '1 Joao'],
+  '2jo': ['2JN', '2 John', '2John', '2 João', '2 Joao'],
+  '3jo': ['3JN', '3 John', '3John', '3 João', '3 Joao'],
+  'jd': ['JUD', 'Jude', 'Judas'],
+  'ap': ['REV', 'Revelation', 'Apocalipse'],
 };
 
 // ── bolls.life book index (1-66 canonical order) ──
@@ -170,7 +201,7 @@ const chapterCache = new Map<string, ChapterResponse>();
 let bibliaLivreData: any[] | null = null;
 let bibliaLivreLoadingPromise: Promise<any[]> | null = null;
 
-async function loadBibliaLivre(): Promise<any[]> {
+export async function loadBibliaLivre(): Promise<any[]> {
   if (bibliaLivreData) return bibliaLivreData;
   if (bibliaLivreLoadingPromise) return bibliaLivreLoadingPromise;
 
@@ -290,8 +321,11 @@ async function fetchFromBibleApi(
   chapter: number,
   translation: string
 ): Promise<ChapterResponse> {
+  const book = bibleBooks.find(b => b.abbrev === abbrev);
   const names = apiBookNames[abbrev];
-  if (!names) throw new Error('Livro não encontrado');
+  if (!names || !book) throw new Error('Livro não encontrado');
+
+  const expectedUsfm = book.usfm;
 
   for (const apiName of names) {
     try {
@@ -301,15 +335,41 @@ async function fetchFromBibleApi(
       const data = await res.json();
       if (data.error || !data.verses?.length) continue;
 
+      const firstVerse = data.verses[0];
+
+      // 1. Strict Validation: book_id must match expected USFM code if present
+      const returnedBookId = (firstVerse.book_id || '').toUpperCase().trim();
+      if (returnedBookId && expectedUsfm && returnedBookId !== expectedUsfm) {
+        console.warn(`[BibleAPI] Book mismatch: expected ${expectedUsfm} (${book.name}), but API returned ${returnedBookId} (${data.reference}). Skipping.`);
+        continue;
+      }
+
+      // 2. Strict Validation: chapter must match requested chapter
+      if (typeof firstVerse.chapter === 'number' && firstVerse.chapter !== chapter) {
+        console.warn(`[BibleAPI] Chapter mismatch: expected chapter ${chapter}, but API returned ${firstVerse.chapter}. Skipping.`);
+        continue;
+      }
+
+      // 3. Strict Validation: reference text check for single-chapter book false matches (e.g. Judas vs Juízes)
+      if (data.reference) {
+        const refLower = data.reference.toLowerCase();
+        if (abbrev === 'jz' && refLower.startsWith('judas')) {
+          console.warn(`[BibleAPI] Returned Judas instead of Juízes. Skipping.`);
+          continue;
+        }
+      }
+
+      const cleanHtml = (str: string) => (str || '').replace(/<[^>]*>/g, '').trim();
+
       return {
-        reference: data.reference || `${apiName} ${chapter}`,
+        reference: `${book.name} ${chapter}`,
         verses: data.verses.map((v: any) => ({
-          book_name: v.book_name || apiName,
+          book_name: book.name,
           chapter: v.chapter ?? chapter,
           verse: v.verse,
-          text: v.text,
+          text: cleanHtml(v.text),
         })),
-        text: data.text || '',
+        text: data.verses.map((v: any) => cleanHtml(v.text)).join(' '),
       };
     } catch (err: any) {
       console.warn(`[BibleAPI] Falha ao buscar em ${apiName}:`, err.message);
@@ -317,13 +377,14 @@ async function fetchFromBibleApi(
     }
   }
 
-  throw new Error('Não foi possível carregar versículos');
+  throw new Error('Não foi possível carregar versículos com validação correta');
 }
 
-// ── Fallback: bolls.life (ACF — Almeida Corrigida Fiel) ──
+// ── Fallback: bolls.life (ARC09, KJV, WEB) ──
 async function fetchFromBolls(
   abbrev: string,
-  chapter: number
+  chapter: number,
+  translation: string = 'almeida'
 ): Promise<ChapterResponse> {
   const bookId = bollsBookIndex[abbrev];
   if (!bookId) throw new Error('Livro não encontrado');
@@ -331,8 +392,12 @@ async function fetchFromBolls(
   const book = bibleBooks.find(b => b.abbrev === abbrev);
   const bookName = book?.name || abbrev;
 
+  let bollsVersion = 'ARC09';
+  if (translation === 'kjv') bollsVersion = 'KJV';
+  else if (translation === 'web' || translation === 'bbe') bollsVersion = 'WEB';
+
   try {
-    const url = `https://bolls.life/get-text/ARC09/${bookId}/${chapter}/`;
+    const url = `https://bolls.life/get-text/${bollsVersion}/${bookId}/${chapter}/`;
     const res = await fetch(url);
     if (!res.ok) throw new Error('Não foi possível carregar o capítulo');
 
@@ -381,7 +446,7 @@ export async function fetchChapter(
         return result;
       } catch {
         try {
-          const result = await fetchFromBolls(abbrev, chapter);
+          const result = await fetchFromBolls(abbrev, chapter, 'almeida');
           chapterCache.set(cacheKey, result);
           return result;
         } catch {}
@@ -390,10 +455,8 @@ export async function fetchChapter(
     }
   }
 
-  // Para outras traduções (Almeida, KJV, etc):
-  const isPortuguese = translation === 'almeida';
-
-  // 1ª Camada: bible-api.com
+  // Para outras traduções (Almeida, KJV, WEB, etc):
+  // 1ª Camada: bible-api.com com validação de livro e capítulo
   try {
     const result = await fetchFromBibleApi(abbrev, chapter, translation);
     chapterCache.set(cacheKey, result);
@@ -402,18 +465,16 @@ export async function fetchChapter(
     // Falha na API primária
   }
 
-  // 2ª Camada: bolls.life (ARC09) para português
-  if (isPortuguese) {
-    try {
-      const result = await fetchFromBolls(abbrev, chapter);
-      chapterCache.set(cacheKey, result);
-      return result;
-    } catch {
-      // Falha na API secundária
-    }
+  // 2ª Camada: bolls.life (ARC09 para Almeida, KJV para King James, WEB para Web/BBE)
+  try {
+    const result = await fetchFromBolls(abbrev, chapter, translation);
+    chapterCache.set(cacheKey, result);
+    return result;
+  } catch {
+    // Falha na API secundária
   }
 
-  // 3ª Camada: Bíblia Livre offline (banco de dados completo local)
+  // 3ª Camada: Bíblia Livre offline (banco de dados completo local verificado)
   try {
     const result = await fetchFromBibliaLivre(abbrev, chapter);
     chapterCache.set(cacheKey, result);

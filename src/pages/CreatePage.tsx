@@ -18,6 +18,7 @@ import { downloadBibleImage, shareBibleImage } from "@/lib/downloadUtils";
 import { generateCreateModeImage } from "@/services/createModeImageService";
 import { APP_WHITE_LOGO_DATA_URL } from "@/assets/appLogoWhite";
 import { formatFriendlyErrorMessage } from "@/lib/errorUtils";
+import VoiceInputButton from "@/components/VoiceInputButton";
 
 const formats: { key: CardFormat; label: string; dim: string; icon: React.ReactNode }[] = [
   { key: "square", label: "Quadrado", dim: "1080 × 1080 (1:1)", icon: <Square className="h-4 w-4" /> },
@@ -734,19 +735,33 @@ const CreatePage = () => {
                   </div>
 
                   <div className="flex gap-2">
-                    <input
-                      value={searchQuery}
-                      maxLength={15}
-                      onChange={(e) => setSearchQuery(e.target.value.slice(0, 15))}
-                      placeholder={!isOnline ? "Indisponível offline" : "Ex: Filipenses 4:13"}
-                      onKeyDown={(e) => e.key === "Enter" && isOnline && handleSearchVerse()}
-                      disabled={!isOnline}
-                      className="flex-1 rounded-xl border border-input bg-secondary/50 px-3.5 py-2 text-xs text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
-                    />
+                    <div className="relative flex-1">
+                      <input
+                        value={searchQuery}
+                        maxLength={15}
+                        onChange={(e) => setSearchQuery(e.target.value.slice(0, 15))}
+                        placeholder={!isOnline ? "Indisponível offline" : "Ex: Filipenses 4:13"}
+                        onKeyDown={(e) => e.key === "Enter" && isOnline && handleSearchVerse()}
+                        disabled={!isOnline}
+                        className="w-full rounded-xl border border-input bg-secondary/50 pl-3.5 pr-8 py-2 text-xs text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+                      />
+                      <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
+                        <VoiceInputButton
+                          onTranscript={(transcript) => {
+                            const trimmed = transcript.slice(0, 15);
+                            setSearchQuery(trimmed);
+                            if (isOnline) handleSearchVerse(trimmed);
+                          }}
+                          disabled={!isOnline}
+                          size="xs"
+                          title="Falar passagem bíblica"
+                        />
+                      </div>
+                    </div>
                     <button
                       onClick={() => { if (isOnline) handleSearchVerse(); }}
                       disabled={searchLoading || !isOnline}
-                      className="rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center"
+                      className="rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center shrink-0 cursor-pointer"
                     >
                       {searchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
                     </button>
@@ -780,14 +795,28 @@ const CreatePage = () => {
                       <label className="text-[10px] text-muted-foreground">Texto do Versículo:</label>
                       <span className="text-[10px] text-muted-foreground font-mono">{verseText.length}/1000</span>
                     </div>
-                    <textarea
-                      rows={4}
-                      maxLength={1000}
-                      value={verseText}
-                      onChange={(e) => setVerseText(e.target.value.slice(0, 1000))}
-                      placeholder="Digite o texto aqui..."
-                      className="w-full rounded-xl border border-input bg-secondary/40 p-3 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none custom-scrollbar"
-                    />
+                    <div className="relative">
+                      <textarea
+                        rows={4}
+                        maxLength={1000}
+                        value={verseText}
+                        onChange={(e) => setVerseText(e.target.value.slice(0, 1000))}
+                        placeholder="Digite o texto aqui..."
+                        className="w-full rounded-xl border border-input bg-secondary/40 p-3 pr-8 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none custom-scrollbar"
+                      />
+                      <div className="absolute right-2 top-2">
+                        <VoiceInputButton
+                          onTranscript={(transcript) => {
+                            setVerseText((prev) => {
+                              const next = prev ? `${prev.trim()} ${transcript}` : transcript;
+                              return next.slice(0, 1000);
+                            });
+                          }}
+                          size="xs"
+                          title="Ditar texto do versículo"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <div>
@@ -949,13 +978,27 @@ const CreatePage = () => {
                             <label className="text-[10px] text-muted-foreground block">Descreva o cenário bíblico (apenas natureza, proibido pessoas e estátuas):</label>
                             <span className="text-[9px] text-muted-foreground font-mono">{customAiPrompt.length}/300</span>
                           </div>
-                          <input
-                            maxLength={300}
-                            value={customAiPrompt}
-                            onChange={(e) => setCustomAiPrompt(e.target.value.slice(0, 300))}
-                            placeholder="Ex: Montanhas de Jerusalém ao pôr do sol, Rio Jordão sereno, oliveiras..."
-                            className="w-full rounded-xl border border-input bg-secondary/40 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                          />
+                          <div className="relative flex items-center">
+                            <input
+                              maxLength={300}
+                              value={customAiPrompt}
+                              onChange={(e) => setCustomAiPrompt(e.target.value.slice(0, 300))}
+                              placeholder="Ex: Montanhas de Jerusalém ao pôr do sol, Rio Jordão sereno, oliveiras..."
+                              className="w-full rounded-xl border border-input bg-secondary/40 pl-3 pr-9 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                            />
+                            <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
+                              <VoiceInputButton
+                                onTranscript={(transcript) => {
+                                  setCustomAiPrompt((prev) => {
+                                    const next = prev ? `${prev.trim()} ${transcript}` : transcript;
+                                    return next.slice(0, 300);
+                                  });
+                                }}
+                                size="xs"
+                                title="Ditar cenário bíblico para IA"
+                              />
+                            </div>
+                          </div>
 
                           {/* Sugestões Rápidas */}
                           <div className="mt-1.5 flex flex-wrap gap-1">
@@ -1245,26 +1288,26 @@ const CreatePage = () => {
           <div className="lg:col-span-7 lg:sticky lg:top-20 lg:self-start space-y-3">
             
             {/* Top Toolbar */}
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-                <Eye className="h-4 w-4 text-accent" />
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-1">
+              <div className="flex items-center gap-2 text-xs font-semibold text-foreground whitespace-nowrap">
+                <Eye className="h-4 w-4 text-accent shrink-0" />
                 <span>Pré-visualização da Arte</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
                 <select
                   value={exportQuality}
                   onChange={(e) => setExportQuality(e.target.value as QualityKey)}
-                  className="text-[11px] font-semibold bg-secondary/90 hover:bg-secondary text-foreground border border-border/50 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+                  className="text-[11px] font-semibold bg-secondary/90 hover:bg-secondary text-foreground border border-border/50 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer flex-1 sm:flex-initial"
                   title="Qualidade de Exportação"
                 >
                   {qualityOptions.map((q) => (
                     <option key={q.key} value={q.key}>
-                      {q.badge} ({q.label})
+                      {q.badge}
                     </option>
                   ))}
                 </select>
 
-                <span className="text-[11px] font-mono font-medium text-muted-foreground bg-secondary/80 px-2.5 py-1 rounded-full border border-border/40">
+                <span className="text-[11px] font-mono font-medium text-muted-foreground bg-secondary/80 px-2.5 py-1 rounded-full border border-border/40 whitespace-nowrap shrink-0">
                   {formats.find(f => f.key === activeFormat)?.dim}
                 </span>
               </div>

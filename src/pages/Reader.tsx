@@ -28,6 +28,7 @@ import { translateVersesAI, checkAndIncrementQuota } from "@/services/translatio
 import { askDictionaryAI } from "@/services/aiService";
 import { checkAndIncrementUsage } from "@/services/usageService";
 import { shareBibleText } from "@/lib/downloadUtils";
+import VoiceInputButton from "@/components/VoiceInputButton";
 
 const Reader = () => {
   const { abbrev, chapter } = useParams<{ abbrev: string; chapter: string }>();
@@ -1089,14 +1090,28 @@ const Reader = () => {
                         exit={{ opacity: 0, height: 0 }}
                         className="ml-3 py-2"
                       >
-                        <textarea
-                          maxLength={1000}
-                          value={noteText}
-                          onChange={(e) => setNoteText(e.target.value.slice(0, 1000))}
-                          placeholder={t("note_placeholder")}
-                          rows={2}
-                          className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none custom-scrollbar"
-                        />
+                        <div className="relative">
+                          <textarea
+                            maxLength={1000}
+                            value={noteText}
+                            onChange={(e) => setNoteText(e.target.value.slice(0, 1000))}
+                            placeholder={t("note_placeholder")}
+                            rows={2}
+                            className="w-full rounded-lg border border-border bg-secondary pl-3 pr-9 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none custom-scrollbar"
+                          />
+                          <div className="absolute right-2 top-2">
+                            <VoiceInputButton
+                              onTranscript={(transcript) => {
+                                setNoteText((prev) => {
+                                  const next = prev ? `${prev.trim()} ${transcript}` : transcript;
+                                  return next.slice(0, 1000);
+                                });
+                              }}
+                              size="xs"
+                              title="Ditar anotação do versículo"
+                            />
+                          </div>
+                        </div>
                         <div className="mt-1 flex gap-2">
                           <button
                             onClick={() => handleSaveNote(v.verse)}

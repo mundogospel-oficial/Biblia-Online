@@ -5,10 +5,11 @@ import {
   Search, Loader2, Clock, X, Filter, Sparkles, Bot, 
   BookOpen, Heart, Highlighter, StickyNote, Copy, 
   ArrowRight, User, Flame, Shield, Star, Sun, Cross, Crown, MessageSquare, Compass, ChevronDown,
-  Eye, CheckCircle2, Bookmark, Share2, Check, Calendar, Trash2
+  Eye, CheckCircle2, Bookmark, Share2, Check, Calendar, Trash2,
+  Feather, CloudRain, Zap, HeartHandshake, Activity, Coins, RefreshCw, Home, ShieldCheck, PartyPopper
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { bibleBooks } from "@/lib/bibleData";
+import { bibleBooks, fetchChapter, loadBibliaLivre } from "@/lib/bibleData";
 import { isFavorite, addFavorite, removeFavorite, ReactionType } from "@/lib/favorites";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -20,8 +21,171 @@ import { devotionals as allDailyDevotionals, Devotional as MainDevotional } from
 import { readingPlans } from "@/lib/readingPlansData";
 import { shareBibleText } from "@/lib/downloadUtils";
 import { syncKeyToSupabase } from "@/services/userSyncService";
+import VoiceInputButton from "@/components/VoiceInputButton";
+import { 
+  SEMANTIC_CONCEPTS, 
+  detectSemanticConcepts, 
+  performSemanticBibleSearch, 
+  SemanticConcept,
+  normalizeSemanticStr
+} from "@/lib/semanticBibleSearch";
 
 const HISTORY_KEY = "bible-search-history";
+
+// Visual configuration for each "Momento da Vida" category using representative Lucide-react icons
+export interface MomentVisualConfig {
+  icon: React.ComponentType<{ className?: string }>;
+  iconBg: string;
+  iconBorder: string;
+  iconColor: string;
+  badgeBg: string;
+  badgeText: string;
+  accentBorder: string;
+}
+
+export const MOMENT_VISUAL_MAP: Record<string, MomentVisualConfig> = {
+  "ansiedade-medo": {
+    icon: Feather, // Leveza, alívio de fardos e paz interior
+    iconBg: "bg-sky-500/15",
+    iconBorder: "border-sky-500/30",
+    iconColor: "text-sky-500",
+    badgeBg: "bg-sky-500/15",
+    badgeText: "text-sky-600 dark:text-sky-400",
+    accentBorder: "hover:border-sky-500/50"
+  },
+  "medo-coragem": {
+    icon: Shield, // Escudo de proteção e bravura
+    iconBg: "bg-amber-500/15",
+    iconBorder: "border-amber-500/30",
+    iconColor: "text-amber-500",
+    badgeBg: "bg-amber-500/15",
+    badgeText: "text-amber-600 dark:text-amber-400",
+    accentBorder: "hover:border-amber-500/50"
+  },
+  "tristeza-luto": {
+    icon: CloudRain, // Consolo divino em dias de lágrimas
+    iconBg: "bg-blue-500/15",
+    iconBorder: "border-blue-500/30",
+    iconColor: "text-blue-500",
+    badgeBg: "bg-blue-500/15",
+    badgeText: "text-blue-600 dark:text-blue-400",
+    accentBorder: "hover:border-blue-500/50"
+  },
+  "cansaco-desanimo": {
+    icon: Zap, // Renovo de energia e forças espirituais
+    iconBg: "bg-yellow-500/15",
+    iconBorder: "border-yellow-500/30",
+    iconColor: "text-yellow-500",
+    badgeBg: "bg-yellow-500/15",
+    badgeText: "text-yellow-600 dark:text-yellow-400",
+    accentBorder: "hover:border-yellow-500/50"
+  },
+  "solidao-rejeicao": {
+    icon: HeartHandshake, // Acolhimento e amizade constante de Cristo
+    iconBg: "bg-rose-500/15",
+    iconBorder: "border-rose-500/30",
+    iconColor: "text-rose-500",
+    badgeBg: "bg-rose-500/15",
+    badgeText: "text-rose-600 dark:text-rose-400",
+    accentBorder: "hover:border-rose-500/50"
+  },
+  "doenca-cura": {
+    icon: Activity, // Vitalidade, cura divina e restauração da saúde
+    iconBg: "bg-emerald-500/15",
+    iconBorder: "border-emerald-500/30",
+    iconColor: "text-emerald-500",
+    badgeBg: "bg-emerald-500/15",
+    badgeText: "text-emerald-600 dark:text-emerald-400",
+    accentBorder: "hover:border-emerald-500/50"
+  },
+  "provisao-financas": {
+    icon: Coins, // Provisão diária, livramento de dívidas e sustento
+    iconBg: "bg-amber-600/15",
+    iconBorder: "border-amber-600/30",
+    iconColor: "text-amber-600 dark:text-amber-400",
+    badgeBg: "bg-amber-600/15",
+    badgeText: "text-amber-700 dark:text-amber-300",
+    accentBorder: "hover:border-amber-600/50"
+  },
+  "perdao-culpa": {
+    icon: RefreshCw, // Graça purificadora, recomeço e remissão
+    iconBg: "bg-purple-500/15",
+    iconBorder: "border-purple-500/30",
+    iconColor: "text-purple-500",
+    badgeBg: "bg-purple-500/15",
+    badgeText: "text-purple-600 dark:text-purple-400",
+    accentBorder: "hover:border-purple-500/50"
+  },
+  "fe-duvida": {
+    icon: Sparkles, // Chama da fé, milagres e firmeza espiritual
+    iconBg: "bg-orange-500/15",
+    iconBorder: "border-orange-500/30",
+    iconColor: "text-orange-500",
+    badgeBg: "bg-orange-500/15",
+    badgeText: "text-orange-600 dark:text-orange-400",
+    accentBorder: "hover:border-orange-500/50"
+  },
+  "sabedoria-direcao": {
+    icon: Compass, // Bússola divina, clareza e discernimento
+    iconBg: "bg-cyan-500/15",
+    iconBorder: "border-cyan-500/30",
+    iconColor: "text-cyan-500",
+    badgeBg: "bg-cyan-500/15",
+    badgeText: "text-cyan-600 dark:text-cyan-400",
+    accentBorder: "hover:border-cyan-500/50"
+  },
+  "familia-casamento": {
+    icon: Home, // Lar abençoado, harmonia familiar e casamento
+    iconBg: "bg-pink-500/15",
+    iconBorder: "border-pink-500/30",
+    iconColor: "text-pink-500",
+    badgeBg: "bg-pink-500/15",
+    badgeText: "text-pink-600 dark:text-pink-400",
+    accentBorder: "hover:border-pink-500/50"
+  },
+  "protecao-espiritual": {
+    icon: ShieldCheck, // Armadura de Deus, cobertura contra ciladas
+    iconBg: "bg-indigo-500/15",
+    iconBorder: "border-indigo-500/30",
+    iconColor: "text-indigo-500",
+    badgeBg: "bg-indigo-500/15",
+    badgeText: "text-indigo-600 dark:text-indigo-400",
+    accentBorder: "hover:border-indigo-500/50"
+  },
+  "gratidao-louvor": {
+    icon: PartyPopper, // Celebração, júbilo e ação de graças
+    iconBg: "bg-yellow-600/15",
+    iconBorder: "border-yellow-600/30",
+    iconColor: "text-yellow-600 dark:text-yellow-400",
+    badgeBg: "bg-yellow-600/15",
+    badgeText: "text-yellow-700 dark:text-yellow-300",
+    accentBorder: "hover:border-yellow-600/50"
+  },
+  "salvacao-graca": {
+    icon: Cross, // A cruz vazia, sacrifício e redenção eterna
+    iconBg: "bg-red-500/15",
+    iconBorder: "border-red-500/30",
+    iconColor: "text-red-500",
+    badgeBg: "bg-red-500/15",
+    badgeText: "text-red-600 dark:text-red-400",
+    accentBorder: "hover:border-red-500/50"
+  }
+};
+
+export function getMomentVisual(id?: string): MomentVisualConfig {
+  if (id && MOMENT_VISUAL_MAP[id]) {
+    return MOMENT_VISUAL_MAP[id];
+  }
+  return {
+    icon: Heart,
+    iconBg: "bg-accent/15",
+    iconBorder: "border-accent/30",
+    iconColor: "text-accent",
+    badgeBg: "bg-accent/15",
+    badgeText: "text-accent",
+    accentBorder: "hover:border-accent/50"
+  };
+}
 
 // Interface for unified devotionals in search page
 export interface UnifiedSearchDevotional {
@@ -64,7 +228,7 @@ const hasExactWord = (source: string, token: string) => {
   return words.some(w => w === token || (token.length >= 4 && w.startsWith(token)));
 };
 
-// Smart Relevance Scoring Engine
+// Smart Relevance Scoring Engine (Léxico + Semântico)
 function calculateRelevanceScore(
   query: string,
   fields: {
@@ -75,7 +239,8 @@ function calculateRelevanceScore(
     badge?: string;
     summary?: string;
     tags?: string[];
-  }
+  },
+  activeConcept?: SemanticConcept | null
 ): number {
   if (!query.trim()) return 1;
 
@@ -92,6 +257,29 @@ function calculateRelevanceScore(
   const tags = (fields.tags || []).map(normalizeStr);
 
   let score = 0;
+
+  // Boost semântico por conceito identificado
+  if (activeConcept) {
+    const fullText = `${primary} ${secondary} ${cat} ${summary} ${tags.join(" ")}`;
+    
+    // Triggers do sentimento
+    for (const trigger of activeConcept.triggers) {
+      const normTrig = normalizeSemanticStr(trigger);
+      if (normTrig && fullText.includes(normTrig)) {
+        score += 75;
+        break;
+      }
+    }
+
+    // Sinônimos bíblicos do sentimento
+    for (const syn of activeConcept.synonyms) {
+      const normSyn = normalizeSemanticStr(syn);
+      if (normSyn && fullText.includes(normSyn)) {
+        score += 45;
+        break;
+      }
+    }
+  }
 
   // Exact or prefix match on Primary Name or Reference
   if (primary === qNorm || ref === qNorm) {
@@ -181,8 +369,12 @@ const SearchPage = () => {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<"todos" | "versiculos" | "planos" | "personagens" | "assuntos" | "devocionais" | "passagens">("todos");
+  const [activeTab, setActiveTab] = useState<"todos" | "versiculos" | "momentos" | "planos" | "personagens" | "assuntos" | "devocionais" | "passagens">("todos");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Estados de Sentimentos e Momentos da Vida
+  const [detectedConcept, setDetectedConcept] = useState<SemanticConcept | null>(null);
+  const [matchedConcepts, setMatchedConcepts] = useState<SemanticConcept[]>([]);
 
   // Devotional Modal state
   const [selectedDevotional, setSelectedDevotional] = useState<UnifiedSearchDevotional | null>(null);
@@ -191,6 +383,7 @@ const SearchPage = () => {
   const [copiedDevotional, setCopiedDevotional] = useState(false);
 
   // Visible counts for "Ver mais" / pagination in tabs
+  const [visibleMomentsCount, setVisibleMomentsCount] = useState(12);
   const [visiblePlansCount, setVisiblePlansCount] = useState(12);
   const [visibleCharactersCount, setVisibleCharactersCount] = useState(12);
   const [visibleTopicsCount, setVisibleTopicsCount] = useState(12);
@@ -256,6 +449,7 @@ const SearchPage = () => {
     addToHistory(q);
 
     // Reset pagination counts when new search is run
+    setVisibleMomentsCount(12);
     setVisiblePlansCount(12);
     setVisibleCharactersCount(12);
     setVisibleTopicsCount(12);
@@ -263,20 +457,7 @@ const SearchPage = () => {
     setVisibleVersesCount(12);
 
     try {
-      try {
-        const res = await fetch(`https://bible-api.com/${encodeURIComponent(q)}?translation=almeida`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.verses?.length) {
-            setResults(data.verses.map((v: any) => ({ book_name: v.book_name, chapter: v.chapter, verse: v.verse, text: v.text })));
-            return;
-          }
-        }
-      } catch (err) {
-        console.warn("[SearchPage] bible-api search failed, trying local fallback:", err);
-      }
-
-      // Offline / Local search fallback by book and chapter/verse
+      // 1. Busca Direta por Referência Bíblica (ex: "João 3:16", "Salmos 23", "1 Co 13:4")
       const match = q.match(/^([1-3]?\s?[A-Za-zÀ-ÿ]+)\s+(\d+)(?::(\d+))?/);
       if (match) {
         const bookInput = match[1].trim().toLowerCase();
@@ -295,18 +476,67 @@ const SearchPage = () => {
             const v = chapData.verses.filter(item => item.verse === verseNum);
             if (v.length) {
               setResults(v.map(item => ({ book_name: book.name, chapter: chapterNum, verse: item.verse, text: item.text })));
+              setDetectedConcept(null);
+              setMatchedConcepts([]);
               return;
             }
           } else if (chapData.verses?.length) {
             setResults(chapData.verses.map(item => ({ book_name: book.name, chapter: chapterNum, verse: item.verse, text: item.text })));
+            setDetectedConcept(null);
+            setMatchedConcepts([]);
             return;
           }
         }
       }
 
+      // 2. Motor Léxico-Semântico Offline de Sentimentos, Dores e Conceitos Bíblicos
+      let localBibleData: any[] | null = null;
+      try {
+        localBibleData = await loadBibliaLivre();
+      } catch (e) {
+        console.warn("[SearchPage] Bíblia Livre local em carregamento ou indisponível:", e);
+      }
+
+      const semanticRes = await performSemanticBibleSearch(q, localBibleData || undefined);
+      if (semanticRes.verses.length > 0) {
+        setResults(semanticRes.verses.map(v => ({
+          book_name: v.book_name,
+          chapter: v.chapter,
+          verse: v.verse,
+          text: v.text,
+          contextReason: v.contextReason,
+          conceptEmoji: v.conceptEmoji,
+          conceptName: v.conceptName
+        })));
+        setDetectedConcept(semanticRes.detectedConcept);
+        setMatchedConcepts(semanticRes.allMatchedConcepts);
+        return;
+      }
+
+      // 3. Fallback online com API pública caso o termo não tenha correspondido localmente
+      try {
+        const res = await fetch(`https://bible-api.com/${encodeURIComponent(q)}?translation=almeida`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.verses?.length) {
+            setResults(data.verses.map((v: any) => ({ book_name: v.book_name, chapter: v.chapter, verse: v.verse, text: v.text })));
+            setDetectedConcept(null);
+            setMatchedConcepts([]);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("[SearchPage] bible-api search fallback failed:", err);
+      }
+
       setResults([]);
-    } catch {
+      setDetectedConcept(null);
+      setMatchedConcepts([]);
+    } catch (err) {
+      console.error("[SearchPage] Erro durante a pesquisa:", err);
       setResults([]);
+      setDetectedConcept(null);
+      setMatchedConcepts([]);
     } finally {
       setLoading(false);
     }
@@ -333,6 +563,12 @@ const SearchPage = () => {
     });
   };
 
+  // Conceito semântico ativo calculado a partir da busca do usuário
+  const activeSemanticConcept = useMemo(() => {
+    if (!searchQuery.trim()) return null;
+    return detectSemanticConcepts(searchQuery).topConcept;
+  }, [searchQuery]);
+
   // Rank Matched Entities (Personagens & Conhecimento Geral)
   const matchedEntities = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -345,12 +581,12 @@ const SearchPage = () => {
           badge: entity.badge,
           summary: entity.summary,
           tags: entity.tags
-        })
+        }, activeSemanticConcept)
       }))
       .filter(item => item.score > 20)
       .sort((a, b) => b.score - a.score)
       .map(item => item.entity);
-  }, [searchQuery]);
+  }, [searchQuery, activeSemanticConcept]);
 
   // Rank Characters
   const filteredCharacters = useMemo(() => {
@@ -364,12 +600,12 @@ const SearchPage = () => {
           badge: c.badge,
           summary: c.summary,
           tags: c.tags
-        })
+        }, activeSemanticConcept)
       }))
       .filter(item => item.score > 15)
       .sort((a, b) => b.score - a.score)
       .map(item => item.character);
-  }, [searchQuery]);
+  }, [searchQuery, activeSemanticConcept]);
 
   // Rank Topics / Conhecimento
   const filteredTopics = useMemo(() => {
@@ -383,12 +619,12 @@ const SearchPage = () => {
           badge: t.badge,
           summary: t.summary,
           tags: t.tags
-        })
+        }, activeSemanticConcept)
       }))
       .filter(item => item.score > 15)
       .sort((a, b) => b.score - a.score)
       .map(item => item.topic);
-  }, [searchQuery]);
+  }, [searchQuery, activeSemanticConcept]);
 
   // Rank Reading Plans
   const filteredReadingPlans = useMemo(() => {
@@ -403,12 +639,12 @@ const SearchPage = () => {
           category: p.category,
           badge: p.badge,
           summary: p.description
-        })
+        }, activeSemanticConcept)
       }))
       .filter(item => item.score > 15)
       .sort((a, b) => b.score - a.score)
       .map(item => item.plan);
-  }, [searchQuery]);
+  }, [searchQuery, activeSemanticConcept]);
 
   // Rank Devotionals
   const filteredDevotionals = useMemo(() => {
@@ -422,12 +658,12 @@ const SearchPage = () => {
           category: d.category,
           reference: d.reference,
           summary: d.meditation
-        })
+        }, activeSemanticConcept)
       }))
       .filter(item => item.score > 15)
       .sort((a, b) => b.score - a.score)
       .map(item => item.devotional);
-  }, [searchQuery, unifiedSearchDevotionals]);
+  }, [searchQuery, unifiedSearchDevotionals, activeSemanticConcept]);
 
   // Rank Popular Verses
   const filteredPopularVerses = useMemo(() => {
@@ -441,11 +677,31 @@ const SearchPage = () => {
           reference: v.reference,
           category: v.theme,
           summary: v.text
-        })
+        }, activeSemanticConcept)
       }))
       .filter(item => item.score > 15)
       .sort((a, b) => b.score - a.score)
       .map(item => item.verse);
+  }, [searchQuery, activeSemanticConcept]);
+
+  // Rank Momentos da Vida & Emoções
+  const filteredMoments = useMemo(() => {
+    if (!searchQuery.trim()) return SEMANTIC_CONCEPTS;
+    const qNorm = normalizeSemanticStr(searchQuery);
+    return SEMANTIC_CONCEPTS.filter((c) => {
+      const nameNorm = normalizeSemanticStr(c.name);
+      const badgeNorm = normalizeSemanticStr(c.badge);
+      const descNorm = normalizeSemanticStr(c.description);
+      const trigMatch = c.triggers.some((t) => {
+        const tNorm = normalizeSemanticStr(t);
+        return tNorm.includes(qNorm) || qNorm.includes(tNorm);
+      });
+      const synMatch = c.synonyms.some((s) => {
+        const sNorm = normalizeSemanticStr(s);
+        return sNorm.includes(qNorm) || qNorm.includes(sNorm);
+      });
+      return nameNorm.includes(qNorm) || badgeNorm.includes(qNorm) || descNorm.includes(qNorm) || trigMatch || synMatch;
+    });
   }, [searchQuery]);
 
   return (
@@ -493,19 +749,30 @@ const SearchPage = () => {
                       }
                     }}
                     placeholder="Busque sobre algo bíblico..."
-                    className={`w-full rounded-xl glass-card py-3 sm:py-3.5 ${query ? "pl-4" : "pl-10"} pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent transition-all duration-200 shadow-sm`}
+                    className={`w-full rounded-xl glass-card py-3 sm:py-3.5 ${query ? "pl-4" : "pl-10"} pr-20 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent transition-all duration-200 shadow-sm`}
                   />
                   {!query && <Search className="absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />}
-                  {query && (
-                    <button
-                      type="button"
-                      aria-label="Limpar campo de busca"
-                      onClick={() => { setQuery(""); setSearchQuery(""); setSearched(false); setResults([]); }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
+                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
+                    <VoiceInputButton
+                      onTranscript={(transcript) => {
+                        const newQuery = query ? `${query.trim()} ${transcript}` : transcript;
+                        setQuery(newQuery);
+                        handleSearch(newQuery);
+                      }}
+                      size="xs"
+                      title="Pesquisar por voz"
+                    />
+                    {query && (
+                      <button
+                        type="button"
+                        aria-label="Limpar campo de busca"
+                        onClick={() => { setQuery(""); setSearchQuery(""); setSearched(false); setResults([]); }}
+                        className="p-1 text-muted-foreground hover:text-foreground cursor-pointer"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <button type="submit" disabled={loading || !query.trim()} aria-label="Executar busca bíblica" className="rounded-xl bg-primary px-4 sm:px-5 py-3 sm:py-3.5 text-xs sm:text-sm font-semibold text-primary-foreground disabled:opacity-50 transition-all hover:opacity-90 shadow-sm flex items-center gap-1.5 shrink-0 active:scale-95">
@@ -543,11 +810,79 @@ const SearchPage = () => {
             </form>
           </div>
 
+          {/* CARD DE DESTAQUE QUANDO MOMENTO DA VIDA É IDENTIFICADO */}
+          {searched && detectedConcept && (() => {
+            const visual = getMomentVisual(detectedConcept.id);
+            const MomentIcon = visual.icon;
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`rounded-2xl border ${visual.iconBorder} bg-gradient-to-r from-card via-card to-accent/10 p-4 sm:p-5 shadow-sm space-y-3`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3.5 min-w-0">
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${visual.iconBg} border ${visual.iconBorder} shadow-2xs relative`}>
+                      <MomentIcon className={`h-6 w-6 ${visual.iconColor}`} />
+                      <span className="absolute -bottom-1 -right-1 text-sm">{detectedConcept.emoji}</span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${visual.badgeBg} ${visual.badgeText}`}>
+                          Momento da Vida • {detectedConcept.badge}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground font-medium">
+                          {results.length} versículos encontrados
+                        </span>
+                      </div>
+                      <h2 className="font-serif text-base sm:text-lg font-bold text-foreground mt-0.5">
+                        {detectedConcept.name}
+                      </h2>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        {detectedConcept.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {matchedConcepts.length > 1 && (
+                  <div className="pt-2 border-t border-border/30 flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[11px] font-medium text-muted-foreground">Outros temas relacionados:</span>
+                    {matchedConcepts.map((c) => {
+                      const isCurrent = c.id === detectedConcept.id;
+                      const cVisual = getMomentVisual(c.id);
+                      const CIcon = cVisual.icon;
+                      return (
+                        <button
+                          key={c.id}
+                          onClick={() => {
+                            setDetectedConcept(c);
+                            handleSearch(c.name);
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
+                            isCurrent
+                              ? "bg-accent text-accent-foreground shadow-2xs"
+                              : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80"
+                          }`}
+                        >
+                          <CIcon className="h-3 w-3 shrink-0" />
+                          <span>{c.emoji}</span>
+                          <span>{c.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </motion.div>
+            );
+          })()}
+
           {/* Quick Category Tabs with Counts */}
           <div className="flex gap-1.5 overflow-x-auto pb-2.5 scroll-smooth themed-scrollbar border-b border-border/30 relative [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-1 px-1">
             {[
               { id: "todos", label: "Todos e Destaques", icon: Compass },
               ...(searched && results.length > 0 ? [{ id: "versiculos", label: `Versículos (${results.length})`, icon: BookOpen }] : []),
+              { id: "momentos", label: `Momentos da Vida (${filteredMoments.length})`, icon: Heart },
               { id: "planos", label: `Planos Diários (${filteredReadingPlans.length})`, icon: Calendar },
               { id: "personagens", label: `Personagens (${filteredCharacters.length})`, icon: User },
               { id: "assuntos", label: `Conhecimento (${filteredTopics.length})`, icon: BookOpen },
@@ -707,7 +1042,20 @@ const SearchPage = () => {
                     <motion.div key={`${i}-${refreshTrigger}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}>
                       <Link to={`/livro/${abbrev}/${r.chapter}`} className="relative block rounded-xl glass-card p-4 transition-all hover:border-accent/60 shadow-sm">
                         <div className="flex items-start justify-between mb-1.5">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-accent">{reference}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-accent">{reference}</p>
+                            {r.conceptName && (() => {
+                              const vVisual = getMomentVisual(r.conceptId);
+                              const VIcon = vVisual.icon;
+                              return (
+                                <span className={`rounded px-1.5 py-0.5 text-[9px] font-semibold flex items-center gap-1 ${vVisual.badgeBg} ${vVisual.badgeText}`}>
+                                  <VIcon className="h-2.5 w-2.5 shrink-0" />
+                                  <span>{r.conceptEmoji}</span>
+                                  <span>{r.conceptName}</span>
+                                </span>
+                              );
+                            })()}
+                          </div>
                           <div className="flex items-center gap-2">
                             <button onClick={(e) => toggleReaction(e, "favorites")} title="Favoritos" className={`p-1 transition-colors ${isFavorite(verseId, "favorites") ? "text-accent" : "text-muted-foreground hover:text-accent"}`}>
                               <Heart className={`h-3.5 w-3.5 ${isFavorite(verseId, "favorites") ? "fill-accent" : ""}`} />
@@ -721,6 +1069,12 @@ const SearchPage = () => {
                           </div>
                         </div>
                         <p className="font-serif text-xs sm:text-sm leading-relaxed text-card-foreground">"{r.text}"</p>
+                        {r.contextReason && (
+                          <div className="mt-2.5 pt-2 border-t border-border/20 flex items-center gap-1.5 text-[11px] text-accent/90 font-medium">
+                            <span className="text-xs">{r.conceptEmoji || "💡"}</span>
+                            <span className="leading-snug">{r.contextReason}</span>
+                          </div>
+                        )}
                       </Link>
                     </motion.div>
                   );
@@ -782,6 +1136,141 @@ const SearchPage = () => {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT: MOMENTOS DA VIDA & EMOÇÕES */}
+            {((activeTab === "todos" && filteredMoments.length > 0) || activeTab === "momentos") && (
+              <div className="space-y-4">
+                {activeTab === "momentos" && (
+                  <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-card/90 via-card/70 to-accent/10 p-4 sm:p-5 shadow-xs">
+                    <div className="flex items-center gap-3.5">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/20 border border-accent/30 text-accent shadow-xs">
+                        <Heart className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h2 className="font-serif text-base sm:text-lg font-bold text-foreground">
+                          Momentos da Vida e Sentimentos
+                        </h2>
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                          Selecione o que você ou alguém próximo está vivendo para encontrar alento, consolo e promessas bíblicas sob medida.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2 min-w-0 flex-1">
+                    <Heart className="h-4 w-4 text-accent shrink-0 mt-0.5" />
+                    <h2 className="font-serif text-sm sm:text-base font-bold text-foreground leading-snug">
+                      {activeTab === "momentos" ? "Todas as Categorias" : "Momentos da Vida e Sentimentos"}{" "}
+                      <span className="text-xs font-normal text-muted-foreground font-sans whitespace-nowrap">
+                        ({filteredMoments.length})
+                      </span>
+                    </h2>
+                  </div>
+                  {activeTab === "todos" && (
+                    <button
+                      onClick={() => setActiveTab("momentos")}
+                      className="text-xs text-accent hover:underline font-medium shrink-0 whitespace-nowrap pt-0.5 cursor-pointer"
+                    >
+                      Ver Todos ({filteredMoments.length}) →
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {filteredMoments.slice(0, activeTab === "todos" ? 4 : visibleMomentsCount).map((moment) => {
+                    const visual = getMomentVisual(moment.id);
+                    const MomentIcon = visual.icon;
+                    return (
+                      <motion.div
+                        key={moment.id}
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`glass-card rounded-xl p-3.5 sm:p-4 space-y-3 border border-border/40 ${visual.accentBorder} transition-all flex flex-col justify-between hover:shadow-md hover:shadow-accent/5 group overflow-hidden w-full`}
+                      >
+                        <div className="space-y-2.5 min-w-0">
+                          <div className="flex items-start justify-between gap-2.5">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${visual.iconBg} border ${visual.iconBorder} shadow-2xs`}>
+                                <MomentIcon className={`h-5 w-5 ${visual.iconColor}`} />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${visual.badgeBg} ${visual.badgeText}`}>
+                                    {moment.badge}
+                                  </span>
+                                  <span className="text-xs">{moment.emoji}</span>
+                                </div>
+                                <h3 className="font-serif text-sm sm:text-base font-bold text-foreground group-hover:text-accent transition-colors truncate mt-0.5">
+                                  {moment.name}
+                                </h3>
+                              </div>
+                            </div>
+                          </div>
+
+                          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                            {moment.description}
+                          </p>
+
+                          {/* Quick curated verses pill tags */}
+                          <div className="flex flex-wrap gap-1 pt-0.5">
+                            {moment.curatedVerses.slice(0, 3).map((v, vi) => (
+                              <span
+                                key={vi}
+                                className="text-[10px] bg-secondary/80 text-muted-foreground px-2 py-0.5 rounded-md font-mono"
+                              >
+                                {v.reference}
+                              </span>
+                            ))}
+                            {moment.curatedVerses.length > 3 && (
+                              <span className="text-[10px] text-muted-foreground/80 px-1 py-0.5">
+                                +{moment.curatedVerses.length - 3} mais
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-border/20 flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1 truncate">
+                            <BookOpen className="h-3 w-3 shrink-0 text-muted-foreground/70" />
+                            {moment.curatedVerses.length} passagens
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDetectedConcept(moment);
+                              handleSearch(moment.name);
+                            }}
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-accent hover:underline shrink-0 ml-auto cursor-pointer group-hover:translate-x-0.5 transition-transform"
+                          >
+                            <span>Ver Versículos</span>
+                            <ArrowRight className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+
+                {filteredMoments.length === 0 && activeTab === "momentos" && (
+                  <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs font-medium text-muted-foreground my-2">
+                    Nenhum momento da vida encontrado para sua busca.
+                  </div>
+                )}
+
+                {activeTab === "momentos" && visibleMomentsCount < filteredMoments.length && (
+                  <div className="text-center pt-2">
+                    <button
+                      onClick={() => setVisibleMomentsCount(prev => prev + 12)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-5 py-2.5 text-xs font-bold text-foreground hover:border-accent hover:text-accent transition-all shadow-sm cursor-pointer"
+                    >
+                      <ChevronDown className="h-4 w-4" /> Carregar Mais Momentos ({filteredMoments.length - visibleMomentsCount} restantes)
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

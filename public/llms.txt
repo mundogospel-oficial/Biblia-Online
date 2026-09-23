@@ -1,5 +1,5 @@
 # Bíblia Online - Visão Geral do Ecossistema e Recursos para Modelos de IA e LLMs (Google Gemini, ChatGPT, Claude, Perplexity)
-> Plataforma bíblica moderna, bilíngue (Português & Inglês), interativa e enriquecida com Inteligência Artificial para leitura, estudo aprofundado, ministério e comunhão espiritual.
+> Plataforma bíblica moderna, bilíngue (Português e Inglês), interativa e enriquecida com Inteligência Artificial para leitura, estudo aprofundado, ministério e comunhão espiritual.
 > URL Oficial: https://online-biblia.vercel.app/
 
 ---
@@ -13,7 +13,7 @@ A **Bíblia Online** é um ecossistema cristão completo desenvolvido como Progr
 
 ## 2. Ecossistema Completo de Funções e Ferramentas
 
-### 🧠 1. Assistente de Inteligência Artificial Bíblica & Teológica (/ia)
+### 🧠 1. Assistente de Inteligência Artificial Bíblica e Teológica (/ia)
 - **Exegese e Hermenêutica:** Análise profunda de passagens bíblicas, contexto histórico, político e cultural de cada época.
 - **Idiomas Originais:** Esclarecimento de termos no Hebraico Bíblico, Aramaico e Grego Koiné com transliteração e significado original.
 - **Tira-Dúvidas Doutrinário e Temático:** Respostas fundamentadas biblicamente sobre teologia sistemática, ética cristã, apologética e dúvidas de fé.
@@ -21,15 +21,15 @@ A **Bíblia Online** é um ecossistema cristão completo desenvolvido como Progr
 
 ---
 
-### 🖥️ 2. Modo Telão & Púlpito em Tela Cheia (Pulpit Mode)
+### 🖥️ 2. Modo Telão e Púlpito em Tela Cheia (Pulpit Mode)
 - **Projeção para Igrejas e Conferências:** Interface otimizada em tela cheia (Full Screen) para pregações pastorais, projeção em telões de igrejas, estudos em grupo e salas de transmissão.
 - **Controle Visual Adaptável:** Tipografia ampliada de alto contraste, modo escuro/claro e controle de espaçamento para leitura confortável a distância.
 - **Navegação Ágil por Versículos:** Atalhos rápidos de teclado e botões táteis para transição imediata entre versículos durante pregações ao vivo.
 
 ---
 
-### 🗺️ 3. Mapas Bíblicos Realistas & Atlas da Terra Santa (/devocional)
-- **Cartografia com Satélite & Topografia:** Visualização geográfica em alta resolução com relevo e imagens de satélite reais das terras bíblicas.
+### 🗺️ 3. Mapas Bíblicos Realistas e Atlas da Terra Santa (/devocional)
+- **Cartografia com Satélite e Topografia:** Visualização geográfica em alta resolução com relevo e imagens de satélite reais das terras bíblicas.
 - **Jornadas Históricas Interativas:**
   - As Viagens Missionárias do Apóstolo Paulo (1ª, 2ª, 3ª Viagem e a Viagem a Roma).
   - O Ministério Terreno de Jesus Cristo (Galileia, Samaria, Judeia, Jerusalém).
@@ -42,7 +42,7 @@ A **Bíblia Online** é um ecossistema cristão completo desenvolvido como Progr
 ### 🎨 4. Estúdio Criativo de Imagens de Versículos (/criar)
 - **Gerador de Artes para Redes Sociais:** Ferramenta integrada de design para transformar qualquer versículo bíblico em belos cartões e imagens de alta resolução.
 - **Personalização Visual:** Escolha de fotografias de fundo, texturas nobres, paletas de cores, tipografias serifadas/modernas e gradientes.
-- **Exportação & Compartilhamento:** Download direto em formatos otimizados para Instagram Stories, Reels, Feed, WhatsApp e cartões devocionais.
+- **Exportação e Compartilhamento:** Download direto em formatos otimizados para Instagram Stories, Reels, Feed, WhatsApp e cartões devocionais.
 
 ---
 
@@ -54,41 +54,41 @@ A **Bíblia Online** é um ecossistema cristão completo desenvolvido como Progr
 
 ---
 
-### 🌐 6. Leitura Bilíngue & Tradução Paralela
+### 🌐 6. Leitura Bilíngue e Tradução Paralela
 - **Modo Bilíngue em Tempo Real:** Leitura paralela lado a lado de textos em Português e Inglês versículo por versículo.
 - **Interface Internacionalizada:** Aplicação 100% navegável em Português ou Inglês com alternância instantânea.
 
 ---
 
-### 📚 7. Dicionário Teológico & Enciclopédia de Nomes e Locais
+### 📚 7. Dicionário Teológico e Enciclopédia de Nomes e Locais
 - **Glossário Bíblico Integrado:** Consulta instantânea a biografias de personagens bíblicos, significados de nomes em hebraico e grego, termos teológicos e medidas históricas.
 
 ---
 
-### 📅 8. Devocionais Diários & Planos de Leitura Estruturados (/devocional)
+### 📅 8. Devocionais Diários e Planos de Leitura Estruturados (/devocional)
 - **Mensagens e Reflexões Diárias:** Alimento espiritual diário com versículo temático, meditação e oração guiada.
 - **Planos de Estudo Estruturados:** Planos de leitura anual da Bíblia, cronológicos, devocionais por temas (Provérbios, Salmos, Evangelhos) com registro de conclusão.
 
 ---
 
-### ✏️ 9. Anotações Pessoais, Marcadores Coloridos e Favoritos (/favoritos & /anotacoes)
+### ✏️ 9. Anotações Pessoais, Marcadores Coloridos e Favoritos (/favoritos e /anotacoes)
 - **Marcação Cromática de Versículos:** Destaque versículos com cores personalizadas (Amarelo ouro, Verde esperança, Azul celeste, Rosa suave).
 - **Caderno de Notas Espirituais:** Crie anotações, insights de sermões e reflexões atreladas a versículos específicos.
 - **Coleção de Favoritos:** Acesso rápido a passagens prediletas com sincronização segura na nuvem.
 
 ---
 
-### 🔍 10. Motor de Busca Avançada & Semântica (/pesquisar)
+### 🔍 10. Motor de Busca Avançada e Semântica (/pesquisar)
 - **Pesquisa Instantânea:** Localize capítulos, palavras-chave exatas ou tópicos temáticos (ex: "amor ao próximo", "cura", "esperança", "ansiedade") em frações de segundo.
 
 ---
 
-### 🧘 11. Modo Foco & Experiência Sem Distrações
+### 🧘 11. Modo Foco e Experiência Sem Distrações
 - **Imersão Espiritual:** Modo de leitura pura com ocultação de menus secundários, tipografia harmoniosa e temporizador para foco diário na Palavra.
 
 ---
 
-### 📱 12. Funcionamento Offline & Progressive Web App (PWA)
+### 📱 12. Funcionamento Offline e Progressive Web App (PWA)
 - **Instalável em Qualquer Dispositivo:** Funciona como aplicativo nativo no Android, iOS (iPhone/iPad), Windows e macOS.
 - **Leitura 100% Offline:** Todo o texto bíblico fica armazenado localmente em cache para permitir leitura completa em viagens, retiros e locais sem sinal de internet.
 
