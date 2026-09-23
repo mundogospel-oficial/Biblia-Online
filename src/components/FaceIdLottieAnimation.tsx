@@ -35,16 +35,17 @@ export const FaceIdLottieAnimation: React.FC<FaceIdLottieAnimationProps> = ({
       }
 
       // Carrega o arquivo JSON original separado sem alterar nada nele
-      // Usa renderer 'canvas' para compatibilidade perfeita com todas as camadas e efeitos
+      // Usa renderer 'svg' para renderizar perfeitamente máscaras e camadas vetoriais
       const anim = lottie.loadAnimation({
         container: containerRef.current,
-        renderer: "canvas",
+        renderer: "svg",
         loop: loop,
         autoplay: autoplay,
         animationData: faceIdAnimationData,
         rendererSettings: {
           preserveAspectRatio: "xMidYMid meet",
-          clearCanvas: true,
+          progressiveLoad: true,
+          hideOnTransparent: true,
         },
       });
 
@@ -69,21 +70,23 @@ export const FaceIdLottieAnimation: React.FC<FaceIdLottieAnimationProps> = ({
     if (!anim) return;
 
     if (isSuccess) {
-      // Avança para o quadro de validação/sucesso (checkmark verde)
+      // Quadro de validação / checkmark de sucesso
       anim.loop = false;
-      anim.playSegments([90, 180], true);
+      anim.playSegments([112, 180], true);
       const timer = setTimeout(() => {
-        if (onComplete) onComplete();
+        onComplete?.();
       }, 900);
       return () => clearTimeout(timer);
     } else if (authenticating) {
+      // Leitura biométrica ativa com anéis de varredura
       anim.loop = true;
-      anim.playSegments([0, 90], true);
+      anim.playSegments([0, 112], true);
     } else {
-      anim.loop = loop;
-      anim.play();
+      // Estado de repouso / ícone pronto
+      anim.loop = false;
+      anim.goToAndStop(0, true);
     }
-  }, [isSuccess, authenticating, loop, onComplete]);
+  }, [isSuccess, authenticating, onComplete]);
 
   const containerStyle: React.CSSProperties = {
     width: size ?? undefined,
