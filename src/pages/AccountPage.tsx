@@ -1137,23 +1137,25 @@ const AccountPage = () => {
                 </div>
 
                 <div className="relative mx-auto mb-3 h-24 w-24">
-                  {/* Fallback clássico com ícone do boneco (User) */}
-                  <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-accent/80 to-primary/80 ring-2 ring-accent/40 ring-offset-2 ring-offset-background/80 shadow-lg shadow-accent/20 select-none overflow-hidden">
-                    <User className="h-12 w-12 text-primary-foreground shrink-0" />
-                  </div>
-
-                  {/* Foto de perfil / Logo real (se informada e carregada com sucesso) */}
-                  {avatarUrl && !avatarImgFailed && (
-                    <img 
-                      src={avatarUrl} 
-                      alt={displayName || "Perfil"} 
-                      className="absolute inset-0 h-24 w-24 rounded-full object-cover ring-2 ring-accent/40 ring-offset-2 ring-offset-background/80 shadow-lg shadow-accent/20 select-none pointer-events-none transition-opacity duration-300"
-                      loading="eager"
-                      onError={() => {
-                        console.warn("Avatar image not available on CDN, displaying fallback user icon");
-                        setAvatarImgFailed(true);
-                      }}
-                    />
+                  {/* Se houver foto/logo válida, renderiza exclusivamente a imagem em um fundo limpo */}
+                  {avatarUrl && !avatarImgFailed ? (
+                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-secondary/80 ring-2 ring-accent/40 ring-offset-2 ring-offset-background/80 shadow-lg shadow-accent/20 select-none overflow-hidden">
+                      <img 
+                        src={avatarUrl} 
+                        alt={displayName || "Perfil"} 
+                        className="h-full w-full rounded-full object-cover select-none pointer-events-none transition-opacity duration-300"
+                        loading="eager"
+                        onError={() => {
+                          console.warn("Avatar image not available on CDN, displaying fallback user icon");
+                          setAvatarImgFailed(true);
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    /* Fallback clássico exclusivo com ícone do boneco (User) quando não há foto/logo */
+                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-accent/80 to-primary/80 ring-2 ring-accent/40 ring-offset-2 ring-offset-background/80 shadow-lg shadow-accent/20 select-none overflow-hidden">
+                      <User className="h-12 w-12 text-primary-foreground shrink-0" />
+                    </div>
                   )}
                   <button 
                     type="button"
