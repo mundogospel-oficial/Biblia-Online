@@ -24,35 +24,39 @@ import {
   Clock,
   MapPin
 } from "lucide-react";
-import { devotionals, Devotional } from "@/lib/devotionalsData";
-import { readingPlans } from "@/lib/readingPlansData";
+import { getLocalizedDevotionals, getTodayDevotional } from "@/lib/devotionalsData";
+import { readingPlans, getLocalizedReadingPlans } from "@/lib/readingPlansData";
 import { getFavoritePlanIds, toggleFavoritePlan } from "@/services/readingPlanService";
 import { shareBibleText } from "@/lib/downloadUtils";
 import { ReadingPlansSection } from "@/components/ReadingPlansSection";
 import { BiblicalMapsSection } from "@/components/BiblicalMapsSection";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 // Helper function to get the icon associated with a category
 const getCategoryIcon = (category: string) => {
   switch (category) {
-    case "Fé": return <Cross className="h-4 w-4" />;
-    case "Amor": return <Heart className="h-4 w-4" />;
-    case "Paz": return <Cloud className="h-4 w-4" />;
-    case "Força": return <Flame className="h-4 w-4" />;
-    case "Gratidão": return <Star className="h-4 w-4" />;
-    case "Sabedoria": return <BookOpen className="h-4 w-4" />;
-    case "Ansiedade": return <Zap className="h-4 w-4" />;
-    case "Esperança": return <Sun className="h-4 w-4" />;
-    case "Oração": return <HeartHandshake className="h-4 w-4" />;
-    case "Propósito": return <Sparkles className="h-4 w-4" />;
-    case "Proteção": return <Gift className="h-4 w-4" />;
+    case "Fé": case "Faith": return <Cross className="h-4 w-4" />;
+    case "Amor": case "Love": return <Heart className="h-4 w-4" />;
+    case "Paz": case "Peace": return <Cloud className="h-4 w-4" />;
+    case "Força": case "Strength": return <Flame className="h-4 w-4" />;
+    case "Gratidão": case "Gratitude": return <Star className="h-4 w-4" />;
+    case "Sabedoria": case "Wisdom": return <BookOpen className="h-4 w-4" />;
+    case "Ansiedade": case "Anxiety": return <Zap className="h-4 w-4" />;
+    case "Esperança": case "Hope": return <Sun className="h-4 w-4" />;
+    case "Oração": case "Prayer": return <HeartHandshake className="h-4 w-4" />;
+    case "Propósito": case "Purpose": return <Sparkles className="h-4 w-4" />;
+    case "Proteção": case "Protection": return <Gift className="h-4 w-4" />;
     default: return <BookOpen className="h-4 w-4" />;
   }
 };
 
 const DevotionalPage = () => {
   const { isBeta, isAdmin, role } = useAuth();
+  const { t, language } = useLanguage();
   const canAccessBeta = isBeta || isAdmin || role === "beta" || role === "admin";
+
+  const devotionals = useMemo(() => getLocalizedDevotionals(language), [language]);
 
   const [activeTab, setActiveTab] = useState<"hoje" | "planos" | "mapas" | "explorar" | "favoritos">("hoje");
   const [searchQuery, setSearchQuery] = useState("");
@@ -98,26 +102,22 @@ const DevotionalPage = () => {
     localStorage.setItem("biblia-devocionais-favoritos", JSON.stringify(updated));
   };
 
-  // Determine the Devotional of the Day based on the current date seed
+  // Determine the Devotional of the Day based on current language
   const todayDevotional = useMemo(() => {
-    const today = new Date();
-    // Calculate a unique seed based on year, month and day
-    const seed = today.getFullYear() * 1000 + (today.getMonth() + 1) * 100 + today.getDate();
-    // Ensure the index wraps around nicely
-    const index = seed % devotionals.length;
-    return devotionals[index];
-  }, []);
+    return getTodayDevotional(language);
+  }, [language]);
 
-  // Format today's date in Portuguese
+  // Format today's date based on current language
   const formattedTodayDate = useMemo(() => {
     const today = new Date();
-    return today.toLocaleDateString("pt-BR", {
+    const locale = language === "en" ? "en-US" : "pt-BR";
+    return today.toLocaleDateString(locale, {
       weekday: "long",
       day: "numeric",
       month: "long",
       year: "numeric"
     });
-  }, []);
+  }, [language]);
 
   // Copy helper
   const handleCopy = (key: string, text: string) => {
@@ -132,7 +132,12 @@ const DevotionalPage = () => {
   const categories = useMemo(() => {
     const list = new Set(devotionals.map(d => d.category));
     return ["Todas", ...Array.from(list)];
-  }, []);
+  }, [devotionals]);
+
+  // Reset category on language change if current selection is invalid
+  useEffect(() => {
+    setSelectedCategory("Todas");
+  }, [language]);
 
   // Filter devotionals based on search and category selected
   const filteredDevotionals = useMemo(() => {
@@ -146,12 +151,12 @@ const DevotionalPage = () => {
         d.meditation.toLowerCase().includes(cleanQuery);
       return matchesCategory && matchesSearch;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory, devotionals]);
 
   // Favorited devotionals
   const favoritedDevotionals = useMemo(() => {
     return devotionals.filter(d => favoritedIds.includes(d.id));
-  }, [favoritedIds]);
+  }, [favoritedIds, devotionals]);
 
   return (
     <div className={`min-h-screen bg-background ${isMapsFullscreen ? "pb-0 overflow-y-auto lg:overflow-hidden" : "pb-20 md:pb-0"}`}>
@@ -175,10 +180,10 @@ const DevotionalPage = () => {
               <div>
                 <div className="flex items-center gap-2">
                   <Calendar className="h-5 w-5 text-accent sm:h-6 sm:w-6" />
-                  <h1 className="font-serif text-xl font-bold text-foreground sm:text-2xl">Devocionais e Planos Diários</h1>
+                  <h1 className="font-serif text-xl font-bold text-foreground sm:text-2xl">{t("devotional_title")}</h1>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-                  Meditações diárias e planos de leitura estruturados para fortalecer sua fé a cada dia.
+                  {t("devotional_subtitle")}
                 </p>
               </div>
             </div>
@@ -188,11 +193,11 @@ const DevotionalPage = () => {
           {!isMapsFullscreen && (
             <div className="mb-6 flex gap-1.5 overflow-x-auto pb-2.5 border-b border-border/30 relative scroll-smooth themed-scrollbar select-none">
               {[
-                { id: "hoje", label: "Devocional de Hoje", icon: Sparkles },
-                { id: "planos", label: "Planos de Leitura", icon: BookOpen },
-                ...(canAccessBeta ? [{ id: "mapas", label: "Mapas Bíblicos", icon: MapPin, isBeta: true }] : []),
-                { id: "explorar", label: `Explorar Devocionais (${devotionals.length})`, icon: Compass },
-                { id: "favoritos", label: `Meus Favoritos (${favoritedIds.length + favoritedPlanIds.length})`, icon: Heart },
+                { id: "hoje", label: t("tab_today_devotional"), icon: Sparkles },
+                { id: "planos", label: t("tab_reading_plans"), icon: BookOpen },
+                ...(canAccessBeta ? [{ id: "mapas", label: t("tab_biblical_maps"), icon: MapPin, isBeta: true }] : []),
+                { id: "explorar", label: `${t("tab_explore_devotionals")} (${devotionals.length})`, icon: Compass },
+                { id: "favoritos", label: `${t("tab_my_favorites")} (${favoritedIds.length + favoritedPlanIds.length})`, icon: Heart },
               ].map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -246,7 +251,7 @@ const DevotionalPage = () => {
                 <div className="glass-card rounded-2xl p-5 sm:p-6 border border-border bg-card/50 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="space-y-1.5">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/15 px-3 py-1 text-xs font-bold text-accent border border-accent/20">
-                      <Sparkles className="h-3.5 w-3.5" /> Meditação do Dia
+                      <Sparkles className="h-3.5 w-3.5" /> {t("meditation_of_the_day")}
                     </span>
                     <h2 className="font-serif text-lg sm:text-xl font-bold text-foreground capitalize">
                       {formattedTodayDate}
@@ -254,7 +259,7 @@ const DevotionalPage = () => {
                   </div>
                   <div className="inline-flex items-center gap-1.5 rounded-full bg-secondary/60 px-3.5 py-1.5 text-xs font-medium text-muted-foreground border border-border/80 shadow-xs shrink-0 self-start md:self-center">
                     <Clock className="h-3.5 w-3.5 text-accent" />
-                    <span>Muda automaticamente à meia-noite</span>
+                    <span>{t("changes_at_midnight")}</span>
                   </div>
                 </div>
 
@@ -264,7 +269,7 @@ const DevotionalPage = () => {
                     <div className="space-y-1">
                       <div className="flex items-center gap-1.5 text-accent font-semibold text-xs uppercase tracking-wider">
                         {getCategoryIcon(todayDevotional.category)}
-                        <span>Tema: {todayDevotional.category}</span>
+                        <span>{t("theme_label")} {todayDevotional.category}</span>
                       </div>
                       <h3 className="font-serif text-2xl font-bold text-foreground">
                         {todayDevotional.title}
@@ -278,7 +283,7 @@ const DevotionalPage = () => {
                           ? "bg-accent/10 border-accent/30 text-accent hover:bg-accent/20"
                           : "bg-secondary/50 border-border text-muted-foreground hover:text-foreground"
                       }`}
-                      title={favoritedIds.includes(todayDevotional.id) ? "Remover dos favoritos" : "Salvar nos favoritos"}
+                      title={favoritedIds.includes(todayDevotional.id) ? (language === "en" ? "Remove from favorites" : "Remover dos favoritos") : (language === "en" ? "Save to favorites" : "Salvar nos favoritos")}
                     >
                       <Heart className="h-5 w-5" fill={favoritedIds.includes(todayDevotional.id) ? "currentColor" : "none"} />
                     </button>
@@ -297,7 +302,7 @@ const DevotionalPage = () => {
                         className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 bg-background/60 px-2 py-1 rounded-md border border-border/40 transition-colors"
                       >
                         {copyStatus["today-verse"] ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
-                        {copyStatus["today-verse"] ? "Copiado!" : "Copiar"}
+                        {copyStatus["today-verse"] ? t("copied") : t("copy")}
                       </button>
                     </div>
                   </div>
@@ -306,7 +311,7 @@ const DevotionalPage = () => {
                   <div className="space-y-3">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
                       <BookOpen className="h-3.5 w-3.5 text-accent" />
-                      Reflexão
+                      {t("reflection_title")}
                     </h4>
                     <p className="text-sm leading-relaxed text-foreground/80 text-justify">
                       {todayDevotional.meditation}
@@ -317,7 +322,7 @@ const DevotionalPage = () => {
                   <div className="rounded-xl bg-secondary/30 p-5 border border-border/60 space-y-2.5">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
                       <HeartHandshake className="h-3.5 w-3.5 text-primary" />
-                      Oração para Hoje
+                      {t("today_prayer")}
                     </h4>
                     <p className="text-xs sm:text-sm italic leading-relaxed text-foreground/75">
                       {todayDevotional.prayer}
@@ -329,22 +334,22 @@ const DevotionalPage = () => {
                     <button
                       onClick={() => handleCopy(
                         "today-full", 
-                        `📖 DEVOCIONAL DIÁRIO\n\n✨ ${todayDevotional.title}\n\n🏷️ Tema: ${todayDevotional.category}\n\n📜 Versículo: "${todayDevotional.verse}" (${todayDevotional.reference})\n\n✍️ Reflexão: ${todayDevotional.meditation}\n\n🙏 Oração: ${todayDevotional.prayer}`
+                        `📖 ${t("tab_today_devotional").toUpperCase()}\n\n✨ ${todayDevotional.title}\n\n🏷️ ${t("theme_label")} ${todayDevotional.category}\n\n📜 ${language === "en" ? "Verse" : "Versículo"}: "${todayDevotional.verse}" (${todayDevotional.reference})\n\n✍️ ${t("reflection_title")}: ${todayDevotional.meditation}\n\n🙏 ${t("today_prayer")}: ${todayDevotional.prayer}`
                       )}
                       className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-xs font-semibold hover:bg-secondary transition-colors text-foreground"
                     >
                       {copyStatus["today-full"] ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
-                      {copyStatus["today-full"] ? "Copiado!" : "Copiar Devocional"}
+                      {copyStatus["today-full"] ? t("copied") : t("copy_devotional")}
                     </button>
                     <button
                       onClick={() => shareBibleText(
-                        `📖 DEVOCIONAL DIÁRIO\n\n✨ ${todayDevotional.title}\n\n🏷️ Tema: ${todayDevotional.category}\n\n📜 Versículo: "${todayDevotional.verse}" (${todayDevotional.reference})\n\n✍️ Reflexão: ${todayDevotional.meditation}\n\n🙏 Oração: ${todayDevotional.prayer}`,
-                        `Devocional: ${todayDevotional.title}`
+                        `📖 ${t("tab_today_devotional").toUpperCase()}\n\n✨ ${todayDevotional.title}\n\n🏷️ ${t("theme_label")} ${todayDevotional.category}\n\n📜 ${language === "en" ? "Verse" : "Versículo"}: "${todayDevotional.verse}" (${todayDevotional.reference})\n\n✍️ ${t("reflection_title")}: ${todayDevotional.meditation}\n\n🙏 ${t("today_prayer")}: ${todayDevotional.prayer}`,
+                        `${t("tab_today_devotional")}: ${todayDevotional.title}`
                       )}
                       className="flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold hover:opacity-90 transition-all shadow-sm"
                     >
                       <Share2 className="h-3.5 w-3.5" />
-                      Compartilhar Devocional
+                      {t("share_devotional")}
                     </button>
                   </div>
                 </div>
@@ -396,7 +401,7 @@ const DevotionalPage = () => {
                     <input
                       type="text"
                       maxLength={200}
-                      placeholder="Pesquisar por título, versículo, referência ou reflexão..."
+                      placeholder={t("search_devotionals_placeholder")}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value.slice(0, 200))}
                       className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-4 text-xs sm:text-sm focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
@@ -407,11 +412,12 @@ const DevotionalPage = () => {
                   <div className="space-y-1.5">
                     <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
                       <Filter className="h-3 w-3" />
-                      Filtrar por Tema
+                      {t("filter_by_theme")}
                     </label>
                     <div className="flex gap-1.5 overflow-x-auto pb-2.5 scroll-smooth themed-scrollbar select-none">
                       {categories.map((cat) => {
                         const isActive = selectedCategory === cat;
+                        const label = cat === "Todas" ? t("all_categories") : cat;
                         return (
                           <button
                             key={cat}
@@ -434,7 +440,7 @@ const DevotionalPage = () => {
                             )}
                             <span className="relative z-10 flex items-center gap-1.5">
                               {cat !== "Todas" && getCategoryIcon(cat)}
-                              {cat}
+                              {label}
                             </span>
                           </button>
                         );
@@ -445,7 +451,7 @@ const DevotionalPage = () => {
 
                 {/* Info summary */}
                 <div className="text-xs text-muted-foreground">
-                  Mostrando <span className="font-bold text-foreground">{filteredDevotionals.length}</span> de <span className="font-bold text-foreground">{devotionals.length}</span> devocionais disponíveis.
+                  {t("showing_devotionals_count")} <span className="font-bold text-foreground">{filteredDevotionals.length}</span> {t("of_devotionals")} <span className="font-bold text-foreground">{devotionals.length}</span> {t("devotionals_available")}
                 </div>
 
                 {/* Devotionals grid/list */}
@@ -499,7 +505,7 @@ const DevotionalPage = () => {
                           <p className="mt-1 text-[10px] font-bold text-accent/90 flex justify-between items-center">
                             <span>— {d.reference}</span>
                             <span className="text-[10px] font-normal text-muted-foreground/75 flex items-center gap-0.5 group">
-                              {isExpanded ? "Recolher" : "Ler reflexão completa"}
+                              {isExpanded ? t("collapse_reflection") : t("read_full_reflection")}
                               <ArrowRight className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
                             </span>
                           </p>
@@ -516,7 +522,7 @@ const DevotionalPage = () => {
                               <div className="space-y-1.5">
                                 <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
                                   <BookOpen className="h-3 w-3 text-accent" />
-                                  Reflexão
+                                  {t("reflection_title")}
                                 </h4>
                                 <p className="text-xs leading-relaxed text-foreground/85 whitespace-pre-line text-justify">
                                   {d.meditation}
@@ -527,7 +533,7 @@ const DevotionalPage = () => {
                               <div className="rounded-lg bg-background p-3.5 border border-border/50 space-y-1">
                                 <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
                                   <HeartHandshake className="h-3 w-3 text-primary" />
-                                  Oração recomendada
+                                  {t("recommended_prayer")}
                                 </h4>
                                 <p className="text-xs italic leading-relaxed text-foreground/75">
                                   {d.prayer}
@@ -539,22 +545,22 @@ const DevotionalPage = () => {
                                 <button
                                   onClick={() => handleCopy(
                                     copyKey, 
-                                    `📖 DEVOCIONAL: ${d.title}\n\n📜 "${d.verse}" — ${d.reference}\n\n✍️ Reflexão: ${d.meditation}\n\n🙏 Oração: ${d.prayer}`
+                                    `📖 ${t("tab_today_devotional")}: ${d.title}\n\n📜 "${d.verse}" — ${d.reference}\n\n✍️ ${t("reflection_title")}: ${d.meditation}\n\n🙏 ${t("today_prayer")}: ${d.prayer}`
                                   )}
                                   className="flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-[10px] font-semibold hover:bg-secondary transition-colors text-foreground"
                                 >
                                   {copyStatus[copyKey] ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
-                                  {copyStatus[copyKey] ? "Copiado!" : "Copiar"}
+                                  {copyStatus[copyKey] ? t("copied") : t("copy")}
                                 </button>
                                 <button
                                   onClick={() => shareBibleText(
-                                    `📖 DEVOCIONAL: ${d.title}\n\n📜 "${d.verse}" — ${d.reference}\n\n✍️ Reflexão: ${d.meditation}\n\n🙏 Oração: ${d.prayer}`,
-                                    `Devocional: ${d.title}`
+                                    `📖 ${t("tab_today_devotional")}: ${d.title}\n\n📜 "${d.verse}" — ${d.reference}\n\n✍️ ${t("reflection_title")}: ${d.meditation}\n\n🙏 ${t("today_prayer")}: ${d.prayer}`,
+                                    `${t("tab_today_devotional")}: ${d.title}`
                                   )}
                                   className="flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-2.5 py-1.5 text-[10px] font-semibold hover:opacity-90 transition-all shadow-xs"
                                 >
                                   <Share2 className="h-3 w-3" />
-                                  Compartilhar
+                                  {language === "en" ? "Share" : "Compartilhar"}
                                 </button>
                               </div>
                             </motion.div>
@@ -565,19 +571,19 @@ const DevotionalPage = () => {
                   </div>
                 ) : (
                   <div className="text-center py-12 rounded-xl border border-dashed border-border bg-secondary/10">
-                    <p className="text-sm text-muted-foreground">Nenhum devocional corresponde aos critérios de pesquisa.</p>
+                    <p className="text-sm text-muted-foreground">{t("no_devotionals_found")}</p>
                     <button 
                       onClick={() => { setSearchQuery(""); setSelectedCategory("Todas"); }}
                       className="mt-3 text-xs text-accent font-semibold hover:underline"
                     >
-                      Limpar filtros de busca
+                      {t("clear_search_filters")}
                     </button>
                   </div>
                 )}
               </motion.div>
             )}
 
-            {/* 3. MEUS FAVORITOS TAB */}
+            {/* 5. MEUS FAVORITOS TAB */}
             {activeTab === "favoritos" && (
               <motion.div
                 key="favoritos-tab"
@@ -590,7 +596,7 @@ const DevotionalPage = () => {
                 <div className="space-y-3">
                   <h2 className="text-sm font-bold text-foreground flex items-center gap-2 font-serif">
                     <Heart className="h-4 w-4 text-accent fill-accent" />
-                    Devocionais Favoritados ({favoritedDevotionals.length})
+                    {t("favorited_devotionals")} ({favoritedDevotionals.length})
                   </h2>
 
                   {favoritedDevotionals.length > 0 ? (
@@ -627,7 +633,7 @@ const DevotionalPage = () => {
                                   toggleFavorite(d.id);
                                 }}
                                 className="rounded-full p-1.5 bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20"
-                                title="Remover dos favoritos"
+                                title={language === "en" ? "Remove from favorites" : "Remover dos favoritos"}
                               >
                                 <Heart className="h-3.5 w-3.5" fill="currentColor" />
                               </button>
@@ -639,7 +645,7 @@ const DevotionalPage = () => {
                             <p className="mt-1 text-[10px] font-bold text-accent/90 flex justify-between items-center">
                               <span>— {d.reference}</span>
                               <span className="text-[10px] font-normal text-muted-foreground/75 flex items-center gap-0.5">
-                                {isExpanded ? "Recolher" : "Ler reflexão completa"}
+                                {isExpanded ? t("collapse_reflection") : t("read_full_reflection")}
                                 <ArrowRight className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
                               </span>
                             </p>
@@ -656,7 +662,7 @@ const DevotionalPage = () => {
                                 <div className="space-y-1.5">
                                   <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
                                     <BookOpen className="h-3 w-3 text-accent" />
-                                    Reflexão
+                                    {t("reflection_title")}
                                   </h4>
                                   <p className="text-xs leading-relaxed text-foreground/85 whitespace-pre-line text-justify">
                                     {d.meditation}
@@ -667,7 +673,7 @@ const DevotionalPage = () => {
                                 <div className="rounded-lg bg-background p-3.5 border border-border/50 space-y-1">
                                   <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
                                     <HeartHandshake className="h-3 w-3 text-primary" />
-                                    Oração recomendada
+                                    {t("recommended_prayer")}
                                   </h4>
                                   <p className="text-xs italic leading-relaxed text-foreground/75">
                                     {d.prayer}
@@ -679,22 +685,22 @@ const DevotionalPage = () => {
                                   <button
                                     onClick={() => handleCopy(
                                       copyKey, 
-                                      `📖 DEVOCIONAL: ${d.title}\n\n📜 "${d.verse}" — ${d.reference}\n\n✍️ Reflexão: ${d.meditation}\n\n🙏 Oração: ${d.prayer}`
+                                      `📖 ${t("tab_today_devotional")}: ${d.title}\n\n📜 "${d.verse}" — ${d.reference}\n\n✍️ ${t("reflection_title")}: ${d.meditation}\n\n🙏 ${t("today_prayer")}: ${d.prayer}`
                                     )}
                                     className="flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-[10px] font-semibold hover:bg-secondary transition-colors text-foreground"
                                   >
                                     {copyStatus[copyKey] ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
-                                    {copyStatus[copyKey] ? "Copiado!" : "Copiar"}
+                                    {copyStatus[copyKey] ? t("copied") : t("copy")}
                                   </button>
                                   <button
                                     onClick={() => shareBibleText(
-                                      `📖 DEVOCIONAL: ${d.title}\n\n📜 "${d.verse}" — ${d.reference}\n\n✍️ Reflexão: ${d.meditation}\n\n🙏 Oração: ${d.prayer}`,
-                                      `Devocional: ${d.title}`
+                                      `📖 ${t("tab_today_devotional")}: ${d.title}\n\n📜 "${d.verse}" — ${d.reference}\n\n✍️ ${t("reflection_title")}: ${d.meditation}\n\n🙏 ${t("today_prayer")}: ${d.prayer}`,
+                                      `${t("tab_today_devotional")}: ${d.title}`
                                     )}
                                     className="flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-2.5 py-1.5 text-[10px] font-semibold hover:opacity-90 transition-all shadow-xs"
                                   >
                                     <Share2 className="h-3 w-3" />
-                                    Compartilhar
+                                    {language === "en" ? "Share" : "Compartilhar"}
                                   </button>
                                 </div>
                               </motion.div>
@@ -705,7 +711,7 @@ const DevotionalPage = () => {
                     </div>
                   ) : (
                     <p className="text-xs text-muted-foreground italic bg-secondary/20 p-3 rounded-lg border border-border/40">
-                      Nenhum devocional individual salvo nos favoritos ainda.
+                      {t("no_favorited_devotionals")}
                     </p>
                   )}
                 </div>
@@ -714,7 +720,7 @@ const DevotionalPage = () => {
                 <div className="space-y-3 pt-4 border-t border-border/40">
                   <h2 className="text-sm font-bold text-foreground flex items-center gap-2 font-serif">
                     <Calendar className="h-4 w-4 text-accent" />
-                    Planos de Leitura Favoritados ({favoritedPlanIds.length})
+                    {t("favorited_reading_plans")} ({favoritedPlanIds.length})
                   </h2>
 
                   {favoritedPlanIds.length > 0 ? (
@@ -737,7 +743,7 @@ const DevotionalPage = () => {
                                     setFavoritedPlanIds(getFavoritePlanIds());
                                   }}
                                   className="p-1 rounded-full text-accent hover:bg-accent/10 transition-colors"
-                                  title="Remover dos favoritos"
+                                  title={language === "en" ? "Remove from favorites" : "Remover dos favoritos"}
                                 >
                                   <Heart className="h-4 w-4 fill-accent" />
                                 </button>
@@ -751,13 +757,13 @@ const DevotionalPage = () => {
 
                             <div className="pt-2 border-t border-border/30 flex items-center justify-between gap-2">
                               <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1">
-                                <Clock className="h-3 w-3" /> {plan.durationDays} Dias
+                                <Clock className="h-3 w-3" /> {plan.durationDays} {t("days_unit")}
                               </span>
                               <button
                                 onClick={() => setActiveTab("planos")}
                                 className="inline-flex items-center gap-1 text-xs font-bold text-accent hover:underline"
                               >
-                                Ir para o Plano <ArrowRight className="h-3.5 w-3.5" />
+                                {t("go_to_plan")} <ArrowRight className="h-3.5 w-3.5" />
                               </button>
                             </div>
                           </div>
@@ -765,7 +771,7 @@ const DevotionalPage = () => {
                     </div>
                   ) : (
                     <p className="text-xs text-muted-foreground italic bg-secondary/20 p-3 rounded-lg border border-border/40">
-                      Nenhum plano de leitura salvo nos favoritos ainda.
+                      {t("no_favorited_plans")}
                     </p>
                   )}
                 </div>

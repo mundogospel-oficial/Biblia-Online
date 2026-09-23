@@ -47,20 +47,20 @@ const Header = () => {
     { to: "/", label: t("nav_home"), shortLabel: t("nav_home"), icon: <Home className="h-4 w-4 shrink-0" /> },
     { to: "/buscar", label: t("nav_search"), shortLabel: t("nav_search"), icon: <Search className="h-4 w-4 shrink-0" /> },
     { to: "/ia", label: t("nav_ai"), shortLabel: t("nav_ai"), icon: <Bot className="h-4 w-4 shrink-0" /> },
-    { to: "/devocionais", label: t("nav_devotional"), shortLabel: "Devocionais", icon: <Calendar className="h-4 w-4 shrink-0" /> },
+    { to: "/devocionais", label: t("nav_devotional"), shortLabel: t("nav_devotional_short"), icon: <Calendar className="h-4 w-4 shrink-0" /> },
     { to: "/favoritos", label: t("nav_favorites"), shortLabel: t("nav_favorites"), icon: <Heart className="h-4 w-4 shrink-0" /> },
     { to: "/criar", label: t("nav_create"), shortLabel: t("nav_create"), icon: <Sparkles className="h-4 w-4 shrink-0" /> },
     { to: "/conta", label: t("nav_account"), shortLabel: t("nav_account"), icon: <User className="h-4 w-4 shrink-0" /> },
   ];
 
   const mobileLinks = [
-    { to: "/", icon: <Home className="h-5 w-5" />, label: "Início" },
-    { to: "/buscar", icon: <Search className="h-5 w-5" />, label: "Buscar" },
-    { to: "/ia", icon: <Bot className="h-5 w-5" />, label: "IA" },
-    { to: "/devocionais", icon: <Calendar className="h-5 w-5" />, label: "Devocionais e Planos" },
-    { to: "/favoritos", icon: <Heart className="h-5 w-5" />, label: "Favoritos" },
-    { to: "/criar", icon: <Sparkles className="h-5 w-5" />, label: "Criar" },
-    { to: "/conta", icon: <User className="h-5 w-5" />, label: "Conta" },
+    { to: "/", icon: <Home className="h-5 w-5" />, label: t("nav_home") },
+    { to: "/buscar", icon: <Search className="h-5 w-5" />, label: t("nav_search") },
+    { to: "/ia", icon: <Bot className="h-5 w-5" />, label: t("nav_ai") },
+    { to: "/devocionais", icon: <Calendar className="h-5 w-5" />, label: t("nav_devotional_short") },
+    { to: "/favoritos", icon: <Heart className="h-5 w-5" />, label: t("nav_favorites") },
+    { to: "/criar", icon: <Sparkles className="h-5 w-5" />, label: t("nav_create") },
+    { to: "/conta", icon: <User className="h-5 w-5" />, label: t("nav_account") },
   ];
 
   const isActiveRoute = (path: string) => {

@@ -108,6 +108,7 @@ const AccountPage = () => {
   const [pwnedLeakCount, setPwnedLeakCount] = useState(0);
   const [appVersion, setAppVersion] = useState("2.5.2");
   const [notificationTestError, setNotificationTestError] = useState<string | null>(null);
+  const [, setHasEnrolledBiometrics] = useState(false);
 
   useEffect(() => {
     setLoading(authCtx.loading);

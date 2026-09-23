@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { bibleBooks } from "@/lib/bibleData";
 import VoiceInputButton from "@/components/VoiceInputButton";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface RecommendationItem {
   text: string;
@@ -71,6 +72,7 @@ const recommendationsByTab: Record<ReactionType, { title: string; subtitle: stri
 };
 
 const FavoritesPage = () => {
+  const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<ReactionType>("favorites");
   const [items, setItems] = useState<FavoriteVerse[]>([]);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -86,15 +88,15 @@ const FavoritesPage = () => {
   const handleRemove = (id: string) => {
     removeFavorite(id, activeTab);
     setItems(getFavorites(activeTab));
-    toast({ title: `Removido de ${getLabel()}` });
+    toast({ title: `${language === "en" ? "Removed from" : "Removido de"} ${getLabel()}` });
   };
 
   const handleCopy = (item: FavoriteVerse) => {
     const textToCopy = item.note 
-      ? `"${item.text}" — ${item.reference}\nNota: ${item.note}`
+      ? `"${item.text}" — ${item.reference}\n${language === "en" ? "Note:" : "Nota:"} ${item.note}`
       : `"${item.text}" — ${item.reference}`;
     navigator.clipboard.writeText(textToCopy);
-    toast({ title: "Versículo copiado" });
+    toast({ title: t("fav_verse_copied") });
   };
 
   const handleStartEditNote = (item: FavoriteVerse) => {
@@ -106,14 +108,14 @@ const FavoritesPage = () => {
     updateNote(id, noteInputValue.trim(), "notes");
     setItems(getFavorites("notes"));
     setEditingNoteId(null);
-    toast({ title: noteInputValue.trim() ? "Anotação salva" : "Anotação removida" });
+    toast({ title: noteInputValue.trim() ? (language === "en" ? "Note saved" : "Anotação salva") : (language === "en" ? "Note removed" : "Anotação removida") });
   };
 
   const getLabel = () => {
     switch (activeTab) {
-      case "favorites": return "Versículos Favoritos";
-      case "markings": return "Marcações";
-      case "notes": return "Anotações";
+      case "favorites": return t("fav_title_favorites");
+      case "markings": return t("fav_title_markings");
+      case "notes": return t("fav_title_notes");
     }
   };
 
@@ -132,9 +134,9 @@ const FavoritesPage = () => {
         <div className="mx-auto max-w-4xl">
           <div className="mb-6 flex p-1.5 gap-1.5 rounded-full glass-card border border-border/60 backdrop-blur-xl shadow-card relative select-none max-w-md mx-auto">
             {[
-              { id: "favorites", label: "Favoritos", icon: Heart },
-              { id: "markings", label: "Marcações", icon: Highlighter },
-              { id: "notes", label: "Anotações", icon: StickyNote },
+              { id: "favorites", label: t("fav_tab_favorites"), icon: Heart },
+              { id: "markings", label: t("fav_tab_markings"), icon: Highlighter },
+              { id: "notes", label: t("fav_tab_notes"), icon: StickyNote },
             ].map((tab) => {
               const isActive = activeTab === tab.id;
               const IconComp = tab.icon;
@@ -181,9 +183,11 @@ const FavoritesPage = () => {
             {items.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-12 px-4 text-center">
                 <BookOpen className="mb-3 h-12 w-12 text-muted-foreground/30" />
-                <p className="text-sm font-medium text-muted-foreground">Nenhum item nesta aba ainda.</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  {activeTab === "favorites" ? t("fav_no_favorites") : activeTab === "markings" ? t("fav_no_markings") : t("fav_no_notes")}
+                </p>
                 <Link to="/" className="mt-4 rounded-lg bg-primary px-4 py-2 text-xs font-medium text-primary-foreground transition-all hover:opacity-90">
-                  Explorar Bíblia
+                  {language === "en" ? "Explore Bible" : "Explorar Bíblia"}
                 </Link>
               </div>
             ) : (
@@ -208,10 +212,10 @@ const FavoritesPage = () => {
                               <button
                                 onClick={() => isEditingNote ? setEditingNoteId(null) : handleStartEditNote(item)}
                                 className="flex items-center gap-1 rounded px-2 py-1 text-[11px] text-accent hover:bg-accent/10 transition-colors"
-                                title="Editar anotação"
+                                title={language === "en" ? "Edit note" : "Editar anotação"}
                               >
                                 <Edit3 className="h-3 w-3" />
-                                {item.note ? "Editar Nota" : "+ Nota"}
+                                {item.note ? (language === "en" ? "Edit Note" : "Editar Nota") : (language === "en" ? "+ Note" : "+ Nota")}
                               </button>
                             )}
                           </div>
@@ -229,7 +233,7 @@ const FavoritesPage = () => {
                                     maxLength={1000}
                                     value={noteInputValue}
                                     onChange={(e) => setNoteInputValue(e.target.value.slice(0, 1000))}
-                                    placeholder="Escreva sua reflexão, oração ou notas sobre este versículo... (máx. 1000 caracteres)"
+                                    placeholder={language === "en" ? "Write your reflection, prayer or notes on this verse... (max 1000 chars)" : "Escreva sua reflexão, oração ou notas sobre este versículo... (máx. 1000 caracteres)"}
                                     rows={3}
                                     className="w-full resize-none rounded border border-border/50 bg-background p-2 pr-9 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent custom-scrollbar"
                                   />
@@ -242,7 +246,7 @@ const FavoritesPage = () => {
                                         });
                                       }}
                                       size="xs"
-                                      title="Ditar anotação por voz"
+                                      title={language === "en" ? "Dictate note with voice" : "Ditar anotação por voz"}
                                     />
                                   </div>
                                 </div>
@@ -251,20 +255,20 @@ const FavoritesPage = () => {
                                     onClick={() => setEditingNoteId(null)}
                                     className="flex items-center gap-1 rounded px-2.5 py-1 text-[11px] text-muted-foreground hover:bg-secondary"
                                   >
-                                    <X className="h-3 w-3" /> Cancelar
+                                    <X className="h-3 w-3" /> {t("cancel")}
                                   </button>
                                   <button
                                     onClick={() => handleSaveNoteText(item.id)}
                                     className="flex items-center gap-1 rounded bg-primary px-3 py-1 text-[11px] font-medium text-primary-foreground shadow-sm"
                                   >
-                                    <Check className="h-3 w-3" /> Salvar Nota
+                                    <Check className="h-3 w-3" /> {language === "en" ? "Save Note" : "Salvar Nota"}
                                   </button>
                                 </div>
                               </div>
                             ) : item.note ? (
                               <div className="rounded-md bg-accent/5 border-l-2 border-accent p-2.5 text-xs text-muted-foreground space-y-1">
                                 <p className="text-[10px] font-bold text-accent uppercase tracking-wider flex items-center gap-1">
-                                  <StickyNote className="h-3 w-3" /> Minha Anotação:
+                                  <StickyNote className="h-3 w-3" /> {language === "en" ? "My Note:" : "Minha Anotação:"}
                                 </p>
                                 <p className="italic leading-relaxed whitespace-pre-wrap text-card-foreground">{item.note}</p>
                               </div>
@@ -278,14 +282,14 @@ const FavoritesPage = () => {
                               onClick={() => handleCopy(item)}
                               className="flex items-center gap-1 rounded px-2 py-1 text-[10px] text-muted-foreground hover:bg-secondary transition-colors"
                             >
-                              <Copy className="h-2.5 w-2.5" /> Copiar
+                              <Copy className="h-2.5 w-2.5" /> {t("copy")}
                             </button>
                           </div>
                           <button
                             onClick={() => handleRemove(item.id)}
                             className="flex items-center gap-1 rounded px-2 py-1 text-[10px] text-destructive hover:bg-destructive/10 transition-colors"
                           >
-                            <Trash2 className="h-2.5 w-2.5" /> Remover
+                            <Trash2 className="h-2.5 w-2.5" /> {t("fav_remove")}
                           </button>
                         </div>
                       </motion.div>
@@ -302,11 +306,13 @@ const FavoritesPage = () => {
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-accent" />
                     <h2 className="font-serif text-base font-bold text-foreground sm:text-lg">
-                      {recommendationsByTab[activeTab].title}
+                      {language === "en" ? `${t("fav_recommendations")} for ${getLabel()}` : recommendationsByTab[activeTab].title}
                     </h2>
                   </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {recommendationsByTab[activeTab].subtitle}
+                    {language === "en" 
+                      ? "Recommended passages and verses from scripture to inspire your walk."
+                      : recommendationsByTab[activeTab].subtitle}
                   </p>
                 </div>
 
@@ -365,7 +371,7 @@ const FavoritesPage = () => {
                             }`}
                           >
                             {getIcon("h-3 w-3")}
-                            {isSavedInActiveTab ? "Salvo" : `Salvar em ${getLabel()}`}
+                            {isSavedInActiveTab ? (language === "en" ? "Saved" : "Salvo") : `${language === "en" ? "Save to" : "Salvar em"} ${getLabel()}`}
                           </button>
                         </div>
                       </motion.div>

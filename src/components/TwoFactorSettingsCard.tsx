@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield, ShieldCheck, ShieldAlert, QrCode, Copy, Check, Key, RefreshCw, X, AlertCircle } from "lucide-react";
+import { Shield, ShieldCheck, ShieldAlert, Copy, Check, X, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   generateTwoFactorSetup,
   enableTwoFactorForUser,
@@ -23,6 +24,7 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
   is2FAEnabled,
   onStatusChange,
 }) => {
+  const { t, language } = useLanguage();
   const { toast } = useToast();
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [showDisableModal, setShowDisableModal] = useState(false);
@@ -45,8 +47,8 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
     } catch (err: any) {
       console.error("Erro ao gerar QR Code:", err);
       toast({
-        title: "Erro ao gerar QR Code",
-        description: "Não foi possível iniciar a configuração do 2FA no momento.",
+        title: language === "en" ? "Error generating QR Code" : "Erro ao gerar QR Code",
+        description: language === "en" ? "Could not start 2FA setup at this time." : "Não foi possível iniciar a configuração do 2FA no momento.",
         variant: "destructive",
       });
     } finally {
@@ -60,17 +62,25 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
     navigator.clipboard.writeText(setupData.secret);
     setCopiedKey(true);
     setTimeout(() => setCopiedKey(false), 2500);
-    toast({ title: "Chave copiada", description: "Código secreto copiado para a área de transferência." });
+    toast({
+      title: t("two_factor_key_copied"),
+      description: language === "en" ? "Secret key copied to clipboard." : "Código secreto copiado para a área de transferência.",
+    });
   };
 
   // Copia os códigos de backup
   const handleCopyBackupCodes = () => {
     if (!setupData) return;
-    const text = `CÓDIGOS DE RECUPERAÇÃO - BÍBLIA ONLINE (2FA):\n\n${setupData.backupCodes.join("\n")}\n\nGuarde estes códigos em local seguro. Cada código só pode ser usado 1 vez.`;
+    const header = language === "en" ? "RECOVERY BACKUP CODES - BIBLIA ONLINE (2FA):" : "CÓDIGOS DE RECUPERAÇÃO - BÍBLIA ONLINE (2FA):";
+    const footer = language === "en" ? "Keep these codes in a safe place. Each code can only be used once." : "Guarde estes códigos em local seguro. Cada código só pode ser usado 1 vez.";
+    const text = `${header}\n\n${setupData.backupCodes.join("\n")}\n\n${footer}`;
     navigator.clipboard.writeText(text);
     setCopiedCodes(true);
     setTimeout(() => setCopiedCodes(false), 2500);
-    toast({ title: "Códigos de recuperação copiados", description: "Salve-os em um local seguro." });
+    toast({
+      title: t("two_factor_codes_copied"),
+      description: language === "en" ? "Save them in a safe place." : "Salve-os em um local seguro.",
+    });
   };
 
   // Confirma o primeiro código e ativa o 2FA
@@ -90,8 +100,8 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
 
     if (!result.success) {
       toast({
-        title: "Falha na verificação",
-        description: result.error || "O código digitado não confere com o Google Authenticator.",
+        title: language === "en" ? "Verification Failed" : "Falha na verificação",
+        description: result.error || (language === "en" ? "The code entered does not match Google Authenticator." : "O código digitado não confere com o Google Authenticator."),
         variant: "destructive",
       });
       return;
@@ -102,8 +112,8 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
     setSetupData(null);
     setVerificationCode("");
     toast({
-      title: "2FA Ativado com Sucesso! 🛡️",
-      description: "Sua conta agora está protegida com a Verificação em Duas Etapas do Google Authenticator.",
+      title: language === "en" ? "2FA Enabled Successfully! 🛡️" : "2FA Ativado com Sucesso! 🛡️",
+      description: language === "en" ? "Your account is now protected with Google Authenticator Two-Factor Verification." : "Sua conta agora está protegida com a Verificação em Duas Etapas do Google Authenticator.",
     });
   };
 
@@ -115,8 +125,8 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
 
     if (!result.success) {
       toast({
-        title: "Erro ao desativar",
-        description: result.error || "Não foi possível desativar a verificação em 2 etapas.",
+        title: language === "en" ? "Error Disabling" : "Erro ao desativar",
+        description: result.error || (language === "en" ? "Could not disable 2-step verification." : "Não foi possível desativar a verificação em 2 etapas."),
         variant: "destructive",
       });
       return;
@@ -125,8 +135,8 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
     onStatusChange(false);
     setShowDisableModal(false);
     toast({
-      title: "2FA Desativado",
-      description: "A verificação em 2 etapas foi desativada da sua conta.",
+      title: language === "en" ? "2FA Disabled" : "2FA Desativado",
+      description: language === "en" ? "Two-factor verification has been disabled from your account." : "A verificação em 2 etapas foi desativada da sua conta.",
     });
   };
 
@@ -153,13 +163,13 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
             )}
           </span>
           <div className="text-left">
-            <p className="text-sm font-medium text-foreground">Verificação em Duas Etapas</p>
+            <p className="text-sm font-medium text-foreground">{t("two_factor_title")}</p>
             <p className="text-[10px] text-muted-foreground">
               {loading
-                ? "Carregando..."
+                ? t("two_factor_loading")
                 : is2FAEnabled
-                ? "Ativada com Google Authenticator"
-                : "Desativada"}
+                ? t("two_factor_active")
+                : t("two_factor_inactive")}
             </p>
           </div>
         </div>
@@ -205,7 +215,7 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
                     type="button"
                     onClick={() => setShowSetupModal(false)}
                     className="absolute right-4 top-4 z-10 rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
-                    title="Fechar"
+                    title={t("cancel")}
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -215,10 +225,10 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
                       <ShieldCheck className="h-7 w-7 text-accent" />
                     </div>
                     <h3 className="font-serif text-xl font-bold text-foreground">
-                      Configurar Google Authenticator
+                      {t("two_factor_setup_title")}
                     </h3>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Proteja sua conta com a Verificação em Duas Etapas (TOTP)
+                      {language === "en" ? "Protect your account with Two-Factor Verification (TOTP)" : "Proteja sua conta com a Verificação em Duas Etapas (TOTP)"}
                     </p>
                   </div>
 
@@ -243,7 +253,7 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
                       }`}
                     >
                       <span className="flex h-5 w-5 items-center justify-center rounded-full bg-secondary/80 border border-white/5 text-[11px]">2</span>
-                      Recuperação
+                      {language === "en" ? "Backup" : "Recuperação"}
                     </button>
                     <div className="h-px w-8 bg-white/10" />
                     <button
@@ -254,7 +264,7 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
                       }`}
                     >
                       <span className="flex h-5 w-5 items-center justify-center rounded-full bg-secondary/80 border border-white/5 text-[11px]">3</span>
-                      Confirmar
+                      {language === "en" ? "Confirm" : "Confirmar"}
                     </button>
                   </div>
 
@@ -262,7 +272,7 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
                   {step === "qr" && (
                     <div className="relative space-y-4 text-center animate-fadeIn">
                       <p className="text-xs text-muted-foreground leading-relaxed">
-                        Abra o app <strong>Google Authenticator</strong> (ou Microsoft Authenticator), toque em <strong>+</strong> e aponte a câmera para o QR Code:
+                        {t("two_factor_step_1_desc")}
                       </p>
 
                       <div className="mx-auto inline-block p-3.5 rounded-2xl bg-white shadow-xl">
@@ -275,7 +285,7 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
 
                       <div className="rounded-2xl bg-secondary/30 border border-white/10 p-3.5 text-left">
                         <p className="text-[11px] text-muted-foreground mb-1">
-                          Não consegue ler o QR Code? Digite a chave manualmente:
+                          {t("two_factor_cant_scan")}
                         </p>
                         <div className="flex items-center justify-between gap-2">
                           <code className="text-xs font-mono font-bold text-accent break-all select-all">
@@ -287,7 +297,7 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
                             className="flex shrink-0 items-center gap-1 rounded-xl bg-secondary/80 border border-white/10 px-2.5 py-1.5 text-xs text-foreground hover:bg-secondary transition-all"
                           >
                             {copiedKey ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-                            <span className="text-[10px]">{copiedKey ? "Copiado" : "Copiar"}</span>
+                            <span className="text-[10px]">{copiedKey ? (language === "en" ? "Copied" : "Copiado") : t("two_factor_copy_key")}</span>
                           </button>
                         </div>
                       </div>
@@ -297,7 +307,7 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
                         onClick={() => setStep("backup")}
                         className="w-full rounded-xl bg-accent py-3.5 text-xs font-bold text-accent-foreground shadow-lg shadow-accent/20 hover:shadow-accent/35 transition-all liquid-btn"
                       >
-                        Próximo: Códigos de Recuperação →
+                        {language === "en" ? "Next: Backup Codes →" : "Próximo: Códigos de Recuperação →"}
                       </button>
                     </div>
                   )}
@@ -308,7 +318,7 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
                       <div className="rounded-2xl bg-accent/10 border border-accent/20 p-3.5 text-xs text-foreground flex items-start gap-2.5">
                         <AlertCircle className="h-4 w-4 text-accent shrink-0 mt-0.5" />
                         <p className="text-[11px] text-muted-foreground leading-relaxed">
-                          Se você perder o acesso ao seu celular, poderá usar qualquer um destes códigos únicos para entrar na sua conta.
+                          {t("two_factor_step_2_desc")}
                         </p>
                       </div>
 
@@ -326,7 +336,9 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
                         className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary/50 hover:bg-secondary/80 border border-white/10 py-3 text-xs font-semibold text-foreground transition-all"
                       >
                         {copiedCodes ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
-                        {copiedCodes ? "Códigos Copiados com Sucesso!" : "Copiar Códigos de Recuperação"}
+                        {copiedCodes
+                          ? (language === "en" ? "Codes Copied Successfully!" : "Códigos Copiados com Sucesso!")
+                          : t("two_factor_copy_codes")}
                       </button>
 
                       <div className="flex gap-2.5 pt-1">
@@ -335,14 +347,14 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
                           onClick={() => setStep("qr")}
                           className="w-1/3 rounded-xl bg-secondary/50 hover:bg-secondary/80 border border-white/10 py-3 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all"
                         >
-                          ← Voltar
+                          ← {language === "en" ? "Back" : "Voltar"}
                         </button>
                         <button
                           type="button"
                           onClick={() => setStep("verify")}
                           className="w-2/3 rounded-xl bg-accent py-3 text-xs font-bold text-accent-foreground shadow-lg shadow-accent/20 hover:shadow-accent/35 transition-all liquid-btn"
                         >
-                          Próximo: Confirmar →
+                          {language === "en" ? "Next: Confirm →" : "Próximo: Confirmar →"}
                         </button>
                       </div>
                     </div>
@@ -352,7 +364,7 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
                   {step === "verify" && (
                     <form onSubmit={handleConfirmVerification} className="relative space-y-4 animate-fadeIn">
                       <p className="text-xs text-muted-foreground leading-relaxed text-center">
-                        Digite o <strong>código de 6 dígitos</strong> exibido no seu aplicativo <strong>Google Authenticator</strong> para confirmar a ativação:
+                        {t("two_factor_step_3_desc")}
                       </p>
 
                       <div className="space-y-1">
@@ -368,7 +380,7 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
                           className="w-full text-center text-2xl font-mono tracking-[0.4em] font-bold rounded-xl border border-white/10 bg-secondary/40 py-3.5 text-foreground placeholder:text-muted-foreground/30 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all"
                         />
                         <p className="text-[10px] text-muted-foreground text-center">
-                          O código expira e muda a cada 30 segundos
+                          {language === "en" ? "The code expires and changes every 30 seconds" : "O código expira e muda a cada 30 segundos"}
                         </p>
                       </div>
 
@@ -378,14 +390,14 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
                           onClick={() => setStep("backup")}
                           className="w-1/3 rounded-xl bg-secondary/50 hover:bg-secondary/80 border border-white/10 py-3.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all"
                         >
-                          ← Voltar
+                          ← {language === "en" ? "Back" : "Voltar"}
                         </button>
                         <button
                           type="submit"
                           disabled={loading || verificationCode.length !== 6}
                           className="w-2/3 rounded-xl bg-accent py-3.5 text-xs font-bold text-accent-foreground shadow-lg shadow-accent/20 hover:shadow-accent/35 transition-all liquid-btn disabled:opacity-50"
                         >
-                          {loading ? "Verificando..." : "Ativar 2FA Agora"}
+                          {loading ? (language === "en" ? "Verifying..." : "Verificando...") : t("two_factor_verify_btn")}
                         </button>
                       </div>
                     </form>
@@ -420,7 +432,7 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
                     type="button"
                     onClick={() => setShowDisableModal(false)}
                     className="absolute top-4 right-4 z-10 rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
-                    title="Fechar"
+                    title={t("cancel")}
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -432,11 +444,11 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
                     </div>
 
                     <h3 className="font-serif text-xl font-bold text-foreground mb-2">
-                      Desativar 2FA?
+                      {t("two_factor_disable_title")}
                     </h3>
 
                     <p className="mb-6 text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                      Ao desativar a verificação em duas etapas, sua conta ficará protegida apenas pela sua senha normal.
+                      {t("two_factor_disable_desc")}
                     </p>
 
                     {/* Botões de Ação */}
@@ -447,7 +459,7 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
                         disabled={loading}
                         className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground py-3.5 text-sm font-bold transition-all shadow-lg shadow-destructive/25 active:scale-[0.98] disabled:opacity-50 liquid-btn"
                       >
-                        <span>{loading ? "Desativando..." : "Sim, Desativar 2FA"}</span>
+                        <span>{loading ? (language === "en" ? "Disabling..." : "Desativando...") : t("two_factor_disable_confirm")}</span>
                       </button>
                       <button
                         type="button"
@@ -455,7 +467,7 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
                         disabled={loading}
                         className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary/50 hover:bg-secondary/80 active:scale-[0.98] text-foreground py-3.5 text-sm font-semibold transition-all border border-white/10 backdrop-blur-md"
                       >
-                        Cancelar
+                        {t("cancel")}
                       </button>
                     </div>
                   </div>
@@ -468,3 +480,5 @@ export const TwoFactorSettingsCard: React.FC<TwoFactorSettingsCardProps> = ({
     </>
   );
 };
+
+export default TwoFactorSettingsCard;

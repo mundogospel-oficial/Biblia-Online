@@ -974,3 +974,23 @@ export const devotionals: Devotional[] = [
     prayer: "Deus eterno, obrigado por teu compromisso amoroso em cumprir o teu propósito em mim. Entrego-me inteiramente em tuas mãos criadoras e fiéis. Amém."
   }
 ];
+
+import { devotionalsEn } from "./devotionalsDataEn";
+
+export const getLocalizedDevotionals = (language: string = "pt"): Devotional[] => {
+  if (language === "en") {
+    return devotionalsEn;
+  }
+  return devotionals;
+};
+
+export const getTodayDevotional = (language: string = "pt"): Devotional => {
+  const list = getLocalizedDevotionals(language);
+  const now = new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 0);
+  const diff = now.getTime() - startOfYear.getTime();
+  const oneDay = 1000 * 60 * 60 * 24;
+  const dayOfYear = Math.floor(diff / oneDay);
+  const index = (dayOfYear + now.getDate()) % list.length;
+  return list[index] || list[0];
+};

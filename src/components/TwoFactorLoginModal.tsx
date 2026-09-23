@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
-import { ShieldCheck, Lock, AlertCircle, ArrowRight, X } from "lucide-react";
+import { ShieldCheck, AlertCircle, ArrowRight, X } from "lucide-react";
 import { validateLoginTwoFactor } from "@/services/twoFactorService";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface TwoFactorLoginModalProps {
   userId: string;
@@ -18,6 +19,7 @@ export const TwoFactorLoginModal: React.FC<TwoFactorLoginModalProps> = ({
   onSuccess,
   onCancel,
 }) => {
+  const { t, language } = useLanguage();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -49,8 +51,8 @@ export const TwoFactorLoginModal: React.FC<TwoFactorLoginModalProps> = ({
         const json = await apiRes.json();
         if (json.valid) {
           toast({
-            title: "Verificação concluída! 🛡️",
-            description: "Acesso autorizado com sucesso.",
+            title: language === "en" ? "Verification completed! 🛡️" : "Verificação concluída! 🛡️",
+            description: language === "en" ? "Access successfully authorized." : "Acesso autorizado com sucesso.",
           });
           onSuccess();
           return;
@@ -61,17 +63,26 @@ export const TwoFactorLoginModal: React.FC<TwoFactorLoginModalProps> = ({
       const clientValidation = await validateLoginTwoFactor(userId, cleanCode);
       if (clientValidation.success) {
         toast({
-          title: "Verificação concluída! 🛡️",
-          description: "Acesso autorizado com sucesso.",
+          title: language === "en" ? "Verification completed! 🛡️" : "Verificação concluída! 🛡️",
+          description: language === "en" ? "Access authorized successfully." : "Acesso autorizado com sucesso.",
         });
         onSuccess();
         return;
       }
 
-      setErrorMessage(clientValidation.error || "Código do autenticador inválido ou expirado. Tente novamente.");
+      setErrorMessage(
+        clientValidation.error ||
+          (language === "en"
+            ? "Invalid or expired authenticator code. Please try again."
+            : "Código do autenticador inválido ou expirado. Tente novamente.")
+      );
     } catch (err: any) {
       console.error("[2FA Login Modal] Erro:", err);
-      setErrorMessage("Erro ao validar código. Tente novamente.");
+      setErrorMessage(
+        language === "en"
+          ? "Error validating code. Please try again."
+          : "Erro ao validar código. Tente novamente."
+      );
     } finally {
       setLoading(false);
     }
@@ -94,7 +105,7 @@ export const TwoFactorLoginModal: React.FC<TwoFactorLoginModalProps> = ({
           type="button"
           onClick={onCancel}
           className="absolute top-4 right-4 z-10 rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
-          title="Cancelar"
+          title={t("cancel")}
         >
           <X className="h-4 w-4" />
         </button>
@@ -104,14 +115,22 @@ export const TwoFactorLoginModal: React.FC<TwoFactorLoginModalProps> = ({
         </div>
 
         <h3 className="relative font-serif text-xl font-bold text-foreground">
-          Verificação em 2 Etapas
+          {t("two_factor_login_title")}
         </h3>
 
         <p className="relative mt-1 text-xs text-muted-foreground leading-relaxed">
           {isBackupMode ? (
-            <>Digite um dos seus <strong>códigos de recuperação (backup)</strong> para entrar na conta:</>
+            language === "en" ? (
+              <>Enter one of your <strong>backup recovery codes</strong> to log into your account:</>
+            ) : (
+              <>Digite um dos seus <strong>códigos de recuperação (backup)</strong> para entrar na conta:</>
+            )
           ) : (
-            <>Abra o <strong>Google Authenticator</strong> e digite o código de 6 dígitos gerado para <strong>{userEmail}</strong>:</>
+            language === "en" ? (
+              <>Open <strong>Google Authenticator</strong> and enter the 6-digit code generated for <strong>{userEmail}</strong>:</>
+            ) : (
+              <>Abra o <strong>Google Authenticator</strong> e digite o código de 6 dígitos gerado para <strong>{userEmail}</strong>:</>
+            )
           )}
         </p>
 
@@ -155,7 +174,7 @@ export const TwoFactorLoginModal: React.FC<TwoFactorLoginModalProps> = ({
             disabled={loading || !code.trim() || (!isBackupMode && code.length !== 6)}
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-sm font-bold text-accent-foreground shadow-lg shadow-accent/20 hover:shadow-accent/35 transition-all liquid-btn disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? "Verificando..." : "Confirmar e Entrar"}
+            {loading ? (language === "en" ? "Verifying..." : "Verificando...") : (language === "en" ? "Confirm and Sign In" : "Confirmar e Entrar")}
             {!loading && <ArrowRight className="h-4 w-4" />}
           </button>
 
@@ -169,7 +188,9 @@ export const TwoFactorLoginModal: React.FC<TwoFactorLoginModalProps> = ({
               }}
               className="text-xs text-accent hover:underline font-medium transition-colors"
             >
-              {isBackupMode ? "← Usar código do Google Authenticator" : "Não está com o celular? Usar código de backup"}
+              {isBackupMode
+                ? (language === "en" ? "← Use Google Authenticator code" : "← Usar código do Google Authenticator")
+                : (language === "en" ? "Don't have your phone? Use backup code" : "Não está com o celular? Usar código de backup")}
             </button>
           </div>
         </form>
@@ -179,3 +200,5 @@ export const TwoFactorLoginModal: React.FC<TwoFactorLoginModalProps> = ({
 
   return typeof document !== "undefined" ? createPortal(modalContent, document.body) : modalContent;
 };
+
+export default TwoFactorLoginModal;

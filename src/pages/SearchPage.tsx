@@ -17,11 +17,12 @@ import {
   allBiblicalCharacters, allBiblicalTopics, allBiblicalEntities,
   allRecommendedDevotionals, allPopularVerses, stripLeadingNumber
 } from "@/lib/searchData";
-import { devotionals as allDailyDevotionals, Devotional as MainDevotional } from "@/lib/devotionalsData";
-import { readingPlans } from "@/lib/readingPlansData";
+import { getLocalizedDevotionals, Devotional as MainDevotional } from "@/lib/devotionalsData";
+import { getLocalizedReadingPlans } from "@/lib/readingPlansData";
 import { shareBibleText } from "@/lib/downloadUtils";
 import { syncKeyToSupabase } from "@/services/userSyncService";
 import VoiceInputButton from "@/components/VoiceInputButton";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { 
   SEMANTIC_CONCEPTS, 
   detectSemanticConcepts, 
@@ -362,6 +363,8 @@ function calculateRelevanceScore(
 const SearchPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t, language } = useLanguage();
+  const isEn = language === "en";
 
   const [query, setQuery] = useState(""); // Live input value typed by user
   const [searchQuery, setSearchQuery] = useState(""); // Submitted query used for filtering & results
@@ -401,6 +404,9 @@ const SearchPage = () => {
     } catch {}
   }, []);
 
+  const allDailyDevotionals = useMemo(() => getLocalizedDevotionals(language), [language]);
+  const readingPlans = useMemo(() => getLocalizedReadingPlans(language), [language]);
+
   // Build unified searchable devotionals from devotionalsData (exactly 105)
   const unifiedSearchDevotionals = useMemo<UnifiedSearchDevotional[]>(() => {
     return allDailyDevotionals.map((d) => ({
@@ -414,7 +420,7 @@ const SearchPage = () => {
       prayer: d.prayer,
       summary: d.meditation.length > 140 ? d.meditation.slice(0, 140) + "..." : d.meditation
     }));
-  }, []);
+  }, [allDailyDevotionals]);
 
   const addToHistory = (q: string) => {
     const updated = [q, ...history.filter(h => h !== q)].slice(0, 20);
@@ -644,7 +650,7 @@ const SearchPage = () => {
       .filter(item => item.score > 15)
       .sort((a, b) => b.score - a.score)
       .map(item => item.plan);
-  }, [searchQuery, activeSemanticConcept]);
+  }, [searchQuery, readingPlans, activeSemanticConcept]);
 
   // Rank Devotionals
   const filteredDevotionals = useMemo(() => {
@@ -748,7 +754,7 @@ const SearchPage = () => {
                         handleSearch(query);
                       }
                     }}
-                    placeholder="Busque sobre algo bíblico..."
+                    placeholder={isEn ? "Search for anything biblical..." : "Busque sobre algo bíblico..."}
                     className={`w-full rounded-xl glass-card py-3 sm:py-3.5 ${query ? "pl-4" : "pl-10"} pr-20 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent transition-all duration-200 shadow-sm`}
                   />
                   {!query && <Search className="absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />}
@@ -760,7 +766,7 @@ const SearchPage = () => {
                         handleSearch(newQuery);
                       }}
                       size="xs"
-                      title="Pesquisar por voz"
+                      title={isEn ? "Search with voice" : "Pesquisar por voz"}
                     />
                     {query && (
                       <button
@@ -776,7 +782,7 @@ const SearchPage = () => {
                 </div>
 
                 <button type="submit" disabled={loading || !query.trim()} aria-label="Executar busca bíblica" className="rounded-xl bg-primary px-4 sm:px-5 py-3 sm:py-3.5 text-xs sm:text-sm font-semibold text-primary-foreground disabled:opacity-50 transition-all hover:opacity-90 shadow-sm flex items-center gap-1.5 shrink-0 active:scale-95">
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <> <Search className="h-4 w-4" /> Buscar </>}
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <> <Search className="h-4 w-4" /> {isEn ? "Search" : "Buscar"} </>}
                 </button>
               </div>
 
@@ -785,7 +791,7 @@ const SearchPage = () => {
                 <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="w-full">
                   <button
                     type="button"
-                    onClick={() => handleAskAI(`Fale mais sobre o conhecimento bíblico, devocionais ou personagem referente a: ${query}`)}
+                    onClick={() => handleAskAI(isEn ? `Tell me more about the biblical knowledge, devotionals or character related to: ${query}` : `Fale mais sobre o conhecimento bíblico, devocionais ou personagem referente a: ${query}`)}
                     className="w-full rounded-xl border border-accent/40 bg-gradient-to-r from-accent/15 via-accent/10 to-primary/10 p-2.5 sm:p-3 hover:border-accent hover:bg-accent/20 transition-all flex items-center justify-between gap-2.5 group shadow-sm text-left active:scale-[0.99]"
                   >
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -794,15 +800,15 @@ const SearchPage = () => {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-bold text-foreground truncate">
-                          Perguntar à IA Bíblica sobre <span className="text-accent underline font-serif">"{query}"</span>
+                          {isEn ? "Ask Biblical AI about " : "Perguntar à IA Bíblica sobre "}<span className="text-accent underline font-serif">"{query}"</span>
                         </p>
                         <p className="text-[11px] text-muted-foreground line-clamp-1">
-                          Obtenha explicações teológicas, contexto histórico e devocionais instantâneos.
+                          {isEn ? "Get theological insights, historical context and instant devotionals." : "Obtenha explicações teológicas, contexto histórico e devocionais instantâneos."}
                         </p>
                       </div>
                     </div>
                     <div className="rounded-lg bg-accent/20 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-accent group-hover:bg-accent group-hover:text-accent-foreground transition-all flex items-center gap-1 shrink-0">
-                      <Bot className="h-3.5 w-3.5" /> <span className="hidden xs:inline">Perguntar</span>
+                      <Bot className="h-3.5 w-3.5" /> <span className="hidden xs:inline">{isEn ? "Ask" : "Perguntar"}</span>
                     </div>
                   </button>
                 </motion.div>

@@ -317,3 +317,17 @@ export const readingPlans: ReadingPlan[] = [
     })
   }
 ];
+
+import { readingPlansEn } from "./readingPlansDataEn";
+
+export const getLocalizedReadingPlans = (language: string = "pt"): ReadingPlan[] => {
+  if (language === "en") {
+    return readingPlansEn;
+  }
+  return readingPlans;
+};
+
+export const getLocalizedReadingPlan = (id: string, language: string = "pt"): ReadingPlan | undefined => {
+  const plans = getLocalizedReadingPlans(language);
+  return plans.find(p => p.id === id) || readingPlans.find(p => p.id === id);
+};

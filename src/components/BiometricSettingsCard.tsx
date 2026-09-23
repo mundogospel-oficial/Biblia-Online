@@ -2,19 +2,14 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Smartphone, 
   ShieldCheck, 
   KeyRound,
   X, 
-  Lock,
-  ChevronRight,
-  Info
 } from "lucide-react";
 import { BiometricFaceIcon } from "./BiometricFaceIcon";
 import { FaceIdLottieAnimation } from "./FaceIdLottieAnimation";
 import { 
   isPWAMode, 
-  isBiometricAvailable, 
   isUserBiometricEnrolled, 
   registerBiometricCredential, 
   removeBiometricCredential,
@@ -22,6 +17,7 @@ import {
   setAppSessionUnlocked
 } from "@/services/biometricAuthService";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface BiometricSettingsCardProps {
   userId: string;
@@ -36,6 +32,7 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
   userName,
   onStatusChange,
 }) => {
+  const { t, language } = useLanguage();
   const [inPWA, setInPWA] = useState(() => (typeof window !== "undefined" ? isPWAMode() : false));
   const [isEnabled, setIsEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -83,8 +80,8 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
         setAppBiometricLockEnabled(false);
         onStatusChange?.(false);
         toast({
-          title: "Proteção Desativada",
-          description: "O bloqueio por biometria ou PIN foi desativado.",
+          title: language === "en" ? "Protection Disabled" : "Proteção Desativada",
+          description: language === "en" ? "Biometric or PIN lock has been disabled." : "O bloqueio por biometria ou PIN foi desativado.",
         });
       }
       return;
@@ -107,8 +104,8 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
         setAppSessionUnlocked(true);
         onStatusChange?.(true);
         toast({
-          title: "Proteção do App Ativada!",
-          description: "O app solicitará biometria ou PIN toda vez que for aberto.",
+          title: language === "en" ? "App Protection Enabled!" : "Proteção do App Ativada!",
+          description: language === "en" ? "The app will prompt for biometrics or PIN each time it opens." : "O app solicitará biometria ou PIN toda vez que for aberto.",
         });
       }
     } catch {
@@ -118,8 +115,8 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
         setAppSessionUnlocked(true);
         onStatusChange?.(true);
         toast({
-          title: "Proteção do App Ativada!",
-          description: "O app solicitará biometria ou PIN toda vez que for aberto.",
+          title: language === "en" ? "App Protection Enabled!" : "Proteção do App Ativada!",
+          description: language === "en" ? "The app will prompt for biometrics or PIN each time it opens." : "O app solicitará biometria ou PIN toda vez que for aberto.",
         });
       }
     } finally {
@@ -146,16 +143,16 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
           </span>
           <div className="text-left">
             <p className="text-sm font-medium text-foreground">
-              Biometria
+              {t("biometrics_title")}
             </p>
             <p className="text-[10px] text-muted-foreground">
               {loading
-                ? "Configurando..."
+                ? t("biometrics_setting_up")
                 : !inPWA
-                ? "Exclusivo no App (PWA) • Toque para ver"
+                ? t("biometrics_pwa_only")
                 : isEnabled
-                ? "Ativo (solicita biometria/senha ao abrir)"
-                : "Desativada"}
+                ? t("biometrics_active")
+                : t("biometrics_inactive")}
             </p>
           </div>
         </div>
@@ -199,7 +196,7 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
                     type="button"
                     onClick={() => setShowPWAGuideModal(false)}
                     className="absolute top-4 right-4 z-10 rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
-                    title="Fechar"
+                    title={t("cancel")}
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -209,32 +206,32 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
                   </div>
 
                   <h3 className="font-serif text-xl font-bold text-foreground">
-                    Biometria e PIN
+                    {t("biometrics_pwa_guide_title")}
                   </h3>
 
                   <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
-                    O acesso por biometria ou código do celular está disponível <strong>exclusivamente no aplicativo instalado (PWA)</strong>:
+                    {t("biometrics_pwa_guide_desc")}
                   </p>
 
                   <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-500/10 border border-emerald-500/25 text-emerald-400">
                     <ShieldCheck className="h-3 w-3" />
-                    <span>Processamento 100% Local • Zero Envio a Servidores</span>
+                    <span>{language === "en" ? "100% Local Processing • Zero Data Sent to Servers" : "Processamento 100% Local • Zero Envio a Servidores"}</span>
                   </div>
 
                   <div className="mt-4 rounded-2xl border border-white/10 bg-secondary/30 p-4 text-left space-y-3 text-xs text-foreground/90">
                     <div className="flex items-center gap-2 text-[11px] font-semibold text-accent mb-1 pb-2 border-b border-white/5">
                       <ShieldCheck className="h-3.5 w-3.5" />
-                      <span>Usa a segurança nativa do seu aparelho:</span>
+                      <span>{language === "en" ? "Uses your device's native security:" : "Usa a segurança nativa do seu aparelho:"}</span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 text-center text-[10px] text-muted-foreground pb-2 border-b border-white/5">
                       <div className="flex flex-col items-center gap-1 p-1.5 rounded-lg bg-secondary/50">
                         <BiometricFaceIcon className="h-4 w-4 text-accent" />
-                        <span>Biometria (Face ID)</span>
+                        <span>{language === "en" ? "Biometrics (Face ID)" : "Biometria (Face ID)"}</span>
                       </div>
                       <div className="flex flex-col items-center gap-1 p-1.5 rounded-lg bg-secondary/50">
                         <KeyRound className="h-4 w-4 text-accent" />
-                        <span>PIN / Código</span>
+                        <span>PIN / {language === "en" ? "Passcode" : "Código"}</span>
                       </div>
                     </div>
 
@@ -245,7 +242,11 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
                             1
                           </div>
                           <p className="leading-snug">
-                            Toque no botão <strong>Compartilhar</strong> (ícone do quadrado com a seta para cima) no Safari.
+                            {language === "en" ? (
+                              <>Tap the <strong>Share</strong> button (box with upward arrow) in Safari.</>
+                            ) : (
+                              <>Toque no botão <strong>Compartilhar</strong> (ícone do quadrado com a seta para cima) no Safari.</>
+                            )}
                           </p>
                         </div>
                         <div className="flex items-start gap-2.5">
@@ -253,7 +254,11 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
                             2
                           </div>
                           <p className="leading-snug">
-                            Role a lista e selecione <strong>Adicionar à Tela de Início</strong>.
+                            {language === "en" ? (
+                              <>Scroll and select <strong>Add to Home Screen</strong>.</>
+                            ) : (
+                              <>Role a lista e selecione <strong>Adicionar à Tela de Início</strong>.</>
+                            )}
                           </p>
                         </div>
                         <div className="flex items-start gap-2.5">
@@ -261,7 +266,11 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
                             3
                           </div>
                           <p className="leading-snug">
-                            Abra o app pela tela inicial para ativar o Face ID / Touch ID / PIN.
+                            {language === "en" ? (
+                              <>Open the app from the home screen to activate Face ID / Touch ID / PIN.</>
+                            ) : (
+                              <>Abra o app pela tela inicial para ativar o Face ID / Touch ID / PIN.</>
+                            )}
                           </p>
                         </div>
                       </>
@@ -272,7 +281,11 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
                             1
                           </div>
                           <p className="leading-snug">
-                            Toque no menu do Chrome/navegador (os três pontinhos no topo).
+                            {language === "en" ? (
+                              <>Tap the browser menu (three dots in Chrome).</>
+                            ) : (
+                              <>Toque no menu do Chrome/navegador (os três pontinhos no topo).</>
+                            )}
                           </p>
                         </div>
                         <div className="flex items-start gap-2.5">
@@ -280,7 +293,11 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
                             2
                           </div>
                           <p className="leading-snug">
-                            Selecione <strong>Instalar Aplicativo</strong> ou <strong>Adicionar à tela inicial</strong>.
+                            {language === "en" ? (
+                              <>Select <strong>Install App</strong> or <strong>Add to Home screen</strong>.</>
+                            ) : (
+                              <>Selecione <strong>Instalar Aplicativo</strong> ou <strong>Adicionar à tela inicial</strong>.</>
+                            )}
                           </p>
                         </div>
                         <div className="flex items-start gap-2.5">
@@ -288,7 +305,11 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
                             3
                           </div>
                           <p className="leading-snug">
-                            Abra pelo ícone instalado para ativar o login biométrico ou por PIN.
+                            {language === "en" ? (
+                              <>Open via the installed app icon to activate biometric or PIN login.</>
+                            ) : (
+                              <>Abra pelo ícone instalado para ativar o login biométrico ou por PIN.</>
+                            )}
                           </p>
                         </div>
                       </>
@@ -300,7 +321,7 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
                     onClick={() => setShowPWAGuideModal(false)}
                     className="mt-5 w-full rounded-xl bg-accent py-3 text-xs font-bold text-accent-foreground shadow-lg shadow-accent/20 hover:shadow-accent/35 transition-all liquid-btn"
                   >
-                    Entendido
+                    {t("biometrics_pwa_guide_btn")}
                   </button>
                 </motion.div>
               </div>
@@ -311,3 +332,5 @@ export const BiometricSettingsCard: React.FC<BiometricSettingsCardProps> = ({
     </>
   );
 };
+
+export default BiometricSettingsCard;

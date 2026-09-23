@@ -6,8 +6,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
 import TermsModal from "@/components/TermsModal";
 import { ChevronRight, ChevronLeft, Sun, Youtube, Loader2, BookOpen, Sparkles, Image as ImageIcon } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const Index = () => {
+  const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<'old' | 'new'>('old');
   const [dailyVerse, setDailyVerse] = useState<DailyVerseEntry | null>(() => getDailyVerseReference());
   const [isTermsOpen, setIsTermsOpen] = useState(false);
@@ -30,9 +32,14 @@ const Index = () => {
         setDailyVerse({ ...reference, text: verseText });
       })
       .catch(() => {
-        setDailyVerse({ ...reference, text: "Não foi possível carregar o versículo. Verifique sua conexão ou dados offline." });
+        setDailyVerse({ 
+          ...reference, 
+          text: language === "en" 
+            ? "Could not load the verse. Check your connection or offline data." 
+            : "Não foi possível carregar o versículo. Verifique sua conexão ou dados offline." 
+        });
       });
-  }, []);
+  }, [language]);
 
   const filteredBooks = bibleBooks.filter(b => b.testament === activeTab);
 
@@ -65,10 +72,10 @@ const Index = () => {
               Biblia Online
             </h1>
             <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base" style={{ fontFamily: "'Georgia', 'Times New Roman', serif" }}>
-              Leia a Palavra, estude com a IA Bíblica e transforme versículos em arte. Tudo em um só lugar.
+              {t("hero_subtitle")}
             </p>
             <p className="mx-auto mt-2 text-xs font-semibold text-accent">
-              Criado por Mundo Gospel
+              {t("created_by")}
             </p>
             <a
               href="https://youtube.com/@mundo_gospel_original?si=8atFNZStz1XBwXGb"
@@ -77,7 +84,7 @@ const Index = () => {
               className="mt-5 inline-flex items-center gap-2 rounded-full bg-accent px-6 py-2.5 text-sm font-semibold text-accent-foreground transition-transform hover:scale-105 active:scale-95 liquid-btn"
             >
               <Youtube className="h-4 w-4" />
-              Inscreva-se
+              {t("subscribe")}
             </a>
           </motion.div>
         </div>
@@ -99,7 +106,7 @@ const Index = () => {
                 <>
                   <Sun className="h-4 w-4 text-accent" />
                   <h2 className="font-sans text-xs font-bold uppercase tracking-wider text-accent">
-                    Versículo do Dia
+                    {t("verse_of_the_day")}
                   </h2>
                 </>
               )}
@@ -107,7 +114,7 @@ const Index = () => {
                 <>
                   <BookOpen className="h-4 w-4 text-accent" />
                   <h2 className="font-sans text-xs font-bold uppercase tracking-wider text-accent">
-                    + de 1.000 Versículos Sagrados
+                    {t("thousands_verses")}
                   </h2>
                 </>
               )}
@@ -115,7 +122,7 @@ const Index = () => {
                 <>
                   <Sparkles className="h-4 w-4 text-accent" />
                   <h2 className="font-sans text-xs font-bold uppercase tracking-wider text-accent">
-                    Dicionário e IA Bíblica
+                    {t("ai_dictionary_title")}
                   </h2>
                 </>
               )}
@@ -128,7 +135,7 @@ const Index = () => {
                   <button
                     key={idx}
                     onClick={() => setActiveSlide(idx)}
-                    aria-label={`Ir para slide ${idx + 1}`}
+                    aria-label={`Slide ${idx + 1}`}
                     className={`h-2 rounded-full transition-all duration-300 ${
                       activeSlide === idx 
                         ? 'w-6 bg-accent' 
@@ -139,14 +146,14 @@ const Index = () => {
               </div>
               <button
                 onClick={() => setActiveSlide((prev) => (prev === 0 ? 2 : prev - 1))}
-                aria-label="Slide anterior"
+                aria-label="Previous slide"
                 className="rounded-full p-1 text-muted-foreground hover:bg-accent/10 hover:text-accent transition-colors"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setActiveSlide((prev) => (prev + 1) % 3)}
-                aria-label="Próximo slide"
+                aria-label="Next slide"
                 className="rounded-full p-1 text-muted-foreground hover:bg-accent/10 hover:text-accent transition-colors"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -167,7 +174,7 @@ const Index = () => {
                 >
                   {!dailyVerse ? (
                     <div className="flex items-center gap-2 text-muted-foreground py-2">
-                      <Loader2 className="h-4 w-4 animate-spin" /> Carregando versículo do dia...
+                      <Loader2 className="h-4 w-4 animate-spin" /> {language === "en" ? "Loading verse of the day..." : "Carregando versículo do dia..."}
                     </div>
                   ) : (
                     <>
@@ -182,7 +189,7 @@ const Index = () => {
                         className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-accent/10 px-3.5 py-1.5 text-xs font-semibold text-accent transition-all hover:bg-accent/20 hover:scale-[1.02] active:scale-95"
                       >
                         <ImageIcon className="h-3.5 w-3.5" />
-                        Criar página com este versículo
+                        {t("create_page_verse")}
                       </Link>
                     </>
                   )}
@@ -198,17 +205,17 @@ const Index = () => {
                   transition={{ duration: 0.3 }}
                 >
                   <h3 className="font-serif text-lg font-bold text-foreground sm:text-xl">
-                    Mais de 31.000 versículos e 66 Livros Sagrados
+                    {t("thousands_verses_sub")}
                   </h3>
                   <p className="mt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                    Navegação offline instantânea, comparações de traduções e estudos em qualquer capítulo da Bíblia.
+                    {t("thousands_verses_desc")}
                   </p>
                   <Link
                     to="/livro/gn/1"
                     className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-accent/10 px-3.5 py-1.5 text-xs font-semibold text-accent transition-all hover:bg-accent/20 hover:scale-[1.02] active:scale-95"
                   >
                     <BookOpen className="h-3.5 w-3.5" />
-                    Começar Leitura (Gênesis 1)
+                    {t("start_reading_genesis")}
                   </Link>
                 </motion.div>
               )}
@@ -222,17 +229,17 @@ const Index = () => {
                   transition={{ duration: 0.3 }}
                 >
                   <h3 className="font-serif text-lg font-bold text-foreground sm:text-xl">
-                    Estudo Aprofundado e Dicionário Teológico IA
+                    {t("ai_dictionary_sub")}
                   </h3>
                   <p className="mt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                    Esclareça contextos históricos, palavras originais em hebraico/grego e significados práticos para cada versículo.
+                    {t("ai_dictionary_desc")}
                   </p>
                   <Link
                     to="/ia"
                     className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-accent/10 px-3.5 py-1.5 text-xs font-semibold text-accent transition-all hover:bg-accent/20 hover:scale-[1.02] active:scale-95"
                   >
                     <Sparkles className="h-3.5 w-3.5" />
-                    Acessar Inteligência Artificial Bíblica
+                    {t("access_ai")}
                   </Link>
                 </motion.div>
               )}
@@ -262,7 +269,7 @@ const Index = () => {
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
               )}
-              Antigo Testamento
+              {t("old_testament")}
             </motion.button>
 
             <motion.button
@@ -282,7 +289,7 @@ const Index = () => {
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
               )}
-              Novo Testamento
+              {t("new_testament")}
             </motion.button>
           </div>
         </div>
@@ -298,7 +305,7 @@ const Index = () => {
                 <p className="truncate text-sm font-medium text-foreground group-hover:text-accent transition-colors">
                   {book.name}
                 </p>
-                <p className="text-[10px] text-muted-foreground">{book.chapters} cap.</p>
+                <p className="text-[10px] text-muted-foreground">{book.chapters} {t("chapters_count")}</p>
               </div>
               <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-accent transition-colors" />
             </Link>
@@ -310,13 +317,13 @@ const Index = () => {
       <footer className="container mx-auto px-4 py-12 border-t border-border/30 text-center">
         <div className="flex flex-col items-center gap-2">
           <p className="text-xs text-muted-foreground font-medium">
-            © 2026 Biblia Online. Todos os direitos reservados.
+            {t("all_rights_reserved")}
           </p>
           <button 
             onClick={() => setIsTermsOpen(true)}
             className="text-[11px] text-accent hover:text-accent/80 transition-all font-bold hover:underline underline-offset-4"
           >
-            Termos de Uso e Política de Privacidade
+            {t("terms_privacy")}
           </button>
         </div>
       </footer>

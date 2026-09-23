@@ -1361,7 +1361,7 @@ const CreatePage = () => {
                       </Fragment>
                     )}
 
-                    <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-md text-center">
+                    <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-md text-center pb-6 sm:pb-8">
                       {!verseText ? (
                         <div className="flex flex-col items-center justify-center py-6 text-center">
                           <Sparkles className="h-8 w-8 opacity-40 mb-3 animate-pulse" style={{ color: textColor }} />
@@ -1398,14 +1398,14 @@ const CreatePage = () => {
                     </div>
 
                     {/* Marca d'água permanente no canto direito - ícone do app em branco com transparência */}
-                    <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-20 pointer-events-none select-none">
+                    <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-10 pointer-events-none select-none">
                       <img 
                         src={APP_WHITE_LOGO_DATA_URL} 
                         alt="Bíblia Online" 
                         draggable={false}
                         onContextMenu={(e) => e.preventDefault()}
                         onDragStart={(e) => e.preventDefault()}
-                        className="h-6 sm:h-8 w-auto object-contain opacity-50 drop-shadow-sm pointer-events-none select-none no-copy-logo"
+                        className="h-5 sm:h-7 w-auto object-contain opacity-40 drop-shadow-sm pointer-events-none select-none no-copy-logo"
                       />
                     </div>
                   </div>
@@ -1417,7 +1417,7 @@ const CreatePage = () => {
                     }`}
                     style={{ background: selectedGradient }}
                   >
-                    <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-md text-center">
+                    <div className="relative z-10 flex flex-col items-center justify-center w-full max-w-md text-center pb-6 sm:pb-8">
                       {!verseText ? (
                         <div className="flex flex-col items-center justify-center py-6 text-center">
                           <Sparkles className="h-8 w-8 opacity-40 mb-3 animate-pulse text-white" />
@@ -1447,14 +1447,14 @@ const CreatePage = () => {
                     </div>
 
                     {/* Marca d'água permanente no canto direito - ícone do app em branco com transparência */}
-                    <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-20 pointer-events-none select-none">
+                    <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-10 pointer-events-none select-none">
                       <img 
                         src={APP_WHITE_LOGO_DATA_URL} 
                         alt="Bíblia Online" 
                         draggable={false}
                         onContextMenu={(e) => e.preventDefault()}
                         onDragStart={(e) => e.preventDefault()}
-                        className="h-6 sm:h-8 w-auto object-contain opacity-50 drop-shadow-sm pointer-events-none select-none no-copy-logo"
+                        className="h-5 sm:h-7 w-auto object-contain opacity-40 drop-shadow-sm pointer-events-none select-none no-copy-logo"
                       />
                     </div>
                   </div>

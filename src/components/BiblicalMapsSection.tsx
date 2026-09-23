@@ -25,9 +25,10 @@ import {
   WifiOff,
   X
 } from "lucide-react";
-import { biblicalMaps, BiblicalMapTheme, MapLocation } from "@/data/biblicalMapsData";
+import { biblicalMaps, BiblicalMapTheme, MapLocation, getLocalizedBiblicalMaps } from "@/data/biblicalMapsData";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 
 interface BiblicalMapsSectionProps {
@@ -42,6 +43,7 @@ interface TileConfig {
   url: string;
   attribution: string;
   name: string;
+  nameEn: string;
   icon: any;
   subdomains?: string[];
   maxZoom?: number;
@@ -53,6 +55,7 @@ const TILE_SERVERS: Record<MapTileStyle, TileConfig> = {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     attribution: "&copy; Esri &mdash; Imagens de Satélite da Terra Santa",
     name: "Satélite Realista",
+    nameEn: "Realistic Satellite",
     icon: Globe2,
     maxZoom: 18,
     maxNativeZoom: 18
@@ -61,6 +64,7 @@ const TILE_SERVERS: Record<MapTileStyle, TileConfig> = {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}",
     attribution: "&copy; Esri &mdash; Topografia e Relevo Físico",
     name: "Relevo Topográfico",
+    nameEn: "Topographic Relief",
     icon: Mountain,
     maxZoom: 18,
     maxNativeZoom: 16
@@ -69,6 +73,7 @@ const TILE_SERVERS: Record<MapTileStyle, TileConfig> = {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}",
     attribution: "&copy; National Geographic, Esri &mdash; Atlas Histórico",
     name: "Atlas Histórico",
+    nameEn: "Historical Atlas",
     icon: Compass,
     maxZoom: 18,
     maxNativeZoom: 16
@@ -77,6 +82,7 @@ const TILE_SERVERS: Record<MapTileStyle, TileConfig> = {
     url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
     attribution: "&copy; OpenStreetMap contributors",
     name: "Mapa Padrão",
+    nameEn: "Standard Map",
     icon: Layers,
     maxZoom: 19,
     maxNativeZoom: 19
@@ -91,7 +97,11 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
   const navigate = useNavigate();
   const { isBeta, isAdmin, role } = useFeatureGate();
   const { user } = useAuth();
+  const { language } = useLanguage();
+  const isEn = language === "en";
   const { toast } = useToast();
+
+  const localizedBiblicalMaps = useMemo(() => getLocalizedBiblicalMaps(language), [language]);
 
   const [selectedMapId, setSelectedMapId] = useState<string>("viagens-paulo");
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>("loc-jerusalem");
@@ -171,8 +181,8 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
   const hasAccess = isBeta || isAdmin || role === "beta" || role === "admin";
 
   const currentMap = useMemo(() => {
-    return biblicalMaps.find(m => m.id === selectedMapId) || biblicalMaps[0];
-  }, [selectedMapId]);
+    return localizedBiblicalMaps.find(m => m.id === selectedMapId) || localizedBiblicalMaps[0];
+  }, [localizedBiblicalMaps, selectedMapId]);
 
   const selectedLocation = useMemo(() => {
     return currentMap.locations.find(l => l.id === selectedLocationId) || currentMap.locations[0];
@@ -365,16 +375,18 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
     }
 
     window.speechSynthesis.cancel();
-    const textToSpeak = `${selectedLocation.name}. ${selectedLocation.summary}. Contexto histórico: ${selectedLocation.historicalNote}. Texto bíblico em ${selectedLocation.reference}: ${selectedLocation.keyVerse}`;
+    const textToSpeak = isEn
+      ? `${selectedLocation.name}. ${selectedLocation.summary}. Historical context: ${selectedLocation.historicalNote}. Scripture in ${selectedLocation.reference}: ${selectedLocation.keyVerse}`
+      : `${selectedLocation.name}. ${selectedLocation.summary}. Contexto histórico: ${selectedLocation.historicalNote}. Texto bíblico em ${selectedLocation.reference}: ${selectedLocation.keyVerse}`;
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.lang = "pt-BR";
+    utterance.lang = isEn ? "en-US" : "pt-BR";
     utterance.rate = 1.0;
     utterance.onend = () => setIsPlayingAudio(false);
     utterance.onerror = () => setIsPlayingAudio(false);
 
     setIsPlayingAudio(true);
     window.speechSynthesis.speak(utterance);
-  }, [selectedLocation, isPlayingAudio]);
+  }, [selectedLocation, isPlayingAudio, isEn]);
 
   // Se a conta não tiver permissão de testes/beta, não exibe nada
   if (!hasAccess) {
@@ -390,11 +402,13 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
             <div className="flex flex-wrap items-center gap-2.5">
               <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2.5 tracking-tight">
                 <Compass className="h-5 w-5 sm:h-6 sm:w-6 text-accent shrink-0" />
-                <span>Mapas Bíblicos Realistas e Interativos</span>
+                <span>{isEn ? "Realistic and Interactive Biblical Maps" : "Mapas Bíblicos Realistas e Interativos"}</span>
               </h2>
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-              Geografia sagrada em alta resolução com satélite realista, relevo topográfico, atlas histórico e contextualização bíblica versículo por versículo.
+              {isEn 
+                ? "High-resolution sacred geography with satellite imagery, topographic relief, historical atlas, and verse-by-verse biblical context."
+                : "Geografia sagrada em alta resolução com satélite realista, relevo topográfico, atlas histórico e contextualização bíblica versículo por versículo."}
             </p>
           </div>
 
@@ -404,10 +418,10 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
               <button
                 onClick={() => handleToggleFullscreen(false)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-destructive/15 text-destructive hover:bg-destructive/25 text-xs font-bold border border-destructive/30 transition-all cursor-pointer shadow-xs active:scale-95"
-                title="Sair da Tela Cheia (ESC)"
+                title={isEn ? "Exit Fullscreen (ESC)" : "Sair da Tela Cheia (ESC)"}
               >
                 <Minimize2 className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Sair da Tela Cheia</span>
+                <span className="hidden sm:inline">{isEn ? "Exit Fullscreen" : "Sair da Tela Cheia"}</span>
               </button>
             )}
 
@@ -426,7 +440,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
 
         {/* Seletor de Temas dos Mapas */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 max-w-full themed-scrollbar visible-scrollbar pt-2 border-t border-border/40">
-          {biblicalMaps.map((mapItem) => {
+          {localizedBiblicalMaps.map((mapItem) => {
             const isSelected = mapItem.id === selectedMapId;
             return (
               <button
@@ -501,7 +515,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
                         }`}
                       >
                         <Icon className="h-3.5 w-3.5" />
-                        <span>{item.name}</span>
+                        <span>{isEn ? item.nameEn : item.name}</span>
                       </button>
                     );
                   })}
@@ -512,7 +526,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
                   <button
                     onClick={handleResetMap}
                     className="bg-slate-900/90 hover:bg-slate-800 text-white p-2 rounded-xl border border-white/15 shadow-lg transition-colors cursor-pointer"
-                    title="Centralizar Mapa"
+                    title={isEn ? "Center Map" : "Centralizar Mapa"}
                   >
                     <Compass className="h-4 w-4 text-amber-400" />
                   </button>
@@ -520,7 +534,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
                   <button
                     onClick={() => handleToggleFullscreen(!isFullscreen)}
                     className="bg-slate-900/90 hover:bg-slate-800 text-white p-2 rounded-xl border border-white/15 shadow-lg transition-colors cursor-pointer flex items-center gap-1"
-                    title={isFullscreen ? "Sair da Tela Cheia" : "Tela Cheia"}
+                    title={isFullscreen ? (isEn ? "Exit Fullscreen" : "Sair da Tela Cheia") : (isEn ? "Fullscreen" : "Tela Cheia")}
                   >
                     {isFullscreen ? (
                       <Minimize2 className="h-4 w-4 text-amber-400" />
@@ -535,7 +549,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
               <div className="absolute bottom-3 left-3 right-3 z-10 flex items-center justify-between pointer-events-none gap-2">
                 <div className="bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/15 shadow-lg pointer-events-auto flex items-center gap-2">
                   <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1">
-                    <Navigation className="h-3 w-3" /> {currentIndex + 1} de {currentMap.locations.length}
+                    <Navigation className="h-3 w-3" /> {currentIndex + 1} {isEn ? "of" : "de"} {currentMap.locations.length}
                   </span>
                   <span className="text-[11px] text-slate-300 truncate max-w-[130px] sm:max-w-[200px]">
                     {selectedLocation?.name}
@@ -546,14 +560,14 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
                   <button
                     onClick={() => handleStepLocation("prev")}
                     className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                    title="Ponto Anterior"
+                    title={isEn ? "Previous Point" : "Ponto Anterior"}
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => handleStepLocation("next")}
                     className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                    title="Próximo Ponto"
+                    title={isEn ? "Next Point" : "Próximo Ponto"}
                   >
                     <ChevronRight className="h-4 w-4" />
                   </button>
@@ -607,7 +621,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
                       <div className="flex items-center justify-between">
                         <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-accent/15 border border-accent/30 text-accent text-[11px] font-bold">
                           <MapPin className="h-3 w-3" />
-                          <span>Ponto {currentIndex + 1} de {currentMap.locations.length}</span>
+                          <span>{isEn ? `Point ${currentIndex + 1} of ${currentMap.locations.length}` : `Ponto ${currentIndex + 1} de ${currentMap.locations.length}`}</span>
                         </div>
                         {selectedLocation.modernName && (
                           <span className="text-[11px] text-muted-foreground flex items-center gap-1">
@@ -625,7 +639,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
                           className={`p-2 rounded-full border border-border transition-colors cursor-pointer ${
                             isPlayingAudio ? "bg-accent text-accent-foreground animate-pulse" : "bg-secondary text-foreground hover:bg-secondary/80"
                           }`}
-                          title="Ouvir explicação em áudio do sistema"
+                          title={isEn ? "Listen to audio explanation" : "Ouvir explicação em áudio do sistema"}
                         >
                           <Volume2 className="h-4 w-4" />
                         </button>
@@ -643,7 +657,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
                         <Info className="h-3.5 w-3.5 text-accent" />
-                        <span>Contexto Histórico e Arqueológico</span>
+                        <span>{isEn ? "Historical and Archaeological Context" : "Contexto Histórico e Arqueológico"}</span>
                       </div>
                       <p className="text-xs text-muted-foreground leading-relaxed">
                         {selectedLocation.historicalNote}
@@ -654,7 +668,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
                     <div className="rounded-xl bg-accent/10 border border-accent/25 p-3.5 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-accent flex items-center gap-1">
-                          <BookOpen className="h-3 w-3" /> Texto Bíblico Sagrado
+                          <BookOpen className="h-3 w-3" /> {isEn ? "Holy Scripture Text" : "Texto Bíblico Sagrado"}
                         </span>
                         <span className="text-[11px] font-bold text-accent px-2 py-0.5 rounded-md bg-accent/20">
                           {selectedLocation.reference}
@@ -673,7 +687,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
                       className="w-full flex items-center justify-center gap-2 rounded-xl bg-accent text-accent-foreground px-4 py-2.5 text-xs font-bold shadow-md hover:bg-accent/90 transition-transform active:scale-98 cursor-pointer"
                     >
                       <BookOpen className="h-4 w-4" />
-                      <span>Ler {selectedLocation.reference.split('/')[0].trim()} na Bíblia</span>
+                      <span>{isEn ? `Read ${selectedLocation.reference.split("/")[0].trim()} in the Bible` : `Ler ${selectedLocation.reference.split("/")[0].trim()} na Bíblia`}</span>
                       <ArrowRight className="h-4 w-4 ml-auto" />
                     </button>
 
@@ -683,13 +697,13 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
                         className="flex items-center justify-center gap-1 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground px-3 py-2 text-xs font-medium border border-border transition-colors cursor-pointer"
                       >
                         <ChevronLeft className="h-3.5 w-3.5 text-accent" />
-                        <span>Ponto Anterior</span>
+                        <span>{isEn ? "Previous Point" : "Ponto Anterior"}</span>
                       </button>
                       <button
                         onClick={() => handleStepLocation("next")}
                         className="flex items-center justify-center gap-1 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground px-3 py-2 text-xs font-medium border border-border transition-colors cursor-pointer"
                       >
-                        <span>Próximo Ponto</span>
+                        <span>{isEn ? "Next Point" : "Próximo Ponto"}</span>
                         <ChevronRight className="h-3.5 w-3.5 text-accent" />
                       </button>
                     </div>
@@ -698,15 +712,15 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
               ) : (
                 <div className="glass-card rounded-2xl p-6 border border-border bg-card/60 flex flex-col items-center justify-center text-center h-full space-y-3">
                   <MapPin className="h-8 w-8 text-accent animate-bounce" />
-                  <h4 className="font-serif text-lg font-bold text-foreground">Selecione um Ponto no Mapa</h4>
+                  <h4 className="font-serif text-lg font-bold text-foreground">{isEn ? "Select a Point on the Map" : "Selecione um Ponto no Mapa"}</h4>
                   <p className="text-xs text-muted-foreground max-w-xs">
-                    Clique em qualquer marcador numerado no mapa para ver a rota detalhada, o contexto histórico e ler o capítulo bíblico.
+                    {isEn ? "Click on any numbered marker on the map to see the detailed route, historical context, and read the biblical chapter." : "Clique em qualquer marcador numerado no mapa para ver a rota detalhada, o contexto histórico e ler o capítulo bíblico."}
                   </p>
                 </div>
               )}
             </AnimatePresence>
           </div>
         </div>
-    </div>
+      </div>
   );
 };

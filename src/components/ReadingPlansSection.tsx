@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -24,7 +24,7 @@ import {
   LockKeyhole,
   Info
 } from "lucide-react";
-import { readingPlans, PlanDay, ReadingPlan } from "@/lib/readingPlansData";
+import { PlanDay, ReadingPlan, getLocalizedReadingPlans } from "@/lib/readingPlansData";
 import { 
   getLocalPlanProgress, 
   loadPlanProgressWithSync, 
@@ -41,10 +41,16 @@ import {
 } from "@/services/readingPlanService";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import VoiceInputButton from "@/components/VoiceInputButton";
 
 export const ReadingPlansSection = () => {
   const { user } = useAuth();
+  const { t, language } = useLanguage();
+  const isEn = language === "en";
+
+  const readingPlans = useMemo(() => getLocalizedReadingPlans(language), [language]);
+
   const [progress, setProgress] = useState<UserPlanProgress>(() => {
     return user ? getLocalPlanProgress() : {
       activePlanId: null,
@@ -114,6 +120,20 @@ export const ReadingPlansSection = () => {
 
   const categories = ["Todas", "Geral", "Antigo Testamento", "Novo Testamento", "Sabedoria", "Temático", "Iniciantes"];
 
+  const getCategoryLabel = (cat: string) => {
+    if (!isEn) return cat;
+    switch (cat) {
+      case "Todas": return "All";
+      case "Geral": return "General";
+      case "Antigo Testamento": return "Old Testament";
+      case "Novo Testamento": return "New Testament";
+      case "Sabedoria": return "Wisdom";
+      case "Temático": return "Thematic";
+      case "Iniciantes": return "Beginners";
+      default: return cat;
+    }
+  };
+
   const filteredPlans = readingPlans.filter(
     (p) => selectedCategory === "Todas" || p.category === selectedCategory
   );
@@ -125,10 +145,10 @@ export const ReadingPlansSection = () => {
     
     const plan = readingPlans.find((p) => p.id === planId);
     toast({
-      title: nowFavorited ? "Plano Favoritado" : "Removido dos Favoritos",
+      title: nowFavorited ? (isEn ? "Plan Favorited" : "Plano Favoritado") : (isEn ? "Removed from Favorites" : "Removido dos Favoritos"),
       description: nowFavorited
-        ? `"${plan?.title || 'Plano'}" foi adicionado ao menu Meus Favoritos.`
-        : `"${plan?.title || 'Plano'}" foi removido dos favoritos.`,
+        ? (isEn ? `"${plan?.title || 'Plan'}" was added to My Favorites.` : `"${plan?.title || 'Plano'}" foi adicionado ao menu Meus Favoritos.`)
+        : (isEn ? `"${plan?.title || 'Plan'}" was removed from favorites.` : `"${plan?.title || 'Plano'}" foi removido dos favoritos.`),
     });
   };
 
@@ -136,8 +156,8 @@ export const ReadingPlansSection = () => {
   const handleDayClick = async (day: PlanDay) => {
     if (!user) {
       toast({
-        title: "Login Necessário",
-        description: "Você precisa fazer login para ativar planos de leitura e acompanhar seu progresso.",
+        title: isEn ? "Login Required" : "Login Necessário",
+        description: isEn ? "Please log in to activate reading plans and track your progress." : "Você precisa fazer login para ativar planos de leitura e acompanhar seu progresso.",
         variant: "destructive",
       });
       return;
@@ -154,8 +174,10 @@ export const ReadingPlansSection = () => {
     if (!isCurrentPlanActive) {
       if (progress.activePlanId) {
         toast({
-          title: "Você já tem um plano ativado!",
-          description: `Você precisa desativar o plano "${activePlan?.title || 'atual'}" antes de ativar ou realizar lições deste plano.`,
+          title: isEn ? "You already have an active plan!" : "Você já tem um plano ativado!",
+          description: isEn 
+            ? `You need to deactivate the plan "${activePlan?.title || 'current'}" before starting lessons on this plan.`
+            : `Você precisa desativar o plano "${activePlan?.title || 'atual'}" antes de ativar ou realizar lições deste plano.`,
           variant: "destructive",
         });
         return;
@@ -180,7 +202,7 @@ export const ReadingPlansSection = () => {
       .map((r) => `${r.bookName} ${r.chapter}${r.verseRange ? `:${r.verseRange}` : ""}`)
       .join(", ");
 
-    const nowFormatted = new Date().toLocaleString("pt-BR", {
+    const nowFormatted = new Date().toLocaleString(isEn ? "en-US" : "pt-BR", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -209,10 +231,10 @@ export const ReadingPlansSection = () => {
     setReflectionInput("");
 
     toast({
-      title: `Dia ${dayNumber} Concluído e Salvo!`,
+      title: isEn ? `Day ${dayNumber} Completed and Saved!` : `Dia ${dayNumber} Concluído e Salvo!`,
       description: reflectionInput.trim() 
-        ? "Sua reflexão foi salva no histórico permanente da lição."
-        : "Leitura registrada com sucesso!",
+        ? (isEn ? "Your reflection was saved to your permanent lesson history." : "Sua reflexão foi salva no histórico permanente da lição.")
+        : (isEn ? "Reading logged successfully!" : "Leitura registrada com sucesso!"),
     });
   };
 
@@ -223,8 +245,8 @@ export const ReadingPlansSection = () => {
 
     if (isNowCompleted) {
       toast({
-        title: `Dia ${dayNumber} Concluído`,
-        description: `Seu progresso foi salvo com sucesso!`,
+        title: isEn ? `Day ${dayNumber} Completed` : `Dia ${dayNumber} Concluído`,
+        description: isEn ? "Your progress was saved successfully!" : "Seu progresso foi salvo com sucesso!",
       });
     }
   };
@@ -241,8 +263,8 @@ export const ReadingPlansSection = () => {
   const handleSelectPlan = async (planId: string) => {
     if (!user) {
       toast({
-        title: "Login Necessário",
-        description: "Você precisa fazer login para ativar planos de leitura e acompanhar seu progresso.",
+        title: isEn ? "Login Required" : "Login Necessário",
+        description: isEn ? "Please log in to activate reading plans and track your progress." : "Você precisa fazer login para ativar planos de leitura e acompanhar seu progresso.",
         variant: "destructive",
       });
       return;
@@ -251,8 +273,10 @@ export const ReadingPlansSection = () => {
     if (progress.activePlanId && progress.activePlanId !== planId) {
       const currentActive = readingPlans.find((p) => p.id === progress.activePlanId);
       toast({
-        title: "Você já tem um plano ativado!",
-        description: `Para ativar o plano "${readingPlans.find(p => p.id === planId)?.title || 'novo'}", você precisa primeiro desativar o plano "${currentActive?.title || 'atual'}".`,
+        title: isEn ? "You already have an active plan!" : "Você já tem um plano ativado!",
+        description: isEn 
+          ? `To activate "${readingPlans.find(p => p.id === planId)?.title || 'new'}", you must first deactivate "${currentActive?.title || 'current'}".`
+          : `Para ativar o plano "${readingPlans.find(p => p.id === planId)?.title || 'novo'}", você precisa primeiro desativar o plano "${currentActive?.title || 'atual'}".`,
         variant: "destructive",
       });
       return;
@@ -263,8 +287,8 @@ export const ReadingPlansSection = () => {
     setSelectedPlanId(planId);
     setShowActivationModal(false);
     toast({
-      title: "Plano Ativado!",
-      description: "As leituras estão liberadas! Acompanhe seu progresso diário.",
+      title: isEn ? "Plan Activated!" : "Plano Ativado!",
+      description: isEn ? "Readings are unlocked! Track your daily journey." : "As leituras estão liberadas! Acompanhe seu progresso diário.",
     });
   };
 
@@ -272,8 +296,8 @@ export const ReadingPlansSection = () => {
     const updated = await setActivePlan(null);
     setProgress(updated);
     toast({
-      title: "Plano Desativado",
-      description: "Nenhum plano está ativo no momento. Você pode ativar qualquer plano quando desejar.",
+      title: isEn ? "Plan Deactivated" : "Plano Desativado",
+      description: isEn ? "No plan is currently active. You can activate any plan whenever you wish." : "Nenhum plano está ativo no momento. Você pode ativar qualquer plano quando desejar.",
     });
   };
 
@@ -286,11 +310,11 @@ export const ReadingPlansSection = () => {
             <div className="space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-3 py-1 text-xs font-bold text-accent">
-                  <Sparkles className="h-3.5 w-3.5" /> Plano Ativo Em Andamento
+                  <Sparkles className="h-3.5 w-3.5" /> {isEn ? "Active Plan in Progress" : "Plano Ativo Em Andamento"}
                 </span>
                 {progress.streakDays > 0 && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-orange-500/15 px-3 py-1 text-xs font-bold text-orange-400">
-                    <Flame className="h-3.5 w-3.5 fill-orange-400" /> {progress.streakDays} {progress.streakDays === 1 ? "dia seguido" : "dias seguidos"}
+                    <Flame className="h-3.5 w-3.5 fill-orange-400" /> {progress.streakDays} {progress.streakDays === 1 ? (isEn ? "day streak" : "dia seguido") : (isEn ? "days streak" : "dias seguidos")}
                   </span>
                 )}
               </div>
@@ -305,7 +329,7 @@ export const ReadingPlansSection = () => {
                       ? "text-accent bg-accent/10 hover:bg-accent/20"
                       : "text-muted-foreground hover:text-accent hover:bg-secondary"
                   }`}
-                  title={favoritedPlanIds.includes(activePlan.id) ? "Remover dos Favoritos" : "Favoritar este Plano"}
+                  title={favoritedPlanIds.includes(activePlan.id) ? (isEn ? "Remove from Favorites" : "Remover dos Favoritos") : (isEn ? "Favorite this Plan" : "Favoritar este Plano")}
                 >
                   <Heart className={`h-5 w-5 ${favoritedPlanIds.includes(activePlan.id) ? "fill-accent" : ""}`} />
                 </button>
@@ -318,9 +342,9 @@ export const ReadingPlansSection = () => {
             <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0 flex-wrap sm:flex-nowrap justify-between w-full md:w-auto pt-2 md:pt-0">
               <div className="flex items-center gap-2.5">
                 <div className="text-left sm:text-right">
-                  <span className="text-[11px] sm:text-xs font-medium text-muted-foreground block">Progresso Total</span>
+                  <span className="text-[11px] sm:text-xs font-medium text-muted-foreground block">{isEn ? "Total Progress" : "Progresso Total"}</span>
                   <span className="font-sans text-lg sm:text-xl font-extrabold text-accent">
-                    {(progress.completedDaysByPlan[activePlan.id] || []).length} / {activePlan.durationDays} {activePlan.durationDays === 1 ? "dia" : "dias"}
+                    {(progress.completedDaysByPlan[activePlan.id] || []).length} / {activePlan.durationDays} {activePlan.durationDays === 1 ? (isEn ? "day" : "dia") : (isEn ? "days" : "dias")}
                   </span>
                 </div>
                 <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center font-bold text-xs text-accent shrink-0">
@@ -332,9 +356,9 @@ export const ReadingPlansSection = () => {
               <button
                 onClick={handleDeactivatePlan}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-500/20 transition-all shrink-0 active:scale-95"
-                title="Desativar este plano"
+                title={isEn ? "Deactivate this plan" : "Desativar este plano"}
               >
-                <PowerOff className="h-3.5 w-3.5" /> Desativar Plano
+                <PowerOff className="h-3.5 w-3.5" /> {isEn ? "Deactivate Plan" : "Desativar Plano"}
               </button>
             </div>
           </div>
@@ -361,10 +385,13 @@ export const ReadingPlansSection = () => {
           </div>
           <div className="space-y-1.5 max-w-xl mx-auto">
             <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground">
-              Nenhum Plano Ativado no Momento
+              {isEn ? "No Plan Currently Active" : "Nenhum Plano Ativado no Momento"}
             </h2>
             <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-              Para liberar a marcação das leituras diárias, escolha um plano no catálogo abaixo e clique em <strong className="text-accent font-bold">"Ativar Este Plano"</strong>.
+              {isEn 
+                ? "To unlock daily reading checkpoints, choose a plan from the catalog below and tap "
+                : "Para liberar a marcação das leituras diárias, escolha um plano no catálogo abaixo e clique em "}
+              <strong className="text-accent font-bold">"{isEn ? "Start This Plan" : "Ativar Este Plano"}"</strong>.
             </p>
           </div>
         </div>
@@ -387,19 +414,19 @@ export const ReadingPlansSection = () => {
                     ? "text-accent bg-accent/10"
                     : "text-muted-foreground hover:text-accent hover:bg-secondary"
                 }`}
-                title={favoritedPlanIds.includes(currentPlanViewed.id) ? "Favoritado" : "Favoritar Plano"}
+                title={favoritedPlanIds.includes(currentPlanViewed.id) ? (isEn ? "Favorited" : "Favoritado") : (isEn ? "Favorite Plan" : "Favoritar Plano")}
               >
                 <Heart className={`h-4 w-4 ${favoritedPlanIds.includes(currentPlanViewed.id) ? "fill-accent" : ""}`} />
               </button>
 
               {!isCurrentPlanActive && (
                 <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-500 border border-amber-500/20">
-                  <Info className="h-3 w-3" /> Inativo
+                  <Info className="h-3 w-3" /> {isEn ? "Inactive" : "Inativo"}
                 </span>
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {completedDays.length} de {currentPlanViewed.durationDays} dias concluídos ({percentComplete}%)
+              {completedDays.length} {isEn ? "of" : "de"} {currentPlanViewed.durationDays} {isEn ? "days completed" : "dias concluídos"} ({percentComplete}%)
             </p>
           </div>
 
@@ -408,18 +435,18 @@ export const ReadingPlansSection = () => {
               onClick={() => handleSelectPlan(currentPlanViewed.id)}
               className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-xs font-bold text-accent-foreground shadow-md transition-all hover:scale-105 active:scale-95 shrink-0"
             >
-              <Zap className="h-4 w-4" /> Ativar Este Plano Agora
+              <Zap className="h-4 w-4" /> {isEn ? "Start This Plan Now" : "Ativar Este Plano Agora"}
             </button>
           ) : (
             <div className="flex items-center gap-2 shrink-0">
               <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3.5 py-1.5 text-xs font-bold">
-                <ShieldCheck className="h-4 w-4" /> Plano Ativo
+                <ShieldCheck className="h-4 w-4" /> {isEn ? "Active Plan" : "Plano Ativo"}
               </span>
               <button
                 onClick={handleDeactivatePlan}
                 className="inline-flex items-center gap-1 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-1.5 text-xs font-bold transition-all"
               >
-                <PowerOff className="h-3.5 w-3.5" /> Desativar
+                <PowerOff className="h-3.5 w-3.5" /> {isEn ? "Deactivate" : "Desativar"}
               </button>
             </div>
           )}
@@ -458,10 +485,10 @@ export const ReadingPlansSection = () => {
                       }`}
                       title={
                         isDone
-                          ? "Clique para desmarcar ou ver lição salva"
+                          ? (isEn ? "Click to uncheck or view saved lesson" : "Clique para desmarcar ou ver lição salva")
                           : !isCurrentPlanActive
-                          ? "Ative este plano para liberar a marcação da lição"
-                          : "Concluir e responder reflexão da lição"
+                          ? (isEn ? "Activate this plan to unlock marking lessons" : "Ative este plano para liberar a marcação da lição")
+                          : (isEn ? "Complete and record lesson reflection" : "Concluir e responder reflexão da lição")
                       }
                     >
                       {isDone ? (
@@ -479,14 +506,14 @@ export const ReadingPlansSection = () => {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-mono text-xs font-bold text-accent bg-accent/10 px-2 py-0.5 rounded-md">
-                          Dia {day.dayNumber}
+                          {isEn ? "Day" : "Dia"} {day.dayNumber}
                         </span>
                         <h4 className={`text-sm font-bold ${isDone ? "line-through text-muted-foreground" : "text-foreground"}`}>
                           {day.title}
                         </h4>
                         {isDone && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                            <Check className="h-3 w-3" /> Concluído
+                            <Check className="h-3 w-3" /> {isEn ? "Completed" : "Concluído"}
                           </span>
                         )}
                       </div>
@@ -499,7 +526,7 @@ export const ReadingPlansSection = () => {
 
                       {/* Passage readings with direct Reader link */}
                       <div className="pt-1.5 flex flex-wrap gap-2 items-center">
-                        <span className="text-[11px] text-muted-foreground font-medium">Leitura da Palavra:</span>
+                        <span className="text-[11px] text-muted-foreground font-medium">{isEn ? "Scripture Reading:" : "Leitura da Palavra:"}</span>
                         {day.readings.map((r, idx) => (
                           <Link
                             key={idx}
@@ -517,7 +544,7 @@ export const ReadingPlansSection = () => {
                       {savedRef?.reflectionText && (
                         <div className="mt-2 rounded-lg bg-accent/5 border-l-2 border-accent p-2 text-xs text-muted-foreground">
                           <p className="text-[10px] font-bold text-accent uppercase tracking-wider flex items-center gap-1">
-                            <StickyNote className="h-3 w-3" /> Sua Reflexão Registrada:
+                            <StickyNote className="h-3 w-3" /> {isEn ? "Your Saved Reflection:" : "Sua Reflexão Registrada:"}
                           </p>
                           <p className="italic line-clamp-2 text-foreground/90 mt-0.5">
                             "{savedRef.reflectionText}"
@@ -534,9 +561,9 @@ export const ReadingPlansSection = () => {
                       <button
                         onClick={() => handleOpenSavedLessonModal(day)}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/10 hover:bg-accent/20 text-accent px-3 py-1.5 text-xs font-bold transition-all shadow-sm"
-                        title="Ver lição salva com reflexão em modo leitura"
+                        title={isEn ? "View saved lesson with reflection" : "Ver lição salva com reflexão em modo leitura"}
                       >
-                        <Eye className="h-3.5 w-3.5" /> Ver Lição Salva
+                        <Eye className="h-3.5 w-3.5" /> {isEn ? "View Saved Lesson" : "Ver Lição Salva"}
                       </button>
                     )}
 
@@ -552,15 +579,15 @@ export const ReadingPlansSection = () => {
                     >
                       {isDone ? (
                         <>
-                          <Check className="h-3.5 w-3.5" /> Concluído
+                          <Check className="h-3.5 w-3.5" /> {isEn ? "Completed" : "Concluído"}
                         </>
                       ) : !isCurrentPlanActive ? (
                         <>
-                          <Sparkles className="h-3.5 w-3.5" /> Ativar e Responder
+                          <Sparkles className="h-3.5 w-3.5" /> {isEn ? "Start and Record" : "Ativar e Responder"}
                         </>
                       ) : (
                         <>
-                          <CheckCircle2 className="h-3.5 w-3.5" /> Responder e Marcar Lido
+                          <CheckCircle2 className="h-3.5 w-3.5" /> {isEn ? "Record and Mark Read" : "Responder e Marcar Lido"}
                         </>
                       )}
                     </button>
@@ -577,10 +604,12 @@ export const ReadingPlansSection = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 className="font-serif text-xl font-bold text-foreground">
-              Catálogo de Planos de Leitura
+              {isEn ? "Reading Plans Catalog" : "Catálogo de Planos de Leitura"}
             </h3>
             <p className="text-xs text-muted-foreground">
-              Escolha o plano ideal para o seu momento, favorite e ative para acompanhar
+              {isEn 
+                ? "Choose the ideal plan for your season, favorite it, and activate to follow along"
+                : "Escolha o plano ideal para o seu momento, favorite e ative para acompanhar"}
             </p>
           </div>
 
@@ -596,7 +625,7 @@ export const ReadingPlansSection = () => {
                     : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
                 }`}
               >
-                {cat}
+                {getCategoryLabel(cat)}
               </button>
             ))}
           </div>
@@ -628,7 +657,7 @@ export const ReadingPlansSection = () => {
                     
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground flex items-center gap-1 font-mono">
-                        <Clock className="h-3 w-3" /> {plan.durationDays} Dias
+                        <Clock className="h-3 w-3" /> {plan.durationDays} {isEn ? "Days" : "Dias"}
                       </span>
                       <button
                         onClick={(e) => handleToggleFavorite(plan.id, e)}
@@ -637,7 +666,7 @@ export const ReadingPlansSection = () => {
                             ? "text-accent bg-accent/10"
                             : "text-muted-foreground hover:text-accent hover:bg-secondary"
                         }`}
-                        title={isFav ? "Remover dos Favoritos" : "Favoritar Plano"}
+                        title={isFav ? (isEn ? "Remove from Favorites" : "Remover dos Favoritos") : (isEn ? "Favorite Plan" : "Favoritar Plano")}
                       >
                         <Heart className={`h-4 w-4 ${isFav ? "fill-accent" : ""}`} />
                       </button>
@@ -656,7 +685,7 @@ export const ReadingPlansSection = () => {
 
                 <div className="mt-5 pt-3 border-t border-border/40 flex items-center justify-between gap-2">
                   <span className="text-xs text-muted-foreground font-medium">
-                    {planCompleted.length} / {plan.durationDays} dias lidos
+                    {planCompleted.length} / {plan.durationDays} {isEn ? "days completed" : "dias lidos"}
                   </span>
 
                   {isCurrentActive ? (
@@ -667,7 +696,7 @@ export const ReadingPlansSection = () => {
                       }}
                       className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition-all"
                     >
-                      <PowerOff className="h-3.5 w-3.5" /> Desativar
+                      <PowerOff className="h-3.5 w-3.5" /> {isEn ? "Deactivate" : "Desativar"}
                     </button>
                   ) : (
                     <button
@@ -677,7 +706,7 @@ export const ReadingPlansSection = () => {
                       }}
                       className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-accent/10 text-accent hover:bg-accent/20 transition-all"
                     >
-                      Ativar Plano
+                      {isEn ? "Start Plan" : "Ativar Plano"}
                     </button>
                   )}
                 </div>
@@ -704,7 +733,7 @@ export const ReadingPlansSection = () => {
                   </div>
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-accent font-mono">
-                      Concluir Lição - Dia {completingDay.dayNumber}
+                      {isEn ? "Complete Lesson - Day" : "Concluir Lição - Dia"} {completingDay.dayNumber}
                     </span>
                     <h3 className="font-serif text-lg font-bold text-foreground">
                       {completingDay.title}
@@ -722,7 +751,7 @@ export const ReadingPlansSection = () => {
               {/* Versículos / Passagens */}
               <div className="space-y-1.5 rounded-xl bg-secondary/40 p-3.5 border border-border/50">
                 <p className="text-[11px] font-bold text-accent uppercase tracking-wider flex items-center gap-1">
-                  <BookOpen className="h-3.5 w-3.5" /> Passagens da Lição de Hoje:
+                  <BookOpen className="h-3.5 w-3.5" /> {isEn ? "Scripture Passages for Today:" : "Passagens da Lição de Hoje:"}
                 </p>
                 <div className="flex flex-wrap gap-2 pt-1">
                   {completingDay.readings.map((r, i) => (
@@ -740,7 +769,7 @@ export const ReadingPlansSection = () => {
               {completingDay.devotionText && (
                 <div className="space-y-1 rounded-xl bg-card p-3.5 border border-border/40 text-xs text-muted-foreground leading-relaxed">
                   <p className="font-bold text-foreground text-xs flex items-center gap-1">
-                    <Sparkles className="h-3.5 w-3.5 text-accent" /> Lição do Dia:
+                    <Sparkles className="h-3.5 w-3.5 text-accent" /> {isEn ? "Lesson of the Day:" : "Lição do Dia:"}
                   </p>
                   <p className="text-foreground/90">{completingDay.devotionText}</p>
                 </div>
@@ -751,10 +780,10 @@ export const ReadingPlansSection = () => {
                 <label className="block text-xs font-bold text-foreground flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <StickyNote className="h-4 w-4 text-accent" />
-                    O que você entendeu desta lição?
+                    {isEn ? "What did you learn from this lesson?" : "O que você entendeu desta lição?"}
                   </span>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-muted-foreground font-normal">Sua reflexão pessoal ({reflectionInput.length}/1500)</span>
+                    <span className="text-[10px] text-muted-foreground font-normal">{isEn ? "Personal reflection" : "Sua reflexão pessoal"} ({reflectionInput.length}/1500)</span>
                   </div>
                 </label>
                 <div className="relative">
@@ -762,7 +791,7 @@ export const ReadingPlansSection = () => {
                     maxLength={1500}
                     value={reflectionInput}
                     onChange={(e) => setReflectionInput(e.target.value.slice(0, 1500))}
-                    placeholder="Escreva aqui o que você entendeu, aprendeu ou sentiu ao ler este capítulo e lição da Palavra de Deus..."
+                    placeholder={isEn ? "Write what you understood, learned, or felt when reading this passage of God's Word..." : "Escreva aqui o que você entendeu, aprendeu ou sentiu ao ler este capítulo e lição da Palavra de Deus..."}
                     rows={4}
                     className="w-full rounded-xl border border-border bg-background p-3.5 pr-10 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/50 leading-relaxed resize-none custom-scrollbar"
                   />
@@ -775,7 +804,7 @@ export const ReadingPlansSection = () => {
                         });
                       }}
                       size="sm"
-                      title="Ditar reflexão por voz"
+                      title={isEn ? "Dictate reflection with voice" : "Ditar reflexão por voz"}
                     />
                   </div>
                 </div>
@@ -786,13 +815,13 @@ export const ReadingPlansSection = () => {
                   onClick={() => setCompletingDay(null)}
                   className="px-4 py-2.5 rounded-xl text-xs font-semibold text-muted-foreground hover:bg-secondary"
                 >
-                  Cancelar
+                  {t("cancel")}
                 </button>
                 <button
                   onClick={handleSaveReflectionAndComplete}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent text-accent-foreground text-xs font-bold shadow-md hover:scale-[1.02] active:scale-95 transition-all"
                 >
-                  <Send className="h-4 w-4" /> Concluir e Salvar Lição
+                  <Send className="h-4 w-4" /> {isEn ? "Complete and Save Lesson" : "Concluir e Salvar Lição"}
                 </button>
               </div>
             </motion.div>
@@ -818,7 +847,7 @@ export const ReadingPlansSection = () => {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 font-mono">
-                        Lição Salva e Concluída
+                        {isEn ? "Saved & Completed Lesson" : "Lição Salva e Concluída"}
                       </span>
                       {viewingSavedLesson.reflection?.savedAt && (
                         <span className="text-[10px] text-muted-foreground font-mono">
@@ -827,7 +856,7 @@ export const ReadingPlansSection = () => {
                       )}
                     </div>
                     <h3 className="font-serif text-lg font-bold text-foreground">
-                      Dia {viewingSavedLesson.day.dayNumber} — {viewingSavedLesson.day.title}
+                      {isEn ? "Day" : "Dia"} {viewingSavedLesson.day.dayNumber} — {viewingSavedLesson.day.title}
                     </h3>
                   </div>
                 </div>
@@ -842,7 +871,7 @@ export const ReadingPlansSection = () => {
               {/* Versículos / Passagens */}
               <div className="space-y-1.5 rounded-xl bg-secondary/40 p-3.5 border border-border/50">
                 <p className="text-[11px] font-bold text-accent uppercase tracking-wider flex items-center gap-1">
-                  <BookOpen className="h-3.5 w-3.5" /> Passagens da Lição:
+                  <BookOpen className="h-3.5 w-3.5" /> {isEn ? "Lesson Scripture Readings:" : "Passagens da Lição:"}
                 </p>
                 <div className="flex flex-wrap gap-2 pt-1">
                   {viewingSavedLesson.day.readings.map((r, i) => (
@@ -860,7 +889,7 @@ export const ReadingPlansSection = () => {
               {viewingSavedLesson.day.devotionText && (
                 <div className="space-y-1 rounded-xl bg-card p-3.5 border border-border/40 text-xs text-muted-foreground leading-relaxed">
                   <p className="font-bold text-foreground text-xs flex items-center gap-1">
-                    <Sparkles className="h-3.5 w-3.5 text-accent" /> Conteúdo da Lição:
+                    <Sparkles className="h-3.5 w-3.5 text-accent" /> {isEn ? "Lesson Content:" : "Conteúdo da Lição:"}
                   </p>
                   <p className="text-foreground/90">{viewingSavedLesson.day.devotionText}</p>
                 </div>
@@ -871,10 +900,10 @@ export const ReadingPlansSection = () => {
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
                     <StickyNote className="h-4 w-4 text-accent" />
-                    O Que Você Entendeu (Reflexão Salva)
+                    {isEn ? "What You Learned (Saved Reflection)" : "O Que Você Entendeu (Reflexão Salva)"}
                   </label>
                   <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground border border-border">
-                    <LockKeyhole className="h-3 w-3 text-emerald-400" /> Sem edição
+                    <LockKeyhole className="h-3 w-3 text-emerald-400" /> {isEn ? "Protected mode" : "Sem edição"}
                   </span>
                 </div>
 
@@ -885,7 +914,7 @@ export const ReadingPlansSection = () => {
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground italic">
-                      Nenhuma anotação de texto foi escrita no momento da conclusão desta lição.
+                      {isEn ? "No written note was logged when completing this lesson." : "Nenhuma anotação de texto foi escrita no momento da conclusão desta lição."}
                     </p>
                   )}
                 </div>
@@ -896,11 +925,11 @@ export const ReadingPlansSection = () => {
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(viewingSavedLesson.reflection?.reflectionText || "");
-                      toast({ title: "Reflexão copiada!" });
+                      toast({ title: isEn ? "Reflection copied!" : "Reflexão copiada!" });
                     }}
                     className="inline-flex items-center gap-1 text-xs text-accent hover:underline font-medium"
                   >
-                    <Copy className="h-3.5 w-3.5" /> Copiar Minha Reflexão
+                    <Copy className="h-3.5 w-3.5" /> {isEn ? "Copy My Reflection" : "Copiar Minha Reflexão"}
                   </button>
                 ) : <div />}
 
@@ -908,7 +937,7 @@ export const ReadingPlansSection = () => {
                   onClick={() => setViewingSavedLesson(null)}
                   className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-md hover:opacity-90"
                 >
-                  Fechar
+                  {isEn ? "Close" : "Fechar"}
                 </button>
               </div>
             </motion.div>
@@ -928,7 +957,7 @@ export const ReadingPlansSection = () => {
             >
               <div className="flex items-center justify-between border-b border-border pb-3">
                 <div className="flex items-center gap-2 text-amber-400 font-bold font-serif text-base">
-                  <Lock className="h-5 w-5" /> Ativação Necessária
+                  <Lock className="h-5 w-5" /> {isEn ? "Activation Required" : "Ativação Necessária"}
                 </div>
                 <button
                   onClick={() => setShowActivationModal(false)}
@@ -940,7 +969,9 @@ export const ReadingPlansSection = () => {
 
               <div className="space-y-2 text-xs sm:text-sm text-muted-foreground">
                 <p>
-                  Para marcar caixas de leitura e salvar seu progresso no plano <strong className="text-foreground">"{currentPlanViewed.title}"</strong>, você precisa ativá-lo primeiro.
+                  {isEn 
+                    ? `To check reading boxes and save your progress in "${currentPlanViewed.title}", please activate it first.`
+                    : `Para marcar caixas de leitura e salvar seu progresso no plano "${currentPlanViewed.title}", você precisa ativá-lo primeiro.`}
                 </p>
               </div>
 
@@ -949,13 +980,13 @@ export const ReadingPlansSection = () => {
                   onClick={() => setShowActivationModal(false)}
                   className="px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground hover:bg-secondary"
                 >
-                  Cancelar
+                  {t("cancel")}
                 </button>
                 <button
                   onClick={() => handleSelectPlan(currentPlanViewed.id)}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-accent text-accent-foreground text-xs font-bold shadow-md hover:scale-105 active:scale-95 transition-all"
                 >
-                  <Zap className="h-4 w-4" /> Ativar Plano Agora
+                  <Zap className="h-4 w-4" /> {isEn ? "Activate Plan Now" : "Ativar Plano Agora"}
                 </button>
               </div>
             </motion.div>

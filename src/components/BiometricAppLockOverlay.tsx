@@ -2,8 +2,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Lock, 
-  Unlock, 
   AlertCircle, 
   KeyRound, 
   LogOut
@@ -20,13 +18,15 @@ import {
 } from "@/services/biometricAuthService";
 import { forceSignOut } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export const BiometricAppLockOverlay: React.FC = () => {
+  const { t, language } = useLanguage();
   const [isLocked, setIsLocked] = useState(false);
   const [authenticating, setAuthenticating] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [enrolledUser, setEnrolledUser] = useState<{ email: string; name: string } | null>(null);
+  const [, setEnrolledUser] = useState<{ email: string; name: string } | null>(null);
   const { toast } = useToast();
 
   const checkLockState = useCallback(() => {
@@ -72,16 +72,16 @@ export const BiometricAppLockOverlay: React.FC = () => {
       } else {
         setAuthenticating(false);
         if (!isAuto) {
-          setAuthError(res.error || "Autenticação biométrica não concluída.");
+          setAuthError(res.error || (language === "en" ? "Biometric authentication not completed." : "Autenticação biométrica não concluída."));
         }
       }
     } catch (err: any) {
       setAuthenticating(false);
       if (!isAuto) {
-        setAuthError(err?.message || "Erro ao autenticar no dispositivo.");
+        setAuthError(err?.message || (language === "en" ? "Error authenticating on device." : "Erro ao autenticar no dispositivo."));
       }
     }
-  }, []);
+  }, [language]);
 
   // Inicialização e disparo automático na abertura do PWA
   useEffect(() => {
@@ -128,8 +128,8 @@ export const BiometricAppLockOverlay: React.FC = () => {
     setIsLocked(false);
     await forceSignOut();
     toast({
-      title: "Sessão Encerrada",
-      description: "Você pode entrar com outra conta ou senha.",
+      title: language === "en" ? "Session Ended" : "Sessão Encerrada",
+      description: language === "en" ? "You can sign in with another account or password." : "Você pode entrar com outra conta ou senha.",
     });
   };
 
@@ -206,10 +206,10 @@ export const BiometricAppLockOverlay: React.FC = () => {
           <div className="space-y-1">
             <h2 className="text-xl font-bold text-foreground font-serif">
               {isSuccess
-                ? "Desbloqueado!"
+                ? (language === "en" ? "Unlocked!" : "Desbloqueado!")
                 : authenticating
-                ? "Aguardando Leitura..."
-                : "Aplicativo Bloqueado"}
+                ? (language === "en" ? "Reading Biometrics..." : "Aguardando Leitura...")
+                : t("biometrics_lock_title")}
             </h2>
           </div>
 
@@ -228,7 +228,11 @@ export const BiometricAppLockOverlay: React.FC = () => {
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-accent py-3 px-4 text-xs font-bold text-accent-foreground shadow-lg shadow-accent/20 hover:shadow-accent/35 active:scale-[0.98] transition-all liquid-btn disabled:opacity-50"
           >
             <BiometricFaceIcon className="h-4 w-4 shrink-0" />
-            <span>{authenticating ? "Lendo Biometria..." : "Desbloquear com Biometria"}</span>
+            <span>
+              {authenticating
+                ? (language === "en" ? "Authenticating..." : "Lendo Biometria...")
+                : t("biometrics_lock_unlock_btn")}
+            </span>
           </button>
         </motion.div>
 
@@ -237,11 +241,11 @@ export const BiometricAppLockOverlay: React.FC = () => {
           <div className="flex items-center justify-center gap-4 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <BiometricFaceIcon className="h-3.5 w-3.5 text-accent/80" />
-              <span>Biometria</span>
+              <span>{t("biometrics_title")}</span>
             </span>
             <span>•</span>
             <span className="flex items-center gap-1.5">
-              <KeyRound className="h-3.5 w-3.5 text-accent/80" /> Código / PIN
+              <KeyRound className="h-3.5 w-3.5 text-accent/80" /> {language === "en" ? "PIN / Passcode" : "Código / PIN"}
             </span>
           </div>
 
@@ -251,7 +255,7 @@ export const BiometricAppLockOverlay: React.FC = () => {
             className="text-xs text-muted-foreground hover:text-foreground hover:underline transition-colors flex items-center justify-center gap-1.5 mx-auto"
           >
             <LogOut className="h-3.5 w-3.5" />
-            <span>Entrar com outra conta</span>
+            <span>{t("biometrics_lock_switch_account")}</span>
           </button>
         </div>
       </motion.div>
@@ -259,3 +263,5 @@ export const BiometricAppLockOverlay: React.FC = () => {
     document.body
   );
 };
+
+export default BiometricAppLockOverlay;

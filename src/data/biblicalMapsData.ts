@@ -855,3 +855,12 @@ export const biblicalMaps: BiblicalMapTheme[] = [
     ]
   }
 ];
+
+import { biblicalMapsEn } from "./biblicalMapsDataEn";
+
+export const getLocalizedBiblicalMaps = (language: string = "pt"): BiblicalMapTheme[] => {
+  if (language === "en") {
+    return biblicalMapsEn;
+  }
+  return biblicalMaps;
+};
