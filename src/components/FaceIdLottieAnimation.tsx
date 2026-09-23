@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 import lottie, { AnimationItem } from "lottie-web";
 import faceIdAnimationData from "../assets/face-id-animation.json";
 
@@ -12,6 +13,13 @@ export interface FaceIdLottieAnimationProps {
   size?: number | string;
 }
 
+/**
+ * Componente oficial de animação Apple Face ID:
+ * - Fundo cinza removido (100% transparente)
+ * - Proporção ajustada perfeitamente para preencher o quadrado (88.89x88.89)
+ * - Durante a leitura (authenticating): Efeito orgânico de pulsar / respirar ("inchando e desinchando") do Face ID nativo
+ * - Na confirmação (isSuccess): Transição fluida para o anel e desenho completo do checkmark (✓)
+ */
 export const FaceIdLottieAnimation: React.FC<FaceIdLottieAnimationProps> = ({
   className = "w-24 h-24",
   isSuccess = false,
@@ -28,19 +36,17 @@ export const FaceIdLottieAnimation: React.FC<FaceIdLottieAnimationProps> = ({
     if (!containerRef.current) return;
 
     try {
-      // Destrói qualquer instância anterior
       if (animRef.current) {
         animRef.current.destroy();
         animRef.current = null;
       }
 
-      // Carrega o arquivo JSON original separado sem alterar nada nele
-      // Usa renderer 'svg' para renderizar perfeitamente máscaras e camadas vetoriais
+      // Renderizador SVG para suporte completo a vetores, máscaras e transparência
       const anim = lottie.loadAnimation({
         container: containerRef.current,
         renderer: "svg",
-        loop: loop,
-        autoplay: autoplay,
+        loop: false,
+        autoplay: false,
         animationData: faceIdAnimationData,
         rendererSettings: {
           preserveAspectRatio: "xMidYMid meet",
@@ -50,6 +56,9 @@ export const FaceIdLottieAnimation: React.FC<FaceIdLottieAnimationProps> = ({
       });
 
       animRef.current = anim;
+
+      // Inicia no frame 0 com o ícone pronto
+      anim.goToAndStop(0, true);
 
       anim.addEventListener("complete", () => {
         onComplete?.();
@@ -62,31 +71,31 @@ export const FaceIdLottieAnimation: React.FC<FaceIdLottieAnimationProps> = ({
     } catch (err) {
       console.error("Erro ao carregar animação Face ID:", err);
     }
-  }, [loop, autoplay, onComplete]);
+  }, [onComplete]);
 
-  // Controle de reprodução e estado de sucesso
+  // Controle de estados da animação
   useEffect(() => {
     const anim = animRef.current;
     if (!anim) return;
 
     if (isSuccess) {
-      // Quadro de validação / checkmark de sucesso
+      // Sucesso: Morfa os 4 cantos para o círculo e desenha o checkmark (✓)
       anim.loop = false;
-      anim.playSegments([112, 180], true);
+      anim.playSegments([30, 180], true);
       const timer = setTimeout(() => {
         onComplete?.();
-      }, 900);
+      }, 950);
       return () => clearTimeout(timer);
     } else if (authenticating) {
-      // Leitura biométrica ativa com anéis de varredura
-      anim.loop = true;
-      anim.playSegments([0, 112], true);
+      // Leitura em andamento: Mantém os 4 cantos no frame inicial enquanto o container respira/incha
+      anim.loop = false;
+      anim.goToAndStop(0, true);
     } else {
-      // Estado de repouso / ícone pronto
+      // Estado de repouso
       anim.loop = false;
       anim.goToAndStop(0, true);
     }
-  }, [isSuccess, authenticating, onComplete]);
+  }, [isSuccess, authenticating, onComplete, loop, autoplay]);
 
   const containerStyle: React.CSSProperties = {
     width: size ?? undefined,
@@ -94,12 +103,44 @@ export const FaceIdLottieAnimation: React.FC<FaceIdLottieAnimationProps> = ({
   };
 
   return (
-    <div
-      ref={containerRef}
-      className={`relative inline-flex items-center justify-center select-none overflow-hidden ${className}`}
+    <motion.div
+      animate={
+        authenticating
+          ? {
+              scale: [1, 1.14, 1],
+              opacity: [0.9, 1, 0.9],
+            }
+          : isSuccess
+          ? {
+              scale: [1, 1.05, 1],
+              opacity: 1,
+            }
+          : {
+              scale: 1,
+              opacity: 1,
+            }
+      }
+      transition={
+        authenticating
+          ? {
+              duration: 1.4,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }
+          : {
+              duration: 0.35,
+              ease: "easeOut",
+            }
+      }
+      className={`relative inline-flex items-center justify-center select-none ${className}`}
       style={containerStyle}
       aria-label="Animação Face ID"
-    />
+    >
+      <div
+        ref={containerRef}
+        className="w-full h-full flex items-center justify-center [&_svg]:w-full [&_svg]:h-full [&_svg]:overflow-visible"
+      />
+    </motion.div>
   );
 };
 
