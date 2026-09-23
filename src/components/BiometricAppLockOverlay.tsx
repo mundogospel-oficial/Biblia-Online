@@ -196,9 +196,10 @@ export const BiometricAppLockOverlay: React.FC = () => {
             <div className="absolute inset-0 rounded-[2rem] bg-accent/10 blur-xl group-hover:bg-accent/20 transition-all pointer-events-none" />
             
             <FaceIdLottieAnimation
-              className="w-24 h-24 pointer-events-none"
+              className="w-20 h-20 pointer-events-none"
               isSuccess={isSuccess}
-              loop={authenticating || !isSuccess}
+              authenticating={authenticating}
+              loop={authenticating}
             />
           </button>
 
