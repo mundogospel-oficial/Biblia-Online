@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.gemini-chat]
 verify_jwt = false
+
+[functions.daily-verse-push]
+verify_jwt = false

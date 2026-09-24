@@ -21,13 +21,10 @@ export class OneSignalService {
       return;
     }
 
-    const isAllowedHost = 
-      window.location.hostname === "online-biblia.vercel.app" || 
-      window.location.hostname === "localhost" || 
-      window.location.hostname === "127.0.0.1";
-
-    if (!isAllowedHost) {
-      console.warn('[OneSignal] Initialization bypassed on non-production host:', window.location.hostname);
+    // Permitir inicialização em qualquer ambiente HTTPS seguro ou localhost
+    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    if (!window.isSecureContext && !isLocal) {
+      console.warn('[OneSignal] Initialization bypassed: HTTPS or secure context required');
       return;
     }
 

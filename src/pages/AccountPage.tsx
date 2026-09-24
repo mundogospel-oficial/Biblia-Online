@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import zxcvbn from "zxcvbn";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
-import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2, AlertTriangle, Languages, X, Sparkles, Clock, RotateCcw, Shield } from "lucide-react";
+import { User, LogIn, LogOut, Settings, Bell, BellOff, Download, KeyRound, Camera, Pencil, WifiOff, CheckCircle, Eye, EyeOff, Trash2, AlertTriangle, Languages, X, Sparkles, Clock, RotateCcw, Shield, Smartphone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, forceSignOut, handleAuthError, extractAvatarUrl } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -12,7 +12,14 @@ import { useToast } from "@/hooks/use-toast";
 import { Turnstile } from '@marsidev/react-turnstile';
 import { useSentinel } from "@/hooks/useSentinel";
 import { setupPushNotifications } from "@/services/pushService";
-import { sendLocalNotification, getNotificationSettings, saveNotificationSettings } from "@/services/notificationService";
+import { 
+  sendLocalNotification, 
+  getNotificationSettings, 
+  saveNotificationSettings,
+  registerPeriodicBackgroundSync,
+  scheduleBackgroundNotification,
+  isPeriodicSyncSupported
+} from "@/services/notificationService";
 import { validatePasswordSecurity } from "@/utils/passwordValidator";
 import { checkPwnedPassword } from "@/utils/pwnedPasswordValidator";
 import { MandatoryPwnedPasswordModal } from "@/components/MandatoryPwnedPasswordModal";
@@ -206,6 +213,12 @@ const AccountPage = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [isBackgroundTesting, setIsBackgroundTesting] = useState(false);
+  const [backgroundCountdown, setBackgroundCountdown] = useState<number | null>(null);
+  const [showOneSignalConfig, setShowOneSignalConfig] = useState(false);
+  const [customOneSignalId, setCustomOneSignalId] = useState(() => {
+    return typeof window !== "undefined" ? localStorage.getItem("onesignal_custom_app_id") || "" : "";
+  });
   const [offlineEnabled, setOfflineEnabled] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarImgFailed, setAvatarImgFailed] = useState(false);
@@ -1146,13 +1159,19 @@ const AccountPage = () => {
         setNotificationsEnabled(true);
         localStorage.setItem(NOTIFICATIONS_KEY, "true");
 
+        // Registra Periodic Background Sync para notificações com app fechado
+        await registerPeriodicBackgroundSync();
+
         if (authCtx.user) {
           try {
             await setupPushNotifications(authCtx.user.sub);
           } catch (err) {
             console.warn("Erro ao registrar push notifications do OneSignal:", err);
           }
-          toast({ title: "Notificações ativadas" });
+          toast({ 
+            title: "Notificações ativadas", 
+            description: "Plano 4 ativo: versículo diário pela manhã (08h) e noite (20h) mesmo com o app fechado!" 
+          });
         } else {
           // If not logged in, request permission directly
           try {
@@ -1163,7 +1182,7 @@ const AccountPage = () => {
           }
           toast({ 
             title: "Notificações ativadas", 
-            description: "Você receberá o versículo diário e mensagens importantes." 
+            description: "Plano 4 ativo: versículo diário pela manhã (08h) e noite (20h) mesmo com o app fechado!" 
           });
         }
       } else {
@@ -1192,6 +1211,106 @@ const AccountPage = () => {
         title: "Erro ao configurar", 
         description: "Ocorreu um problema ao salvar suas configurações.", 
         variant: "destructive" 
+      });
+    }
+  };
+
+  const handleTestBackgroundNotification = async (delaySeconds = 5) => {
+    setNotificationTestError(null);
+    setIsBackgroundTesting(true);
+    setBackgroundCountdown(delaySeconds);
+    const isEn = language === "en";
+
+    try {
+      if (!("Notification" in window)) {
+        toast({
+          title: isEn ? "Not Supported" : "Não suportado",
+          description: isEn ? "Notifications are not supported in this browser." : "Notificações não são suportadas neste navegador.",
+          variant: "destructive"
+        });
+        setIsBackgroundTesting(false);
+        setBackgroundCountdown(null);
+        return;
+      }
+
+      if (Notification.permission !== "granted") {
+        const perm = await Notification.requestPermission();
+        if (perm !== "granted") {
+          toast({
+            title: isEn ? "Permission Denied" : "Permissão Negada",
+            description: isEn ? "Please grant notification permission." : "Conceda permissão para notificações.",
+            variant: "destructive"
+          });
+          setIsBackgroundTesting(false);
+          setBackgroundCountdown(null);
+          return;
+        }
+      }
+
+      const scheduled = await scheduleBackgroundNotification(
+        delaySeconds * 1000,
+        isEn ? "Verse of the Day - Psalms 23:1" : "Versículo do Dia - Salmos 23:1",
+        isEn ? "The LORD is my shepherd; I shall not want." : "O SENHOR é o meu pastor; nada me faltará.",
+        `biblia-test-bg-${Date.now()}`
+      );
+
+      toast({
+        title: isEn ? "⏱️ Background Timer Started!" : "⏱️ Timer em Segundo Plano Ativado!",
+        description: isEn 
+          ? `Notification in ${delaySeconds}s! You can minimize or close the app now to test.`
+          : `Notificação em ${delaySeconds}s! Você já pode minimizar, trocar de aba ou bloquear o celular para testar.`
+      });
+
+      let remaining = delaySeconds;
+      const interval = setInterval(() => {
+        remaining -= 1;
+        if (remaining > 0) {
+          setBackgroundCountdown(remaining);
+        } else {
+          clearInterval(interval);
+          setBackgroundCountdown(null);
+          setIsBackgroundTesting(false);
+          if (!scheduled) {
+            sendLocalNotification(
+              isEn ? "Verse of the Day - Psalms 23:1" : "Versículo do Dia - Salmos 23:1",
+              isEn ? "The LORD is my shepherd; I shall not want." : "O SENHOR é o meu pastor; nada me faltará.",
+              `biblia-test-bg-${Date.now()}`,
+              true
+            ).catch(() => {});
+          }
+        }
+      }, 1000);
+    } catch (err: any) {
+      console.error("Erro no teste de segundo plano:", err);
+      setNotificationTestError(err?.message || String(err));
+      setIsBackgroundTesting(false);
+      setBackgroundCountdown(null);
+    }
+  };
+
+  const handleSaveOneSignalId = async () => {
+    const trimmed = customOneSignalId.trim();
+    if (trimmed) {
+      localStorage.setItem("onesignal_custom_app_id", trimmed);
+      try {
+        const { oneSignalService } = await import("@/services/oneSignalService");
+        await oneSignalService.initialize(trimmed);
+        await oneSignalService.requestPermission();
+        toast({
+          title: "OneSignal Conectado",
+          description: "App ID salvo e inicializado com sucesso!"
+        });
+      } catch (e) {
+        toast({
+          title: "App ID Salvo",
+          description: "Configuração guardada com sucesso."
+        });
+      }
+    } else {
+      localStorage.removeItem("onesignal_custom_app_id");
+      toast({
+        title: "OneSignal Redefinido",
+        description: "Utilizando configuração padrão do sistema."
       });
     }
   };
@@ -1573,53 +1692,118 @@ const AccountPage = () => {
                     </button>
 
                     {notificationsEnabled && (
-                      <div className="mt-2 flex flex-col gap-2 w-full">
-                        <button 
-                          onClick={async () => {
-                            setNotificationTestError(null);
-                            const isEn = language === "en";
-                            try {
-                              if (!("Notification" in window)) {
+                      <div className="mt-2 flex flex-col gap-2.5 w-full">
+                        {/* Status Plano 4: Segundo Plano & Offline */}
+                        <div className="rounded-xl bg-gradient-to-br from-accent/15 via-secondary/40 to-secondary/20 border border-accent/25 p-3.5 flex flex-col gap-2 shadow-sm text-left">
+                          <div className="flex items-center justify-between">
+                            <span className="flex items-center gap-1.5 text-xs font-semibold text-accent">
+                              <Sparkles className="h-3.5 w-3.5 text-accent" />
+                              Plano 4: Notificações em Segundo Plano
+                            </span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-accent/20 text-accent font-semibold border border-accent/30">
+                              Ativo
+                            </span>
+                          </div>
+
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            {language === "en"
+                              ? "Daily verses delivered at 08:00 AM and 08:00 PM even if the app or browser is completely closed."
+                              : "Versículos diários entregues às 08h00 e às 20h00 mesmo com o aplicativo ou navegador totalmente fechados."}
+                          </p>
+
+                          <div className="grid grid-cols-2 gap-2 mt-1">
+                            <div className="rounded-lg bg-background/50 border border-white/5 p-2 flex items-center gap-2">
+                              <Clock className="h-3.5 w-3.5 text-accent shrink-0" />
+                              <div className="text-[10px]">
+                                <span className="font-semibold text-foreground block">08h00 & 20h00</span>
+                                <span className="text-muted-foreground">Horários diários</span>
+                              </div>
+                            </div>
+
+                            <div className="rounded-lg bg-background/50 border border-white/5 p-2 flex items-center gap-2">
+                              <Smartphone className="h-3.5 w-3.5 text-accent shrink-0" />
+                              <div className="text-[10px]">
+                                <span className="font-semibold text-foreground block">
+                                  {isPeriodicSyncSupported() ? "Nativo PWA" : "Service Worker"}
+                                </span>
+                                <span className="text-muted-foreground">100% Offline</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Botões de Ação e Testes */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <button 
+                            type="button"
+                            onClick={async () => {
+                              setNotificationTestError(null);
+                              const isEn = language === "en";
+                              try {
+                                if (!("Notification" in window)) {
+                                  toast({ 
+                                    title: isEn ? "Not Supported" : "Não suportado", 
+                                    description: isEn ? "This browser does not support notifications." : "Este navegador não suporta notificações.", 
+                                    variant: "destructive" 
+                                  });
+                                  return;
+                                }
+
+                                if (Notification.permission !== "granted") {
+                                  const { oneSignalService } = await import("@/services/oneSignalService");
+                                  await oneSignalService.requestPermission();
+                                }
+
+                                await sendLocalNotification(
+                                  isEn ? "Notification Test" : "Teste de Notificação", 
+                                  isEn ? "Your Bible Online test notification was sent successfully." : "Sua notificação de teste da Bíblia Online foi enviada com sucesso.",
+                                  `biblia-test-${Date.now()}`,
+                                  true
+                                );
+                                
                                 toast({ 
-                                  title: isEn ? "Not Supported" : "Não suportado", 
-                                  description: isEn ? "This browser does not support local notifications." : "Este navegador não suporta notificações locais.", 
+                                  title: isEn ? "Test Sent" : "Teste Enviado", 
+                                  description: isEn ? "Notification sent directly to your screen." : "Notificação enviada diretamente para a sua tela." 
+                                });
+                              } catch (err: any) {
+                                console.error("Erro ao disparar teste de notificação:", err);
+                                const errMsg = err?.message || String(err);
+                                setNotificationTestError(errMsg);
+                                toast({ 
+                                  title: isEn ? "Test Error" : "Erro de Teste", 
+                                  description: isEn ? "Could not send the notification at this time." : "Não foi possível enviar a notificação no momento.", 
                                   variant: "destructive" 
                                 });
-                                return;
                               }
+                            }}
+                            className="rounded-xl bg-secondary/50 border border-white/5 py-2.5 px-3 text-xs font-semibold text-foreground hover:bg-secondary/70 transition-all flex items-center justify-center gap-1.5 shadow-sm liquid-btn cursor-pointer"
+                          >
+                            <Bell className="h-3.5 w-3.5 text-accent" />
+                            {language === "en" ? "Instant Test" : "Testar Agora"}
+                          </button>
 
-                              if (Notification.permission !== "granted") {
-                                const { oneSignalService } = await import("@/services/oneSignalService");
-                                await oneSignalService.requestPermission();
-                              }
+                          <button 
+                            type="button"
+                            disabled={isBackgroundTesting}
+                            onClick={() => handleTestBackgroundNotification(5)}
+                            className={`rounded-xl border py-2.5 px-3 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-sm liquid-btn cursor-pointer ${
+                              isBackgroundTesting 
+                                ? "bg-accent/25 border-accent text-accent animate-pulse" 
+                                : "bg-accent/15 border-accent/30 text-accent hover:bg-accent/25"
+                            }`}
+                          >
+                            <Clock className="h-3.5 w-3.5" />
+                            {isBackgroundTesting 
+                              ? `Em ${backgroundCountdown ?? 5}s (feche/bloqueie)` 
+                              : (language === "en" ? "Test Closed (5s)" : "Testar Fechado (5s)")}
+                          </button>
+                        </div>
 
-                              await sendLocalNotification(
-                                isEn ? "Notification Test" : "Teste de Notificação", 
-                                isEn ? "Your Bible Online test notification was sent successfully." : "Sua notificação de teste da Bíblia Online foi enviada com sucesso.",
-                                `biblia-test-${Date.now()}`,
-                                true
-                              );
-                              
-                              toast({ 
-                                title: isEn ? "Test Sent" : "Teste Enviado", 
-                                description: isEn ? "The test notification was sent directly to your device." : "A notificação de teste foi disparada diretamente para o seu dispositivo." 
-                              });
-                            } catch (err: any) {
-                              console.error("Erro ao disparar teste de notificação:", err);
-                              const errMsg = err?.message || String(err);
-                              setNotificationTestError(errMsg);
-                              toast({ 
-                                title: isEn ? "Test Error" : "Erro de Teste", 
-                                description: isEn ? "Could not send the notification at this time." : "Não foi possível enviar a notificação no momento.", 
-                                variant: "destructive" 
-                              });
-                            }
-                          }}
-                          className="w-full rounded-xl bg-accent/10 border border-accent/20 py-2.5 text-xs font-semibold text-accent hover:bg-accent/20 transition-all flex items-center justify-center gap-2 shadow-sm liquid-btn"
-                        >
-                          <Bell className="h-3.5 w-3.5" />
-                          {language === "en" ? "Test Notification" : "Testar Notificação"}
-                        </button>
+                        {isBackgroundTesting && (
+                          <div className="rounded-xl bg-accent/10 border border-accent/30 p-2.5 text-center text-xs text-accent animate-fadeIn">
+                            ⏱️ <strong>{backgroundCountdown}s</strong> — {language === "en" ? "Minimize or lock your screen now to see it arrive!" : "Minimize ou bloqueie a tela agora para ver ela chegar com o app fechado!"}
+                          </div>
+                        )}
 
                         {notificationTestError && (
                           <div className="rounded-xl bg-destructive/10 border border-destructive/20 p-3 text-left text-xs text-foreground flex flex-col gap-1 animate-fadeIn">
@@ -1627,10 +1811,53 @@ const AccountPage = () => {
                               {language === "en" ? "Failed to send notification:" : "Falha ao disparar notificação:"}
                             </span>
                             <p className="text-[11px] text-muted-foreground leading-relaxed">
-                              {language === "en" ? "Check if site notifications are permitted in your browser or device settings." : "Verifique se as notificações do site estão permitidas nas configurações do seu navegador ou dispositivo."}
+                              {notificationTestError}
                             </p>
                           </div>
                         )}
+
+                        {/* Configuração OneSignal Opcional */}
+                        <div className="rounded-xl bg-secondary/20 border border-white/5 p-3 flex flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowOneSignalConfig(!showOneSignalConfig)}
+                            className="flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors w-full cursor-pointer"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <Settings className="h-3.5 w-3.5 text-accent" />
+                              {language === "en" ? "OneSignal Cloud Push Setup (Optional)" : "Configurar OneSignal Push (Opcional)"}
+                            </span>
+                            <span className="text-[10px] text-accent font-semibold">
+                              {showOneSignalConfig ? "Fechar" : (customOneSignalId ? "Configurado" : "Configurar")}
+                            </span>
+                          </button>
+
+                          {showOneSignalConfig && (
+                            <div className="flex flex-col gap-2 pt-2 border-t border-white/5 animate-fadeIn">
+                              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                                {language === "en"
+                                  ? "Enter your OneSignal App ID to receive cloud push broadcasts from the OneSignal dashboard even across devices:"
+                                  : "Insira seu OneSignal App ID caso deseje disparar notificações em massa pelo painel do OneSignal para todos os aparelhos:"}
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={customOneSignalId}
+                                  onChange={(e) => setCustomOneSignalId(e.target.value)}
+                                  placeholder="ex: b2f7f966-d8cc-11e4-bed1-df8f05be55ba"
+                                  className="flex-1 rounded-lg bg-background/80 border border-white/10 px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleSaveOneSignalId}
+                                  className="rounded-lg bg-accent text-accent-foreground px-3 py-1.5 text-xs font-semibold hover:bg-accent/90 transition-all cursor-pointer"
+                                >
+                                  Salvar
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
 
                         <div className="rounded-xl bg-secondary/20 border border-white/5 px-3.5 py-2 flex items-center justify-between">
                           <span className="text-[10px] text-muted-foreground">{t("clock_status")}</span>

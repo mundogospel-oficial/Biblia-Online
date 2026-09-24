@@ -220,3 +220,105 @@ export const sendLocalNotification = async (
     }
   }
 };
+
+/**
+ * Registra o Periodic Background Sync no Service Worker.
+ * Permite que navegadores modernos e PWAs instalados acordem o Service Worker
+ * periodicamente em segundo plano (mesmo com o app e a aba fechados) para disparar o versículo diário offline!
+ */
+export const registerPeriodicBackgroundSync = async (): Promise<boolean> => {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+    return false;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    if ("periodicSync" in registration) {
+      const periodicSync = (registration as any).periodicSync;
+      
+      // Verifica permissões se suportado
+      let canRegister = true;
+      if ("permissions" in navigator && typeof (navigator.permissions as any).query === "function") {
+        try {
+          const status = await (navigator.permissions as any).query({ name: "periodic-background-sync" });
+          canRegister = status.state === "granted";
+        } catch {
+          canRegister = true;
+        }
+      }
+
+      if (canRegister) {
+        // Registra intervalo mínimo de 6 horas
+        await periodicSync.register("biblia-daily-verse", {
+          minInterval: 6 * 60 * 60 * 1000
+        });
+        console.log("[PeriodicSync] Registrado com sucesso para versículos em segundo plano!");
+        return true;
+      }
+    }
+  } catch (err) {
+    console.warn("[PeriodicSync] Não suportado ou restrito neste dispositivo:", err);
+  }
+  return false;
+};
+
+/**
+ * Envia uma mensagem para o Service Worker agendar uma notificação em segundo plano.
+ * O Service Worker executa o timer no seu próprio processo, funcionando mesmo se o usuário
+ * minimizar o app ou trocar de aba imediatamente após o clique.
+ */
+export const scheduleBackgroundNotification = async (
+  delayMs: number = 5000,
+  title: string = "Bíblia Online",
+  body: string = "Notificação em segundo plano entregue com sucesso!",
+  tag: string = "biblia-background-test"
+): Promise<boolean> => {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+    return false;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    if (registration.active) {
+      registration.active.postMessage({
+        action: "scheduleNotification",
+        delayMs,
+        title,
+        body,
+        tag
+      });
+      return true;
+    }
+  } catch (e) {
+    console.warn("[SW] Erro ao enviar mensagem de agendamento:", e);
+  }
+  return false;
+};
+
+/**
+ * Dispara imediatamente a notificação de versículo diretamente através do Service Worker
+ */
+export const triggerImmediateServiceWorkerVerse = async (): Promise<boolean> => {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+    return false;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    if (registration.active) {
+      registration.active.postMessage({
+        action: "triggerDailyVerse"
+      });
+      return true;
+    }
+  } catch (e) {
+    console.warn("[SW] Erro ao disparar versículo pelo SW:", e);
+  }
+  return false;
+};
+
+export const isPeriodicSyncSupported = (): boolean => {
+  if (typeof window === "undefined") return false;
+  return "serviceWorker" in navigator && "periodicSync" in ServiceWorkerRegistration.prototype;
+};
+

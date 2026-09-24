@@ -21,7 +21,7 @@ import AccountPage from "./pages/AccountPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import { useSentinel } from "./hooks/useSentinel";
-import { checkInactivity, updateLastVisit, checkScheduledNotifications } from "@/services/notificationService";
+import { checkInactivity, updateLastVisit, checkScheduledNotifications, registerPeriodicBackgroundSync } from "@/services/notificationService";
 
 const queryClient = new QueryClient();
 
@@ -64,7 +64,8 @@ const App = () => {
 
   useEffect(() => {
     const initOneSignal = async () => {
-      const appId = import.meta.env.ONESIGNAL_APP_ID || (import.meta.env as any).VITE_ONESIGNAL_APP_ID;
+      const savedAppId = typeof window !== "undefined" ? localStorage.getItem("onesignal_custom_app_id") : null;
+      const appId = savedAppId || import.meta.env.ONESIGNAL_APP_ID || (import.meta.env as any).VITE_ONESIGNAL_APP_ID;
       if (!appId || appId.startsWith("YOUR_")) {
         console.warn("[OneSignal] App ID is not configured or is a placeholder in the environment.");
         return;
@@ -82,6 +83,8 @@ const App = () => {
 
     // Check scheduled notifications immediately and set up an interval
     checkScheduledNotifications();
+    registerPeriodicBackgroundSync().catch(() => {});
+
     const interval = setInterval(() => {
       checkScheduledNotifications();
     }, 30000); // check every 30 seconds
@@ -94,6 +97,7 @@ const App = () => {
           const permission = await Notification.requestPermission();
           if (permission === "granted") {
             console.log("Notification permission granted");
+            registerPeriodicBackgroundSync().catch(() => {});
           }
         } catch (e) {
           console.warn("Error requesting notification permission:", e);
