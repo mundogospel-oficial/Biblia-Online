@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Sparkles, Home, Search, Heart, Bot, Calendar, User } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -7,41 +6,6 @@ import { motion } from "framer-motion";
 const Header = () => {
   const location = useLocation();
   const { t } = useLanguage();
-  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
-
-  useEffect(() => {
-    const handleFocusIn = (e: FocusEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
-        setIsKeyboardOpen(true);
-      }
-    };
-
-    const handleFocusOut = () => {
-      setIsKeyboardOpen(false);
-    };
-
-    const handleViewportResize = () => {
-      if (window.visualViewport) {
-        const isViewportSmall = window.visualViewport.height < window.innerHeight * 0.82;
-        setIsKeyboardOpen(isViewportSmall);
-      }
-    };
-
-    window.addEventListener("focusin", handleFocusIn);
-    window.addEventListener("focusout", handleFocusOut);
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener("resize", handleViewportResize);
-    }
-
-    return () => {
-      window.removeEventListener("focusin", handleFocusIn);
-      window.removeEventListener("focusout", handleFocusOut);
-      if (window.visualViewport) {
-        window.visualViewport.removeEventListener("resize", handleViewportResize);
-      }
-    };
-  }, []);
 
   const links = [
     { to: "/", label: t("nav_home"), shortLabel: t("nav_home"), icon: <Home className="h-4 w-4 shrink-0" /> },
@@ -144,36 +108,35 @@ const Header = () => {
         </div>
       </header>
 
-      {/* Mobile Bottom Navigation - Glass Bar with Oval Active Pills */}
-      {!isKeyboardOpen && (
-        <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t border-border/50 bg-[hsl(215,40%,8%)]/95 backdrop-blur-xl safe-area-bottom">
-          <div className="flex items-center justify-around px-1 py-1">
-            {mobileLinks.map((l) => {
-              const active = isActiveRoute(l.to);
-              return (
-                <Link
-                  key={l.to}
-                  to={l.to}
-                  className={`relative flex flex-col items-center justify-center p-2 rounded-full transition-colors ${
-                    active ? "text-accent font-semibold" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {active && (
-                    <motion.div
-                      layoutId="mobile-active-pill"
-                      className="absolute inset-0 rounded-full bg-accent/15 border border-accent/30"
-                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    />
-                  )}
-                  <span className="relative z-10">
-                    {l.icon}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
-      )}
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden glass-card !rounded-none border-t border-border/50 safe-area-bottom">
+        <div className="flex items-center justify-around px-2 py-2">
+          {mobileLinks.map((l) => {
+            const active = isActiveRoute(l.to);
+            return (
+              <Link
+                key={l.to}
+                to={l.to}
+                aria-label={l.label}
+                className={`relative flex items-center justify-center p-2.5 rounded-full transition-colors ${
+                  active ? "text-accent font-semibold" : "text-muted-foreground hover:text-foreground active:scale-95"
+                }`}
+              >
+                {active && (
+                  <motion.div
+                    layoutId="mobile-active-pill"
+                    className="absolute inset-0 rounded-full bg-accent/15 border border-accent/40"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
+                <span className="relative z-10">
+                  {l.icon}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </>
   );
 };
