@@ -1345,15 +1345,9 @@ const AccountPage = () => {
                 <div className="relative mx-auto mb-3 h-24 w-24">
                   {/* Container circular do avatar com gradiente moderno: sempre bonito e sem tela preta */}
                   <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-accent/90 via-sky-600/80 to-primary ring-2 ring-accent/40 ring-offset-2 ring-offset-background/80 shadow-lg shadow-accent/25 select-none overflow-hidden">
-                    {/* Fallback de base garantido: iniciais elegantes ou ícone de usuário */}
+                    {/* Fallback de base: ícone do boneco (User) */}
                     <div className="absolute inset-0 flex items-center justify-center select-none pointer-events-none">
-                      {displayName && displayName.trim() ? (
-                        <span className="font-bold text-2xl text-white tracking-wider uppercase font-serif drop-shadow-sm">
-                          {displayName.trim().slice(0, 2)}
-                        </span>
-                      ) : (
-                        <User className="h-12 w-12 text-white/90 shrink-0 drop-shadow-sm" />
-                      )}
+                      <User className="h-12 w-12 text-white/90 shrink-0 drop-shadow-sm" />
                     </div>
 
                     {/* Foto/Logo do usuário: exibida suavemente no topo assim que carregada */}
