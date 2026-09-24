@@ -3045,7 +3045,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
       <div className="flex flex-1 min-h-0 w-full overflow-hidden relative">
         {/* Menu Lateral no Desktop (Docked lado a lado empurrando o chat com transição rápida e sem bugs) */}
         <aside
-          className={`hidden md:flex flex-col shrink-0 h-full border-r border-border/60 liquid-glass-bar overflow-hidden z-20 transition-[width,opacity] duration-150 ease-out ${
+          className={`hidden md:flex flex-col shrink-0 h-full border-r border-border bg-card overflow-hidden z-20 transition-[width,opacity] duration-150 ease-out ${
             isSidebarOpen ? "w-[300px] lg:w-[320px] opacity-100" : "w-0 opacity-0 pointer-events-none border-r-0"
           }`}
         >
@@ -3076,7 +3076,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                 animate={{ x: 0 }}
                 exit={{ x: "-100%" }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
-                className="fixed inset-y-0 left-0 z-50 flex flex-col w-[85vw] max-w-[320px] liquid-glass-menu border-r border-border/70 shadow-2xl md:hidden safe-area-top safe-area-bottom overflow-hidden h-full"
+                className="fixed inset-y-0 left-0 z-50 flex flex-col w-[85vw] max-w-[320px] bg-card border-r border-border shadow-2xl md:hidden safe-area-top safe-area-bottom overflow-hidden h-full"
               >
                 <div className="w-full h-full flex flex-col">
                   {renderSidebarContent()}
@@ -3770,7 +3770,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                             initial={{ opacity: 0, y: 8, scale: 0.95 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                            className="absolute bottom-full left-0 mb-2 w-64 max-w-[calc(100vw-32px)] rounded-2xl liquid-glass-menu p-1.5 shadow-2xl z-50 flex flex-col gap-1"
+                            className="absolute bottom-full left-0 mb-2 w-64 max-w-[calc(100vw-32px)] rounded-2xl border border-border bg-card/95 p-1.5 shadow-xl backdrop-blur-md z-50 flex flex-col gap-1"
                           >
                             <div className="px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/50 flex items-center justify-between">
                               <span>Estilo da Imagem</span>
