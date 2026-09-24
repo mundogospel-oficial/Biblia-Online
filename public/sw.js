@@ -1,4 +1,4 @@
-const CACHE_NAME = 'biblia-online-v2.5.3';
+const CACHE_NAME = 'biblia-online-v2.5.4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -130,7 +130,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Local PWA app icons and logos - Cache first, network fallback with logo2.png safety fallback
+  // 2. Local PWA app icons and logos - Cache first, network fallback
   if (
     url.pathname.includes('/icons/') || 
     url.pathname.includes('/icon-') || 
@@ -148,8 +148,6 @@ self.addEventListener('fetch', (event) => {
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           }
           return networkResponse;
-        }).catch(async () => {
-          return (await caches.match('/icons/logo2.png')) || (await caches.match('/favicon.ico'));
         });
       })
     );
@@ -201,13 +199,6 @@ self.addEventListener('fetch', (event) => {
 
         return response;
       }).catch(() => {
-        // Fallback for offline images: Return transparent 1px PNG instead of logos
-        if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('image')) {
-          return new Response(TRANSPARENT_1PX_PNG, {
-            status: 200,
-            headers: { 'Content-Type': 'image/png' }
-          });
-        }
         return new Response('Offline / Erro de Rede', { status: 503, statusText: 'Service Unavailable' });
       });
     })

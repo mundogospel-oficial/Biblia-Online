@@ -68,19 +68,56 @@ const generateDefaultUsername = (str?: string | null) => {
   return base && base.length >= 3 ? base : (base || "usuario") + "_" + Math.floor(100 + Math.random() * 900);
 };
 
-// Utilitário para comprimir e preparar foto/logo para PWA e perfil de forma 100% confiável
-const compressAndResizeAvatar = (file: File): Promise<{ blob: Blob; dataUrl: string }> => {
+// Utilitário para limpar qualquer cache de avatar antigo de todas as fontes (Service Worker, Cache API, LocalStorage)
+const clearAvatarCaches = async (userId: string) => {
+  try {
+    localStorage.removeItem(`local_avatar_${userId}`);
+    if (typeof window !== "undefined" && "caches" in window) {
+      const cacheNames = await caches.keys();
+      await Promise.all(
+        cacheNames.map(async (cacheName) => {
+          const cache = await caches.open(cacheName);
+          const requests = await cache.keys();
+          await Promise.all(
+            requests.map(async (req) => {
+              if (
+                req.url.includes(`/avatars/${userId}`) || 
+                req.url.includes("avatar_")
+              ) {
+                await cache.delete(req);
+              }
+            })
+          );
+        })
+      );
+    }
+  } catch (e) {
+    console.warn("Aviso ao limpar cache de avatares:", e);
+  }
+};
+
+// Utilitário para comprimir e preparar foto/logo para funcionar em TODOS os dispositivos (iOS, Android, PWA, Desktop)
+const compressAndResizeAvatar = (file: File): Promise<{ blob: Blob; mimeType: string }> => {
   return new Promise((resolve, reject) => {
+    const isPng = file.type === "image/png" || file.name.toLowerCase().endsWith(".png");
+    const mimeType = isPng ? "image/png" : "image/jpeg";
+    const quality = isPng ? undefined : 0.88;
+
     const reader = new FileReader();
     reader.onload = (readerEvent) => {
       const rawDataUrl = readerEvent.target?.result as string;
+      if (!rawDataUrl) {
+        reject(new Error("Erro ao ler o arquivo no dispositivo."));
+        return;
+      }
+
       const img = new Image();
       img.onload = () => {
         try {
           const canvas = document.createElement("canvas");
-          const MAX_SIZE = 320;
-          let width = img.width;
-          let height = img.height;
+          const MAX_SIZE = 400;
+          let width = img.width || 400;
+          let height = img.height || 400;
 
           if (width > height) {
             if (width > MAX_SIZE) {
@@ -98,29 +135,54 @@ const compressAndResizeAvatar = (file: File): Promise<{ blob: Blob; dataUrl: str
           canvas.height = Math.max(height, 32);
           const ctx = canvas.getContext("2d");
           if (!ctx) {
-            resolve({ blob: file, dataUrl: rawDataUrl });
+            resolve({ blob: file, mimeType: file.type || "image/jpeg" });
             return;
           }
 
+          // Se for JPEG, preenche fundo limpo para não gerar bordas pretas em logos com transparência
+          if (!isPng) {
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          }
+
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.88);
-          canvas.toBlob(
-            (b) => {
-              if (b) {
-                resolve({ blob: b, dataUrl: compressedDataUrl });
-              } else {
-                resolve({ blob: file, dataUrl: compressedDataUrl });
-              }
-            },
-            "image/jpeg",
-            0.88
-          );
+
+          // Função de segurança para converter dataUrl para Blob caso toBlob falhe no Safari/iOS PWA
+          const dataUrlToBlob = (dUrl: string): Blob => {
+            const arr = dUrl.split(",");
+            const bMime = arr[0].match(/:(.*?);/)?.[1] || mimeType;
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+              u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new Blob([u8arr], { type: bMime });
+          };
+
+          if (typeof canvas.toBlob === "function") {
+            canvas.toBlob(
+              (blob) => {
+                if (blob) {
+                  resolve({ blob, mimeType });
+                } else {
+                  const fallbackDataUrl = canvas.toDataURL(mimeType, quality);
+                  resolve({ blob: dataUrlToBlob(fallbackDataUrl), mimeType });
+                }
+              },
+              mimeType,
+              quality
+            );
+          } else {
+            const fallbackDataUrl = canvas.toDataURL(mimeType, quality);
+            resolve({ blob: dataUrlToBlob(fallbackDataUrl), mimeType });
+          }
         } catch {
-          resolve({ blob: file, dataUrl: rawDataUrl });
+          resolve({ blob: file, mimeType: file.type || "image/jpeg" });
         }
       };
       img.onerror = () => {
-        resolve({ blob: file, dataUrl: rawDataUrl });
+        resolve({ blob: file, mimeType: file.type || "image/jpeg" });
       };
       img.src = rawDataUrl;
     };
@@ -214,17 +276,16 @@ const AccountPage = () => {
           setDisplayName(validName);
 
           const googleAvatar = su ? extractAvatarUrl(su) : (authCtx.user?.picture || "");
-          const storedLocalAvatar = userId ? localStorage.getItem(`local_avatar_${userId}`) : null;
-          const effectiveAvatar = profile?.avatar_url || storedLocalAvatar || googleAvatar || authCtx.user?.picture || null;
+          const effectiveAvatar = profile?.avatar_url || googleAvatar || null;
           setAvatarUrl(effectiveAvatar);
           setAvatarImgFailed(false);
 
-          // Se o perfil no banco ainda não tem o avatar salvo do Google e não tem avatar local, sincroniza no banco
-          if (userId && (googleAvatar || storedLocalAvatar) && !profile?.avatar_url) {
+          // Se o perfil no banco ainda não tem o avatar salvo do Google, sincroniza no banco
+          if (userId && googleAvatar && !profile?.avatar_url) {
             try {
               await supabase.from('profiles').upsert({
                 id: userId,
-                avatar_url: storedLocalAvatar || googleAvatar,
+                avatar_url: googleAvatar,
                 updated_at: new Date().toISOString()
               });
             } catch (e) {
@@ -307,114 +368,105 @@ const AccountPage = () => {
     if (!file) return;
 
     try {
-      // 1. Processa e comprime a foto/logo localmente primeiro (essencial para PWA e mobile)
-      const { blob, dataUrl } = await compressAndResizeAvatar(file);
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) await handleAuthError(sessionError);
 
-      // 2. Determina o identificador do usuário
-      let userId = authCtx.user?.sub;
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user?.id) userId = session.user.id;
-      } catch (e) {
-        console.warn("Session check notice in avatar change:", e);
-      }
-
-      if (!userId && !authCtx.user) {
-        toast({ title: "Erro", description: "Sessão não encontrada. Faça login novamente.", variant: "destructive" });
+      const userId = session?.user?.id || authCtx.user?.sub;
+      if (!userId) {
+        toast({ title: "Erro", description: "Erro, tente mais tarde.", variant: "destructive" });
         return;
       }
 
-      // 3. Imediatamente atualiza o estado visual na tela e no cache local
-      setAvatarUrl(dataUrl);
+      // Otimiza e prepara a imagem para envio e compatibilidade em qualquer dispositivo
+      const { blob, mimeType } = await compressAndResizeAvatar(file);
+
+      const folderPath = `avatars/${userId}`;
+
+      // 1. Exclui TODOS os arquivos anteriores da pasta do usuário no storage para remover logos antigas
+      const { data: existingFiles } = await supabase.storage.from('media').list(folderPath);
+      if (existingFiles && existingFiles.length > 0) {
+        const filesToRemove = existingFiles.map((f: any) => `${folderPath}/${f.name}`);
+        await supabase.storage.from('media').remove(filesToRemove);
+      }
+
+      // 2. Limpa completamente o cache do dispositivo e do navegador antes de salvar a nova
+      await clearAvatarCaches(userId);
+
+      // 3. Envia a nova logo/foto para o Supabase Storage
+      const ext = mimeType === 'image/png' ? 'png' : 'jpg';
+      const path = `${folderPath}/avatar_${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('media').upload(path, blob, { 
+        upsert: true,
+        contentType: mimeType
+      });
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path);
+      const avatarWithBuster = `${publicUrl}?v=${Date.now()}`;
+
+      // 4. Salva a nova URL na tabela profiles
+      const { error: dbError } = await supabase.from('profiles').upsert({
+        id: userId,
+        avatar_url: avatarWithBuster,
+        updated_at: new Date().toISOString()
+      });
+      if (dbError) throw dbError;
+
+      // 5. Atualiza o estado da interface imediatamente
+      setAvatarUrl(avatarWithBuster);
       setAvatarImgFailed(false);
-      if (userId) {
-        localStorage.setItem(`local_avatar_${userId}`, dataUrl);
-      }
+      localStorage.setItem(`local_avatar_${userId}`, avatarWithBuster);
       if (authCtx.user) {
-        authCtx.login({ ...authCtx.user, picture: dataUrl });
-      }
-
-      // 4. Tenta enviar para o Supabase Storage (se bucket 'media' estiver configurado)
-      let finalAvatarUrl = dataUrl;
-      if (userId) {
-        try {
-          const folderPath = `avatars/${userId}`;
-          const { data: existingFiles } = await supabase.storage.from('media').list(folderPath).catch(() => ({ data: null }));
-          if (existingFiles && existingFiles.length > 0) {
-            const filesToRemove = existingFiles.map((f: any) => `${folderPath}/${f.name}`);
-            await supabase.storage.from('media').remove(filesToRemove).catch(() => {});
-          }
-
-          const path = `${folderPath}/avatar_${Date.now()}.jpg`;
-          const { error: uploadError } = await supabase.storage.from('media').upload(path, blob, { 
-            upsert: true,
-            contentType: 'image/jpeg'
-          });
-
-          if (!uploadError) {
-            const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path);
-            if (publicUrl) {
-              finalAvatarUrl = `${publicUrl}?t=${Date.now()}`;
-              setAvatarUrl(finalAvatarUrl);
-              localStorage.setItem(`local_avatar_${userId}`, finalAvatarUrl);
-              if (authCtx.user) {
-                authCtx.login({ ...authCtx.user, picture: finalAvatarUrl });
-              }
-            }
-          }
-        } catch (storageErr) {
-          console.warn("Supabase storage upload notice (using compressed dataUrl fallback):", storageErr);
-        }
-
-        // 5. Salva na tabela profiles do Supabase
-        try {
-          await supabase.from('profiles').upsert({ 
-            id: userId, 
-            avatar_url: finalAvatarUrl,
-            updated_at: new Date().toISOString()
-          });
-        } catch (dbErr) {
-          console.warn("Notice saving avatar to profile table:", dbErr);
-        }
+        authCtx.login({ ...authCtx.user, picture: avatarWithBuster });
       }
 
       if (fileInputRef.current) fileInputRef.current.value = "";
 
       toast({ 
-        title: "Foto de perfil atualizada", 
-        description: "Sua foto de perfil foi salva e sincronizada com sucesso." 
+        title: "Foto atualizada", 
+        description: "Sua foto de perfil foi salva com sucesso." 
       });
-      return;
     } catch (err: any) {
       console.error("Avatar upload error:", err);
       toast({ 
-        title: "Erro ao atualizar foto", 
-        description: err?.message || "Não foi possível carregar a imagem.", 
+        title: "Erro", 
+        description: "Erro, tente mais tarde.", 
         variant: "destructive" 
       });
-      return;
     }
   };
 
   const handleDeleteAvatar = async () => {
     try {
-      let userId = authCtx.user?.sub;
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user?.id) userId = session.user.id;
-      } catch (e) {}
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) await handleAuthError(sessionError);
 
-      if (userId) {
-        localStorage.removeItem(`local_avatar_${userId}`);
-        const folderPath = `avatars/${userId}`;
-        const { data: existingFiles } = await supabase.storage.from('media').list(folderPath).catch(() => ({ data: null }));
-        if (existingFiles && existingFiles.length > 0) {
-          const filesToRemove = existingFiles.map((f: any) => `${folderPath}/${f.name}`);
-          await supabase.storage.from('media').remove(filesToRemove).catch(() => {});
-        }
-        await supabase.from('profiles').upsert({ id: userId, avatar_url: null, updated_at: new Date().toISOString() }).catch(() => {});
+      const userId = session?.user?.id || authCtx.user?.sub;
+      if (!userId) {
+        toast({ title: "Erro", description: "Erro, tente mais tarde.", variant: "destructive" });
+        return;
       }
 
+      // 1. Limpa todas as fotos/logos da pasta do usuário no storage do Supabase
+      const folderPath = `avatars/${userId}`;
+      const { data: existingFiles } = await supabase.storage.from('media').list(folderPath);
+      if (existingFiles && existingFiles.length > 0) {
+        const filesToRemove = existingFiles.map((f: any) => `${folderPath}/${f.name}`);
+        await supabase.storage.from('media').remove(filesToRemove);
+      }
+
+      // 2. Limpa cache local e caches de Service Worker/Browser
+      await clearAvatarCaches(userId);
+
+      // 3. Atualiza perfil no banco de dados para nulo
+      const { error: dbError } = await supabase.from('profiles').upsert({
+        id: userId,
+        avatar_url: null,
+        updated_at: new Date().toISOString()
+      });
+      if (dbError) throw dbError;
+
+      // 4. Atualiza estado e limpa dados locais
       setAvatarUrl(null);
       setAvatarImgFailed(false);
       if (authCtx.user) {
@@ -426,12 +478,11 @@ const AccountPage = () => {
         title: "Foto de perfil removida", 
         description: "Sua foto de perfil foi excluída com sucesso." 
       });
-      return;
     } catch (err: any) {
       console.error("Delete avatar error:", err);
       toast({ 
-        title: "Erro ao excluir foto", 
-        description: err?.message || "Não foi possível remover a foto de perfil.", 
+        title: "Erro", 
+        description: "Erro, tente mais tarde.", 
         variant: "destructive" 
       });
     }
@@ -503,8 +554,8 @@ const AccountPage = () => {
     } catch (err: any) {
       console.error("Save name error:", err);
       toast({ 
-        title: "Erro ao salvar nome", 
-        description: err?.message || "Não foi possível salvar o nome no momento.", 
+        title: "Erro", 
+        description: "Erro, tente mais tarde.", 
         variant: "destructive" 
       });
     }
@@ -1250,18 +1301,15 @@ const AccountPage = () => {
                   {avatarUrl && !avatarImgFailed ? (
                     <div className="flex h-24 w-24 items-center justify-center rounded-full bg-secondary/80 ring-2 ring-accent/40 ring-offset-2 ring-offset-background/80 shadow-lg shadow-accent/20 select-none overflow-hidden">
                       <img 
+                        key={avatarUrl || "none"}
                         src={avatarUrl} 
                         alt={displayName || "Perfil"} 
                         referrerPolicy="no-referrer"
+                        decoding="async"
                         className="h-full w-full rounded-full object-cover select-none pointer-events-none transition-opacity duration-300"
                         loading="eager"
                         onError={() => {
-                          const local = authCtx.user?.sub ? localStorage.getItem(`local_avatar_${authCtx.user.sub}`) : null;
-                          if (local && avatarUrl !== local) {
-                            setAvatarUrl(local);
-                            return;
-                          }
-                          console.warn("Avatar image not available on CDN, displaying fallback user icon");
+                          console.error("Avatar image failed to load:", avatarUrl);
                           setAvatarImgFailed(true);
                         }}
                       />
