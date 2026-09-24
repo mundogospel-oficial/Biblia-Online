@@ -109,7 +109,7 @@ const Header = () => {
       </header>
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="mobile-bottom-nav md:hidden glass-card !rounded-none border-t border-border/50">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden glass-card !rounded-none border-t border-border/50 safe-area-bottom">
         <div className="flex items-center justify-around px-2 py-2">
           {mobileLinks.map((l) => {
             const active = isActiveRoute(l.to);
@@ -118,7 +118,7 @@ const Header = () => {
                 key={l.to}
                 to={l.to}
                 aria-label={l.label}
-                className={`relative flex items-center justify-center p-2 rounded-full transition-colors ${
+                className={`relative flex items-center justify-center p-2.5 rounded-full transition-colors ${
                   active ? "text-accent font-semibold" : "text-muted-foreground hover:text-foreground active:scale-95"
                 }`}
               >
