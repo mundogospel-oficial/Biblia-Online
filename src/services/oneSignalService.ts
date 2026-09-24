@@ -21,8 +21,19 @@ export class OneSignalService {
       return;
     }
 
+    // OneSignal está configurado no painel exclusivamente para online-biblia.vercel.app e localhost
+    const hostname = typeof window !== "undefined" ? window.location.hostname : "";
+    const isAllowedHost = 
+      hostname === "online-biblia.vercel.app" || 
+      hostname === "localhost" || 
+      hostname === "127.0.0.1";
+
+    if (!isAllowedHost) {
+      return;
+    }
+
     // Permitir inicialização em qualquer ambiente HTTPS seguro ou localhost
-    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
     if (!window.isSecureContext && !isLocal) {
       console.warn('[OneSignal] Initialization bypassed: HTTPS or secure context required');
       return;
@@ -70,10 +81,13 @@ export class OneSignalService {
       (window as any).OneSignalInitialized = true;
       console.log('[OneSignal] SDK initialized successfully');
     } catch (error: any) {
-      if (error && (error.message?.includes('already initialized') || error.includes?.('already initialized'))) {
+      const errorMsg = String(error?.message || error || "");
+      if (errorMsg.includes('already initialized')) {
         console.log('[OneSignal] SDK was already initialized (caught error safely)');
         this.hasInitialized = true;
         (window as any).OneSignalInitialized = true;
+      } else if (errorMsg.includes('Can only be used on')) {
+        // SDK restrito ao domínio oficial de produção
       } else {
         console.error('[OneSignal] Initialization error:', error);
       }
