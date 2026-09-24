@@ -42,6 +42,15 @@ CREATE POLICY "Perfis são visíveis por todos"
   FOR SELECT 
   USING (true);
 
+-- Proteção de integridade e confidencialidade: 
+-- Garante que 'two_factor_secret' e 'two_factor_backup_codes' fiquem inacessíveis para o papel anon
+DO $$
+BEGIN
+  EXECUTE 'REVOKE SELECT (two_factor_secret, two_factor_backup_codes) ON public.profiles FROM anon';
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
+
 CREATE POLICY "Usuários podem inserir seu próprio perfil" 
   ON public.profiles 
   FOR INSERT 

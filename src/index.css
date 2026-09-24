@@ -527,7 +527,7 @@ body::-webkit-scrollbar,
   }
 }
 
-/* Prevent iOS auto-zoom on input focus & fix iOS PWA layout boundaries */
+/* Prevent iOS auto-zoom on input focus e fix iOS PWA layout boundaries */
 @supports (-webkit-touch-callout: none) {
   input, textarea, select {
     font-size: 16px !important;
@@ -555,9 +555,9 @@ a[href*="lovable.dev"] {
 }
 
 /* ==========================================================================
-   IPHONE DUO & FOLDABLE DUAL-SCREEN OPTIMIZATION
+   IPHONE DUO e FOLDABLE DUAL-SCREEN OPTIMIZATION
    Specs: Apple iPhone Duo (7.6" 2670x1878 OLED Unfolded, 5.4" 2023x1398 Folded)
-   Features: CSS Viewport Segments, Screen Spanning, Safe Areas & Dual-Pane Book Mode
+   Features: CSS Viewport Segments, Screen Spanning, Safe Areas e Dual-Pane Book Mode
    ========================================================================== */
 
 :root {
@@ -570,7 +570,7 @@ a[href*="lovable.dev"] {
   --fold-hinge-gap: 28px;
 }
 
-/* 1. Global Safe Area Insets for Foldable & Dynamic Island */
+/* 1. Global Safe Area Insets for Foldable e Dynamic Island */
 .safe-area-inset-padding {
   padding-top: max(12px, env(safe-area-inset-top));
   padding-bottom: max(16px, env(safe-area-inset-bottom));

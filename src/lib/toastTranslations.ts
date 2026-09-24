@@ -139,7 +139,7 @@ export const toastTranslationMap: Record<string, string> = {
   "Timer renovado": "Timer renewed",
   "Mais 1 hora de leitura focada e sem distrações.": "Another hour of focused reading without distractions.",
 
-  // 2FA & Biometria
+  // 2FA e Biometria
   "Verificação concluída! 🛡️": "Verification completed! 🛡️",
   "Acesso autorizado com sucesso.": "Access authorized successfully.",
   "Proteção do App Ativada!": "App Protection Enabled!",

@@ -109,7 +109,7 @@ export async function validateImageContent(file: File): Promise<{ isAppropriate:
 }
 
 /**
- * Fast client-side image canvas skin-tone & chromaticity analysis
+ * Fast client-side image canvas skin-tone and chromaticity analysis
  */
 function analyzeImageCanvas(file: File): Promise<boolean> {
   return new Promise((resolve) => {
@@ -199,114 +199,32 @@ function analyzeImageCanvas(file: File): Promise<boolean> {
  */
 async function analyzeImageWithGeminiVision(file: File): Promise<boolean> {
   try {
-    // Convert file to Base64
     const base64Data = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        const commaIdx = result.indexOf(',');
-        resolve(commaIdx !== -1 ? result.substring(commaIdx + 1) : result);
-      };
+      reader.onload = () => resolve(reader.result as string);
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
 
-    // Obtain Gemini API keys securely (never exposed in public bundle)
-    let googleKey = "";
-    let googleKey2 = "";
+    const res = await fetch('/api/moderate-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        imageBase64: base64Data,
+        mimeType: file.type || "image/jpeg",
+        fileName: file.name
+      })
+    });
 
-    try {
-      const { data } = await supabase
-        .from('ai_settings')
-        .select('config_key, config_value')
-        .in('config_key', ['google_ai_key', 'google_ai_key_2']);
-
-      if (data) {
-        const k1 = data.find(d => d.config_key === 'google_ai_key')?.config_value;
-        const k2 = data.find(d => d.config_key === 'google_ai_key_2')?.config_value;
-        if (k1 && k1.trim()) googleKey = k1.trim();
-        if (k2 && k2.trim()) googleKey2 = k2.trim();
-      }
-    } catch (dbErr) {
-      console.warn("[Moderation] Supabase key fetch failed, using env keys:", dbErr);
-    }
-
-    const keysToTry = [googleKey, googleKey2].filter(Boolean);
-    if (keysToTry.length === 0) {
-      return true; // Pass through if no key is configured
-    }
-
-    const moderationPrompt = `SISTEMA DE MODERAÇÃO DE SEGURANÇA E ÉTICA CRISTÃ:
-Analise a imagem anexada por um usuário de um aplicativo da Bíblia Sagrada.
-
-Responda EXATAMENTE E APENAS "INAPROPRIADO" se a imagem contiver QUALQUER um dos seguintes itens:
-1) Nudez, erotismo, trajes sumários/íntimos, biquínis, lingerie, apelo sexual ou sensualidade.
-2) Símbolos, figuras, altares, cartas ou rituais de feitiçaria, bruxaria, ocultismo, satanismo, horóscopo, tarot, feitiços ou divindades não-cristãs/pagãs/entidades.
-3) Violência, sangue, mutilação, armas de fogo ou brancas, cadáveres, mortes ou cenas de crime.
-4) Drogas ilícitas, maconha, cocaína, cigarros, bebidas alcoólicas, garrafas de bebida ou substâncias entorpecentes.
-5) Gestos obscenos, símbolos de gangues, palavrões ou ofensas profanas à Fé Cristã.
-
-Caso seja uma imagem respeitosa, neutra, uma paisagem, Bíblia, igreja, texto ou foto de pessoa com roupa comum, responda EXATAMENTE E APENAS "APROPRIADO".`;
-
-    const modelsToTry = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-flash-latest"];
-
-    for (const key of keysToTry) {
-      for (const model of modelsToTry) {
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 4000);
-
-          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
-            method: 'POST',
-            signal: controller.signal,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{
-                parts: [
-                  { text: moderationPrompt },
-                  {
-                    inlineData: {
-                      mimeType: file.type || "image/jpeg",
-                      data: base64Data
-                    }
-                  }
-                ]
-              }],
-              generationConfig: {
-                temperature: 0.1,
-                maxOutputTokens: 20
-              }
-            })
-          });
-
-          clearTimeout(timeoutId);
-
-          if (res.ok) {
-            const resData = await res.json();
-            const text = (resData?.candidates?.[0]?.content?.parts?.[0]?.text || "").toUpperCase().trim();
-            if (text.includes("INAPROPRIADO") || text.includes("INAPPROPRIATE") || text.includes("BLOQUEADO")) {
-              return false;
-            }
-            if (text.includes("APROPRIADO") || text.includes("APPROPRIATE")) {
-              return true;
-            }
-          } else {
-            // If Gemini returned a 400 safety block / finishReason SAFETY
-            const errJson = await res.json().catch(() => null);
-            const candidate = errJson?.candidates?.[0];
-            if (candidate?.finishReason === "SAFETY" || errJson?.error?.message?.includes("SAFETY")) {
-              return false;
-            }
-          }
-        } catch (mErr) {
-          console.warn(`[Moderation] Vision model ${model} error:`, mErr);
-        }
+    if (res.ok) {
+      const serverResult = await res.json().catch(() => null);
+      if (serverResult && typeof serverResult.isAppropriate === "boolean") {
+        return serverResult.isAppropriate;
       }
     }
-
     return true;
   } catch (err) {
-    console.warn("[Moderation] Vision moderation failed:", err);
+    console.warn("[Moderation] Vision moderation proxy error:", err);
     return true;
   }
 }

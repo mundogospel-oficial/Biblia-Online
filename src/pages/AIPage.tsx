@@ -214,7 +214,7 @@ const getConversationCategoryInfo = (conv: Conversation) => {
   const content = lastMsg?.content || "";
 
   if (content.startsWith("http") || content.startsWith("data:image") || firstUserMsg.includes("[Modo: Imagem]") || firstUserMsg.includes("[Modo: Gerar Imagem]")) {
-    return { label: "Imagem", category: "image", icon: Image, badgeBg: "bg-purple-500/15 text-purple-400 border-purple-500/30" };
+    return { label: "Imagem", category: "image", icon: Image, badgeBg: "bg-sky-500/15 text-sky-400 border-sky-500/30" };
   }
 
   if (
@@ -1357,7 +1357,7 @@ const AIPage = () => {
               </div>
             </div>
 
-            {/* Title & Description */}
+            {/* Title e Description */}
             <div className="space-y-2">
               <h2 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-foreground drop-shadow-sm">
                 Login Necessário
@@ -2196,32 +2196,20 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
   };
 
   const handleModeSelect = (mode: typeof modes[0]) => {
-    if (activeMode === mode.key) {
-      startNewChat(null);
-      setSelectedImageStyle(null);
-      setShowModes(false);
-      toast({
-        title: isEn ? "Mode closed" : "Modo encerrado",
-        description: isEn 
-          ? `You exited ${mode.label} mode. New chat started!`
-          : `Você saiu do modo ${mode.label}. Novo chat iniciado!`,
-      });
-    } else {
-      const prevModeLabel = activeModeInfo?.label;
-      startNewChat(mode.key);
-      if (mode.key === "image") {
-        setSelectedImageStyle(imageStyles.find(s => s.id === "cinematic") || imageStyles[0]);
-      }
-      setAiEngine("complexo");
-      setShowModes(false);
-
-      toast({
-        title: isEn ? `Mode ${mode.label} activated` : `Modo ${mode.label} ativado`,
-        description: prevModeLabel
-          ? (isEn ? `Switched from ${prevModeLabel} to ${mode.label}. New chat started!` : `Modo alterado para ${mode.label}. Novo chat iniciado!`)
-          : (isEn ? `${mode.label} mode activated. New chat started!` : `Modo ${mode.label} ativado. Novo chat iniciado!`),
-      });
+    // Obrigatoriamente inicia um novo chat ao clicar em qualquer modo
+    startNewChat(mode.key);
+    if (mode.key === "image") {
+      setSelectedImageStyle(imageStyles.find(s => s.id === "cinematic") || imageStyles[0]);
     }
+    setAiEngine("complexo");
+    setShowModes(false);
+
+    toast({
+      title: isEn ? `Mode ${mode.label} activated` : `Modo ${mode.label} ativado`,
+      description: isEn 
+        ? `${mode.label} mode activated. New chat started!`
+        : `Modo ${mode.label} ativado. Novo chat iniciado!`,
+    });
   };
 
   const handleToggleLike = (idx: number) => {
@@ -3513,7 +3501,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
             <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex justify-start my-1">
               {activeMode === "image" || /\[Modo:\s*(?:Gerar\s*)?Imagem\]/i.test(messages[messages.length - 1]?.content || "") ? (
                 <div className="flex justify-start items-start gap-2 shrink-0">
-                  <div className="mr-1.5 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 shadow-xs">
+                  <div className="mr-1.5 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-blue-600 shadow-xs">
                     <Image className="h-3.5 w-3.5 text-primary-foreground" />
                   </div>
                   <div className="shrink-0">
@@ -3601,7 +3589,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
             )}
             
             <div className={`flex flex-col rounded-2xl border border-border bg-card p-1.5 focus-within:border-accent/70 transition-all duration-300 shadow-sm relative ${isDragging ? "min-h-[140px] justify-center" : ""}`}>
-              {/* Localized Drag & Drop Overlay */}
+              {/* Localized Drag e Drop Overlay */}
               <AnimatePresence>
                 {isDragging && (
                   <motion.div 

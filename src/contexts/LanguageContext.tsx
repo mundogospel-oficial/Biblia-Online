@@ -48,7 +48,7 @@ const translations: Record<Language, Record<string, string>> = {
     "present_next_verse": "Próximo versículo",
     "present_smooth_transition": "Transição Suave",
     "present_auto_speed": "Velocidade de Reprodução Automática",
-    // Reader & Bilingual
+    // Reader e Bilingual
     "bilingual": "Bilíngue",
     "bilingual_translating": "Traduzindo com IA...",
     "bilingual_active": "Tradução IA ativa",
@@ -89,7 +89,7 @@ const translations: Record<Language, Record<string, string>> = {
     "loading_more_verses": "Carregando mais versículos de forma incremental... ou clique para exibir mais",
     "chapter_abbrev": "Cap.",
     "chapter_short": "Cap.",
-    // Font Size & Audio Speech Reader
+    // Font Size e Audio Speech Reader
     "font_size_btn": "Tamanho da Fonte",
     "font_size_sm": "Pequena (14px)",
     "font_size_md": "Padrão (16px)",
@@ -124,7 +124,7 @@ const translations: Record<Language, Record<string, string>> = {
     "chapters_count": "cap.",
     "all_rights_reserved": "© 2026 Biblia Online. Todos os direitos reservados.",
     "terms_privacy": "Termos de Uso e Política de Privacidade",
-    // Devotionals & Plans Page
+    // Devotionals e Plans Page
     "devotional_title": "Devocionais e Planos Diários",
     "devotional_subtitle": "Meditações diárias e planos de leitura estruturados para fortalecer sua fé a cada dia.",
     "tab_today_devotional": "Devocional de Hoje",
@@ -171,7 +171,7 @@ const translations: Record<Language, Record<string, string>> = {
     "plan_reflection_placeholder": "O que Deus falou com você hoje nesta leitura?",
     "plan_save_reflection": "Salvar Lição",
     "plan_reflection_saved": "Lição salva!",
-    // Favorites & Reactions Page
+    // Favorites e Reactions Page
     "reactions_title": "Reações e Favoritos",
     "reactions_subtitle": "Versículos guardados, marcações e suas anotações pessoais da Palavra.",
     "fav_tab_favorites": "Favoritos",
@@ -188,7 +188,7 @@ const translations: Record<Language, Record<string, string>> = {
     "fav_save_note": "Salvar anotação",
     "fav_remove": "Remover",
     "fav_verse_copied": "Versículo copiado com sucesso",
-    // Cookies & LGPD
+    // Cookies e LGPD
     "cookie_title": "Privacidade e Cookies (LGPD)",
     "cookie_desc": "Visando a máxima transparência e conformidade legal, informamos que utilizamos cookies para oferecer uma experiência personalizada, otimizar a navegação e analisar o tráfego do site. Respeitamos os seus direitos conforme a Lei Geral de Proteção de Dados (Lei 13.709/2018) e garantimos a você o total controle sobre as suas preferências de privacidade.",
     "cookie_accept_all": "Aceitar Todos",
@@ -475,7 +475,7 @@ const translations: Record<Language, Record<string, string>> = {
     "present_next_verse": "Next verse",
     "present_smooth_transition": "Smooth Transition",
     "present_auto_speed": "Auto-Playback Speed",
-    // Reader & Bilingual
+    // Reader and Bilingual
     "bilingual": "Bilingual",
     "bilingual_translating": "Translating with AI...",
     "bilingual_active": "AI Translation active",
@@ -516,7 +516,7 @@ const translations: Record<Language, Record<string, string>> = {
     "loading_more_verses": "Loading more verses incrementally... or click to display more",
     "chapter_abbrev": "Ch.",
     "chapter_short": "Ch.",
-    // Font Size & Audio Speech Reader
+    // Font Size and Audio Speech Reader
     "font_size_btn": "Font Size",
     "font_size_sm": "Small (14px)",
     "font_size_md": "Medium (16px)",
@@ -551,7 +551,7 @@ const translations: Record<Language, Record<string, string>> = {
     "chapters_count": "ch.",
     "all_rights_reserved": "© 2026 Biblia Online. All rights reserved.",
     "terms_privacy": "Terms of Use and Privacy Policy",
-    // Devotionals & Plans Page
+    // Devotionals and Plans Page
     "devotional_title": "Devotionals and Daily Plans",
     "devotional_subtitle": "Daily meditations and structured reading plans to strengthen your faith each day.",
     "tab_today_devotional": "Today's Devotional",
@@ -598,7 +598,7 @@ const translations: Record<Language, Record<string, string>> = {
     "plan_reflection_placeholder": "What did God speak to your heart today in this passage?",
     "plan_save_reflection": "Save Lesson",
     "plan_reflection_saved": "Lesson saved!",
-    // Favorites & Reactions Page
+    // Favorites and Reactions Page
     "reactions_title": "Reactions and Favorites",
     "reactions_subtitle": "Saved verses, highlights, and your personal spiritual notes from the Word.",
     "fav_tab_favorites": "Favorites",
@@ -615,7 +615,7 @@ const translations: Record<Language, Record<string, string>> = {
     "fav_save_note": "Save note",
     "fav_remove": "Remove",
     "fav_verse_copied": "Verse copied successfully",
-    // Cookies & LGPD
+    // Cookies and LGPD
     "cookie_title": "Privacy and Cookies (LGPD/GDPR)",
     "cookie_desc": "To ensure transparency and compliance, we use cookies to personalize your experience, optimize navigation, and analyze site performance. We respect your rights and give you full control over your privacy settings.",
     "cookie_accept_all": "Accept All",

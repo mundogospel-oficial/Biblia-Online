@@ -1,5 +1,5 @@
 /**
- * Privacy & Security Guard for AI Requests
+ * Privacy and Security Guard for AI Requests
  * Ensures user prompts do not leak PII (Personally Identifiable Information)
  * or system secrets to AI providers (Google Gemini / OpenRouter).
  */
@@ -86,7 +86,7 @@ export function sanitizeUserPrompt(rawPrompt: string): SanitizedPromptResult {
 }
 
 /**
- * Enforces Zero Data Retention & Privacy clause on System Prompt
+ * Enforces Zero Data Retention and Privacy clause on System Prompt
  */
 export function buildPrivacyEnhancedSystemRule(baseSystemRule: string): string {
   const privacyHeader = `[DIRETIVA DE PRIVACIDADE E SEGURANÇA MÁXIMA DO SISTEMA]

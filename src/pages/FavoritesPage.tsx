@@ -58,7 +58,7 @@ const recommendationsByTab: Record<ReactionType, { title: string; titleEn: strin
         reference: "Filipenses 4:13",
         referenceEn: "Philippians 4:13",
         theme: "Força e Vitória",
-        themeEn: "Strength & Victory"
+        themeEn: "Strength and Victory"
       },
       {
         text: "Não temas, porque eu sou contigo; não te assombres, porque eu sou o teu Deus; eu te fortaleço, e te ajudo, e te sustento.",
@@ -90,7 +90,7 @@ const recommendationsByTab: Record<ReactionType, { title: string; titleEn: strin
         reference: "Jeremias 29:11",
         referenceEn: "Jeremiah 29:11",
         theme: "Futuro e Paz",
-        themeEn: "Future & Peace"
+        themeEn: "Future and Peace"
       },
       {
         text: "E sabemos que todas as coisas contribuem juntamente para o bem daqueles que amam a Deus.",
@@ -176,7 +176,7 @@ const recommendationsByTab: Record<ReactionType, { title: string; titleEn: strin
   },
   notes: {
     title: "Recomendações para Anotações e Reflexão",
-    titleEn: "Recommendations for Notes & Reflection",
+    titleEn: "Recommendations for Notes and Reflection",
     subtitle: "Passagens profundas para meditação, oração e anotações do seu diário espiritual.",
     subtitleEn: "Deep passages for meditation, prayer, and notes in your spiritual journal.",
     items: [

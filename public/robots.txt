@@ -1,10 +1,10 @@
 # ==============================================================================
-# Bíblia Online - Robots.txt & Comprehensive AI / Search Engine Policy
+# Bíblia Online - Robots.txt and Comprehensive AI / Search Engine Policy
 # Open access for Google AI (Gemini / Google-Extended), OpenAI (ChatGPT), 
 # Anthropic (Claude), Perplexity, Apple, and all major Search Engines.
 # ==============================================================================
 
-# Google AI & Search Engines
+# Google AI and Search Engines
 User-agent: Google-Extended
 Allow: /
 
@@ -77,7 +77,7 @@ Allow: /
 User-agent: PerplexityBot
 Allow: /
 
-# Microsoft & Bing
+# Microsoft and Bing
 User-agent: Bingbot
 Allow: /
 
@@ -94,7 +94,7 @@ Allow: /
 User-agent: Applebot-Extended
 Allow: /
 
-# Other AI & Social Agents
+# Other AI and Social Agents
 User-agent: cohere-ai
 Allow: /
 
@@ -113,10 +113,10 @@ Allow: /
 User-agent: Bytespider
 Allow: /
 
-# All Web Crawlers & AI Agents
+# All Web Crawlers and AI Agents
 User-agent: *
 Allow: /
 
-# Sitemaps & Structured LLM Documents
+# Sitemaps and Structured LLM Documents
 Sitemap: https://online-biblia.vercel.app/sitemap.xml
 Sitemap: https://ais-pre-6l6a4lokvoyyiqlu26cadl-511815758067.us-east1.run.app/sitemap.xml

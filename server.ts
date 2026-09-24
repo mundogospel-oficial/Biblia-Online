@@ -70,7 +70,7 @@ function verifyServerTotp(token: string, secret: string): boolean {
   return false;
 }
 
-// --- ESM & CJS COMPATIBLE RUNTIME RESOLUTION ---
+// --- ESM e CJS COMPATIBLE RUNTIME RESOLUTION ---
 
 // Initialize Supabase Admin Client (for sensitive operations)
 const getSupabaseAdmin = () => {
@@ -405,7 +405,8 @@ function startServer() {
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => {
-      return (req.headers["x-forwarded-for"] as string || req.ip || "unknown").split(",")[0].trim();
+      // Utiliza req.ip validado com base na configuração do Express (trust proxy) para evitar IP spoofing
+      return req.ip || "unknown";
     },
     validate: { default: false },
     message: { error: "TOO_MANY_REQUESTS", message: "Muitas requisições. Tente novamente mais tarde." }
@@ -413,15 +414,16 @@ function startServer() {
 
   const securityLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hora
-    max: 5, // Apenas 5 tentativas por hora para operações sensíveis
+    max: 10, // Tentativas para operações sensíveis
     keyGenerator: (req) => {
-      return (req.headers["x-forwarded-for"] as string || req.ip || "unknown").split(",")[0].trim();
+      return req.ip || "unknown";
     },
     validate: { default: false },
     message: { error: "SECURITY_THRESHOLD", message: "Limite de segurança atingido. Tente novamente em uma hora." }
   });
 
   // Helper to recognize legitimate AI Bots and Search Engine Crawlers
+  // OBS: Ferramentas genéricas de scripts (curl, python, wget, etc.) NUNCA são consideradas bots legítimos
   const isAuthorizedAIBot = (ua: string = '') => {
     const lower = ua.toLowerCase();
     return (
@@ -450,14 +452,7 @@ function startServer() {
       lower.includes('twitterbot') ||
       lower.includes('duckduckgo') ||
       lower.includes('yandex') ||
-      lower.includes('baiduspider') ||
-      lower.includes('python') ||
-      lower.includes('curl') ||
-      lower.includes('wget') ||
-      lower.includes('http-client') ||
-      lower.includes('postman') ||
-      lower.includes('axios') ||
-      lower.includes('node-fetch')
+      lower.includes('baiduspider')
     );
   };
 
@@ -495,10 +490,36 @@ function startServer() {
     next();
   };
 
+  // Helper para validar origens seguras contra ataques de CSRF e CORS maliciosos
+  const isAllowedOrigin = (origin?: string): boolean => {
+    if (!origin) return true; // Requisições mobile PWA, servidor ou mesma origem não enviam header Origin
+    try {
+      const parsed = new URL(origin);
+      const host = parsed.hostname.toLowerCase();
+      if (
+        host === "localhost" ||
+        host === "127.0.0.1" ||
+        host.endsWith(".run.app") ||
+        host.endsWith(".vercel.app") ||
+        host.includes("aistudio") ||
+        host.includes("google.com") ||
+        host.includes("lovable")
+      ) {
+        return true;
+      }
+    } catch {}
+    return false;
+  };
+
   app.use(cors({
     origin: (origin, callback) => {
-      // Permite todas as origens para garantir leitura universal por IA, apps e navegadores
-      callback(null, true);
+      // Permite origens confiáveis e bloqueia domínios maliciosos externos com credenciais
+      if (isAllowedOrigin(origin)) {
+        callback(null, true);
+      } else {
+        // Bloqueia com segurança origens desconhecidas que tentam acessar com credenciais
+        callback(null, false);
+      }
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
@@ -697,6 +718,23 @@ function startServer() {
     }
   }
 
+  // Helper para autenticar usuário a partir do token Supabase JWT para evitar IDOR
+  const getAuthenticatedUserId = async (req: express.Request): Promise<string | null> => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return null;
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!token) return null;
+    const adminClient = getSupabaseAdmin();
+    if (!adminClient) return null;
+    try {
+      const { data: { user }, error } = await adminClient.auth.getUser(token);
+      if (!error && user) return user.id;
+    } catch {
+      return null;
+    }
+    return null;
+  };
+
   const getSafeHistoryUserId = (rawId?: any): string => {
     if (!rawId || typeof rawId !== "string") return "guest";
     const cleaned = rawId.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80);
@@ -707,7 +745,20 @@ function startServer() {
   app.get("/api/chat/history", async (req, res) => {
     try {
       const rawUserId = (req.query.userId as string) || (req.headers["x-user-id"] as string) || "guest";
-      const safeId = getSafeHistoryUserId(rawUserId);
+      let safeId = getSafeHistoryUserId(rawUserId);
+
+      // Proteção IDOR: Se não for guest, valida o token do usuário
+      if (safeId !== "guest") {
+        const authenticatedId = await getAuthenticatedUserId(req);
+        if (!authenticatedId) {
+          return res.status(401).json({ error: "Autenticação requerida para acessar histórico de conta.", conversations: [] });
+        }
+        if (authenticatedId !== rawUserId) {
+          return res.status(403).json({ error: "Acesso negado ao histórico de outro usuário.", conversations: [] });
+        }
+        safeId = getSafeHistoryUserId(authenticatedId);
+      }
+
       const filePath = path.join(CHAT_HISTORY_DIR, `${safeId}.json`);
 
       let conversations: any[] = [];
@@ -735,7 +786,7 @@ function startServer() {
             const { data } = await adminClient
               .from("user_notes")
               .select("note_text")
-              .eq("user_id", rawUserId)
+              .eq("user_id", safeId)
               .eq("verse_reference", "AI_CONVERSATIONS")
               .maybeSingle();
 
@@ -770,7 +821,20 @@ function startServer() {
         return res.status(400).json({ error: "Campo 'conversations' obrigatório e deve ser um array." });
       }
 
-      const safeId = getSafeHistoryUserId(userId);
+      let safeId = getSafeHistoryUserId(userId);
+
+      // Proteção IDOR: Se não for guest, valida o token do usuário
+      if (safeId !== "guest") {
+        const authenticatedId = await getAuthenticatedUserId(req);
+        if (!authenticatedId) {
+          return res.status(401).json({ error: "Autenticação requerida para gravar histórico de conta." });
+        }
+        if (authenticatedId !== userId) {
+          return res.status(403).json({ error: "Acesso negado: você não pode gravar no histórico de outro usuário." });
+        }
+        safeId = getSafeHistoryUserId(authenticatedId);
+      }
+
       const filePath = path.join(CHAT_HISTORY_DIR, `${safeId}.json`);
 
       // A. Salva no disco do servidor imediatamente
@@ -781,7 +845,7 @@ function startServer() {
       }
 
       // B. Se o usuário for autenticado, sincroniza também no Supabase
-      if (safeId !== "guest" && userId) {
+      if (safeId !== "guest") {
         const adminClient = getSupabaseAdmin();
         if (adminClient) {
           try {
@@ -789,7 +853,7 @@ function startServer() {
             const { data: existing } = await adminClient
               .from("user_notes")
               .select("id")
-              .eq("user_id", userId)
+              .eq("user_id", safeId)
               .eq("verse_reference", "AI_CONVERSATIONS")
               .maybeSingle();
 
@@ -802,7 +866,7 @@ function startServer() {
               await adminClient
                 .from("user_notes")
                 .insert({
-                  user_id: userId,
+                  user_id: safeId,
                   verse_reference: "AI_CONVERSATIONS",
                   note_text: jsonStr,
                 });
@@ -825,7 +889,20 @@ function startServer() {
     try {
       const rawUserId = (req.query.userId as string) || req.body?.userId || "guest";
       const conversationId = (req.query.conversationId as string) || req.body?.conversationId;
-      const safeId = getSafeHistoryUserId(rawUserId);
+      let safeId = getSafeHistoryUserId(rawUserId);
+
+      // Proteção IDOR: Se não for guest, valida o token do usuário
+      if (safeId !== "guest") {
+        const authenticatedId = await getAuthenticatedUserId(req);
+        if (!authenticatedId) {
+          return res.status(401).json({ error: "Autenticação requerida para modificar histórico de conta." });
+        }
+        if (authenticatedId !== rawUserId) {
+          return res.status(403).json({ error: "Acesso negado: você não pode apagar o histórico de outro usuário." });
+        }
+        safeId = getSafeHistoryUserId(authenticatedId);
+      }
+
       const filePath = path.join(CHAT_HISTORY_DIR, `${safeId}.json`);
 
       if (conversationId) {
@@ -844,7 +921,7 @@ function startServer() {
                   await adminClient
                     .from("user_notes")
                     .update({ note_text: JSON.stringify(filtered) })
-                    .eq("user_id", rawUserId)
+                    .eq("user_id", safeId)
                     .eq("verse_reference", "AI_CONVERSATIONS");
                 }
               }
@@ -868,7 +945,7 @@ function startServer() {
             await adminClient
               .from("user_notes")
               .delete()
-              .eq("user_id", rawUserId)
+              .eq("user_id", safeId)
               .eq("verse_reference", "AI_CONVERSATIONS");
           }
         }
@@ -877,7 +954,7 @@ function startServer() {
       return res.json({ success: true });
     } catch (err: any) {
       console.error("[Server] Erro ao deletar histórico no servidor:", err);
-      return res.status(500).json({ error: "Erro ao deletar histórico." });
+      return res.status(500).json({ error: "Erro interno ao deletar histórico." });
     }
   });
 
@@ -947,7 +1024,25 @@ function startServer() {
         return res.status(503).json({ error: "Chave OpenRouter não configurada no servidor." });
       }
 
-      const modelsToTry = model ? [model] : [
+      const ALLOWED_OPENROUTER_MODELS = new Set([
+        "deepseek/deepseek-chat",
+        "deepseek/deepseek-r1-distill-llama-70b:free",
+        "google/gemma-2-9b-it:free",
+        "meta-llama/llama-3.1-8b-instruct:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "meta-llama/llama-3.3-70b-instruct",
+        "mistralai/mistral-7b-instruct:free",
+        "qwen/qwen-2.5-7b-instruct:free",
+        "qwen/qwen-2.5-72b-instruct:free",
+        "openrouter/free",
+        "openai/gpt-4o-mini"
+      ]);
+
+      if (model && typeof model === "string" && !ALLOWED_OPENROUTER_MODELS.has(model.trim())) {
+        return res.status(403).json({ error: "Modelo solicitado não é permitido para este serviço." });
+      }
+
+      const modelsToTry = model ? [model.trim()] : [
         "deepseek/deepseek-chat",
         "google/gemma-2-9b-it:free",
         "meta-llama/llama-3.1-8b-instruct:free",
@@ -995,6 +1090,118 @@ function startServer() {
     } catch (err: any) {
       console.error("[OpenRouter Backend Error]:", err);
       return res.status(500).json({ error: "Erro interno no servidor OpenRouter proxy." });
+    }
+  });
+
+  // --- PROXY SEGURO DE GEMINI (Protege chaves GOOGLE_AI_KEY no servidor) ---
+  app.post("/api/gemini/chat", async (req, res) => {
+    try {
+      const { prompt, systemInstruction, model, temperature, maxTokens, attachments } = req.body || {};
+      if (!prompt && (!attachments || attachments.length === 0)) {
+        return res.status(400).json({ error: "Prompt ou anexo obrigatório." });
+      }
+
+      // Obter chaves seguras do ambiente ou Supabase
+      let gKey1 = (process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_KEY || process.env.VITE_GOOGLE_AI_KEY || "").trim();
+      let gKey2 = (process.env.GOOGLE_AI_KEY_2 || process.env.VITE_GOOGLE_AI_KEY_2 || "").trim();
+
+      const adminClient = getSupabaseAdmin();
+      if (adminClient && (!gKey1 || !gKey2)) {
+        try {
+          const { data } = await adminClient
+            .from('ai_settings')
+            .select('config_key, config_value')
+            .in('config_key', ['google_ai_key', 'google_ai_key_2']);
+          if (data) {
+            const dbKey1 = data.find(d => d.config_key === 'google_ai_key')?.config_value;
+            const dbKey2 = data.find(d => d.config_key === 'google_ai_key_2')?.config_value;
+            if (dbKey1 && dbKey1.trim()) gKey1 = dbKey1.trim();
+            if (dbKey2 && dbKey2.trim()) gKey2 = dbKey2.trim();
+          }
+        } catch (dbErr) {
+          console.warn("[Gemini Backend] Falha ao consultar chaves no banco:", dbErr);
+        }
+      }
+
+      const keysToTry = [gKey1, gKey2].filter(Boolean);
+      if (keysToTry.length === 0) {
+        return res.status(503).json({ error: "Chave Google AI não configurada no servidor." });
+      }
+
+      const geminiModels = model ? [model] : [
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-2.5-pro',
+        'gemini-flash-latest'
+      ];
+
+      const parts: any[] = [];
+      if (prompt) {
+        parts.push({ text: prompt });
+      }
+
+      if (Array.isArray(attachments)) {
+        attachments.forEach((att: any) => {
+          if (att?.base64 && att?.mimeType) {
+            const commaIndex = att.base64.indexOf(',');
+            const dataPart = commaIndex !== -1 ? att.base64.substring(commaIndex + 1) : att.base64;
+            parts.push({
+              inlineData: {
+                mimeType: att.mimeType,
+                data: dataPart
+              }
+            });
+          }
+        });
+      }
+
+      let lastError = "Falha ao gerar resposta com modelos do Gemini.";
+
+      for (const key of keysToTry) {
+        let keyFailed = false;
+        for (const geminiModel of geminiModels) {
+          try {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${key}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                ...(systemInstruction ? { systemInstruction: { parts: [{ text: systemInstruction }] } } : {}),
+                contents: [{ parts }],
+                generationConfig: {
+                  temperature: typeof temperature === 'number' ? temperature : 0.4,
+                  maxOutputTokens: typeof maxTokens === 'number' ? maxTokens : 4000
+                }
+              })
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => null);
+              const errMsg = errorData?.error?.message || `Status HTTP: ${response.status}`;
+              const isKeyError = response.status === 400 || response.status === 403 || response.status === 429 ||
+                                 errMsg.toLowerCase().includes("key") || errMsg.toLowerCase().includes("quota");
+              if (isKeyError) {
+                keyFailed = true;
+              }
+              lastError = errMsg;
+              continue;
+            }
+
+            const data = await response.json();
+            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+              return res.json({ success: true, text });
+            }
+          } catch (modelErr: any) {
+            lastError = modelErr?.message || "Erro desconhecido";
+          }
+        }
+        if (keyFailed) continue;
+      }
+
+      return res.status(502).json({ error: lastError });
+    } catch (err: any) {
+      console.error("[Gemini Backend Error]:", err);
+      return res.status(500).json({ error: "Erro interno no servidor Gemini proxy." });
     }
   });
 
@@ -1994,7 +2201,8 @@ SUA TAREFA OBRIGATÓRIA:
   // - Modo Chat: executada EXCLUSIVAMENTE via motor de imagens dedicado (sem usar Pollinations)
   app.post("/api/generate-image", async (req, res) => {
     try {
-      const { prompt: rawPrompt, source = 'chat' } = req.body;
+      const { prompt: rawPrompt, source = 'chat' } = req.body || {};
+      const isAlreadyRefined = Boolean(req.body?.isAlreadyRefined);
 
       // Se a solicitação for do Modo Criar, delega para a função dedicada e blindada
       if (source === 'create') {
@@ -2013,15 +2221,11 @@ SUA TAREFA OBRIGATÓRIA:
         return res.status(400).json({ error: "O prompt enviado não possui conteúdo válido após desinfecção de dados." });
       }
 
-      const isAlreadyRefined = Boolean(req.body.isAlreadyRefined);
-
       // Verificação combinada de segurança (Filtro 1 Termos + Filtro 2 OPENROUTER_IMAGENS)
-      // Se o prompt já foi construído e aprovado pelo Aprimorador de Prompts oficial, ele já foi devidamente santificado e formatado
-      if (!isAlreadyRefined) {
-        const securityCheck = await verifyImagePromptSecurity(prompt, 'chat-image');
-        if (securityCheck.isBlocked) {
-          return res.status(400).json({ error: securityCheck.reason || "A descrição fornecida contém termos que violam as diretrizes de conteúdo visual e bíblico." });
-        }
+      // Validação autoritativa e incondicional no servidor (sem permitir bypass de segurança pelo cliente)
+      const securityCheck = await verifyImagePromptSecurity(prompt, 'chat-image');
+      if (securityCheck.isBlocked) {
+        return res.status(400).json({ error: securityCheck.reason || "A descrição fornecida contém termos que violam as diretrizes de conteúdo visual e bíblico." });
       }
 
       // 1. Validar Token de Autenticação do Usuário (Supabase JWT)
@@ -2345,7 +2549,7 @@ SUA TAREFA OBRIGATÓRIA:
     }
   });
 
-  // --- 2FA (GOOGLE AUTHENTICATOR) CHECK & VERIFY ROUTES ---
+  // --- 2FA (GOOGLE AUTHENTICATOR) CHECK e VERIFY ROUTES ---
   app.post("/api/auth/2fa/check", async (req, res) => {
     const { email } = req.body || {};
     if (!email || typeof email !== "string") {

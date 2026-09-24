@@ -412,12 +412,12 @@ export const ReadingPlansSection = () => {
         </div>
       </div>
 
-      {/* Plan Details & Day-by-Day List */}
+      {/* Plan Details e Day-by-Day List */}
       <div className="space-y-4">
         <div className="flex items-center justify-between pb-1">
           <h3 className="font-serif text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
             <Calendar className="h-4.5 w-4.5 text-accent" />
-            {isEn ? "Daily Lessons & Readings" : "Lições Diárias & Leituras"}
+            {isEn ? "Daily Lessons and Readings" : "Lições Diárias e Leituras"}
           </h3>
           <span className="text-xs text-muted-foreground font-medium">
             {completedDays.length} {isEn ? "of" : "de"} {currentPlanViewed.durationDays} {isEn ? "completed" : "concluídos"}
@@ -725,7 +725,7 @@ export const ReadingPlansSection = () => {
         </div>
       </div>
 
-      {/* MODAL 1: COMPLETION & REFLECTION SCREEN */}
+      {/* MODAL 1: COMPLETION E REFLECTION SCREEN */}
       <AnimatePresence>
         {completingDay && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md overflow-y-auto">
@@ -856,7 +856,7 @@ export const ReadingPlansSection = () => {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 font-mono">
-                        {isEn ? "Saved & Completed Lesson" : "Lição Salva e Concluída"}
+                        {isEn ? "Saved and Completed Lesson" : "Lição Salva e Concluída"}
                       </span>
                       {viewingSavedLesson.reflection?.savedAt && (
                         <span className="text-[10px] text-muted-foreground font-mono">

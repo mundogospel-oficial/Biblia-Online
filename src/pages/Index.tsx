@@ -141,7 +141,7 @@ const Index = () => {
               )}
             </div>
 
-            {/* Navigation Indicators & Buttons */}
+            {/* Navigation Indicators e Buttons */}
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5 mr-1">
                 {[0, 1, 2].map((idx) => (

@@ -768,7 +768,7 @@ const CreatePage = () => {
               })}
             </div>
 
-            {/* Tab 1: Verse Content & Search */}
+            {/* Tab 1: Verse Content e Search */}
             {activeTab === "verse" && (
               <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
                 <div className="glass-card rounded-2xl p-4 border border-border/60 space-y-3">
@@ -879,7 +879,7 @@ const CreatePage = () => {
               </motion.div>
             )}
 
-            {/* Tab 2: Backgrounds & Themes */}
+            {/* Tab 2: Backgrounds e Themes */}
             {activeTab === "background" && (
               <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
                 
@@ -1191,7 +1191,7 @@ const CreatePage = () => {
                   </div>
                 </div>
 
-                {/* Font Size & Color slider */}
+                {/* Font Size e Color slider */}
                 <div className="glass-card rounded-2xl p-4 border border-border/60 space-y-4">
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
@@ -1237,7 +1237,7 @@ const CreatePage = () => {
               </motion.div>
             )}
 
-            {/* Tab 4: Aspect Ratio & Export Formats & Quality */}
+            {/* Tab 4: Aspect Ratio e Export Formats e Quality */}
             {activeTab === "export" && (
               <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
                 

@@ -1,6 +1,6 @@
 import { syncKeyToSupabase } from "@/services/userSyncService";
 
-// Highlight & Notes system stored in localStorage
+// Highlight and Notes system stored in localStorage
 
 export type HighlightColor = 'yellow' | 'blue' | 'green' | 'pink';
 

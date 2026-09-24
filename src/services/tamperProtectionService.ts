@@ -1,15 +1,33 @@
 import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
 
-const INTEGRITY_SALT = "bible_tamper_shield_2026_salt_v1";
+/**
+ * Gera ou recupera semente criptográfica única do dispositivo para assinar papéis
+ * e impedir falsificação ou reutilização cross-browser / cross-device.
+ */
+function getDynamicSalt(): string {
+  let deviceSeed = "";
+  try {
+    deviceSeed = localStorage.getItem("app_device_entropy_v1") || "";
+    if (!deviceSeed && typeof window !== "undefined" && window.crypto) {
+      const arr = new Uint8Array(24);
+      window.crypto.getRandomValues(arr);
+      deviceSeed = Array.from(arr).map(b => b.toString(16).padStart(2, "0")).join("");
+      localStorage.setItem("app_device_entropy_v1", deviceSeed);
+    }
+  } catch {}
+  const host = typeof window !== "undefined" ? window.location.host : "localhost";
+  return `bible_tamper_${host}_${deviceSeed || "default_entropy"}`;
+}
 
 /**
  * Calcula um hash criptográfico seguro (SHA-256) no navegador usando a Web Crypto API
  * para assinar os papéis salvos em cache e detectar qualquer alteração via DevTools.
  */
 async function computeHash(data: string): Promise<string> {
+  const dynamicSalt = getDynamicSalt();
   try {
     const enc = new TextEncoder();
-    const keyData = enc.encode(INTEGRITY_SALT);
+    const keyData = enc.encode(dynamicSalt);
     const msgData = enc.encode(data);
     
     // Importa chave HMAC nativa
@@ -25,9 +43,9 @@ async function computeHash(data: string): Promise<string> {
     const hashArray = Array.from(new Uint8Array(signature));
     return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
   } catch (err) {
-    // Fallback matemático simples caso crypto.subtle falhe
+    // Fallback matemático caso crypto.subtle falhe
     let h = 0x811c9dc5;
-    const combined = data + INTEGRITY_SALT;
+    const combined = data + dynamicSalt;
     for (let i = 0; i < combined.length; i++) {
       h ^= combined.charCodeAt(i);
       h = Math.imul(h, 0x01000193);

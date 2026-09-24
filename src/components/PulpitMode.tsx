@@ -624,7 +624,7 @@ export const PulpitMode = ({
         </div>
       </motion.header>
 
-      {/* ── ÁREA CENTRAL DE EXIBIÇÃO DO VERSÍCULO (LIMPA & MAJESTOSA) ── */}
+      {/* ── ÁREA CENTRAL DE EXIBIÇÃO DO VERSÍCULO (LIMPA E MAJESTOSA) ── */}
       <main className="relative flex-1 flex items-center justify-center px-6 sm:px-20 md:px-28 py-8 overflow-y-auto no-scrollbar">
         {loading ? (
           <div className="flex flex-col items-center gap-3 text-center">
@@ -677,7 +677,7 @@ export const PulpitMode = ({
         )}
       </main>
 
-      {/* ── BARRA DE CONTROLES INFERIOR (ESTILO MENU HOME: GLASS-CARD & PILLS) ── */}
+      {/* ── BARRA DE CONTROLES INFERIOR (ESTILO MENU HOME: GLASS-CARD E PILLS) ── */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: controlsVisible ? 1 : 0, y: controlsVisible ? 0 : 20 }}

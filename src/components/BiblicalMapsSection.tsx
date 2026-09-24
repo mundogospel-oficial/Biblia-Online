@@ -496,7 +496,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
               {/* Map Container */}
               <div ref={mapContainerRef} className="w-full h-full z-0" />
 
-              {/* Top Overlay: Layer Switcher & Action Buttons (Center & Fullscreen) */}
+              {/* Top Overlay: Layer Switcher e Action Buttons (Center e Fullscreen) */}
               <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between pointer-events-none gap-2">
                 {/* Layer Style Pills com barra de rolagem visível */}
                 <div className="flex items-center gap-1 bg-slate-900/90 backdrop-blur-md p-1 rounded-xl border border-white/15 shadow-lg pointer-events-auto overflow-x-auto max-w-[70%] sm:max-w-[78%] themed-scrollbar visible-scrollbar">
@@ -616,7 +616,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
                   className="glass-card rounded-2xl p-5 border border-border bg-card shadow-lg flex flex-col justify-between space-y-4 h-full"
                 >
                   <div className="space-y-4">
-                    {/* Title & Badges */}
+                    {/* Title e Badges */}
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-accent/15 border border-accent/30 text-accent text-[11px] font-bold">
@@ -653,7 +653,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
                       </p>
                     </div>
 
-                    {/* Historical & Archaeological Note */}
+                    {/* Historical e Archaeological Note */}
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
                         <Info className="h-3.5 w-3.5 text-accent" />
@@ -680,7 +680,7 @@ export const BiblicalMapsSection: React.FC<BiblicalMapsSectionProps> = ({
                     </div>
                   </div>
 
-                  {/* Action Buttons: Read Chapter & Step */}
+                  {/* Action Buttons: Read Chapter e Step */}
                   <div className="space-y-2 pt-2 border-t border-border/80">
                     <button
                       onClick={() => handleReadChapter(selectedLocation)}

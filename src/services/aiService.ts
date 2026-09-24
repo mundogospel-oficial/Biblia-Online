@@ -88,9 +88,37 @@ const tryComplexGemini = async (
   skipBracketRemoval: boolean = false,
   googleKey2?: string
 ): Promise<string> => {
+  const normalized = normalizeAttachments(attachments);
+
+  // 1. Prioridade Segura: Envia para o proxy do servidor (chaves de API protegidas no backend)
+  try {
+    const proxyRes = await fetch("/api/gemini/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt,
+        systemInstruction: systemRule,
+        attachments: normalized,
+        temperature: 0.4,
+        maxTokens: 4000
+      }),
+      signal
+    });
+
+    if (proxyRes.ok) {
+      const data = await proxyRes.json();
+      if (data?.text) {
+        return sanitizeAIResponse(data.text, skipBracketRemoval);
+      }
+    }
+  } catch (proxyErr: any) {
+    if (proxyErr.name === 'AbortError' || proxyErr.message?.includes('abort')) throw proxyErr;
+    console.warn("[Gemini Proxy Server] Tentando fallback...", proxyErr);
+  }
+
+  // 2. Fallback local se o servidor não tiver as chaves configuradas
   if (!googleKey && !googleKey2) throw new Error("Chave Gemini não disponível.");
   
-  const normalized = normalizeAttachments(attachments);
   const geminiModels = [
     'gemini-2.5-flash',
     'gemini-2.0-flash',
@@ -173,9 +201,46 @@ const trySimpleOpenRouter = async (
   skipBracketRemoval: boolean = false,
   openRouterKey2?: string
 ): Promise<string> => {
+  const normalized = normalizeAttachments(attachments);
+
+  // 1. Prioridade Segura: Envia para o proxy do servidor (chaves protegidas no backend)
+  try {
+    const userContent: any[] = [{ type: "text", text: prompt }];
+    normalized.forEach(att => {
+      userContent.push({
+        type: "image_url",
+        image_url: { url: att.base64 }
+      });
+    });
+
+    const proxyRes = await fetch("/api/openrouter/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [
+          { role: "system", content: systemRule },
+          { role: "user", content: userContent.length > 1 ? userContent : prompt }
+        ],
+        temperature: 0.5,
+        max_tokens: 4000
+      }),
+      signal
+    });
+
+    if (proxyRes.ok) {
+      const data = await proxyRes.json();
+      if (data?.choices?.[0]?.message?.content) {
+        return sanitizeAIResponse(data.choices[0].message.content, skipBracketRemoval);
+      }
+    }
+  } catch (proxyErr: any) {
+    if (proxyErr.name === 'AbortError' || proxyErr.message?.includes('abort')) throw proxyErr;
+    console.warn("[OpenRouter Proxy Server] Tentando fallback...", proxyErr);
+  }
+
+  // 2. Fallback se proxy não tiver chaves
   if (!openRouterKey && !openRouterKey2) throw new Error("Chave OpenRouter não disponível.");
 
-  const normalized = normalizeAttachments(attachments);
   let freeModels: string[] = [];
   const preferredFreeModels = [
     "meta-llama/llama-3.3-70b-instruct:free",
@@ -434,9 +499,6 @@ export const generateChatTitle = async (userPrompt: string, aiResponse: string, 
     : (lang === "en" ? "Image Generation" : "Geração de Imagem");
 
   try {
-    const { googleKey, googleKey2 } = await fetchKeys();
-    if (!googleKey && !googleKey2) return safeFallback;
-
     const context = cleanPrompt ? `User: ${cleanPrompt}` : `AI generated image based on: ${aiResponse}`;
 
     const rules = await getSystemRule(undefined, lang);
@@ -455,6 +517,28 @@ REGRAS ABSOLUTAS:
     const combinedPrompt = lang === "en"
       ? `Task: Create a short 3-5 word title in English for the following biblical context: ${context}`
       : `Tarefa: Crie um título curto de 3-5 palavras para o seguinte contexto: ${context}`;
+
+    // 1. Tenta prioritariamente via proxy seguro do servidor (backend)
+    try {
+      const proxyRes = await fetch("/api/gemini/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: combinedPrompt,
+          systemInstruction,
+          temperature: 0.2,
+          maxTokens: 50
+        })
+      });
+      if (proxyRes.ok) {
+        const pData = await proxyRes.json();
+        const title = pData?.text?.trim();
+        if (title) return title.replace(/["*]/g, '');
+      }
+    } catch {}
+
+    const { googleKey, googleKey2 } = await fetchKeys();
+    if (!googleKey && !googleKey2) return safeFallback;
 
     const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
     const keysToTry = [googleKey, googleKey2].filter(Boolean) as string[];
@@ -559,6 +643,29 @@ MANDATORY RULES:
 "${verseText}" — Reference: ${reference}`
     : `Forneça a explicação concisa (MÁXIMO 500 CARACTERES com frases completas) do dicionário bíblico para:
 "${verseText}" — Referência: ${reference}`;
+
+  // 1. Prioridade Segura: Envia para o proxy do servidor backend (chaves protegidas)
+  try {
+    const geminiBackend = await fetch("/api/gemini/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: dictPrompt,
+        systemInstruction: dictSystemInstruction,
+        temperature: 0.3,
+        maxTokens: 4000
+      }),
+      signal
+    });
+    if (geminiBackend.ok) {
+      const gData = await geminiBackend.json();
+      if (gData?.text && gData.text.trim().length > 30) {
+        return sanitizeAIResponse(gData.text);
+      }
+    }
+  } catch (err: any) {
+    if (err.name === 'AbortError') throw err;
+  }
 
   const geminiModels = [
     'gemini-2.5-flash',
@@ -702,12 +809,6 @@ export const askBibleAI = async (
   langOverride?: "pt" | "en"
 ): Promise<string> => {
   const lang = langOverride || getCurrentLanguage();
-  const { googleKey, googleKey2, openRouterKey, openRouterKey2 } = await fetchKeys();
-
-  if (!googleKey && !googleKey2 && !openRouterKey && !openRouterKey2) {
-    throw new Error(lang === "en" ? "API key not configured. Please configure your Gemini or OpenRouter key in Account settings." : "Chave de API não configurada. Configure a sua chave do Gemini ou do OpenRouter nas configurações de chaves da Conta.");
-  }
-
   const ruleKey = complexity === 'simple' ? 'gemini_prompt_simples' : 'gemini_prompt_complexo';
   const baseRule = await getSystemRule(ruleKey, lang);
   const bibleDirective = lang === "en" ? BIBLE_VERSIONS_DIRECTIVE_EN : BIBLE_VERSIONS_DIRECTIVE_PT;
@@ -729,28 +830,23 @@ export const askBibleAI = async (
   const normalized = normalizeAttachments(attachments);
   const hasImageAttachments = normalized.some(att => att.mimeType?.startsWith('image/') || att.base64?.startsWith('data:image/'));
 
+  const { googleKey, googleKey2, openRouterKey, openRouterKey2 } = await fetchKeys();
+
   try {
     // Se houver imagens anexadas para leitura e interpretação, prioriza os modelos de visão multimodal do Gemini
-    if (hasImageAttachments && (googleKey || googleKey2)) {
+    if (hasImageAttachments) {
       return await tryComplexGemini(cleanPrompt, googleKey, SYSTEM_RULE, attachments, signal, skipBracketRemoval, googleKey2);
     }
 
     if (complexity === 'complex') {
-      if (googleKey || googleKey2) {
-        return await tryComplexGemini(cleanPrompt, googleKey, SYSTEM_RULE, attachments, signal, skipBracketRemoval, googleKey2);
-      } else {
-        throw new Error("Chave do Google AI (Gemini) indisponível para o Chat Complexo.");
-      }
+      return await tryComplexGemini(cleanPrompt, googleKey, SYSTEM_RULE, attachments, signal, skipBracketRemoval, googleKey2);
     } else {
       // Chat Simples
-      if (openRouterKey || openRouterKey2) {
+      try {
         return await trySimpleOpenRouter(cleanPrompt, openRouterKey, SYSTEM_RULE, attachments, signal, skipBracketRemoval, openRouterKey2);
-      } else {
-        // Fallback to Gemini if OpenRouter key is not found but Google is
-        if (googleKey || googleKey2) {
-          return await tryComplexGemini(cleanPrompt, googleKey, SYSTEM_RULE, attachments, signal, skipBracketRemoval, googleKey2);
-        }
-        throw new Error("Chave do OpenRouter indisponível para o Chat Simples.");
+      } catch (openRouterErr) {
+        // Fallback to Gemini if OpenRouter proxy fails
+        return await tryComplexGemini(cleanPrompt, googleKey, SYSTEM_RULE, attachments, signal, skipBracketRemoval, googleKey2);
       }
     }
   } catch (error: any) {

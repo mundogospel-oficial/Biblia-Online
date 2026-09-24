@@ -76,7 +76,7 @@ const Header = () => {
 
   return (
     <>
-      {/* Desktop & Tablet Header - Full-width Glass Bar with Oval Pills */}
+      {/* Desktop e Tablet Header - Full-width Glass Bar with Oval Pills */}
       <header className="sticky top-0 z-50 hidden md:block glass-card !rounded-none border-b border-border/50 safe-area-top shrink-0">
         <div className="w-full flex items-center justify-between px-3 md:px-5 py-2 md:py-2.5">
           <Link to="/" className="flex items-center gap-2 md:gap-2.5 group shrink-0 select-none">

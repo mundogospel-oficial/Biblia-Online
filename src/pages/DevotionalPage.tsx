@@ -79,7 +79,7 @@ const DevotionalPage = () => {
     }
   }, [activeTab, canAccessBeta, isMapsFullscreen]);
 
-  // Load favorites from localStorage on mount & when switching tabs
+  // Load favorites from localStorage on mount e when switching tabs
   useEffect(() => {
     const saved = localStorage.getItem("biblia-devocionais-favoritos");
     if (saved) {
@@ -331,7 +331,7 @@ const DevotionalPage = () => {
                     </p>
                   </div>
 
-                  {/* Share & Copy Full Actions */}
+                  {/* Share e Copy Full Actions */}
                   <div className="flex flex-wrap gap-2 pt-4 border-t border-border">
                     <button
                       onClick={() => handleCopy(
@@ -395,7 +395,7 @@ const DevotionalPage = () => {
                 exit={{ opacity: 0, y: -10 }}
                 className="space-y-6"
               >
-                  {/* Search & Category Filter Section */}
+                  {/* Search e Category Filter Section */}
                   <div className="space-y-4">
                   {/* Search input */}
                   <div className="relative">

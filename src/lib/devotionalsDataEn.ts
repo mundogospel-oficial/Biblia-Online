@@ -277,7 +277,7 @@ export const devotionalsEn: Devotional[] = [
     prayer: "Father, make me an instrument of Your peace today. Where there is discord, let me bring understanding, harmony, and healing. Amen."
   },
 
-  // STRENGTH & COURAGE (31-40)
+  // STRENGTH and COURAGE (31-40)
   {
     id: 31,
     title: "Be Strong and Courageous",
@@ -369,7 +369,7 @@ export const devotionalsEn: Devotional[] = [
     prayer: "Lord, thank You for holding me firmly with Your righteous right hand. I step into this day without fear, trusting in Your unfailing support. Amen."
   },
 
-  // GRATITUDE & PRAISE (41-50)
+  // GRATITUDE and PRAISE (41-50)
   {
     id: 41,
     title: "Give Thanks in All Circumstances",
@@ -461,7 +461,7 @@ export const devotionalsEn: Devotional[] = [
     prayer: "Almighty Creator, with every breath You give me, I choose to praise and magnify Your holy name. Amen."
   },
 
-  // WISDOM & DIRECTION (51-60)
+  // WISDOM and DIRECTION (51-60)
   {
     id: 51,
     title: "The Fear of the Lord Is the Beginning of Wisdom",
@@ -553,7 +553,7 @@ export const devotionalsEn: Devotional[] = [
     prayer: "Lord, I dedicate all my tasks, projects, and efforts to You today. Establish the work of my hands for Your glory. Amen."
   },
 
-  // HOPE & RENEWAL (61-75)
+  // HOPE and RENEWAL (61-75)
   {
     id: 61,
     title: "Plans to Give You Hope and a Future",
@@ -690,7 +690,7 @@ export const devotionalsEn: Devotional[] = [
     prayer: "God of all grace, restore my soul, establish my steps, and make me firm in Your love and purpose. To You be glory forever. Amen."
   },
 
-  // PRAYER & INTIMACY (76-85)
+  // PRAYER and INTIMACY (76-85)
   {
     id: 76,
     title: "Call to Me and I Will Answer",
@@ -782,7 +782,7 @@ export const devotionalsEn: Devotional[] = [
     prayer: "Lord, keep my spiritual eyes awake and alert. Strengthen my inner spirit against every temptation and distraction today. Amen."
   },
 
-  // PURPOSE & CALLING (86-95)
+  // PURPOSE and CALLING (86-95)
   {
     id: 86,
     title: "Created for Good Works",
@@ -874,7 +874,7 @@ export const devotionalsEn: Devotional[] = [
     prayer: "Lord, here am I! I make myself available to Your divine promptings and assignments today. Use me wherever You wish. Amen."
   },
 
-  // PROTECTION & DELIVERANCE (96-105)
+  // PROTECTION and DELIVERANCE (96-105)
   {
     id: 96,
     title: "He Who Dwells in the Secret Place",

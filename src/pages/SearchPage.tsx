@@ -367,7 +367,7 @@ const SearchPage = () => {
   const isEn = language === "en";
 
   const [query, setQuery] = useState(""); // Live input value typed by user
-  const [searchQuery, setSearchQuery] = useState(""); // Submitted query used for filtering & results
+  const [searchQuery, setSearchQuery] = useState(""); // Submitted query used for filtering e results
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -393,7 +393,7 @@ const SearchPage = () => {
   const [visibleDevotionalsCount, setVisibleDevotionalsCount] = useState(12);
   const [visibleVersesCount, setVisibleVersesCount] = useState(12);
 
-  // Load history & devotional favorites
+  // Load history e devotional favorites
   useEffect(() => {
     try {
       const saved = localStorage.getItem(HISTORY_KEY);
@@ -584,7 +584,7 @@ const SearchPage = () => {
     return detectSemanticConcepts(searchQuery).topConcept;
   }, [searchQuery]);
 
-  // Rank Matched Entities (Personagens & Conhecimento Geral)
+  // Rank Matched Entities (Personagens e Conhecimento Geral)
   const matchedEntities = useMemo(() => {
     if (!searchQuery.trim()) return [];
     
@@ -699,7 +699,7 @@ const SearchPage = () => {
       .map(item => item.verse);
   }, [searchQuery, activeSemanticConcept]);
 
-  // Rank Momentos da Vida & Emoções
+  // Rank Momentos da Vida e Emoções
   const filteredMoments = useMemo(() => {
     if (!searchQuery.trim()) return SEMANTIC_CONCEPTS;
     const qNorm = normalizeSemanticStr(searchQuery);
@@ -1155,7 +1155,7 @@ const SearchPage = () => {
               </div>
             )}
 
-            {/* TAB CONTENT: MOMENTOS DA VIDA & EMOÇÕES */}
+            {/* TAB CONTENT: MOMENTOS DA VIDA E EMOÇÕES */}
             {((activeTab === "todos" && filteredMoments.length > 0) || activeTab === "momentos") && (
               <div className="space-y-4">
                 <div className="flex items-start justify-between gap-2">
@@ -1439,7 +1439,7 @@ const SearchPage = () => {
               </div>
             )}
 
-            {/* TAB CONTENT: CONHECIMENTO & TEMAS (100+) */}
+            {/* TAB CONTENT: CONHECIMENTO E TEMAS (100+) */}
             {((activeTab === "todos" && filteredTopics.length > 0) || activeTab === "assuntos") && (
               <div className="space-y-3 pt-2">
                 <div className="flex items-start justify-between gap-2">

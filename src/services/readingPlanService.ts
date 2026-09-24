@@ -159,7 +159,7 @@ export const getLocalPlanProgress = (): UserPlanProgress => {
   }
 };
 
-// Save progress to LocalStorage & Supabase
+// Save progress to LocalStorage and Supabase
 export const savePlanProgress = async (progress: UserPlanProgress): Promise<void> => {
   try {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(progress));

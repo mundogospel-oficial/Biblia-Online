@@ -1,4 +1,15 @@
 import { syncKeyToSupabase } from './userSyncService';
+import { supabase } from '@/integrations/supabase/client';
+
+async function getAuthHeader(): Promise<Record<string, string>> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      return { Authorization: `Bearer ${session.access_token}` };
+    }
+  } catch {}
+  return {};
+}
 
 export interface ChatMsg {
   role: "user" | "assistant";
@@ -114,11 +125,13 @@ export async function saveHistoryToServer(
   const safeId = userId || "guest";
 
   try {
+    const authHeaders = await getAuthHeader();
     const response = await fetch("/api/chat/history", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-user-id": safeId,
+        ...authHeaders,
       },
       body: JSON.stringify({
         userId: safeId,
@@ -147,10 +160,12 @@ export async function fetchHistoryFromServer(
   const safeId = userId || "guest";
 
   try {
+    const authHeaders = await getAuthHeader();
     const response = await fetch(`/api/chat/history?userId=${encodeURIComponent(safeId)}`, {
       method: "GET",
       headers: {
         "x-user-id": safeId,
+        ...authHeaders,
       },
     });
 
@@ -175,8 +190,12 @@ export async function deleteConversationOnServer(
 ): Promise<void> {
   const safeId = userId || "guest";
   try {
+    const authHeaders = await getAuthHeader();
     await fetch(`/api/chat/history?userId=${encodeURIComponent(safeId)}&conversationId=${encodeURIComponent(conversationId)}`, {
       method: "DELETE",
+      headers: {
+        ...authHeaders,
+      },
     });
   } catch (err) {
     console.warn("[ChatHistory] Erro ao deletar no servidor:", err);
@@ -191,8 +210,12 @@ export async function clearAllHistoryOnServer(
 ): Promise<void> {
   const safeId = userId || "guest";
   try {
+    const authHeaders = await getAuthHeader();
     await fetch(`/api/chat/history?userId=${encodeURIComponent(safeId)}`, {
       method: "DELETE",
+      headers: {
+        ...authHeaders,
+      },
     });
   } catch (err) {
     console.warn("[ChatHistory] Erro ao limpar histórico no servidor:", err);

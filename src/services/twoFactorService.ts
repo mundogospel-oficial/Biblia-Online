@@ -241,7 +241,7 @@ export async function getTwoFactorStatus(userId: string): Promise<TwoFactorStatu
   try {
     const { data, error } = await supabase
       .from("profiles")
-      .select("two_factor_enabled, two_factor_secret")
+      .select("two_factor_enabled")
       .eq("id", userId)
       .maybeSingle();
 
@@ -249,9 +249,10 @@ export async function getTwoFactorStatus(userId: string): Promise<TwoFactorStatu
       return { enabled: false, hasSecret: false };
     }
 
+    const enabled = Boolean((data as any).two_factor_enabled);
     return {
-      enabled: Boolean((data as any).two_factor_enabled),
-      hasSecret: Boolean((data as any).two_factor_secret),
+      enabled,
+      hasSecret: enabled,
     };
   } catch (err) {
     console.error("[2FA] Erro ao verificar status:", err);
@@ -260,7 +261,8 @@ export async function getTwoFactorStatus(userId: string): Promise<TwoFactorStatu
 }
 
 /**
- * Valida o 2FA no momento do login contra o banco de dados do usuário
+ * Valida o 2FA no momento do login contra o servidor seguro (backend)
+ * Nunca expõe chaves TOTP ou códigos de backup no navegador do usuário
  */
 export async function validateLoginTwoFactor(
   userId: string,
@@ -269,59 +271,24 @@ export async function validateLoginTwoFactor(
   const cleanInput = codeOrBackup.trim().toUpperCase();
 
   try {
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select("two_factor_enabled, two_factor_secret, two_factor_backup_codes")
-      .eq("id", userId)
-      .maybeSingle();
+    const response = await fetch("/api/auth/2fa/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, code: cleanInput }),
+    });
 
-    if (error || !profile) {
-      return { success: false, error: "Perfil do usuário não encontrado." };
-    }
-
-    const isEnabled = Boolean((profile as any).two_factor_enabled);
-    const secret = (profile as any).two_factor_secret;
-    const backupCodes: string[] = Array.isArray((profile as any).two_factor_backup_codes)
-      ? (profile as any).two_factor_backup_codes
-      : [];
-
-    if (!isEnabled || !secret) {
-      // 2FA não está ativo para esta conta
-      return { success: true };
-    }
-
-    // 1. Testa se é um código TOTP de 6 dígitos
-    if (/^\d{6}$/.test(cleanInput.replace(/\s+/g, ""))) {
-      const isValidTotp = await verifyTotpCode(cleanInput, secret);
-      if (isValidTotp) {
+    if (response.ok) {
+      const result = await response.json();
+      if (result.valid) {
         return { success: true };
       }
+      return { success: false, error: result.error || "Código de autenticação incorreto." };
     }
 
-    // 2. Testa se é um código de backup (ex: ABCD-1234)
-    const backupIndex = backupCodes.findIndex(
-      (c) => c.toUpperCase() === cleanInput || c.replace("-", "").toUpperCase() === cleanInput.replace("-", "")
-    );
-
-    if (backupIndex !== -1) {
-      // Remove o código de backup já utilizado para não permitir reuso
-      const updatedCodes = [...backupCodes];
-      updatedCodes.splice(backupIndex, 1);
-
-      await supabase
-        .from("profiles")
-        .update({
-          two_factor_backup_codes: updatedCodes,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", userId);
-
-      return { success: true };
-    }
-
-    return { success: false, error: "Código de autenticação ou código de recuperação incorreto." };
+    const errData = await response.json().catch(() => null);
+    return { success: false, error: errData?.error || "Código de autenticação ou de recuperação incorreto." };
   } catch (err: any) {
-    console.error("[2FA] Erro na validação de login:", err);
-    return { success: false, error: err?.message || "Erro ao validar 2FA." };
+    console.error("[2FA] Erro na validação de login via servidor:", err);
+    return { success: false, error: "Falha de conexão ao validar 2FA com o servidor." };
   }
 }

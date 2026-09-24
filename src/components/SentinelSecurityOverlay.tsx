@@ -86,7 +86,7 @@ export const SentinelSecurityOverlay: React.FC<SentinelSecurityOverlayProps> = (
     // Ativa proteção anti-F12 e fechamento de abas DevTools
     enableAntiF12Protection();
 
-    // 1. Lock scroll on body & html
+    // 1. Lock scroll on body e html
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
     document.body.style.userSelect = "none";

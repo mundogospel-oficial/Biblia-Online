@@ -33,7 +33,7 @@ export function useFoldable(): FoldableState {
       "(vertical-viewport-segments: 2), (screen-spanning: single-fold-horizontal)"
     ).matches;
 
-    // Check iPhone Duo specific unfolded viewport & aspect ratio (7.6" ~2670x1878, ratio ~1.42:1)
+    // Check iPhone Duo specific unfolded viewport and aspect ratio (7.6" ~2670x1878, ratio ~1.42:1)
     const width = window.innerWidth;
     const height = window.innerHeight;
     const ratio = width / (height || 1);
