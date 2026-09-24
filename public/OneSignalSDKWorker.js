@@ -5,7 +5,7 @@ try {
   console.warn('[SW] OneSignal SDK import skipped or offline:', e);
 }
 
-const CACHE_NAME = 'biblia-online-v2.6.0';
+const CACHE_NAME = 'biblia-online-v2.6.2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

@@ -235,7 +235,7 @@ const AccountPage = () => {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [showPwnedModal, setShowPwnedModal] = useState(false);
   const [pwnedLeakCount, setPwnedLeakCount] = useState(0);
-  const [appVersion, setAppVersion] = useState("2.5.2");
+  const [appVersion, setAppVersion] = useState("2.6.2");
   const [, setHasEnrolledBiometrics] = useState(false);
 
   useEffect(() => {
