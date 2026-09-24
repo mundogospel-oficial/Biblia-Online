@@ -181,7 +181,7 @@ body::-webkit-scrollbar,
 }
 
 .safe-area-bottom {
-  padding-bottom: max(4px, env(safe-area-inset-bottom, 0px));
+  padding-bottom: max(2px, calc(env(safe-area-inset-bottom, 0px) * 0.3));
 }
 
 .safe-area-top {
