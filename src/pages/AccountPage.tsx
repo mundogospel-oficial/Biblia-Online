@@ -13,7 +13,6 @@ import { Turnstile } from '@marsidev/react-turnstile';
 import { useSentinel } from "@/hooks/useSentinel";
 import { setupPushNotifications } from "@/services/pushService";
 import { 
-  sendLocalNotification, 
   getNotificationSettings, 
   saveNotificationSettings,
   registerPeriodicBackgroundSync
@@ -237,7 +236,6 @@ const AccountPage = () => {
   const [showPwnedModal, setShowPwnedModal] = useState(false);
   const [pwnedLeakCount, setPwnedLeakCount] = useState(0);
   const [appVersion, setAppVersion] = useState("2.5.2");
-  const [notificationTestError, setNotificationTestError] = useState<string | null>(null);
   const [, setHasEnrolledBiometrics] = useState(false);
 
   useEffect(() => {
@@ -1161,8 +1159,8 @@ const AccountPage = () => {
             console.warn("Erro ao registrar push notifications do OneSignal:", err);
           }
           toast({ 
-            title: "Notificações ativadas", 
-            description: "Plano 4 ativo: versículo diário pela manhã (08h) e noite (20h) mesmo com o app fechado!" 
+            title: language === "en" ? "Notifications enabled" : "Notificações ativadas", 
+            description: language === "en" ? "Daily verses scheduled for morning (8 AM) and evening (8 PM)." : "Versículos diários programados para manhã (08h) e noite (20h)." 
           });
         } else {
           // If not logged in, request permission directly
@@ -1173,8 +1171,8 @@ const AccountPage = () => {
             console.warn("Erro ao solicitar permissão de push no OneSignal:", err);
           }
           toast({ 
-            title: "Notificações ativadas", 
-            description: "Plano 4 ativo: versículo diário pela manhã (08h) e noite (20h) mesmo com o app fechado!" 
+            title: language === "en" ? "Notifications enabled" : "Notificações ativadas", 
+            description: language === "en" ? "Daily verses scheduled for morning (8 AM) and evening (8 PM)." : "Versículos diários programados para manhã (08h) e noite (20h)." 
           });
         }
       } else {
@@ -1582,73 +1580,6 @@ const AccountPage = () => {
                         <div className={`h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300 ease-in-out ${notificationsEnabled ? "translate-x-4" : "translate-x-0"}`} />
                       </div>
                     </button>
-
-                    {notificationsEnabled && (
-                      <div className="mt-2 flex flex-col gap-2 w-full">
-                        <button 
-                          onClick={async () => {
-                            setNotificationTestError(null);
-                            const isEn = language === "en";
-                            try {
-                              if (!("Notification" in window)) {
-                                toast({ 
-                                  title: isEn ? "Not Supported" : "Não suportado", 
-                                  description: isEn ? "This browser does not support local notifications." : "Este navegador não suporta notificações locais.", 
-                                  variant: "destructive" 
-                                });
-                                return;
-                              }
-
-                              if (Notification.permission !== "granted") {
-                                const { oneSignalService } = await import("@/services/oneSignalService");
-                                await oneSignalService.requestPermission();
-                              }
-
-                              await sendLocalNotification(
-                                isEn ? "Notification Test" : "Teste de Notificação", 
-                                isEn ? "Your Bible Online test notification was sent successfully." : "Sua notificação de teste da Bíblia Online foi enviada com sucesso.",
-                                `biblia-test-${Date.now()}`,
-                                true
-                              );
-                              
-                              toast({ 
-                                title: isEn ? "Test Sent" : "Teste Enviado", 
-                                description: isEn ? "The test notification was sent directly to your device." : "A notificação de teste foi disparada diretamente para o seu dispositivo." 
-                              });
-                            } catch (err: any) {
-                              console.error("Erro ao disparar teste de notificação:", err);
-                              const errMsg = err?.message || String(err);
-                              setNotificationTestError(errMsg);
-                              toast({ 
-                                title: isEn ? "Test Error" : "Erro de Teste", 
-                                description: isEn ? "Could not send the notification at this time." : "Não foi possível enviar a notificação no momento.", 
-                                variant: "destructive" 
-                              });
-                            }
-                          }}
-                          className="w-full rounded-xl bg-accent/10 border border-accent/20 py-2.5 text-xs font-semibold text-accent hover:bg-accent/20 transition-all flex items-center justify-center gap-2 shadow-sm liquid-btn"
-                        >
-                          <Bell className="h-3.5 w-3.5" />
-                          {language === "en" ? "Test Notification" : "Testar Notificação"}
-                        </button>
-
-                        {notificationTestError && (
-                          <div className="rounded-xl bg-destructive/10 border border-destructive/20 p-3 text-left text-xs text-foreground flex flex-col gap-1 animate-fadeIn">
-                            <span className="font-semibold text-xs text-destructive">
-                              {language === "en" ? "Failed to send notification:" : "Falha ao disparar notificação:"}
-                            </span>
-                            <p className="text-[11px] text-muted-foreground leading-relaxed">
-                              {language === "en" ? "Check if site notifications are permitted in your browser or device settings." : "Verifique se as notificações do site estão permitidas nas configurações do seu navegador ou dispositivo."}
-                            </p>
-                          </div>
-                        )}
-
-                        <div className="rounded-xl bg-secondary/20 border border-white/5 px-3.5 py-2 flex items-center justify-between">
-                          <span className="text-[10px] text-muted-foreground">{t("clock_status")}</span>
-                          <span className="text-[10px] font-mono text-accent animate-pulse">{t("clock_active")}</span>
-                        </div>
-                      </div>
-                    )}
 
                     {/* Modo Foco - Exclusivo para usuários Beta / Selecionados no Supabase */}
                     <BetaGate>
