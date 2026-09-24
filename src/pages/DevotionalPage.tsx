@@ -31,6 +31,7 @@ import { getFavoritePlanIds, toggleFavoritePlan } from "@/services/readingPlanSe
 import { shareBibleText } from "@/lib/downloadUtils";
 import { ReadingPlansSection } from "@/components/ReadingPlansSection";
 import { BiblicalMapsSection } from "@/components/BiblicalMapsSection";
+import VoiceInputButton from "@/components/VoiceInputButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -405,21 +406,32 @@ const DevotionalPage = () => {
                       placeholder={t("search_devotionals_placeholder")}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value.slice(0, 200))}
-                      className={`w-full rounded-xl glass-card py-2.5 sm:py-3 ${searchQuery ? "pl-4" : "pl-10"} pr-10 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent transition-all duration-200 shadow-sm`}
+                      className={`w-full rounded-xl glass-card py-2.5 sm:py-3 ${searchQuery ? "pl-3.5" : "pl-8 sm:pl-10"} pr-12 sm:pr-20 text-[12px] sm:text-sm text-foreground placeholder:text-[11.5px] sm:placeholder:text-sm placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent transition-all duration-200 shadow-sm`}
                     />
                     {!searchQuery && (
-                      <Search className="absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                      <Search className="absolute left-2.5 sm:left-3 top-1/2 z-10 h-3.5 w-3.5 sm:h-4 sm:w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                     )}
-                    {searchQuery && (
-                      <button
-                        type="button"
-                        onClick={() => setSearchQuery("")}
-                        className="absolute right-3 top-1/2 z-10 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-                        title={language === "en" ? "Clear search" : "Limpar busca"}
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
+                    <div className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 sm:gap-1 z-10">
+                      <VoiceInputButton
+                        onTranscript={(transcript) => {
+                          const newQuery = searchQuery ? `${searchQuery.trim()} ${transcript}` : transcript;
+                          setSearchQuery(newQuery);
+                        }}
+                        size="xs"
+                        title={language === "en" ? "Search with voice" : "Pesquisar por voz"}
+                      />
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchQuery("")}
+                          className="p-1 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                          title={language === "en" ? "Clear search" : "Limpar busca"}
+                          aria-label={language === "en" ? "Clear search" : "Limpar busca"}
+                        >
+                          <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Horizontal Scroll Categories */}

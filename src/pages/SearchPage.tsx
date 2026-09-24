@@ -765,11 +765,11 @@ const SearchPage = () => {
                         handleSearch(query);
                       }
                     }}
-                    placeholder={isEn ? "Search for anything biblical..." : "Busque sobre algo bíblico..."}
-                    className={`w-full rounded-xl glass-card py-3 sm:py-3.5 ${query ? "pl-4" : "pl-10"} pr-20 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent transition-all duration-200 shadow-sm`}
+                    placeholder={isEn ? "Search something biblical..." : "Buscar algo bíblico..."}
+                    className={`w-full rounded-xl glass-card py-2.5 sm:py-3.5 ${query ? "pl-3.5" : "pl-8 sm:pl-10"} pr-12 sm:pr-20 text-[12px] sm:text-sm text-foreground placeholder:text-[11.5px] sm:placeholder:text-sm placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent transition-all duration-200 shadow-sm`}
                   />
-                  {!query && <Search className="absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />}
-                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
+                  {!query && <Search className="absolute left-2.5 sm:left-3 top-1/2 z-10 h-3.5 w-3.5 sm:h-4 sm:w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />}
+                  <div className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 sm:gap-1 z-10">
                     <VoiceInputButton
                       onTranscript={(transcript) => {
                         const newQuery = query ? `${query.trim()} ${transcript}` : transcript;
@@ -786,14 +786,14 @@ const SearchPage = () => {
                         onClick={() => { setQuery(""); setSearchQuery(""); setSearched(false); setResults([]); }}
                         className="p-1 text-muted-foreground hover:text-foreground cursor-pointer"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       </button>
                     )}
                   </div>
                 </div>
 
-                <button type="submit" disabled={loading || !query.trim()} aria-label={isEn ? "Execute biblical search" : "Executar busca bíblica"} className="rounded-xl bg-primary px-4 sm:px-5 py-3 sm:py-3.5 text-xs sm:text-sm font-semibold text-primary-foreground disabled:opacity-50 transition-all hover:opacity-90 shadow-sm flex items-center gap-1.5 shrink-0 active:scale-95">
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <> <Search className="h-4 w-4" /> {isEn ? "Search" : "Buscar"} </>}
+                <button type="submit" disabled={loading || !query.trim()} aria-label={isEn ? "Execute biblical search" : "Executar busca bíblica"} className="rounded-xl bg-primary px-3.5 sm:px-5 py-2.5 sm:py-3.5 text-xs sm:text-sm font-semibold text-primary-foreground disabled:opacity-50 transition-all hover:opacity-90 shadow-sm flex items-center gap-1 sm:gap-1.5 shrink-0 active:scale-95">
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <> <Search className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> {isEn ? "Search" : "Buscar"} </>}
                 </button>
               </div>
 

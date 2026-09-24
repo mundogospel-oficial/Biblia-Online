@@ -76,8 +76,8 @@ const Header = () => {
 
   return (
     <>
-      {/* Desktop e Tablet Header - Full-width Glass Bar with Oval Pills */}
-      <header className="sticky top-0 z-50 hidden md:block glass-card !rounded-none border-b border-border/50 safe-area-top shrink-0">
+      {/* Desktop e Tablet Header - Full-width Liquid Glass Bar with Oval Pills */}
+      <header className="sticky top-0 z-50 hidden md:block liquid-glass-bar !rounded-none border-b border-border/50 safe-area-top shrink-0">
         <div className="w-full flex items-center justify-between px-3 md:px-5 py-2 md:py-2.5">
           <Link to="/" className="flex items-center gap-2 md:gap-2.5 group shrink-0 select-none">
             <img
@@ -125,8 +125,8 @@ const Header = () => {
         </div>
       </header>
 
-      {/* Mobile Top Header - Clean Glass Bar */}
-      <header className="sticky top-0 z-50 md:hidden glass-card !rounded-none border-b border-border/50 safe-area-top shrink-0">
+      {/* Mobile Top Header - Clean Liquid Glass Bar */}
+      <header className="sticky top-0 z-50 md:hidden liquid-glass-bar !rounded-none border-b border-border/50 safe-area-top shrink-0">
         <div className="flex items-center justify-center px-4 py-2.5">
           <Link to="/" className="flex items-center gap-2 select-none">
             <img
@@ -144,9 +144,9 @@ const Header = () => {
         </div>
       </header>
 
-      {/* Mobile Bottom Navigation - Glass Bar with Oval Active Pills */}
+      {/* Mobile Bottom Navigation - Liquid Glass Bar with Oval Active Pills */}
       {!isKeyboardOpen && (
-        <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t border-border/50 bg-[hsl(215,40%,8%)]/95 backdrop-blur-xl safe-area-bottom">
+        <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t border-border/50 liquid-glass-bar safe-area-bottom">
           <div className="flex items-center justify-around px-1 py-1">
             {mobileLinks.map((l) => {
               const active = isActiveRoute(l.to);
