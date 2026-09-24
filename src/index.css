@@ -181,11 +181,35 @@ body::-webkit-scrollbar,
 }
 
 .safe-area-bottom {
-  padding-bottom: max(3px, calc(env(safe-area-inset-bottom, 0px) * 0.35));
+  padding-bottom: max(6px, env(safe-area-inset-bottom, 0px));
 }
 
 .safe-area-top {
   padding-top: env(safe-area-inset-top, 0);
+}
+
+/* Regras Estritas de Navegação Móvel e PWA:
+ * Celulares e tablets (iOS, Android, PWA e telas touch) SEMPRE mantêm a barra de navegação no rodapé (bottom bar estilo iOS).
+ * A barra de navegação de topo com links só é visível em PCs reais com mouse e tela grande.
+ */
+@media (max-width: 1023px), (pointer: coarse), (hover: none) {
+  .desktop-header-nav {
+    display: none !important;
+  }
+  .mobile-top-header {
+    display: block !important;
+  }
+}
+
+html.device-android .desktop-header-nav,
+html.device-ios .desktop-header-nav,
+html[data-os="android"] .desktop-header-nav,
+html[data-os="ios"] .desktop-header-nav,
+html[data-pwa="true"] .desktop-header-nav,
+@media (display-mode: standalone) {
+  .desktop-header-nav {
+    display: none !important;
+  }
 }
 
 @layer utilities {
@@ -350,38 +374,6 @@ body::-webkit-scrollbar,
       0 6px 22px -2px hsl(var(--accent) / 0.25),
       0 0 0 1px hsl(var(--accent) / 0.3),
       inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.28);
-  }
-
-  .liquid-glass-menu {
-    position: relative;
-    background: linear-gradient(
-      145deg,
-      hsl(var(--card) / 0.88) 0%,
-      hsl(var(--secondary) / 0.75) 45%,
-      hsl(var(--background) / 0.92) 100%
-    );
-    backdrop-filter: blur(28px) saturate(190%);
-    -webkit-backdrop-filter: blur(28px) saturate(190%);
-    border: 1px solid hsl(var(--border) / 0.75);
-    box-shadow:
-      0 16px 40px -6px rgba(0, 0, 0, 0.4),
-      0 4px 16px -2px rgba(0, 0, 0, 0.2),
-      inset 0 1px 1px 0 rgba(255, 255, 255, 0.16),
-      inset 0 -1px 1px 0 rgba(0, 0, 0, 0.25);
-  }
-
-  .liquid-glass-bar {
-    position: relative;
-    background: linear-gradient(
-      180deg,
-      hsl(var(--card) / 0.85) 0%,
-      hsl(var(--background) / 0.92) 100%
-    );
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    box-shadow:
-      0 4px 24px -1px rgba(0, 0, 0, 0.25),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1);
   }
 
   .liquid-btn {
