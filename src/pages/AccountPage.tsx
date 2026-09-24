@@ -13,6 +13,7 @@ import { Turnstile } from '@marsidev/react-turnstile';
 import { useSentinel } from "@/hooks/useSentinel";
 import { setupPushNotifications } from "@/services/pushService";
 import { 
+  sendLocalNotification,
   getNotificationSettings, 
   saveNotificationSettings,
   registerPeriodicBackgroundSync
@@ -1205,6 +1206,44 @@ const AccountPage = () => {
     }
   };
 
+  const handleTestNotification = async () => {
+    const isEn = language === "en";
+    try {
+      if (!("Notification" in window)) {
+        toast({
+          title: isEn ? "Not Supported" : "Não suportado",
+          description: isEn ? "This browser does not support notifications." : "Este navegador não suporta notificações locais.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (Notification.permission !== "granted") {
+        const { oneSignalService } = await import("@/services/oneSignalService");
+        await oneSignalService.requestPermission();
+      }
+
+      await sendLocalNotification(
+        isEn ? "Notification Test" : "Teste de Notificação",
+        isEn ? "Your Bible Online test notification was sent successfully." : "Sua notificação de teste da Bíblia Online foi enviada com sucesso.",
+        `biblia-test-${Date.now()}`,
+        true
+      );
+
+      toast({
+        title: isEn ? "Test Sent" : "Teste Enviado",
+        description: isEn ? "The test notification was sent directly to your device." : "A notificação de teste foi disparada diretamente para o seu dispositivo."
+      });
+    } catch (err: any) {
+      console.error("Erro ao disparar teste de notificação:", err);
+      toast({
+        title: isEn ? "Test Error" : "Erro no Teste",
+        description: isEn ? "Could not send the notification at this time." : "Não foi possível enviar a notificação no momento.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const isPWA = useIsPWA();
   const [offlineProgress, setOfflineProgress] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -1580,6 +1619,26 @@ const AccountPage = () => {
                         <div className={`h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300 ease-in-out ${notificationsEnabled ? "translate-x-4" : "translate-x-0"}`} />
                       </div>
                     </button>
+
+                    {notificationsEnabled && (
+                      <div className="flex items-center justify-between rounded-xl bg-secondary/20 border border-white/5 px-3.5 py-2 mt-1 animate-fadeIn">
+                        <button
+                          type="button"
+                          onClick={handleTestNotification}
+                          className="text-xs font-semibold text-accent hover:text-accent/80 transition-all flex items-center gap-1.5 py-1 px-3 rounded-lg bg-accent/10 border border-accent/20 hover:bg-accent/20 liquid-btn shadow-sm"
+                        >
+                          <Bell className="h-3.5 w-3.5" />
+                          <span>{t("test_now")}</span>
+                        </button>
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <span>Status:</span>
+                          <span className="font-mono text-accent flex items-center gap-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+                            {t("clock_active")}
+                          </span>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Modo Foco - Exclusivo para usuários Beta / Selecionados no Supabase */}
                     <BetaGate>
