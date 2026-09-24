@@ -510,21 +510,17 @@ const ThinkingIndicator = ({ engine = "simples", mode, isEn = false }: ThinkingI
   };
 
   const getGradient = () => {
-    if (mode === "video") return "from-purple-500 to-indigo-600";
-    if (mode === "music") return "from-sky-500 to-blue-600";
-    if (mode === "learning") return "from-emerald-500 to-teal-600";
-    if (engine === "complexo") return "from-accent to-primary";
-    return "from-amber-500 to-orange-500";
+    return "from-sky-500 to-blue-600";
   };
 
   return (
     <div className="flex items-center gap-2.5 py-1.5 px-0.5 select-none animate-in fade-in duration-200">
       {/* Ícone com animação circular e pulso sutil */}
-      <div className={`relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${getGradient()} shadow-xs`}>
+      <div className={`relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${getGradient()} shadow-xs text-white`}>
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
-          className="absolute -inset-0.5 rounded-full border border-dashed border-white/40"
+          className="absolute -inset-0.5 rounded-full border border-dashed border-sky-400"
         />
         <motion.div
           animate={{ scale: [0.9, 1.08, 0.9] }}
@@ -1465,13 +1461,15 @@ const AIPage = () => {
     });
   };
 
-  // NOVO: Função para limpar o chat e iniciar um novo
-  const startNewChat = () => {
+  // Função para limpar o chat e iniciar um novo
+  const startNewChat = (preserveMode: ModeKey | null = null) => {
     setMessages([]);
     currentChatIdRef.current = null;
-    setActiveMode(null);
+    setActiveMode(preserveMode);
     setAttachedFiles([]);
+    setPreviews([]);
     setMessageFeedback({});
+    setInput("");
   };
 
   const loadConversation = async (conv: Conversation) => {
@@ -2198,39 +2196,31 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
   };
 
   const handleModeSelect = (mode: typeof modes[0]) => {
-    const isCurrentlyEmpty = messages.length === 0;
-
     if (activeMode === mode.key) {
-      setActiveMode(null);
+      startNewChat(null);
       setSelectedImageStyle(null);
       setShowModes(false);
-      if (!isCurrentlyEmpty) {
-        startNewChat();
-        toast({
-          title: "Modo encerrado",
-          description: `Você saiu do modo ${mode.label}. Nova conversa iniciada!`,
-        });
-      }
+      toast({
+        title: isEn ? "Mode closed" : "Modo encerrado",
+        description: isEn 
+          ? `You exited ${mode.label} mode. New chat started!`
+          : `Você saiu do modo ${mode.label}. Novo chat iniciado!`,
+      });
     } else {
-      const isSwitchingImage = activeMode === "image" || mode.key === "image";
       const prevModeLabel = activeModeInfo?.label;
-
-      setActiveMode(mode.key);
+      startNewChat(mode.key);
       if (mode.key === "image") {
-        setSelectedImageStyle(prev => prev || IMAGE_STYLES[0]);
+        setSelectedImageStyle(imageStyles.find(s => s.id === "cinematic") || imageStyles[0]);
       }
       setAiEngine("complexo");
       setShowModes(false);
 
-      if (!isCurrentlyEmpty && isSwitchingImage) {
-        startNewChat();
-        toast({
-          title: `Modo ${mode.label} ativado`,
-          description: prevModeLabel
-            ? `Modo alterado de ${prevModeLabel} para ${mode.label}. Nova conversa iniciada!`
-            : `Modo ${mode.label} ativado! Nova conversa iniciada para gerar imagens.`,
-        });
-      }
+      toast({
+        title: isEn ? `Mode ${mode.label} activated` : `Modo ${mode.label} ativado`,
+        description: prevModeLabel
+          ? (isEn ? `Switched from ${prevModeLabel} to ${mode.label}. New chat started!` : `Modo alterado para ${mode.label}. Novo chat iniciado!`)
+          : (isEn ? `${mode.label} mode activated. New chat started!` : `Modo ${mode.label} ativado. Novo chat iniciado!`),
+      });
     }
   };
 
@@ -3190,21 +3180,15 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
             <button
               type="button"
               onClick={() => {
-                if (aiEngine !== "simples") {
-                  const hadMessages = messages.length > 0;
-                  setAiEngine("simples");
-                  setShowModes(false);
-                  setActiveMode(null);
-                  if (hadMessages) {
-                    startNewChat();
-                    toast({
-                      title: isEn ? "Simple AI activated" : "IA Simples ativada",
-                      description: isEn ? "New chat started when switching to Simple AI." : "Nova conversa iniciada ao alternar para a IA Simples.",
-                    });
-                  }
-                }
+                setAiEngine("simples");
+                setShowModes(false);
+                startNewChat(null);
+                toast({
+                  title: isEn ? "Simple AI activated" : "IA Simples ativada",
+                  description: isEn ? "New chat started in Simple mode." : "Novo chat iniciado no modo Simples.",
+                });
               }}
-              className={`relative z-10 flex items-center gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-[10px] font-semibold transition-colors duration-200 ${
+              className={`relative z-10 flex items-center gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-[10px] font-semibold transition-colors duration-200 cursor-pointer ${
                 aiEngine === "simples" ? "text-white font-bold" : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -3221,19 +3205,14 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
             <button
               type="button"
               onClick={() => {
-                if (aiEngine !== "complexo") {
-                  const hadMessages = messages.length > 0;
-                  setAiEngine("complexo");
-                  if (hadMessages) {
-                    startNewChat();
-                    toast({
-                      title: isEn ? "Complex AI activated" : "IA Complexa ativada",
-                      description: isEn ? "New chat started when switching to Complex AI." : "Nova conversa iniciada ao alternar para a IA Complexa.",
-                    });
-                  }
-                }
+                setAiEngine("complexo");
+                startNewChat(null);
+                toast({
+                  title: isEn ? "Complex AI activated" : "IA Complexa ativada",
+                  description: isEn ? "New chat started in Complex mode." : "Novo chat iniciado no modo Complexo.",
+                });
               }}
-              className={`relative z-10 flex items-center gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-[10px] font-semibold transition-colors duration-200 ${
+              className={`relative z-10 flex items-center gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-[10px] font-semibold transition-colors duration-200 cursor-pointer ${
                 aiEngine === "complexo" ? "text-white font-bold" : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -3576,22 +3555,20 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                   type="button"
                   onClick={() => {
                     const modeLabel = activeModeInfo.label;
-                    const hadMessages = messages.length > 0;
-                    setActiveMode(null);
                     setSelectedImageStyle(null);
-                    if (hadMessages) {
-                      startNewChat();
-                      toast({
-                        title: "Modo encerrado",
-                        description: `Você saiu do modo ${modeLabel}. Nova conversa iniciada.`,
-                      });
-                    }
+                    startNewChat(null);
+                    toast({
+                      title: isEn ? "Mode closed" : "Modo encerrado",
+                      description: isEn 
+                        ? `You exited ${modeLabel} mode. New chat started!`
+                        : `Você saiu do modo ${modeLabel}. Novo chat iniciado!`,
+                    });
                   }}
-                  className="flex h-8 px-2.5 sm:px-3 items-center gap-1.5 rounded-xl bg-secondary hover:bg-destructive hover:text-destructive-foreground text-xs font-semibold text-muted-foreground transition-all shrink-0"
-                  title="Sair do modo"
+                  className="flex h-8 px-2.5 sm:px-3 items-center gap-1.5 rounded-xl bg-secondary hover:bg-destructive hover:text-destructive-foreground text-xs font-semibold text-muted-foreground transition-all shrink-0 cursor-pointer"
+                  title={isEn ? "Exit mode" : "Sair do modo"}
                 >
-                  <span className="hidden sm:inline">Sair do Modo</span>
-                  <span className="sm:hidden">Sair</span>
+                  <span className="hidden sm:inline">{isEn ? "Exit Mode" : "Sair do Modo"}</span>
+                  <span className="sm:hidden">{isEn ? "Exit" : "Sair"}</span>
                   <X className="h-4 w-4" />
                 </button>
               </motion.div>
@@ -3811,7 +3788,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                               <span>Estilo da Imagem</span>
                               <Sparkles className="h-3 w-3 text-accent" />
                             </div>
-                            {IMAGE_STYLES.map((style) => {
+                            {imageStyles.map((style) => {
                               const isSelected = selectedImageStyle?.id === style.id;
                               return (
                                 <button

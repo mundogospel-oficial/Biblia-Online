@@ -662,7 +662,21 @@ const Reader = () => {
             {bilingual && (
               <div className="flex flex-col gap-0.5">
                 <div className="flex items-center gap-1.5">
-                  {bilingualLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />}
+                  {bilingualLoading && (
+                    <div className="relative flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-primary shadow-xs text-accent-foreground">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+                        className="absolute -inset-0.5 rounded-full border border-dashed border-accent"
+                      />
+                      <motion.div
+                        animate={{ scale: [0.9, 1.08, 0.9] }}
+                        transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+                      >
+                        <Languages className="h-2.5 w-2.5 text-accent-foreground" />
+                      </motion.div>
+                    </div>
+                  )}
                   <span className="text-[10px] text-muted-foreground">
                     {bilingualLoading ? t("bilingual_translating") : t("bilingual_active")}
                   </span>
@@ -931,20 +945,32 @@ const Reader = () => {
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
-                className="mb-4 p-3.5 rounded-2xl border border-accent/30 bg-accent/10 backdrop-blur-md shadow-sm space-y-2"
+                className="mb-4 p-3.5 rounded-2xl border border-accent/30 bg-accent/10 backdrop-blur-md shadow-sm space-y-2.5"
               >
                 <div className="flex items-center justify-between text-xs font-semibold text-accent">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 animate-spin text-accent" />
+                  <div className="flex items-center gap-2.5">
+                    <div className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-primary shadow-sm text-accent-foreground">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+                        className="absolute -inset-0.5 rounded-full border border-dashed border-accent"
+                      />
+                      <motion.div
+                        animate={{ scale: [0.9, 1.08, 0.9] }}
+                        transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+                      >
+                        <Languages className="h-3.5 w-3.5 text-accent-foreground" />
+                      </motion.div>
+                    </div>
                     <span>Traduzindo versículos em tempo real (blocos de 5)...</span>
                   </div>
-                  <span className="text-[11px] font-bold">
+                  <span className="text-[11px] font-bold bg-accent/20 px-2 py-0.5 rounded-full border border-accent/30 text-accent">
                     {bilingualVerses.length} / {verses.length}
                   </span>
                 </div>
-                <div className="h-1.5 w-full bg-accent/20 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-accent/20 rounded-full overflow-hidden p-0.5">
                   <motion.div 
-                    className="h-full bg-accent rounded-full transition-all duration-300"
+                    className="h-full bg-accent rounded-full transition-all duration-300 shadow-[0_0_8px_hsl(var(--accent)/0.6)]"
                     style={{ width: `${Math.min(100, Math.round((bilingualVerses.length / (verses.length || 1)) * 100))}%` }}
                   />
                 </div>
@@ -1019,9 +1045,21 @@ const Reader = () => {
                             {bilingualVerse.text.trim()}
                           </motion.p>
                         ) : bilingualLoading ? (
-                          <div className="mt-1 flex items-center gap-1.5 text-xs text-accent/60 animate-pulse">
-                            <Loader2 className="h-3 w-3 animate-spin text-accent" />
-                            <span className="italic text-[11px]">Traduzindo versículo...</span>
+                          <div className="mt-1 flex items-center gap-2 text-xs text-accent/90 pl-1">
+                            <div className="relative flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-primary shadow-xs text-accent-foreground">
+                              <motion.div
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+                                className="absolute -inset-0.5 rounded-full border border-dashed border-accent"
+                              />
+                              <motion.div
+                                animate={{ scale: [0.9, 1.08, 0.9] }}
+                                transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+                              >
+                                <Languages className="h-2 w-2 text-accent-foreground" />
+                              </motion.div>
+                            </div>
+                            <span className="italic text-[11px] text-accent/90">Traduzindo versículo...</span>
                           </div>
                         ) : null
                       )}
@@ -1169,15 +1207,27 @@ const Reader = () => {
                               <span className="text-[10px] text-muted-foreground">{t("dict_offline_desc")}</span>
                             </div>
                           ) : dictLoading ? (
-                            <div className="space-y-2 py-1.5">
-                              <div className="flex items-center gap-2 text-accent text-xs font-semibold animate-pulse">
-                                <Sparkles className="h-3.5 w-3.5 animate-spin text-accent" />
-                                <span>{t("dict_analyzing")}</span>
+                            <div className="space-y-3 py-2">
+                              <div className="flex items-center gap-2.5 text-accent text-xs font-semibold">
+                                <div className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-primary shadow-sm text-accent-foreground">
+                                  <motion.div
+                                    animate={{ rotate: 360 }}
+                                    transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+                                    className="absolute -inset-0.5 rounded-full border border-dashed border-accent"
+                                  />
+                                  <motion.div
+                                    animate={{ scale: [0.9, 1.08, 0.9] }}
+                                    transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+                                  >
+                                    <BookOpen className="h-3.5 w-3.5 text-accent-foreground" />
+                                  </motion.div>
+                                </div>
+                                <span className="text-foreground font-medium">{t("dict_analyzing")}</span>
                               </div>
-                              <div className="space-y-1.5 pt-1">
-                                <div className="h-2.5 w-3/4 rounded-full bg-accent/20 animate-pulse" />
-                                <div className="h-2.5 w-full rounded-full bg-accent/15 animate-pulse" />
-                                <div className="h-2.5 w-5/6 rounded-full bg-accent/10 animate-pulse" />
+                              <div className="space-y-2 pt-0.5">
+                                <div className="h-2.5 w-3/4 rounded-full bg-accent/25 animate-pulse" />
+                                <div className="h-2.5 w-full rounded-full bg-accent/15 animate-pulse [animation-delay:150ms]" />
+                                <div className="h-2.5 w-5/6 rounded-full bg-accent/10 animate-pulse [animation-delay:300ms]" />
                               </div>
                             </div>
                           ) : dictLimitReached ? (
