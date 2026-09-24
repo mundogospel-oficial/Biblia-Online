@@ -40,10 +40,11 @@ export const getLocalDateString = (d: Date = new Date()): string => {
 };
 
 export const requestNotificationPermission = async () => {
+  const lang = typeof window !== "undefined" ? localStorage.getItem("app-language") || "pt" : "pt";
   if (!("Notification" in window)) {
     toast({
-      title: "Não suportado",
-      description: "Este navegador não suporta notificações desktop.",
+      title: lang === "en" ? "Not supported" : "Não suportado",
+      description: lang === "en" ? "This browser does not support desktop notifications." : "Este navegador não suporta notificações desktop.",
       variant: "destructive",
     });
     return false;
@@ -79,10 +80,10 @@ export const checkInactivity = () => {
       // Bloqueia imediatamente para evitar disparos duplicados por múltiplas abas ou re-renders
       localStorage.setItem("biblia_online_last_inactivity_notification", todayStr);
 
-      const lang = localStorage.getItem("app-language") || "pt";
-      const title = lang === "en" ? "Forgot to read the Bible?" : "Esqueceu de ler a Bíblia?";
+      const lang = typeof window !== "undefined" ? localStorage.getItem("app-language") || "pt" : "pt";
+      const title = lang === "en" ? "Did you forget to read the Bible?" : "Esqueceu de ler a Bíblia?";
       const body = lang === "en"
-        ? "Que tal ler um versículo e meditar na palavra de Deus hoje?"
+        ? "How about reading a verse and meditating on the Word of God today?"
         : "Que tal ler um versículo e meditar na palavra de Deus hoje?";
       sendLocalNotification(title, body, `biblia-inactivity-${todayStr}`, false);
     }
@@ -107,6 +108,7 @@ export const checkScheduledNotifications = () => {
   const now = new Date();
   const currentHour = now.getHours();
   const todayStr = getLocalDateString(now);
+  const lang = typeof window !== "undefined" ? localStorage.getItem("app-language") || "pt" : "pt";
 
   // 8 AM (8h) window (from 8 to 12) - Disparo único pela manhã
   if (currentHour >= 8 && currentHour < 12 && settings.morningVerse) {
@@ -115,8 +117,11 @@ export const checkScheduledNotifications = () => {
       // Bloqueio atômico imediato no localStorage para evitar corridas entre abas/intervalos
       localStorage.setItem("biblia_online_last_morning_notification", todayStr);
       const verse = getDailyVerseForSlot(false);
+      const title = lang === "en"
+        ? `Verse of the Day - ${verse.reference}`
+        : `Versículo do Dia - ${verse.reference}`;
       sendLocalNotification(
-        `Versículo do Dia - ${verse.reference}`,
+        title,
         verse.text,
         `biblia-morning-${todayStr}`,
         false
@@ -131,8 +136,11 @@ export const checkScheduledNotifications = () => {
       // Bloqueio atômico imediato no localStorage para evitar corridas entre abas/intervalos
       localStorage.setItem("biblia_online_last_evening_notification", todayStr);
       const verse = getDailyVerseForSlot(true);
+      const title = lang === "en"
+        ? `Evening Verse - ${verse.reference}`
+        : `Versículo da Noite - ${verse.reference}`;
       sendLocalNotification(
-        `Versículo da Noite - ${verse.reference}`,
+        title,
         verse.text,
         `biblia-evening-${todayStr}`,
         false
@@ -147,16 +155,17 @@ export const sendLocalNotification = async (
   tag: string = "biblia-notification",
   renotify: boolean = false
 ): Promise<void> => {
+  const lang = typeof window !== "undefined" ? localStorage.getItem("app-language") || "pt" : "pt";
   if (!("Notification" in window)) {
-    throw new Error("Seu navegador não suporta notificações.");
+    throw new Error(lang === "en" ? "Your browser does not support notifications." : "Seu navegador não suporta notificações.");
   }
 
   if (Notification.permission !== "granted") {
-    throw new Error("Permissão de notificação não concedida. Por favor, ative as notificações nas configurações do seu navegador.");
+    throw new Error(lang === "en" ? "Notification permission not granted. Please enable notifications in your browser settings." : "Permissão de notificação não concedida. Por favor, ative as notificações nas configurações do seu navegador.");
   }
 
   if (!window.isSecureContext) {
-    throw new Error("Notificações requerem uma conexão segura (HTTPS).");
+    throw new Error(lang === "en" ? "Notifications require a secure connection (HTTPS)." : "Notificações requerem uma conexão segura (HTTPS).");
   }
 
   const isInIframe = window.self !== window.top;
@@ -184,7 +193,7 @@ export const sendLocalNotification = async (
         });
         return;
       } else {
-        throw new Error("O Service Worker ativo não suporta notificações.");
+        throw new Error(lang === "en" ? "The active Service Worker does not support notifications." : "O Service Worker ativo não suporta notificações.");
       }
     } catch (err: any) {
       console.warn("[Notification] SW showNotification falhou, tentando fallback direto:", err);
@@ -195,7 +204,7 @@ export const sendLocalNotification = async (
           tag,
         });
       } catch (fallbackErr: any) {
-        throw new Error("Não foi possível exibir a notificação. Verifique as permissões do seu dispositivo.");
+        throw new Error(lang === "en" ? "Could not display notification. Check your device permissions." : "Não foi possível exibir a notificação. Verifique as permissões do seu dispositivo.");
       }
     }
   } else {
@@ -207,7 +216,7 @@ export const sendLocalNotification = async (
         tag,
       });
     } catch (err: any) {
-      throw new Error("Não foi possível exibir a notificação. Verifique as permissões do seu dispositivo.");
+      throw new Error(lang === "en" ? "Could not display notification. Check your device permissions." : "Não foi possível exibir a notificação. Verifique as permissões do seu dispositivo.");
     }
   }
 };

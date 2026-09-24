@@ -209,6 +209,8 @@ const AccountPage = () => {
   const [offlineEnabled, setOfflineEnabled] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarImgFailed, setAvatarImgFailed] = useState(false);
+  const [avatarLoaded, setAvatarLoaded] = useState(false);
+  const googleAvatarRef = useRef<string>("");
   const [deleting, setDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -276,12 +278,20 @@ const AccountPage = () => {
           setDisplayName(validName);
 
           const googleAvatar = su ? extractAvatarUrl(su) : (authCtx.user?.picture || "");
-          const effectiveAvatar = profile?.avatar_url || googleAvatar || null;
+          googleAvatarRef.current = googleAvatar;
+
+          // Se o avatar salvo no perfil for um link do Google, prioriza a URL fresca da sessão ativa para prevenir links expirados
+          let effectiveAvatar = profile?.avatar_url || googleAvatar || null;
+          if (profile?.avatar_url && (profile.avatar_url.includes("googleusercontent.com") || profile.avatar_url.includes("google.com")) && googleAvatar) {
+            effectiveAvatar = googleAvatar;
+          }
+
           setAvatarUrl(effectiveAvatar);
           setAvatarImgFailed(false);
+          setAvatarLoaded(false);
 
-          // Se o perfil no banco ainda não tem o avatar salvo do Google, sincroniza no banco
-          if (userId && googleAvatar && !profile?.avatar_url) {
+          // Se o perfil no banco ainda não tem o avatar salvo do Google, ou se tinha um link do Google desatualizado
+          if (userId && googleAvatar && (!profile?.avatar_url || (profile.avatar_url.includes("googleusercontent.com") && profile.avatar_url !== googleAvatar))) {
             try {
               await supabase.from('profiles').upsert({
                 id: userId,
@@ -467,24 +477,60 @@ const AccountPage = () => {
       if (dbError) throw dbError;
 
       // 4. Atualiza estado e limpa dados locais
+      googleAvatarRef.current = "";
       setAvatarUrl(null);
       setAvatarImgFailed(false);
+      setAvatarLoaded(false);
       if (authCtx.user) {
         authCtx.login({ ...authCtx.user, picture: "" });
       }
       if (fileInputRef.current) fileInputRef.current.value = "";
 
       toast({ 
-        title: "Foto de perfil removida", 
-        description: "Sua foto de perfil foi excluída com sucesso." 
+        title: language === "en" ? "Profile picture removed" : "Foto de perfil removida", 
+        description: language === "en" ? "Your profile picture was removed successfully." : "Sua foto de perfil foi excluída com sucesso." 
       });
     } catch (err: any) {
       console.error("Delete avatar error:", err);
       toast({ 
-        title: "Erro", 
-        description: "Erro, tente mais tarde.", 
+        title: language === "en" ? "Error" : "Erro", 
+        description: language === "en" ? "Could not remove avatar." : "Erro ao remover foto, tente mais tarde.", 
         variant: "destructive" 
       });
+    }
+  };
+
+  const handleAvatarError = async () => {
+    console.warn("Avatar image failed to load:", avatarUrl);
+    const googleFallback = googleAvatarRef.current;
+
+    // Se o avatar que falhou era diferente do avatar fresco do Google da sessão ativa, tenta ele
+    if (googleFallback && avatarUrl !== googleFallback) {
+      console.log("Tentando avatar do Google da sessão ativa como alternativa...");
+      setAvatarUrl(googleFallback);
+      setAvatarImgFailed(false);
+      setAvatarLoaded(false);
+      return;
+    }
+
+    // Se falhou definitivamente:
+    setAvatarImgFailed(true);
+    setAvatarLoaded(false);
+
+    // Limpa a logo/foto antiga ou inexistente do perfil no Supabase para não persistir o erro no servidor
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUserId = session?.user?.id || authCtx.user?.sub;
+      if (currentUserId) {
+        await supabase.from('profiles').update({
+          avatar_url: null,
+          updated_at: new Date().toISOString()
+        }).eq('id', currentUserId);
+        localStorage.removeItem(`local_avatar_${currentUserId}`);
+        console.log("Logo antiga/inválida limpa do perfil no servidor.");
+      }
+    } catch (e) {
+      console.warn("Aviso ao limpar logo antiga do servidor:", e);
     }
   };
 
@@ -1297,33 +1343,39 @@ const AccountPage = () => {
                 </div>
 
                 <div className="relative mx-auto mb-3 h-24 w-24">
-                  {/* Se houver foto/logo válida, renderiza exclusivamente a imagem em um fundo limpo */}
-                  {avatarUrl && !avatarImgFailed ? (
-                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-secondary/80 ring-2 ring-accent/40 ring-offset-2 ring-offset-background/80 shadow-lg shadow-accent/20 select-none overflow-hidden">
+                  {/* Container circular do avatar com gradiente moderno: sempre bonito e sem tela preta */}
+                  <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-accent/90 via-sky-600/80 to-primary ring-2 ring-accent/40 ring-offset-2 ring-offset-background/80 shadow-lg shadow-accent/25 select-none overflow-hidden">
+                    {/* Fallback de base garantido: iniciais elegantes ou ícone de usuário */}
+                    <div className="absolute inset-0 flex items-center justify-center select-none pointer-events-none">
+                      {displayName && displayName.trim() ? (
+                        <span className="font-bold text-2xl text-white tracking-wider uppercase font-serif drop-shadow-sm">
+                          {displayName.trim().slice(0, 2)}
+                        </span>
+                      ) : (
+                        <User className="h-12 w-12 text-white/90 shrink-0 drop-shadow-sm" />
+                      )}
+                    </div>
+
+                    {/* Foto/Logo do usuário: exibida suavemente no topo assim que carregada */}
+                    {avatarUrl && !avatarImgFailed && (
                       <img 
-                        key={avatarUrl || "none"}
+                        key={avatarUrl}
                         src={avatarUrl} 
                         alt={displayName || "Perfil"} 
                         referrerPolicy="no-referrer"
+                        crossOrigin="anonymous"
                         decoding="async"
-                        className="h-full w-full rounded-full object-cover select-none pointer-events-none transition-opacity duration-300"
+                        className={`absolute inset-0 h-full w-full rounded-full object-cover select-none pointer-events-none transition-opacity duration-300 ${avatarLoaded ? 'opacity-100' : 'opacity-0'}`}
                         loading="eager"
-                        onError={() => {
-                          console.error("Avatar image failed to load:", avatarUrl);
-                          setAvatarImgFailed(true);
-                        }}
+                        onLoad={() => setAvatarLoaded(true)}
+                        onError={handleAvatarError}
                       />
-                    </div>
-                  ) : (
-                    /* Fallback clássico exclusivo com ícone do boneco (User) quando não há foto/logo */
-                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-accent/80 to-primary/80 ring-2 ring-accent/40 ring-offset-2 ring-offset-background/80 shadow-lg shadow-accent/20 select-none overflow-hidden">
-                      <User className="h-12 w-12 text-primary-foreground shrink-0" />
-                    </div>
-                  )}
+                    )}
+                  </div>
                   <button 
                     type="button"
                     onClick={() => setShowAvatarMenu(!showAvatarMenu)}
-                    title="Opções da foto de perfil"
+                    title={language === "en" ? "Profile picture settings" : "Opções da foto de perfil"}
                     className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg shadow-accent/30 hover:scale-110 active:scale-95 transition-all z-20 cursor-pointer"
                   >
                     <Settings className="h-4 w-4" />
@@ -1355,10 +1407,14 @@ const AccountPage = () => {
                             className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary/60 hover:text-accent transition-all cursor-pointer"
                           >
                             <Camera className="h-4 w-4 text-accent" />
-                            <span>{avatarUrl && !avatarImgFailed ? "Alterar foto" : "Colocar foto"}</span>
+                            <span>
+                              {language === "en"
+                                ? (avatarUrl && !avatarImgFailed ? "Change photo" : "Upload photo")
+                                : (avatarUrl && !avatarImgFailed ? "Alterar foto" : "Colocar foto")}
+                            </span>
                           </button>
 
-                          {avatarUrl && (
+                          {(avatarUrl || avatarImgFailed) && (
                             <button
                               type="button"
                               onClick={() => {
@@ -1368,7 +1424,11 @@ const AccountPage = () => {
                               className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-all mt-0.5 cursor-pointer"
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
-                              <span>Excluir foto</span>
+                              <span>
+                                {language === "en"
+                                  ? (avatarImgFailed ? "Clear broken photo" : "Remove photo")
+                                  : (avatarImgFailed ? "Limpar foto antiga" : "Excluir foto")}
+                              </span>
                             </button>
                           )}
                         </motion.div>
@@ -1523,11 +1583,12 @@ const AccountPage = () => {
                         <button 
                           onClick={async () => {
                             setNotificationTestError(null);
+                            const isEn = language === "en";
                             try {
                               if (!("Notification" in window)) {
                                 toast({ 
-                                  title: "Não suportado", 
-                                  description: "Este navegador não suporta notificações locais.", 
+                                  title: isEn ? "Not Supported" : "Não suportado", 
+                                  description: isEn ? "This browser does not support local notifications." : "Este navegador não suporta notificações locais.", 
                                   variant: "destructive" 
                                 });
                                 return;
@@ -1539,23 +1600,23 @@ const AccountPage = () => {
                               }
 
                               await sendLocalNotification(
-                                "Teste de Notificação", 
-                                "Sua notificação de teste da Bíblia Online foi enviada com sucesso.",
+                                isEn ? "Notification Test" : "Teste de Notificação", 
+                                isEn ? "Your Bible Online test notification was sent successfully." : "Sua notificação de teste da Bíblia Online foi enviada com sucesso.",
                                 `biblia-test-${Date.now()}`,
                                 true
                               );
                               
                               toast({ 
-                                title: "Teste Enviado", 
-                                description: "A notificação de teste foi disparada diretamente para o seu dispositivo." 
+                                title: isEn ? "Test Sent" : "Teste Enviado", 
+                                description: isEn ? "The test notification was sent directly to your device." : "A notificação de teste foi disparada diretamente para o seu dispositivo." 
                               });
                             } catch (err: any) {
                               console.error("Erro ao disparar teste de notificação:", err);
                               const errMsg = err?.message || String(err);
                               setNotificationTestError(errMsg);
                               toast({ 
-                                title: "Erro de Teste", 
-                                description: "Não foi possível enviar a notificação no momento.", 
+                                title: isEn ? "Test Error" : "Erro de Teste", 
+                                description: isEn ? "Could not send the notification at this time." : "Não foi possível enviar a notificação no momento.", 
                                 variant: "destructive" 
                               });
                             }
@@ -1563,16 +1624,16 @@ const AccountPage = () => {
                           className="w-full rounded-xl bg-accent/10 border border-accent/20 py-2.5 text-xs font-semibold text-accent hover:bg-accent/20 transition-all flex items-center justify-center gap-2 shadow-sm liquid-btn"
                         >
                           <Bell className="h-3.5 w-3.5" />
-                          Testar Notificação
+                          {language === "en" ? "Test Notification" : "Testar Notificação"}
                         </button>
 
                         {notificationTestError && (
                           <div className="rounded-xl bg-destructive/10 border border-destructive/20 p-3 text-left text-xs text-foreground flex flex-col gap-1 animate-fadeIn">
                             <span className="font-semibold text-xs text-destructive">
-                              Falha ao disparar notificação:
+                              {language === "en" ? "Failed to send notification:" : "Falha ao disparar notificação:"}
                             </span>
                             <p className="text-[11px] text-muted-foreground leading-relaxed">
-                              Verifique se as notificações do site estão permitidas nas configurações do seu navegador ou dispositivo.
+                              {language === "en" ? "Check if site notifications are permitted in your browser or device settings." : "Verifique se as notificações do site estão permitidas nas configurações do seu navegador ou dispositivo."}
                             </p>
                           </div>
                         )}

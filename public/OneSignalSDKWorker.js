@@ -1,4 +1,4 @@
-const CACHE_NAME = 'biblia-online-v2.5.2';
+const CACHE_NAME = 'biblia-online-v2.5.3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -49,14 +49,6 @@ const STATIC_ASSETS = [
 ];
 
 const BIBLE_DATA_URL = 'https://raw.githubusercontent.com/eversondeveloper/bibialivrejson/main/biblialivrecorrecao1.json';
-
-// 1x1 transparent PNG for image error fallback
-const TRANSPARENT_1PX_PNG = new Uint8Array([
-  137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82,
-  0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137,
-  0, 0, 0, 10, 73, 68, 65, 84, 120, 156, 99, 0, 1, 0, 0, 5,
-  0, 1, 13, 10, 45, 180, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
-]);
 
 // Message event registered at initial evaluation
 self.addEventListener('message', (event) => {
@@ -125,14 +117,9 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // Bypass Service Worker for external Map tile servers and GIS imagery
-  if (
-    url.host.includes('arcgisonline.com') ||
-    url.host.includes('cartocdn.com') ||
-    url.host.includes('openstreetmap.org') ||
-    url.host.includes('tile.osm.org') ||
-    url.host.includes('os-content.com')
-  ) {
+  // Critical: All cross-origin requests (Google user avatars, Supabase APIs, external CDNs, etc.)
+  // must bypass the Service Worker completely so they are handled natively by the browser without CSP connect-src issues.
+  if (url.origin !== self.location.origin && event.request.url !== BIBLE_DATA_URL) {
     return;
   }
 
@@ -160,16 +147,11 @@ self.addEventListener('fetch', (event) => {
 
   // Skip OneSignal, AI endpoints, external APIs, and Supabase
   if (
-    url.host.includes('onesignal') ||
-    url.host.includes('googleapis.com') ||
-    url.host.includes('gstatic.com') ||
-    url.host.includes('openrouter.ai') ||
     url.pathname.startsWith('/api/ai') ||
     url.pathname.startsWith('/api/generate-image') ||
     url.pathname.startsWith('/socket.io') ||
     url.pathname.includes('hot-update') ||
-    (url.host.includes('localhost') && url.port === '3000' && url.pathname.startsWith('/@')) ||
-    url.host.includes('supabase.co')
+    (url.host.includes('localhost') && url.port === '3000' && url.pathname.startsWith('/@'))
   ) {
     return;
   }
@@ -216,11 +198,12 @@ self.addEventListener('fetch', (event) => {
 
         return response;
       }).catch(() => {
-        // Fallback for offline images: Return transparent 1px PNG instead of logos
+        // Return 404 for failed image requests so the browser and React <img onError> can trigger fallbacks properly
         if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('image')) {
-          return new Response(TRANSPARENT_1PX_PNG, {
-            status: 200,
-            headers: { 'Content-Type': 'image/png' }
+          return new Response('Imagem não encontrada', {
+            status: 404,
+            statusText: 'Not Found',
+            headers: { 'Content-Type': 'text/plain' }
           });
         }
         return new Response('Offline / Erro de Rede', { status: 503, statusText: 'Service Unavailable' });

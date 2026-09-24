@@ -534,7 +534,7 @@ export const PulpitMode = ({
               <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform duration-200 ${showTranslationMenu ? "rotate-180 text-primary" : ""}`} />
             </button>
 
-            {/* Menu Dropdown de Versões (Estilo Menu Home Glass-Card) */}
+            {/* Menu Dropdown de Versões (Opaco e de Alto Contraste) */}
             <AnimatePresence>
               {showTranslationMenu && (
                 <>
@@ -546,10 +546,10 @@ export const PulpitMode = ({
                     initial={{ opacity: 0, y: 6, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 6, scale: 0.95 }}
-                    className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 w-64 rounded-2xl border border-border/50 glass-card p-1.5 shadow-2xl backdrop-blur-2xl space-y-1"
+                    className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 w-64 rounded-2xl border border-white/15 bg-[#0d1629] p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.95)] space-y-1"
                   >
-                    <div className="px-2.5 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/50">
-                      Versão da Bíblia
+                    <div className="px-2.5 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-white/10">
+                      {language === "en" ? "Bible Version" : "Versão da Bíblia"}
                     </div>
                     <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-0.5 pr-1">
                       {translations.map((t) => {
@@ -565,7 +565,7 @@ export const PulpitMode = ({
                             className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-left transition-all duration-150 cursor-pointer ${
                               isSelected
                                 ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                                : "text-foreground/80 hover:bg-secondary/70 hover:text-foreground"
+                                : "text-foreground/80 hover:bg-white/10 hover:text-foreground"
                             }`}
                           >
                             <div className="flex flex-col">
@@ -762,7 +762,7 @@ export const PulpitMode = ({
                 <MoreHorizontal className="h-3.5 w-3.5" />
               </button>
 
-              {/* Menu Flutuante Popover das Outras Opções (Estilo Menu Home: Glass-Card) */}
+              {/* Menu Flutuante Popover das Outras Opções (Opaco e de Alto Contraste) */}
               <AnimatePresence>
                 {showMoreMenu && (
                   <>
@@ -774,15 +774,15 @@ export const PulpitMode = ({
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute right-0 bottom-full mb-3 z-50 w-72 rounded-2xl border border-border/50 glass-card p-4 shadow-2xl backdrop-blur-2xl space-y-4 text-foreground"
+                      className="absolute right-0 bottom-full mb-3 z-50 w-72 sm:w-80 rounded-2xl border border-white/15 bg-[#0d1629] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.95)] space-y-4 text-foreground"
                     >
-                      <div className="flex items-center justify-between border-b border-border/50 pb-2.5">
+                      <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
                         <span className="text-xs font-bold text-foreground uppercase tracking-wider">
                           {t("present_options")}
                         </span>
                         <button
                           onClick={() => setShowMoreMenu(false)}
-                          className="p-1 text-muted-foreground hover:text-foreground rounded-full cursor-pointer hover:bg-secondary/60 transition-all duration-150 hover:scale-105"
+                          className="p-1 text-muted-foreground hover:text-foreground rounded-full cursor-pointer hover:bg-white/10 transition-all duration-150 hover:scale-105"
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -797,17 +797,17 @@ export const PulpitMode = ({
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => setFontSize((prev) => Math.max(prev - 2, 18))}
-                            className="flex-1 py-1.5 px-2 rounded-full bg-secondary/60 hover:bg-secondary border border-border/50 hover:border-primary/40 text-muted-foreground hover:text-foreground text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-all duration-150 hover:scale-105 shadow-xs"
+                            className="flex-1 py-1.5 px-2 rounded-full bg-slate-800/90 hover:bg-slate-700 border border-white/10 hover:border-primary/40 text-muted-foreground hover:text-foreground text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-all duration-150 hover:scale-105 shadow-xs"
                           >
                             <ZoomOut className="h-3.5 w-3.5" />
-                            <span>Menor (A-)</span>
+                            <span>{language === "en" ? "Smaller (A-)" : "Menor (A-)"}</span>
                           </button>
                           <button
                             onClick={() => setFontSize((prev) => Math.min(prev + 2, 52))}
-                            className="flex-1 py-1.5 px-2 rounded-full bg-secondary/60 hover:bg-secondary border border-border/50 hover:border-primary/40 text-muted-foreground hover:text-foreground text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-all duration-150 hover:scale-105 shadow-xs"
+                            className="flex-1 py-1.5 px-2 rounded-full bg-slate-800/90 hover:bg-slate-700 border border-white/10 hover:border-primary/40 text-muted-foreground hover:text-foreground text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-all duration-150 hover:scale-105 shadow-xs"
                           >
                             <ZoomIn className="h-3.5 w-3.5" />
-                            <span>Maior (A+)</span>
+                            <span>{language === "en" ? "Larger (A+)" : "Maior (A+)"}</span>
                           </button>
                         </div>
                       </div>
@@ -815,7 +815,7 @@ export const PulpitMode = ({
                       {/* Estilo da Fonte (Serifa vs Sans) */}
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between text-xs text-foreground">
-                          <span>Estilo da Tipografia</span>
+                          <span>{language === "en" ? "Typography Style" : "Estilo da Tipografia"}</span>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                           <button
@@ -823,20 +823,20 @@ export const PulpitMode = ({
                             className={`py-1.5 px-2 rounded-full text-xs font-serif font-semibold border transition-all duration-150 hover:scale-105 cursor-pointer ${
                               isSerif
                                 ? "bg-primary text-primary-foreground font-bold border-primary shadow-xs"
-                                : "bg-secondary/60 hover:bg-secondary border-border/50 hover:border-primary/40 text-muted-foreground hover:text-foreground"
+                                : "bg-slate-800/90 hover:bg-slate-700 border-white/10 hover:border-primary/40 text-muted-foreground hover:text-foreground"
                             }`}
                           >
-                            Com Serifa
+                            {language === "en" ? "Serif" : "Com Serifa"}
                           </button>
                           <button
                             onClick={() => setIsSerif(false)}
                             className={`py-1.5 px-2 rounded-full text-xs font-sans font-semibold border transition-all duration-150 hover:scale-105 cursor-pointer ${
                               !isSerif
                                 ? "bg-primary text-primary-foreground font-bold border-primary shadow-xs"
-                                : "bg-secondary/60 hover:bg-secondary border-border/50 hover:border-primary/40 text-muted-foreground hover:text-foreground"
+                                : "bg-slate-800/90 hover:bg-slate-700 border-white/10 hover:border-primary/40 text-muted-foreground hover:text-foreground"
                             }`}
                           >
-                            Sem Serifa
+                            {language === "en" ? "Sans-Serif" : "Sem Serifa"}
                           </button>
                         </div>
                       </div>
@@ -859,7 +859,7 @@ export const PulpitMode = ({
                                 className={`flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl border text-xs text-center transition-all duration-150 hover:scale-105 cursor-pointer ${
                                   isSelected
                                     ? "bg-primary/20 border-primary text-foreground font-semibold shadow-xs ring-1 ring-primary/50"
-                                    : "bg-secondary/60 border-border/50 text-muted-foreground hover:bg-secondary hover:text-foreground hover:border-primary/30"
+                                    : "bg-slate-800/80 border-white/10 text-muted-foreground hover:bg-slate-700 hover:text-foreground hover:border-primary/30"
                                 }`}
                               >
                                 <span
@@ -881,7 +881,7 @@ export const PulpitMode = ({
                       {/* Velocidade de Reprodução Automática */}
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between text-xs text-foreground">
-                          <span>Tempo por Slide</span>
+                          <span>{language === "en" ? "Slide Duration" : "Tempo por Slide"}</span>
                           <span className="font-mono text-primary font-bold">{autoPlayInterval}s</span>
                         </div>
                         <div className="grid grid-cols-4 gap-1.5">
@@ -895,7 +895,7 @@ export const PulpitMode = ({
                               className={`py-1 rounded-full text-xs font-medium border transition-all duration-150 hover:scale-105 cursor-pointer ${
                                 autoPlayInterval === sec
                                   ? "bg-primary text-primary-foreground font-bold border-primary shadow-xs"
-                                  : "bg-secondary/60 hover:bg-secondary border-border/50 hover:border-primary/40 text-muted-foreground hover:text-foreground"
+                                  : "bg-slate-800/90 hover:bg-slate-700 border-white/10 hover:border-primary/40 text-muted-foreground hover:text-foreground"
                               }`}
                             >
                               {sec}s
@@ -905,22 +905,22 @@ export const PulpitMode = ({
                       </div>
 
                       {/* Navegação Rápida +/- 5 versículos */}
-                      <div className="space-y-1.5 pt-1 border-t border-border/50">
-                        <span className="text-[11px] text-muted-foreground">Pular versículos</span>
+                      <div className="space-y-1.5 pt-1 border-t border-white/10">
+                        <span className="text-[11px] text-muted-foreground">{language === "en" ? "Skip verses" : "Pular versículos"}</span>
                         <div className="grid grid-cols-2 gap-2">
                           <button
                             onClick={handleJumpBackward}
                             disabled={currentVerseIndex === 0}
-                            className="py-1.5 px-2 rounded-full bg-secondary/60 hover:bg-secondary border border-border/50 hover:border-primary/40 text-muted-foreground hover:text-foreground text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-30 cursor-pointer transition-all duration-150 hover:scale-105 shadow-xs"
+                            className="py-1.5 px-2 rounded-full bg-slate-800/90 hover:bg-slate-700 border border-white/10 hover:border-primary/40 text-muted-foreground hover:text-foreground text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-30 cursor-pointer transition-all duration-150 hover:scale-105 shadow-xs"
                           >
                             <ChevronFirst className="h-3.5 w-3.5" />
-                            <span>-5 Versículos</span>
+                            <span>{language === "en" ? "-5 Verses" : "-5 Versículos"}</span>
                           </button>
                           <button
                             onClick={handleJumpForward}
-                            className="py-1.5 px-2 rounded-full bg-secondary/60 hover:bg-secondary border border-border/50 hover:border-primary/40 text-muted-foreground hover:text-foreground text-xs font-medium flex items-center justify-center gap-1 cursor-pointer transition-all duration-150 hover:scale-105 shadow-xs"
+                            className="py-1.5 px-2 rounded-full bg-slate-800/90 hover:bg-slate-700 border border-white/10 hover:border-primary/40 text-muted-foreground hover:text-foreground text-xs font-medium flex items-center justify-center gap-1 cursor-pointer transition-all duration-150 hover:scale-105 shadow-xs"
                           >
-                            <span>+5 Versículos</span>
+                            <span>{language === "en" ? "+5 Verses" : "+5 Versículos"}</span>
                             <ChevronLast className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -962,81 +962,83 @@ export const PulpitMode = ({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md rounded-2xl border border-border/50 glass-card text-foreground p-6 shadow-2xl backdrop-blur-2xl space-y-4"
+              className="w-full max-w-md rounded-2xl border border-white/15 bg-[#0d1629] text-foreground p-6 shadow-[0_24px_60px_rgba(0,0,0,0.95)] space-y-4"
             >
-              <div className="flex items-center justify-between border-b border-border/50 pb-3">
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
                 <div className="flex items-center gap-2">
                   <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-primary">
                     <Keyboard className="h-4 w-4" />
                   </div>
-                  <h3 className="font-serif font-bold text-base tracking-wide text-foreground">Comandos pelo Teclado</h3>
+                  <h3 className="font-serif font-bold text-base tracking-wide text-foreground">
+                    {language === "en" ? "Keyboard Shortcuts" : "Comandos pelo Teclado"}
+                  </h3>
                 </div>
                 <button
                   onClick={() => setShowShortcutsModal(false)}
-                  className="rounded-full p-1 text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-all duration-150 hover:scale-105 cursor-pointer"
+                  className="rounded-full p-1 text-muted-foreground hover:text-foreground hover:bg-white/10 transition-all duration-150 hover:scale-105 cursor-pointer"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="flex items-center justify-between p-2 rounded-xl bg-secondary/60 border border-border/50 transition-colors hover:border-primary/40">
-                  <span className="text-muted-foreground">Próximo versículo</span>
-                  <kbd className="px-2 py-0.5 rounded-md bg-background/80 border border-border/50 font-mono text-primary font-semibold">
-                    → ou Enter
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-800/80 border border-white/10 transition-colors hover:border-primary/40">
+                  <span className="text-muted-foreground">{language === "en" ? "Next verse" : "Próximo versículo"}</span>
+                  <kbd className="px-2 py-0.5 rounded-md bg-background/80 border border-white/10 font-mono text-primary font-semibold">
+                    {language === "en" ? "→ or Enter" : "→ ou Enter"}
                   </kbd>
                 </div>
-                <div className="flex items-center justify-between p-2 rounded-xl bg-secondary/60 border border-border/50 transition-colors hover:border-primary/40">
-                  <span className="text-muted-foreground">Versículo anterior</span>
-                  <kbd className="px-2 py-0.5 rounded-md bg-background/80 border border-border/50 font-mono text-primary font-semibold">
-                    ← ou Backspace
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-800/80 border border-white/10 transition-colors hover:border-primary/40">
+                  <span className="text-muted-foreground">{language === "en" ? "Previous verse" : "Versículo anterior"}</span>
+                  <kbd className="px-2 py-0.5 rounded-md bg-background/80 border border-white/10 font-mono text-primary font-semibold">
+                    {language === "en" ? "← or Backspace" : "← ou Backspace"}
                   </kbd>
                 </div>
-                <div className="flex items-center justify-between p-2 rounded-xl bg-secondary/60 border border-border/50 transition-colors hover:border-primary/40">
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-800/80 border border-white/10 transition-colors hover:border-primary/40">
                   <span className="text-muted-foreground">Play / Pause</span>
-                  <kbd className="px-2 py-0.5 rounded-md bg-background/80 border border-border/50 font-mono text-primary font-semibold">
-                    Espaço ou P
+                  <kbd className="px-2 py-0.5 rounded-md bg-background/80 border border-white/10 font-mono text-primary font-semibold">
+                    {language === "en" ? "Space or P" : "Espaço ou P"}
                   </kbd>
                 </div>
-                <div className="flex items-center justify-between p-2 rounded-xl bg-secondary/60 border border-border/50 transition-colors hover:border-primary/40">
-                  <span className="text-muted-foreground">Tela Cheia</span>
-                  <kbd className="px-2 py-0.5 rounded-md bg-background/80 border border-border/50 font-mono text-primary font-semibold">
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-800/80 border border-white/10 transition-colors hover:border-primary/40">
+                  <span className="text-muted-foreground">{language === "en" ? "Fullscreen" : "Tela Cheia"}</span>
+                  <kbd className="px-2 py-0.5 rounded-md bg-background/80 border border-white/10 font-mono text-primary font-semibold">
                     F
                   </kbd>
                 </div>
-                <div className="flex items-center justify-between p-2 rounded-xl bg-secondary/60 border border-border/50 transition-colors hover:border-primary/40">
-                  <span className="text-muted-foreground">Aumentar letra</span>
-                  <kbd className="px-2 py-0.5 rounded-md bg-background/80 border border-border/50 font-mono text-primary font-semibold">
-                    + ou =
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-800/80 border border-white/10 transition-colors hover:border-primary/40">
+                  <span className="text-muted-foreground">{language === "en" ? "Larger font" : "Aumentar letra"}</span>
+                  <kbd className="px-2 py-0.5 rounded-md bg-background/80 border border-white/10 font-mono text-primary font-semibold">
+                    {language === "en" ? "+ or =" : "+ ou ="}
                   </kbd>
                 </div>
-                <div className="flex items-center justify-between p-2 rounded-xl bg-secondary/60 border border-border/50 transition-colors hover:border-primary/40">
-                  <span className="text-muted-foreground">Diminuir letra</span>
-                  <kbd className="px-2 py-0.5 rounded-md bg-background/80 border border-border/50 font-mono text-primary font-semibold">
-                    - ou _
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-800/80 border border-white/10 transition-colors hover:border-primary/40">
+                  <span className="text-muted-foreground">{language === "en" ? "Smaller font" : "Diminuir letra"}</span>
+                  <kbd className="px-2 py-0.5 rounded-md bg-background/80 border border-white/10 font-mono text-primary font-semibold">
+                    {language === "en" ? "- or _" : "- ou _"}
                   </kbd>
                 </div>
-                <div className="flex items-center justify-between p-2 rounded-xl bg-secondary/60 border border-border/50 transition-colors hover:border-primary/40">
-                  <span className="text-muted-foreground">Alternar tema</span>
-                  <kbd className="px-2 py-0.5 rounded-md bg-background/80 border border-border/50 font-mono text-primary font-semibold">
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-800/80 border border-white/10 transition-colors hover:border-primary/40">
+                  <span className="text-muted-foreground">{language === "en" ? "Toggle theme" : "Alternar tema"}</span>
+                  <kbd className="px-2 py-0.5 rounded-md bg-background/80 border border-white/10 font-mono text-primary font-semibold">
                     T
                   </kbd>
                 </div>
-                <div className="flex items-center justify-between p-2 rounded-xl bg-secondary/60 border border-border/50 transition-colors hover:border-primary/40">
-                  <span className="text-muted-foreground">Fonte Serifa/Sans</span>
-                  <kbd className="px-2 py-0.5 rounded-md bg-background/80 border border-border/50 font-mono text-primary font-semibold">
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-800/80 border border-white/10 transition-colors hover:border-primary/40">
+                  <span className="text-muted-foreground">{language === "en" ? "Serif / Sans font" : "Fonte Serifa/Sans"}</span>
+                  <kbd className="px-2 py-0.5 rounded-md bg-background/80 border border-white/10 font-mono text-primary font-semibold">
                     S
                   </kbd>
                 </div>
-                <div className="flex items-center justify-between p-2 rounded-xl bg-secondary/60 border border-border/50 transition-colors hover:border-primary/40">
-                  <span className="text-muted-foreground">Primeiro versículo</span>
-                  <kbd className="px-2 py-0.5 rounded-md bg-background/80 border border-border/50 font-mono text-primary font-semibold">
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-800/80 border border-white/10 transition-colors hover:border-primary/40">
+                  <span className="text-muted-foreground">{language === "en" ? "First verse" : "Primeiro versículo"}</span>
+                  <kbd className="px-2 py-0.5 rounded-md bg-background/80 border border-white/10 font-mono text-primary font-semibold">
                     Home
                   </kbd>
                 </div>
-                <div className="flex items-center justify-between p-2 rounded-xl bg-secondary/60 border border-border/50 transition-colors hover:border-primary/40">
-                  <span className="text-muted-foreground">Sair</span>
-                  <kbd className="px-2 py-0.5 rounded-md bg-background/80 border border-border/50 font-mono text-primary font-semibold">
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-800/80 border border-white/10 transition-colors hover:border-primary/40">
+                  <span className="text-muted-foreground">{language === "en" ? "Exit" : "Sair"}</span>
+                  <kbd className="px-2 py-0.5 rounded-md bg-background/80 border border-white/10 font-mono text-primary font-semibold">
                     Esc
                   </kbd>
                 </div>
@@ -1047,7 +1049,7 @@ export const PulpitMode = ({
                   onClick={() => setShowShortcutsModal(false)}
                   className="w-full py-2.5 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs transition-all duration-150 hover:scale-[1.02] active:scale-98 cursor-pointer shadow-md"
                 >
-                  Entendido
+                  {language === "en" ? "Got it" : "Entendido"}
                 </button>
               </div>
             </motion.div>
@@ -1055,7 +1057,7 @@ export const PulpitMode = ({
         )}
       </AnimatePresence>
 
-      {/* ── MODAL SELETOR RÁPIDO DE LIVRO E CAPÍTULO (ESTILO MENU HOME: GLASS-CARD) ── */}
+      {/* ── MODAL SELETOR RÁPIDO DE LIVRO E CAPÍTULO (O PACO E ALTO CONTRASTE) ── */}
       <AnimatePresence>
         {showBookSelector && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
@@ -1063,7 +1065,7 @@ export const PulpitMode = ({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg max-h-[88vh] flex flex-col rounded-2xl border border-border/50 glass-card text-foreground shadow-2xl backdrop-blur-2xl overflow-hidden"
+              className="w-full max-w-lg max-h-[88vh] flex flex-col rounded-2xl border border-white/15 bg-[#0d1629] text-foreground shadow-[0_24px_60px_rgba(0,0,0,0.95)] overflow-hidden"
             >
               {/* Header Fixo */}
               <div className="flex items-center justify-between border-b border-border/50 px-6 py-4 flex-shrink-0">

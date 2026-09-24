@@ -2,6 +2,7 @@ import * as React from "react";
 
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
 import { isFocusModeActive } from "@/services/focusModeService";
+import { translateToastToEnglish } from "@/lib/toastTranslations";
 
 const TOAST_LIMIT = 1;
 const TOAST_REMOVE_DELAY = 5000;
@@ -137,7 +138,7 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">;
 
-function cleanToastText(text?: React.ReactNode): React.ReactNode {
+function cleanToastText(text?: React.ReactNode, isEn: boolean = false): React.ReactNode {
   if (typeof text !== "string") return text;
   
   let str = text.trim();
@@ -159,9 +160,9 @@ function cleanToastText(text?: React.ReactNode): React.ReactNode {
     lowered.includes("internal server error")
   ) {
     if (lowered.includes("401") || lowered.includes("unauthorized") || lowered.includes("jwt")) {
-      return "Sessão expirada. Entre novamente.";
+      return isEn ? "Session expired. Please sign in again." : "Sessão expirada. Entre novamente.";
     }
-    return "Tente novamente mais tarde.";
+    return isEn ? "Please try again later." : "Tente novamente mais tarde.";
   }
 
   str = str.replace(/^(erro|error|key_error|exception):\s*/i, "");
@@ -183,26 +184,35 @@ function toast({ ...props }: Toast) {
 
   const id = genId();
 
+  const lang = typeof window !== "undefined" ? localStorage.getItem("app-language") || "pt" : "pt";
+  const isEn = lang === "en";
+
   let title = props.title;
   let description = props.description;
 
   if (typeof title === "string") {
     const titleLower = title.toLowerCase();
     if (titleLower.includes("401") || titleLower.includes("key_error") || titleLower.includes("erro: 401")) {
-      title = "Erro na IA";
-      description = "Tente novamente mais tarde.";
+      title = isEn ? "AI Error" : "Erro na IA";
+      description = isEn ? "Please try again later." : "Tente novamente mais tarde.";
     } else {
-      title = cleanToastText(title);
+      title = cleanToastText(title, isEn);
+      if (isEn && typeof title === "string") {
+        title = translateToastToEnglish(title);
+      }
     }
   }
 
-  if (typeof description === "string" && title !== "Erro na IA") {
+  if (typeof description === "string" && title !== "Erro na IA" && title !== "AI Error") {
     const descLower = description.toLowerCase();
     if (descLower.includes("401") || descLower.includes("key_error") || descLower.includes("openrouter") || descLower.includes("gemini")) {
-      title = "Erro na IA";
-      description = "Tente novamente mais tarde.";
+      title = isEn ? "AI Error" : "Erro na IA";
+      description = isEn ? "Please try again later." : "Tente novamente mais tarde.";
     } else {
-      description = cleanToastText(description);
+      description = cleanToastText(description, isEn);
+      if (isEn && typeof description === "string") {
+        description = translateToastToEnglish(description);
+      }
     }
   }
 
