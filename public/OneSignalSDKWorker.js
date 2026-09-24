@@ -5,10 +5,8 @@ try {
   console.warn('[SW] OneSignal SDK import skipped or offline:', e);
 }
 
-const CACHE_NAME = 'biblia-online-v2.6.2';
+const CACHE_NAME = 'biblia-online-v2.6.4';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
   '/manifest.json',
   '/manifest.v2.json',
   '/manifest.webmanifest',
@@ -342,6 +340,40 @@ self.addEventListener('fetch', (event) => {
     url.pathname.startsWith('/socket.io') ||
     (url.host.includes('localhost') && url.port === '3000' && url.pathname.startsWith('/@'))
   ) {
+    return;
+  }
+
+  // CRITICAL: Navigation and HTML documents MUST ALWAYS be Network-First!
+  // This guarantees the browser always loads the latest index.html with new asset hashes on PC and mobile,
+  // preventing the dreaded "stuck on splash screen" error where old HTML requests obsolete JS hashes.
+  if (
+    event.request.mode === 'navigate' ||
+    url.pathname === '/' ||
+    url.pathname.endsWith('.html') ||
+    event.request.headers.get('accept')?.includes('text/html')
+  ) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, copy);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(async () => {
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          const fallbackIndex = await caches.match('/');
+          if (fallbackIndex) return fallbackIndex;
+          return new Response('Offline - Bíblia Online temporariamente indisponível offline.', {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+          });
+        })
+    );
     return;
   }
 

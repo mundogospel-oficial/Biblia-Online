@@ -260,18 +260,23 @@ class FingerprintEngine {
   }
 
   async _detectFonts() {
-    // Detecta presença de fontes padrão do sistema
-    const testFonts = ['Arial', 'Courier New', 'Georgia', 'Helvetica', 'Times New Roman', 'Verdana'];
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const baseWidth = {};
+    try {
+      // Detecta presença de fontes padrão do sistema
+      const testFonts = ['Arial', 'Courier New', 'Georgia', 'Helvetica', 'Times New Roman', 'Verdana'];
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return 'canvas_ctx_unavailable';
+      const baseWidth = {};
 
-    ctx.font = '14px monospace';
-    testFonts.forEach(f => {
-      ctx.font = `14px ${f}, monospace`;
-      baseWidth[f] = ctx.measureText('mmmmmmmmm').width;
-    });
-    return btoa(JSON.stringify(baseWidth)).slice(0, 16);
+      ctx.font = '14px monospace';
+      testFonts.forEach(f => {
+        ctx.font = `14px ${f}, monospace`;
+        baseWidth[f] = ctx.measureText('mmmmmmmmm').width;
+      });
+      return btoa(JSON.stringify(baseWidth)).slice(0, 16);
+    } catch {
+      return 'fonts_detection_fallback';
+    }
   }
 
   async _getMediaDevices() {
@@ -304,43 +309,15 @@ class FingerprintEngine {
     if (window.__playwright || window._selenium || window.callSelenium) {
       anomalies.push('AUTOMATION_FRAMEWORK_DETECTED');
     }
-    // Função nativa corrompida (patch de bot)
-    if (window.chrome && typeof window.chrome.runtime === 'undefined' &&
-        /Chrome/.test(navigator.userAgent)) {
-      anomalies.push('CHROME_RUNTIME_MISSING');
-    }
-
-    // NOVOS CAÇADORES DE BOTS:
-    
-    // 1. Detecção de Bateria (Bots raramente mockam estado de bateria dinâmico)
-    try {
-      if ('getBattery' in navigator) {
-        const battery = await (navigator).getBattery();
-        if (battery.level === 1 && battery.charging === true && battery.chargingTime === 0) {
-          // Valores perfeitos de default em alguns emuladores
-          // anomalies.push('SUSPICIOUS_BATTERY_STATE');
-        }
-      } else {
-        // Dispositivos modernos quase todos têm, alguns bots não implementam
-        if (/Android|iPhone/i.test(c.userAgent)) anomalies.push('BATTERY_API_MISSING');
-      }
-    } catch (e) {}
-
-    // 2. Detecção de DevTools Suspeito (Tamanho de janela estranho)
-    const threshold = 160;
-    const widthDiff = window.outerWidth - window.innerWidth > threshold;
-    const heightDiff = window.outerHeight - window.innerHeight > threshold;
-    if (widthDiff || heightDiff) {
-       // human developers do this too, but for a bot it's a signal
-       anomalies.push('DEVTOOLS_SUSPECTED');
-    }
 
     // Idioma inconsistente com timezone
-    const tzCountry = Intl.DateTimeFormat().resolvedOptions().timeZone.split('/')[0];
-    if (tzCountry === 'America' && c.language && !c.language.startsWith('en') &&
-        !c.language.startsWith('es') && !c.language.startsWith('pt')) {
-      anomalies.push('LANGUAGE_TIMEZONE_MISMATCH');
-    }
+    try {
+      const tzCountry = Intl.DateTimeFormat().resolvedOptions().timeZone.split('/')[0];
+      if (tzCountry === 'America' && c.language && !c.language.startsWith('en') &&
+          !c.language.startsWith('es') && !c.language.startsWith('pt')) {
+        anomalies.push('LANGUAGE_TIMEZONE_MISMATCH');
+      }
+    } catch {}
     return anomalies;
   }
 

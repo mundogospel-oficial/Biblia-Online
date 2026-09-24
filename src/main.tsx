@@ -63,8 +63,8 @@ window.addEventListener("error", (event) => {
   }
 });
 
-// PWA: Register SW and guarantee instant updates to version 2.5.2
-const CURRENT_VERSION = "2.5.2";
+// PWA: Register SW and guarantee instant updates to version 2.6.4
+const CURRENT_VERSION = "2.6.4";
 const isInIframe = (() => {
   try { return window.self !== window.top; } catch { return true; }
 })();
@@ -76,19 +76,19 @@ const isPreviewHost =
 if (typeof window !== "undefined") {
   try {
     const savedVer = localStorage.getItem("app_version");
-    if (savedVer && savedVer !== CURRENT_VERSION) {
-      console.log(`[Update] Atualizando da versão ${savedVer} para ${CURRENT_VERSION}...`);
+    if (!savedVer || savedVer !== CURRENT_VERSION) {
+      console.log(`[Update] Atualizando da versão ${savedVer || 'antiga'} para ${CURRENT_VERSION}...`);
       if ("caches" in window) {
         caches.keys().then((names) => {
           names.forEach((name) => {
-            if (name !== "biblia-offline-data" && !name.includes("offline-data")) {
+            if (name !== "biblia-offline-data" && !name.includes("offline-data") && !name.includes(CURRENT_VERSION)) {
               caches.delete(name).catch(() => {});
             }
           });
         }).catch(() => {});
       }
+      localStorage.setItem("app_version", CURRENT_VERSION);
     }
-    localStorage.setItem("app_version", CURRENT_VERSION);
   } catch {}
 }
 
