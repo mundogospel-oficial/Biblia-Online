@@ -8,21 +8,22 @@ import {
   Flame, 
   Sparkles, 
   Calendar, 
-  Clock,
-  Check,
-  Zap,
-  Lock,
-  ShieldCheck,
-  X,
-  PowerOff,
-  Heart,
-  Eye,
-  FileText,
-  Send,
-  StickyNote,
-  Copy,
-  LockKeyhole,
-  Info
+  Clock, 
+  Check, 
+  Zap, 
+  Lock, 
+  ShieldCheck, 
+  X, 
+  PowerOff, 
+  Heart, 
+  Eye, 
+  FileText, 
+  Send, 
+  StickyNote, 
+  Copy, 
+  LockKeyhole, 
+  Info,
+  Search
 } from "lucide-react";
 import { PlanDay, ReadingPlan, getLocalizedReadingPlans } from "@/lib/readingPlansData";
 import { 
@@ -62,6 +63,7 @@ export const ReadingPlansSection = () => {
   });
   const [selectedPlanId, setSelectedPlanId] = useState<string>("paz-7-dias");
   const [selectedCategory, setSelectedCategory] = useState<string>("Todas");
+  const [planSearchQuery, setPlanSearchQuery] = useState<string>("");
 
   // Favorites state
   const [favoritedPlanIds, setFavoritedPlanIds] = useState<string[]>(() => {
@@ -134,9 +136,16 @@ export const ReadingPlansSection = () => {
     }
   };
 
-  const filteredPlans = readingPlans.filter(
-    (p) => selectedCategory === "Todas" || p.category === selectedCategory
-  );
+  const filteredPlans = readingPlans.filter((p) => {
+    const matchesCategory = selectedCategory === "Todas" || p.category === selectedCategory;
+    const clean = planSearchQuery.toLowerCase().trim();
+    const matchesSearch = !clean || 
+      p.title.toLowerCase().includes(clean) || 
+      p.subtitle.toLowerCase().includes(clean) || 
+      p.description.toLowerCase().includes(clean) ||
+      p.category.toLowerCase().includes(clean);
+    return matchesCategory && matchesSearch;
+  });
 
   const handleToggleFavorite = (planId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -303,153 +312,116 @@ export const ReadingPlansSection = () => {
 
   return (
     <div className="space-y-8">
-      {/* Active Plan Banner & Streak Overview */}
-      {activePlan ? (
-        <div className="glass-card rounded-2xl p-5 sm:p-7 border border-border bg-card/60 shadow-lg relative overflow-hidden">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 border-b border-border/60 pb-5">
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-3 py-1 text-xs font-bold text-accent">
-                  <Sparkles className="h-3.5 w-3.5" /> {isEn ? "Active Plan in Progress" : "Plano Ativo Em Andamento"}
-                </span>
-                {progress.streakDays > 0 && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-orange-500/15 px-3 py-1 text-xs font-bold text-orange-400">
-                    <Flame className="h-3.5 w-3.5 fill-orange-400" /> {progress.streakDays} {progress.streakDays === 1 ? (isEn ? "day streak" : "dia seguido") : (isEn ? "days streak" : "dias seguidos")}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground">
-                  {activePlan.title}
-                </h2>
-                <button
-                  onClick={(e) => handleToggleFavorite(activePlan.id, e)}
-                  className={`p-2 rounded-full transition-colors ${
-                    favoritedPlanIds.includes(activePlan.id)
-                      ? "text-accent bg-accent/10 hover:bg-accent/20"
-                      : "text-muted-foreground hover:text-accent hover:bg-secondary"
-                  }`}
-                  title={favoritedPlanIds.includes(activePlan.id) ? (isEn ? "Remove from Favorites" : "Remover dos Favoritos") : (isEn ? "Favorite this Plan" : "Favoritar este Plano")}
-                >
-                  <Heart className={`h-5 w-5 ${favoritedPlanIds.includes(activePlan.id) ? "fill-accent" : ""}`} />
-                </button>
-              </div>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                {activePlan.subtitle}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0 flex-wrap sm:flex-nowrap justify-between w-full md:w-auto pt-2 md:pt-0">
-              <div className="flex items-center gap-2.5">
-                <div className="text-left sm:text-right">
-                  <span className="text-[11px] sm:text-xs font-medium text-muted-foreground block">{isEn ? "Total Progress" : "Progresso Total"}</span>
-                  <span className="font-sans text-lg sm:text-xl font-extrabold text-accent">
-                    {(progress.completedDaysByPlan[activePlan.id] || []).length} / {activePlan.durationDays} {activePlan.durationDays === 1 ? (isEn ? "day" : "dia") : (isEn ? "days" : "dias")}
-                  </span>
-                </div>
-                <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center font-bold text-xs text-accent shrink-0">
-                  {Math.round(((progress.completedDaysByPlan[activePlan.id] || []).length / activePlan.durationDays) * 100)}%
-                </div>
-              </div>
-              
-              {/* Deactivate Button */}
-              <button
-                onClick={handleDeactivatePlan}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-500/20 transition-all shrink-0 active:scale-95"
-                title={isEn ? "Deactivate this plan" : "Desativar este plano"}
-              >
-                <PowerOff className="h-3.5 w-3.5" /> {isEn ? "Deactivate Plan" : "Desativar Plano"}
-              </button>
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="mt-4">
-            <div className="h-2.5 w-full rounded-full bg-secondary/80 overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{
-                  width: `${Math.round(
-                    ((progress.completedDaysByPlan[activePlan.id] || []).length / activePlan.durationDays) * 100
-                  )}%`,
-                }}
-                className="h-full bg-accent transition-all duration-500 rounded-full"
-              />
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="glass-card rounded-2xl p-6 sm:p-8 border border-border/80 bg-card/60 text-center space-y-4 shadow-sm">
-          <div className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-accent/10 text-accent border border-accent/20">
-            <Lock className="h-7 w-7 text-accent" />
-          </div>
-          <div className="space-y-1.5 max-w-xl mx-auto">
-            <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground">
-              {isEn ? "No Plan Currently Active" : "Nenhum Plano Ativado no Momento"}
-            </h2>
-            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-              {isEn 
-                ? "To unlock daily reading checkpoints, choose a plan from the catalog below and tap "
-                : "Para liberar a marcação das leituras diárias, escolha um plano no catálogo abaixo e clique em "}
-              <strong className="text-accent font-bold">"{isEn ? "Start This Plan" : "Ativar Este Plano"}"</strong>.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Plan Details & Day-by-Day List */}
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-secondary/30 p-4 rounded-xl border border-border/50">
-          <div>
+      {/* Unified Master Plan Banner (Only one at the top) */}
+      <div className="glass-card rounded-2xl p-5 sm:p-7 border border-border bg-card/60 shadow-lg relative overflow-hidden">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 border-b border-border/60 pb-5">
+          <div className="space-y-1.5 flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <Calendar className="h-5 w-5 text-accent" />
-              <h3 className="font-serif text-lg font-bold text-foreground">
-                {currentPlanViewed.title}
-              </h3>
-              
-              <button
-                onClick={(e) => handleToggleFavorite(currentPlanViewed.id, e)}
-                className={`p-1.5 rounded-full transition-colors ${
-                  favoritedPlanIds.includes(currentPlanViewed.id)
-                    ? "text-accent bg-accent/10"
-                    : "text-muted-foreground hover:text-accent hover:bg-secondary"
-                }`}
-                title={favoritedPlanIds.includes(currentPlanViewed.id) ? (isEn ? "Favorited" : "Favoritado") : (isEn ? "Favorite Plan" : "Favoritar Plano")}
-              >
-                <Heart className={`h-4 w-4 ${favoritedPlanIds.includes(currentPlanViewed.id) ? "fill-accent" : ""}`} />
-              </button>
-
-              {!isCurrentPlanActive && (
-                <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-500 border border-amber-500/20">
-                  <Info className="h-3 w-3" /> {isEn ? "Inactive" : "Inativo"}
-                </span>
+              {isCurrentPlanActive ? (
+                <>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-3 py-1 text-xs font-bold text-accent">
+                    <Sparkles className="h-3.5 w-3.5" /> {isEn ? "Active Plan in Progress" : "Plano Ativo Em Andamento"}
+                  </span>
+                  {progress.streakDays > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-orange-500/15 px-3 py-1 text-xs font-bold text-orange-400">
+                      <Flame className="h-3.5 w-3.5 fill-orange-400" /> {progress.streakDays} {progress.streakDays === 1 ? (isEn ? "day streak" : "dia seguido") : (isEn ? "days streak" : "dias seguidos")}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span className={`inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[11px] font-bold border ${currentPlanViewed.bgGradient}`}>
+                    {currentPlanViewed.badge}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground font-mono">
+                    <Clock className="h-3 w-3" /> {currentPlanViewed.durationDays} {isEn ? "Days" : "Dias"}
+                  </span>
+                  {activePlan && activePlan.id !== currentPlanViewed.id && (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-secondary/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground border border-border/50">
+                      <Info className="h-3 w-3" /> {isEn ? `Active: ${activePlan.title}` : `Ativo: ${activePlan.title}`}
+                    </span>
+                  )}
+                </>
               )}
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {completedDays.length} {isEn ? "of" : "de"} {currentPlanViewed.durationDays} {isEn ? "days completed" : "dias concluídos"} ({percentComplete}%)
+
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground">
+                {currentPlanViewed.title}
+              </h2>
+              <button
+                onClick={(e) => handleToggleFavorite(currentPlanViewed.id, e)}
+                className={`p-2 rounded-full transition-colors ${
+                  favoritedPlanIds.includes(currentPlanViewed.id)
+                    ? "text-accent bg-accent/10 hover:bg-accent/20"
+                    : "text-muted-foreground hover:text-accent hover:bg-secondary"
+                }`}
+                title={favoritedPlanIds.includes(currentPlanViewed.id) ? (isEn ? "Remove from Favorites" : "Remover dos Favoritos") : (isEn ? "Favorite this Plan" : "Favoritar este Plano")}
+              >
+                <Heart className={`h-5 w-5 ${favoritedPlanIds.includes(currentPlanViewed.id) ? "fill-accent" : ""}`} />
+              </button>
+            </div>
+
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+              {currentPlanViewed.subtitle || currentPlanViewed.description}
             </p>
           </div>
 
-          {!isCurrentPlanActive ? (
-            <button
-              onClick={() => handleSelectPlan(currentPlanViewed.id)}
-              className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-xs font-bold text-accent-foreground shadow-md transition-all hover:scale-105 active:scale-95 shrink-0"
-            >
-              <Zap className="h-4 w-4" /> {isEn ? "Start This Plan Now" : "Ativar Este Plano Agora"}
-            </button>
-          ) : (
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3.5 py-1.5 text-xs font-bold">
-                <ShieldCheck className="h-4 w-4" /> {isEn ? "Active Plan" : "Plano Ativo"}
-              </span>
+          <div className="flex items-center gap-3 sm:gap-4 shrink-0 flex-wrap sm:flex-nowrap justify-between w-full md:w-auto pt-2 md:pt-0">
+            <div className="flex items-center gap-2.5">
+              <div className="text-left sm:text-right">
+                <span className="text-[11px] sm:text-xs font-medium text-muted-foreground block">{isEn ? "Total Progress" : "Progresso Total"}</span>
+                <span className="font-sans text-lg sm:text-xl font-extrabold text-accent">
+                  {completedDays.length} / {currentPlanViewed.durationDays} {currentPlanViewed.durationDays === 1 ? (isEn ? "day" : "dia") : (isEn ? "days" : "dias")}
+                </span>
+              </div>
+              <div className="h-10 w-10 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center font-bold text-xs text-accent shrink-0">
+                {percentComplete}%
+              </div>
+            </div>
+
+            {/* Main Action Button */}
+            {isCurrentPlanActive ? (
               <button
                 onClick={handleDeactivatePlan}
-                className="inline-flex items-center gap-1 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-1.5 text-xs font-bold transition-all"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-3.5 py-2 text-xs font-bold text-red-400 hover:bg-red-500/20 transition-all shrink-0 active:scale-95 shadow-sm"
+                title={isEn ? "Deactivate this plan" : "Desativar este plano"}
               >
                 <PowerOff className="h-3.5 w-3.5" /> {isEn ? "Deactivate" : "Desativar"}
               </button>
-            </div>
-          )}
+            ) : (
+              <button
+                onClick={() => handleSelectPlan(currentPlanViewed.id)}
+                className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-xs font-bold text-accent-foreground shadow-md transition-all hover:scale-105 active:scale-95 shrink-0"
+              >
+                <Zap className="h-4 w-4" /> {isEn ? "Start This Plan" : "Ativar Este Plano"}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="mt-4">
+          <div className="h-2.5 w-full rounded-full bg-secondary/80 overflow-hidden">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${percentComplete}%` }}
+              className="h-full bg-accent transition-all duration-500 rounded-full"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Plan Details & Day-by-Day List */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between pb-1">
+          <h3 className="font-serif text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
+            <Calendar className="h-4.5 w-4.5 text-accent" />
+            {isEn ? "Daily Lessons & Readings" : "Lições Diárias & Leituras"}
+          </h3>
+          <span className="text-xs text-muted-foreground font-medium">
+            {completedDays.length} {isEn ? "of" : "de"} {currentPlanViewed.durationDays} {isEn ? "completed" : "concluídos"}
+          </span>
         </div>
 
         {/* Days List */}
@@ -601,7 +573,7 @@ export const ReadingPlansSection = () => {
 
       {/* Catalog of Plans Section */}
       <div className="pt-6 border-t border-border space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h3 className="font-serif text-xl font-bold text-foreground">
               {isEn ? "Reading Plans Catalog" : "Catálogo de Planos de Leitura"}
@@ -613,22 +585,47 @@ export const ReadingPlansSection = () => {
             </p>
           </div>
 
-          {/* Category Filter */}
-          <div className="flex items-center gap-1.5 overflow-x-auto themed-scrollbar pb-2">
-            {categories.map((cat) => (
+          {/* Catalog Search Input */}
+          <div className="relative w-full md:w-72">
+            <input
+              type="text"
+              maxLength={100}
+              placeholder={isEn ? "Search plans..." : "Buscar planos..."}
+              value={planSearchQuery}
+              onChange={(e) => setPlanSearchQuery(e.target.value.slice(0, 100))}
+              className={`w-full rounded-xl glass-card py-2 ${planSearchQuery ? "pl-3.5" : "pl-9"} pr-8 text-xs text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent transition-all duration-200 shadow-sm`}
+            />
+            {!planSearchQuery && (
+              <Search className="absolute left-3 top-1/2 z-10 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            )}
+            {planSearchQuery && (
               <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap transition-colors ${
-                  selectedCategory === cat
-                    ? "bg-accent text-accent-foreground font-bold"
-                    : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
-                }`}
+                type="button"
+                onClick={() => setPlanSearchQuery("")}
+                className="absolute right-2.5 top-1/2 z-10 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                title={isEn ? "Clear" : "Limpar"}
               >
-                {getCategoryLabel(cat)}
+                <X className="h-3.5 w-3.5" />
               </button>
-            ))}
+            )}
           </div>
+        </div>
+
+        {/* Category Filter */}
+        <div className="flex items-center gap-1.5 overflow-x-auto themed-scrollbar pb-2">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap transition-colors ${
+                selectedCategory === cat
+                  ? "bg-accent text-accent-foreground font-bold shadow-sm"
+                  : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
+              }`}
+            >
+              {getCategoryLabel(cat)}
+            </button>
+          ))}
         </div>
 
         {/* Plan Cards Grid */}
@@ -713,6 +710,18 @@ export const ReadingPlansSection = () => {
               </div>
             );
           })}
+
+          {filteredPlans.length === 0 && (
+            <div className="col-span-full py-12 text-center space-y-2 glass-card rounded-2xl border border-border/60 p-6">
+              <Search className="h-8 w-8 text-muted-foreground/50 mx-auto" />
+              <p className="text-sm font-medium text-foreground">
+                {isEn ? "No reading plans found" : "Nenhum plano de leitura encontrado"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {isEn ? "Try adjusting your search terms or category filter." : "Tente ajustar os termos da busca ou mudar a categoria."}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

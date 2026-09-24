@@ -35,7 +35,7 @@ const Reader = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user: authUser } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   const book = getBookByAbbrev(abbrev || "");
   const chapterNum = parseInt(chapter || "1");
@@ -47,7 +47,16 @@ const Reader = () => {
   const [error, setError] = useState("");
   const [selectedVerses, setSelectedVerses] = useState<Set<number>>(new Set());
   const [favSet, setFavSet] = useState<Set<number>>(new Set());
-  const [translation, setTranslation] = useState("almeida");
+  const [translation, setTranslation] = useState(() => (language === "en" ? "kjv" : "almeida"));
+
+  // Sincroniza a versão da Bíblia padrão quando o idioma do aplicativo muda
+  useEffect(() => {
+    if (language === "en" && (translation === "almeida" || translation === "blivre")) {
+      setTranslation("kjv");
+    } else if (language === "pt" && (translation === "kjv" || translation === "web" || translation === "bbe")) {
+      setTranslation("almeida");
+    }
+  }, [language, translation]);
   const [bilingual, setBilingual] = useState(false);
   const [bilingualLimitReached, setBilingualLimitReached] = useState(false);
   const [dictLimitReached, setDictLimitReached] = useState(false);
@@ -414,7 +423,8 @@ const Reader = () => {
   const handleHighlight = (verseNum: number, color: HighlightColor) => {
     const id = `${abbrev}:${chapterNum}:${verseNum}`;
     const verseText = verses.find(v => v.verse === verseNum)?.text.trim() || "";
-    const reference = `${book?.name} ${chapterNum}:${verseNum}`;
+    const bookDisplayName = language === "en" ? (book?.nameEn || book?.name) : book?.name;
+    const reference = `${bookDisplayName} ${chapterNum}:${verseNum}`;
 
     if (highlightsMap[verseNum] === color) {
       removeHighlight(id);
@@ -431,7 +441,8 @@ const Reader = () => {
   const handleSaveNote = (verseNum: number) => {
     const id = `${abbrev}:${chapterNum}:${verseNum}`;
     const verseText = verses.find(v => v.verse === verseNum)?.text.trim() || "";
-    const reference = `${book?.name} ${chapterNum}:${verseNum}`;
+    const bookDisplayName = language === "en" ? (book?.nameEn || book?.name) : book?.name;
+    const reference = `${bookDisplayName} ${chapterNum}:${verseNum}`;
 
     setNote(id, noteText);
     if (noteText.trim()) {
@@ -450,7 +461,8 @@ const Reader = () => {
     if (!book || selectedVerses.size === 0) return;
     const sorted = Array.from(selectedVerses).sort((a, b) => a - b);
     const selectedTexts = sorted.map((v) => verses.find((vd) => vd.verse === v)?.text.trim() || "");
-    const ref = `${book.name} ${chapterNum}:${sorted.join(",")}`;
+    const bookDisplayName = language === "en" ? (book.nameEn || book.name) : book.name;
+    const ref = `${bookDisplayName} ${chapterNum}:${sorted.join(",")}`;
     navigate(`/criar?ref=${encodeURIComponent(ref)}&text=${encodeURIComponent(selectedTexts.join(" "))}`);
   };
 
@@ -458,7 +470,8 @@ const Reader = () => {
     if (!book || selectedVerses.size === 0) return;
     const sorted = Array.from(selectedVerses).sort((a, b) => a - b);
     const selectedTexts = sorted.map((v) => verses.find((vd) => vd.verse === v)?.text.trim() || "");
-    const ref = `${book.name} ${chapterNum}:${sorted.join(",")}`;
+    const bookDisplayName = language === "en" ? (book.nameEn || book.name) : book.name;
+    const ref = `${bookDisplayName} ${chapterNum}:${sorted.join(",")}`;
     
     const shareText = `${selectedTexts.join("\n")}\n- ${ref}`;
     await shareBibleText(shareText, `Versículo Bíblico - ${ref}`);
@@ -586,10 +599,10 @@ const Reader = () => {
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
               <ChevronLeft className="h-4 w-4" />
-              Livros
+              {t("books")}
             </Link>
             <h2 className="font-serif text-lg font-semibold text-foreground">
-              {book.name} {chapterNum}
+              {language === "en" ? (book.nameEn || book.name) : book.name} {chapterNum}
             </h2>
             <div className="w-16" />
           </div>

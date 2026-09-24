@@ -105,10 +105,10 @@ export const PulpitMode = ({
   onNavigateChapter,
 }: PulpitModeProps) => {
   const { canAccess } = useFeatureGate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [currentBookAbbrev, setCurrentBookAbbrev] = useState(initialBookAbbrev);
   const [currentChapter, setCurrentChapter] = useState(initialChapter);
-  const [currentTranslation, setCurrentTranslation] = useState(translation || "almeida");
+  const [currentTranslation, setCurrentTranslation] = useState(translation || (language === "en" ? "kjv" : "almeida"));
   const [showTranslationMenu, setShowTranslationMenu] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [bookSearchFilter, setBookSearchFilter] = useState("");
@@ -511,7 +511,7 @@ export const PulpitMode = ({
             title={t("present_change_book_chapter")}
           >
             <BookOpen className="h-3.5 w-3.5 text-primary" />
-            <span className="font-semibold text-foreground">{book?.name} {currentChapter}</span>
+            <span className="font-semibold text-foreground">{language === "en" ? (book?.nameEn || book?.name) : book?.name} {currentChapter}</span>
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform duration-200" />
           </button>
         </div>
@@ -1088,7 +1088,7 @@ export const PulpitMode = ({
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-foreground">{t("books")}:</label>
                     <span className="text-[11px] text-primary font-semibold">
-                      {book?.name} ({book?.chapters} {t("chapters_count")})
+                      {language === "en" ? (book?.nameEn || book?.name) : book?.name} ({book?.chapters} {t("chapters_count")})
                     </span>
                   </div>
 
@@ -1100,7 +1100,7 @@ export const PulpitMode = ({
                         type="text"
                         value={bookSearchFilter}
                         onChange={(e) => setBookSearchFilter(e.target.value)}
-                        placeholder="Pesquisar livro (ex: Gênesis, Salmos, Mateus)..."
+                        placeholder={language === "en" ? "Search book (e.g. Genesis, Psalms, Matthew)..." : "Pesquisar livro (ex: Gênesis, Salmos, Mateus)..."}
                         className="w-full rounded-full border border-border/50 bg-secondary/60 pl-9 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                       />
                       {bookSearchFilter && (
@@ -1124,7 +1124,7 @@ export const PulpitMode = ({
                               : "text-muted-foreground hover:text-foreground"
                           }`}
                         >
-                          {filter === "all" ? "Todos (66)" : filter === "old" ? "Antigo (39)" : "Novo (27)"}
+                          {filter === "all" ? (language === "en" ? "All (66)" : "Todos (66)") : filter === "old" ? (language === "en" ? "Old (39)" : "Antigo (39)") : (language === "en" ? "New (27)" : "Novo (27)")}
                         </button>
                       ))}
                     </div>
@@ -1137,10 +1137,15 @@ export const PulpitMode = ({
                         if (bookTestamentFilter !== "all" && b.testament !== bookTestamentFilter) return false;
                         if (!bookSearchFilter.trim()) return true;
                         const query = bookSearchFilter.toLowerCase();
-                        return b.name.toLowerCase().includes(query) || b.abbrev.toLowerCase().includes(query);
+                        return (
+                          b.name.toLowerCase().includes(query) ||
+                          (b.nameEn && b.nameEn.toLowerCase().includes(query)) ||
+                          b.abbrev.toLowerCase().includes(query)
+                        );
                       })
                       .map((b) => {
                         const isSelected = b.abbrev === currentBookAbbrev;
+                        const bookDisplayName = language === "en" ? (b.nameEn || b.name) : b.name;
                         return (
                           <button
                             key={b.abbrev}
@@ -1154,9 +1159,9 @@ export const PulpitMode = ({
                                 : "bg-secondary/60 hover:bg-secondary text-foreground hover:text-primary border border-border/40 hover:border-primary/40"
                             }`}
                           >
-                            <span className="font-medium">{b.name}</span>
+                            <span className="font-medium">{bookDisplayName}</span>
                             <span className={`text-[10px] ${isSelected ? "text-primary-foreground/90 font-medium" : "text-muted-foreground"}`}>
-                              {b.chapters} {b.chapters === 1 ? "cap." : "capítulos"}
+                              {b.chapters} {b.chapters === 1 ? (language === "en" ? "ch." : "cap.") : (language === "en" ? "chapters" : "capítulos")}
                             </span>
                           </button>
                         );

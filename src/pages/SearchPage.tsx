@@ -463,7 +463,7 @@ const SearchPage = () => {
     setVisibleVersesCount(12);
 
     try {
-      // 1. Busca Direta por Referência Bíblica (ex: "João 3:16", "Salmos 23", "1 Co 13:4")
+      // 1. Busca Direta por Referência Bíblica (ex: "João 3:16", "John 3:16", "Salmos 23", "Psalms 23")
       const match = q.match(/^([1-3]?\s?[A-Za-zÀ-ÿ]+)\s+(\d+)(?::(\d+))?/);
       if (match) {
         const bookInput = match[1].trim().toLowerCase();
@@ -472,22 +472,27 @@ const SearchPage = () => {
 
         const book = bibleBooks.find(b => 
           b.name.toLowerCase() === bookInput || 
+          (b.nameEn && b.nameEn.toLowerCase() === bookInput) ||
           b.abbrev.toLowerCase() === bookInput ||
-          b.name.toLowerCase().startsWith(bookInput)
+          b.name.toLowerCase().startsWith(bookInput) ||
+          (b.nameEn && b.nameEn.toLowerCase().startsWith(bookInput))
         );
 
         if (book) {
-          const chapData = await fetchChapter(book.abbrev, chapterNum, 'blivre');
+          const trans = language === "en" ? "kjv" : "blivre";
+          const chapData = await fetchChapter(book.abbrev, chapterNum, trans);
+          const bookDisplayName = language === "en" ? (book.nameEn || book.name) : book.name;
+
           if (verseNum) {
             const v = chapData.verses.filter(item => item.verse === verseNum);
             if (v.length) {
-              setResults(v.map(item => ({ book_name: book.name, chapter: chapterNum, verse: item.verse, text: item.text })));
+              setResults(v.map(item => ({ book_name: bookDisplayName, chapter: chapterNum, verse: item.verse, text: item.text })));
               setDetectedConcept(null);
               setMatchedConcepts([]);
               return;
             }
           } else if (chapData.verses?.length) {
-            setResults(chapData.verses.map(item => ({ book_name: book.name, chapter: chapterNum, verse: item.verse, text: item.text })));
+            setResults(chapData.verses.map(item => ({ book_name: bookDisplayName, chapter: chapterNum, verse: item.verse, text: item.text })));
             setDetectedConcept(null);
             setMatchedConcepts([]);
             return;
@@ -564,8 +569,12 @@ const SearchPage = () => {
     setDevotionalFavorites(updated);
     localStorage.setItem("biblia-devocionais-favoritos", JSON.stringify(updated));
     toast({
-      title: isFav ? "Removido dos favoritos" : "Devocional salvo com sucesso!",
-      description: isFav ? "Devocional removido de seus favoritos." : "Acesse sempre que quiser na página de devocionais."
+      title: isFav 
+        ? (isEn ? "Removed from favorites" : "Removido dos favoritos") 
+        : (isEn ? "Devotional saved successfully!" : "Devocional salvo com sucesso!"),
+      description: isFav 
+        ? (isEn ? "Devotional removed from your favorites." : "Devocional removido de seus favoritos.") 
+        : (isEn ? "Access it anytime on the devotionals page." : "Acesse sempre que quiser na página de devocionais.")
     });
   };
 
@@ -720,10 +729,12 @@ const SearchPage = () => {
           <div>
             <h1 className="font-serif text-xl font-bold text-foreground sm:text-2xl flex items-center gap-2">
               <Search className="h-5 w-5 text-accent" />
-              Busca Bíblica e Conhecimento
+              {isEn ? "Biblical Search and Knowledge" : "Busca Bíblica e Conhecimento"}
             </h1>
             <p className="text-xs text-muted-foreground mt-1">
-              Pesquise qualquer palavra, versículo, mais de 100 personagens bíblicos, temas e devocionais completos.
+              {isEn 
+                ? "Search for any word, verse, 100+ biblical characters, themes, and full devotionals."
+                : "Pesquise qualquer palavra, versículo, mais de 100 personagens bíblicos, temas e devocionais completos."}
             </p>
           </div>
 
@@ -736,7 +747,7 @@ const SearchPage = () => {
                     id="search-input"
                     type="text"
                     inputMode="search"
-                    aria-label="Campo de busca bíblica"
+                    aria-label={isEn ? "Biblical search field" : "Campo de busca bíblica"}
                     maxLength={68}
                     value={query} 
                     onChange={(e) => {
@@ -771,7 +782,7 @@ const SearchPage = () => {
                     {query && (
                       <button
                         type="button"
-                        aria-label="Limpar campo de busca"
+                        aria-label={isEn ? "Clear search input" : "Limpar campo de busca"}
                         onClick={() => { setQuery(""); setSearchQuery(""); setSearched(false); setResults([]); }}
                         className="p-1 text-muted-foreground hover:text-foreground cursor-pointer"
                       >
@@ -781,7 +792,7 @@ const SearchPage = () => {
                   </div>
                 </div>
 
-                <button type="submit" disabled={loading || !query.trim()} aria-label="Executar busca bíblica" className="rounded-xl bg-primary px-4 sm:px-5 py-3 sm:py-3.5 text-xs sm:text-sm font-semibold text-primary-foreground disabled:opacity-50 transition-all hover:opacity-90 shadow-sm flex items-center gap-1.5 shrink-0 active:scale-95">
+                <button type="submit" disabled={loading || !query.trim()} aria-label={isEn ? "Execute biblical search" : "Executar busca bíblica"} className="rounded-xl bg-primary px-4 sm:px-5 py-3 sm:py-3.5 text-xs sm:text-sm font-semibold text-primary-foreground disabled:opacity-50 transition-all hover:opacity-90 shadow-sm flex items-center gap-1.5 shrink-0 active:scale-95">
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <> <Search className="h-4 w-4" /> {isEn ? "Search" : "Buscar"} </>}
                 </button>
               </div>
@@ -828,17 +839,16 @@ const SearchPage = () => {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3.5 min-w-0">
-                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${visual.iconBg} border ${visual.iconBorder} shadow-2xs relative`}>
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${visual.iconBg} border ${visual.iconBorder} shadow-2xs`}>
                       <MomentIcon className={`h-6 w-6 ${visual.iconColor}`} />
-                      <span className="absolute -bottom-1 -right-1 text-sm">{detectedConcept.emoji}</span>
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${visual.badgeBg} ${visual.badgeText}`}>
-                          Momento da Vida • {detectedConcept.badge}
+                          {isEn ? `Life Moment • ${detectedConcept.badge}` : `Momento da Vida • ${detectedConcept.badge}`}
                         </span>
                         <span className="text-[11px] text-muted-foreground font-medium">
-                          {results.length} versículos encontrados
+                          {isEn ? `${results.length} verses found` : `${results.length} versículos encontrados`}
                         </span>
                       </div>
                       <h2 className="font-serif text-base sm:text-lg font-bold text-foreground mt-0.5">
@@ -853,7 +863,7 @@ const SearchPage = () => {
 
                 {matchedConcepts.length > 1 && (
                   <div className="pt-2 border-t border-border/30 flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[11px] font-medium text-muted-foreground">Outros temas relacionados:</span>
+                    <span className="text-[11px] font-medium text-muted-foreground">{isEn ? "Other related themes:" : "Outros temas relacionados:"}</span>
                     {matchedConcepts.map((c) => {
                       const isCurrent = c.id === detectedConcept.id;
                       const cVisual = getMomentVisual(c.id);
@@ -865,14 +875,13 @@ const SearchPage = () => {
                             setDetectedConcept(c);
                             handleSearch(c.name);
                           }}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                             isCurrent
                               ? "bg-accent text-accent-foreground shadow-2xs"
                               : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80"
                           }`}
                         >
                           <CIcon className="h-3 w-3 shrink-0" />
-                          <span>{c.emoji}</span>
                           <span>{c.name}</span>
                         </button>
                       );
@@ -886,14 +895,14 @@ const SearchPage = () => {
           {/* Quick Category Tabs with Counts */}
           <div className="flex gap-1.5 overflow-x-auto pb-2.5 scroll-smooth themed-scrollbar border-b border-border/30 relative [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-1 px-1">
             {[
-              { id: "todos", label: "Todos e Destaques", icon: Compass },
-              ...(searched && results.length > 0 ? [{ id: "versiculos", label: `Versículos (${results.length})`, icon: BookOpen }] : []),
-              { id: "momentos", label: `Momentos da Vida (${filteredMoments.length})`, icon: Heart },
-              { id: "planos", label: `Planos Diários (${filteredReadingPlans.length})`, icon: Calendar },
-              { id: "personagens", label: `Personagens (${filteredCharacters.length})`, icon: User },
-              { id: "assuntos", label: `Conhecimento (${filteredTopics.length})`, icon: BookOpen },
-              { id: "devocionais", label: `Devocionais (${filteredDevotionals.length})`, icon: Flame },
-              { id: "passagens", label: `Passagens Populares (${filteredPopularVerses.length})`, icon: Star },
+              { id: "todos", label: isEn ? "All and Highlights" : "Todos e Destaques", icon: Compass },
+              ...(searched && results.length > 0 ? [{ id: "versiculos", label: isEn ? `Verses (${results.length})` : `Versículos (${results.length})`, icon: BookOpen }] : []),
+              { id: "momentos", label: isEn ? `Life Moments (${filteredMoments.length})` : `Momentos da Vida (${filteredMoments.length})`, icon: Heart },
+              { id: "planos", label: isEn ? `Daily Plans (${filteredReadingPlans.length})` : `Planos Diários (${filteredReadingPlans.length})`, icon: Calendar },
+              { id: "personagens", label: isEn ? `Characters (${filteredCharacters.length})` : `Personagens (${filteredCharacters.length})`, icon: User },
+              { id: "assuntos", label: isEn ? `Knowledge (${filteredTopics.length})` : `Conhecimento (${filteredTopics.length})`, icon: BookOpen },
+              { id: "devocionais", label: isEn ? `Devotionals (${filteredDevotionals.length})` : `Devocionais (${filteredDevotionals.length})`, icon: Flame },
+              { id: "passagens", label: isEn ? `Popular Passages (${filteredPopularVerses.length})` : `Passagens Populares (${filteredPopularVerses.length})`, icon: Star },
             ].map((tab) => {
               const IconComp = tab.icon;
               const isActive = activeTab === tab.id;
@@ -901,7 +910,7 @@ const SearchPage = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`relative flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors select-none ${
+                  className={`relative flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors select-none cursor-pointer ${
                     isActive 
                       ? "text-primary-foreground font-bold" 
                       : "bg-secondary/70 text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -930,7 +939,7 @@ const SearchPage = () => {
                 <div className="flex items-start gap-2 min-w-0 flex-1">
                   <User className="h-4 w-4 text-accent shrink-0 mt-0.5" />
                   <h2 className="font-serif text-sm sm:text-base font-bold text-foreground leading-snug">
-                    Conhecimento e Personagens Relacionados{" "}
+                    {isEn ? "Related Knowledge and Characters" : "Conhecimento e Personagens Relacionados"}{" "}
                     <span className="text-xs font-normal text-muted-foreground font-sans whitespace-nowrap">
                       ({matchedEntities.length})
                     </span>
@@ -955,8 +964,8 @@ const SearchPage = () => {
                           </span>
                           <button
                             onClick={() => handleAskAI(entity.aiPrompt)}
-                            className="text-muted-foreground hover:text-accent p-1 transition-colors shrink-0"
-                            title="Perguntar à IA"
+                            className="text-muted-foreground hover:text-accent p-1 transition-colors shrink-0 cursor-pointer"
+                            title={isEn ? "Ask AI" : "Perguntar à IA"}
                           >
                             <Sparkles className="h-3.5 w-3.5" />
                           </button>
@@ -972,15 +981,15 @@ const SearchPage = () => {
                       <div className="pt-2 border-t border-border/20 flex flex-wrap items-center justify-between gap-2">
                         <button
                           onClick={() => handleAskAI(entity.aiPrompt)}
-                          className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 shrink-0 whitespace-nowrap"
+                          className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 shrink-0 whitespace-nowrap cursor-pointer"
                         >
-                          <Bot className="h-3.5 w-3.5" /> Perguntar à IA
+                          <Bot className="h-3.5 w-3.5" /> {isEn ? "Ask AI" : "Perguntar à IA"}
                         </button>
                         <button
                           onClick={() => handleSearch(shortName)}
-                          className="text-[11px] font-semibold text-accent hover:underline flex items-center gap-1 min-w-0 max-w-full truncate"
+                          className="text-[11px] font-semibold text-accent hover:underline flex items-center gap-1 min-w-0 max-w-full truncate cursor-pointer"
                         >
-                          <Search className="h-3 w-3 shrink-0" /> <span className="truncate">Buscar sobre {shortName}</span>
+                          <Search className="h-3 w-3 shrink-0" /> <span className="truncate">{isEn ? `Search for ${shortName}` : `Buscar sobre ${shortName}`}</span>
                         </button>
                       </div>
                     </motion.div>
@@ -994,7 +1003,9 @@ const SearchPage = () => {
           {loading && (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-7 w-7 animate-spin text-accent mb-2" />
-              <p className="text-xs text-muted-foreground">Buscando versículos na Bíblia Sagrada...</p>
+              <p className="text-xs text-muted-foreground">
+                {isEn ? "Searching verses in the Holy Bible..." : "Buscando versículos na Bíblia Sagrada..."}
+              </p>
             </div>
           )}
 
@@ -1002,13 +1013,13 @@ const SearchPage = () => {
             <div className="rounded-xl border border-dashed border-border p-8 text-center space-y-3">
               <BookOpen className="h-10 w-10 text-muted-foreground/40 mx-auto" />
               <p className="text-sm font-medium text-muted-foreground">
-                Não há resultados para sua pesquisa tente novamente mais tarde.
+                {isEn ? "No results found for your search. Try again with different terms." : "Não há resultados para sua pesquisa tente novamente mais tarde."}
               </p>
               <button
-                onClick={() => handleAskAI(`O que a Bíblia ensina sobre: ${searchQuery}?`)}
-                className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-xs font-bold text-accent-foreground hover:bg-accent/90 transition-all shadow-sm"
+                onClick={() => handleAskAI(isEn ? `What does the Bible teach about: ${searchQuery}?` : `O que a Bíblia ensina sobre: ${searchQuery}?`)}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-xs font-bold text-accent-foreground hover:bg-accent/90 transition-all shadow-sm cursor-pointer"
               >
-                <Sparkles className="h-3.5 w-3.5" /> Perguntar à IA Bíblica sobre "{searchQuery}"
+                <Sparkles className="h-3.5 w-3.5" /> {isEn ? `Ask Biblical AI about "${searchQuery}"` : `Perguntar à IA Bíblica sobre "${searchQuery}"`}
               </button>
             </div>
           )}
@@ -1019,7 +1030,7 @@ const SearchPage = () => {
                 <div className="flex items-start gap-2 min-w-0">
                   <BookOpen className="h-4 w-4 text-accent shrink-0 mt-0.5" />
                   <h2 className="font-serif text-sm sm:text-base font-bold text-foreground leading-snug">
-                    Versículos na Bíblia{" "}
+                    {isEn ? "Verses in the Bible" : "Versículos na Bíblia"}{" "}
                     <span className="text-xs font-normal text-muted-foreground font-sans whitespace-nowrap">
                       ({results.length})
                     </span>
@@ -1056,20 +1067,19 @@ const SearchPage = () => {
                               return (
                                 <span className={`rounded px-1.5 py-0.5 text-[9px] font-semibold flex items-center gap-1 ${vVisual.badgeBg} ${vVisual.badgeText}`}>
                                   <VIcon className="h-2.5 w-2.5 shrink-0" />
-                                  <span>{r.conceptEmoji}</span>
                                   <span>{r.conceptName}</span>
                                 </span>
                               );
                             })()}
                           </div>
                           <div className="flex items-center gap-2">
-                            <button onClick={(e) => toggleReaction(e, "favorites")} title="Favoritos" className={`p-1 transition-colors ${isFavorite(verseId, "favorites") ? "text-accent" : "text-muted-foreground hover:text-accent"}`}>
+                            <button onClick={(e) => toggleReaction(e, "favorites")} title={isEn ? "Favorites" : "Favoritos"} className={`p-1 transition-colors cursor-pointer ${isFavorite(verseId, "favorites") ? "text-accent" : "text-muted-foreground hover:text-accent"}`}>
                               <Heart className={`h-3.5 w-3.5 ${isFavorite(verseId, "favorites") ? "fill-accent" : ""}`} />
                             </button>
-                            <button onClick={(e) => toggleReaction(e, "markings")} title="Marcações" className={`p-1 transition-colors ${isFavorite(verseId, "markings") ? "text-accent" : "text-muted-foreground hover:text-accent"}`}>
+                            <button onClick={(e) => toggleReaction(e, "markings")} title={isEn ? "Highlights" : "Marcações"} className={`p-1 transition-colors cursor-pointer ${isFavorite(verseId, "markings") ? "text-accent" : "text-muted-foreground hover:text-accent"}`}>
                               <Highlighter className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={(e) => toggleReaction(e, "notes")} title="Anotações" className={`p-1 transition-colors ${isFavorite(verseId, "notes") ? "text-accent" : "text-muted-foreground hover:text-accent"}`}>
+                            <button onClick={(e) => toggleReaction(e, "notes")} title={isEn ? "Notes" : "Anotações"} className={`p-1 transition-colors cursor-pointer ${isFavorite(verseId, "notes") ? "text-accent" : "text-muted-foreground hover:text-accent"}`}>
                               <StickyNote className="h-3.5 w-3.5" />
                             </button>
                           </div>
@@ -1077,7 +1087,7 @@ const SearchPage = () => {
                         <p className="font-serif text-xs sm:text-sm leading-relaxed text-card-foreground">"{r.text}"</p>
                         {r.contextReason && (
                           <div className="mt-2.5 pt-2 border-t border-border/20 flex items-center gap-1.5 text-[11px] text-accent/90 font-medium">
-                            <span className="text-xs">{r.conceptEmoji || "💡"}</span>
+                            <Sparkles className="h-3 w-3 shrink-0 text-accent" />
                             <span className="leading-snug">{r.contextReason}</span>
                           </div>
                         )}
@@ -1091,7 +1101,7 @@ const SearchPage = () => {
 
           {!loading && activeTab === "versiculos" && results.length === 0 && (
             <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs font-medium text-muted-foreground my-2">
-              Não há versículos encontrados para sua busca.
+              {isEn ? "No verses found for your search." : "Não há versículos encontrados para sua busca."}
             </div>
           )}
 
@@ -1107,7 +1117,7 @@ const SearchPage = () => {
                       <Clock className="h-4 w-4" />
                     </div>
                     <span className="font-serif text-sm font-bold text-foreground">
-                      Histórico de Buscas
+                      {isEn ? "Search History" : "Histórico de Buscas"}
                     </span>
                   </div>
                   <button
@@ -1115,7 +1125,7 @@ const SearchPage = () => {
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-all duration-150 cursor-pointer"
                   >
                     <Trash2 className="h-3 w-3" />
-                    <span>Limpar</span>
+                    <span>{isEn ? "Clear" : "Limpar"}</span>
                   </button>
                 </div>
 
@@ -1135,7 +1145,7 @@ const SearchPage = () => {
                       <button
                         onClick={() => removeFromHistory(h)}
                         className="p-0.5 rounded-md text-muted-foreground/70 hover:text-destructive hover:bg-destructive/15 transition-colors cursor-pointer"
-                        title="Remover do histórico"
+                        title={isEn ? "Remove from history" : "Remover do histórico"}
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
@@ -1148,29 +1158,13 @@ const SearchPage = () => {
             {/* TAB CONTENT: MOMENTOS DA VIDA & EMOÇÕES */}
             {((activeTab === "todos" && filteredMoments.length > 0) || activeTab === "momentos") && (
               <div className="space-y-4">
-                {activeTab === "momentos" && (
-                  <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-card/90 via-card/70 to-accent/10 p-4 sm:p-5 shadow-xs">
-                    <div className="flex items-center gap-3.5">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/20 border border-accent/30 text-accent shadow-xs">
-                        <Heart className="h-6 w-6" />
-                      </div>
-                      <div>
-                        <h2 className="font-serif text-base sm:text-lg font-bold text-foreground">
-                          Momentos da Vida e Sentimentos
-                        </h2>
-                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                          Selecione o que você ou alguém próximo está vivendo para encontrar alento, consolo e promessas bíblicas sob medida.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-2 min-w-0 flex-1">
                     <Heart className="h-4 w-4 text-accent shrink-0 mt-0.5" />
                     <h2 className="font-serif text-sm sm:text-base font-bold text-foreground leading-snug">
-                      {activeTab === "momentos" ? "Todas as Categorias" : "Momentos da Vida e Sentimentos"}{" "}
+                      {activeTab === "momentos" 
+                        ? (isEn ? "All Categories" : "Todas as Categorias") 
+                        : (isEn ? "Life Moments and Feelings" : "Momentos da Vida e Sentimentos")}{" "}
                       <span className="text-xs font-normal text-muted-foreground font-sans whitespace-nowrap">
                         ({filteredMoments.length})
                       </span>
@@ -1181,7 +1175,7 @@ const SearchPage = () => {
                       onClick={() => setActiveTab("momentos")}
                       className="text-xs text-accent hover:underline font-medium shrink-0 whitespace-nowrap pt-0.5 cursor-pointer"
                     >
-                      Ver Todos ({filteredMoments.length}) →
+                      {isEn ? `View All (${filteredMoments.length}) →` : `Ver Todos (${filteredMoments.length}) →`}
                     </button>
                   )}
                 </div>
@@ -1208,7 +1202,6 @@ const SearchPage = () => {
                                   <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${visual.badgeBg} ${visual.badgeText}`}>
                                     {moment.badge}
                                   </span>
-                                  <span className="text-xs">{moment.emoji}</span>
                                 </div>
                                 <h3 className="font-serif text-sm sm:text-base font-bold text-foreground group-hover:text-accent transition-colors truncate mt-0.5">
                                   {moment.name}
@@ -1233,7 +1226,7 @@ const SearchPage = () => {
                             ))}
                             {moment.curatedVerses.length > 3 && (
                               <span className="text-[10px] text-muted-foreground/80 px-1 py-0.5">
-                                +{moment.curatedVerses.length - 3} mais
+                                +{moment.curatedVerses.length - 3} {isEn ? "more" : "mais"}
                               </span>
                             )}
                           </div>
@@ -1242,7 +1235,7 @@ const SearchPage = () => {
                         <div className="pt-2 border-t border-border/20 flex flex-wrap items-center justify-between gap-2">
                           <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1 truncate">
                             <BookOpen className="h-3 w-3 shrink-0 text-muted-foreground/70" />
-                            {moment.curatedVerses.length} passagens
+                            {moment.curatedVerses.length} {isEn ? "passages" : "passagens"}
                           </span>
                           <button
                             type="button"
@@ -1252,7 +1245,7 @@ const SearchPage = () => {
                             }}
                             className="inline-flex items-center gap-1.5 text-xs font-bold text-accent hover:underline shrink-0 ml-auto cursor-pointer group-hover:translate-x-0.5 transition-transform"
                           >
-                            <span>Ver Versículos</span>
+                            <span>{isEn ? "View Verses" : "Ver Versículos"}</span>
                             <ArrowRight className="h-3 w-3" />
                           </button>
                         </div>
@@ -1263,7 +1256,7 @@ const SearchPage = () => {
 
                 {filteredMoments.length === 0 && activeTab === "momentos" && (
                   <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs font-medium text-muted-foreground my-2">
-                    Nenhum momento da vida encontrado para sua busca.
+                    {isEn ? "No life moments found for your search." : "Nenhum momento da vida encontrado para sua busca."}
                   </div>
                 )}
 
@@ -1273,7 +1266,7 @@ const SearchPage = () => {
                       onClick={() => setVisibleMomentsCount(prev => prev + 12)}
                       className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-5 py-2.5 text-xs font-bold text-foreground hover:border-accent hover:text-accent transition-all shadow-sm cursor-pointer"
                     >
-                      <ChevronDown className="h-4 w-4" /> Carregar Mais Momentos ({filteredMoments.length - visibleMomentsCount} restantes)
+                      <ChevronDown className="h-4 w-4" /> {isEn ? `Load More Moments (${filteredMoments.length - visibleMomentsCount} remaining)` : `Carregar Mais Momentos (${filteredMoments.length - visibleMomentsCount} restantes)`}
                     </button>
                   </div>
                 )}
@@ -1287,7 +1280,7 @@ const SearchPage = () => {
                   <div className="flex items-start gap-2 min-w-0 flex-1">
                     <Calendar className="h-4 w-4 text-accent shrink-0 mt-0.5" />
                     <h2 className="font-serif text-sm sm:text-base font-bold text-foreground leading-snug">
-                      Planos Diários de Leitura{" "}
+                      {isEn ? "Daily Reading Plans" : "Planos Diários de Leitura"}{" "}
                       <span className="text-xs font-normal text-muted-foreground font-sans whitespace-nowrap">
                         ({filteredReadingPlans.length})
                       </span>
@@ -1298,7 +1291,7 @@ const SearchPage = () => {
                       to="/devocionais"
                       className="text-xs text-accent hover:underline font-medium shrink-0 whitespace-nowrap pt-0.5"
                     >
-                      Ver em Devocionais →
+                      {isEn ? "View in Devotionals →" : "Ver em Devocionais →"}
                     </Link>
                   )}
                 </div>
@@ -1317,7 +1310,7 @@ const SearchPage = () => {
                             {plan.badge}
                           </span>
                           <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1 shrink-0">
-                            <Clock className="h-3 w-3" /> {plan.durationDays} Dias
+                            <Clock className="h-3 w-3" /> {plan.durationDays} {isEn ? "Days" : "Dias"}
                           </span>
                         </div>
                         <h3 className="font-serif text-sm font-bold text-foreground truncate">{plan.title}</h3>
@@ -1330,7 +1323,7 @@ const SearchPage = () => {
                           to="/devocionais"
                           className="inline-flex items-center gap-1 text-xs font-bold text-accent hover:underline shrink-0 ml-auto"
                         >
-                          <BookOpen className="h-3.5 w-3.5" /> Acessar Plano →
+                          <BookOpen className="h-3.5 w-3.5" /> {isEn ? "Access Plan →" : "Acessar Plano →"}
                         </Link>
                       </div>
                     </motion.div>
@@ -1339,7 +1332,7 @@ const SearchPage = () => {
 
                 {filteredReadingPlans.length === 0 && activeTab === "planos" && (
                   <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs font-medium text-muted-foreground my-2">
-                    Nenhum plano de leitura encontrado para sua busca.
+                    {isEn ? "No reading plans found for your search." : "Nenhum plano de leitura encontrado para sua busca."}
                   </div>
                 )}
 
@@ -1349,7 +1342,7 @@ const SearchPage = () => {
                       onClick={() => setVisiblePlansCount(prev => prev + 12)}
                       className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-5 py-2.5 text-xs font-bold text-foreground hover:border-accent hover:text-accent transition-all shadow-sm"
                     >
-                      <ChevronDown className="h-4 w-4" /> Carregar Mais Planos ({filteredReadingPlans.length - visiblePlansCount} restantes)
+                      <ChevronDown className="h-4 w-4" /> {isEn ? `Load More Plans (${filteredReadingPlans.length - visiblePlansCount} remaining)` : `Carregar Mais Planos (${filteredReadingPlans.length - visiblePlansCount} restantes)`}
                     </button>
                   </div>
                 )}
@@ -1363,7 +1356,7 @@ const SearchPage = () => {
                   <div className="flex items-start gap-2 min-w-0 flex-1">
                     <User className="h-4 w-4 text-accent shrink-0 mt-0.5" />
                     <h2 className="font-serif text-sm sm:text-base font-bold text-foreground leading-snug">
-                      Personagens Bíblicos{" "}
+                      {isEn ? "Biblical Characters" : "Personagens Bíblicos"}{" "}
                       <span className="text-xs font-normal text-muted-foreground font-sans whitespace-nowrap">
                         ({filteredCharacters.length})
                       </span>
@@ -1374,7 +1367,7 @@ const SearchPage = () => {
                       onClick={() => setActiveTab("personagens")}
                       className="text-xs text-accent hover:underline font-medium shrink-0 whitespace-nowrap pt-0.5"
                     >
-                      Ver Mais ({filteredCharacters.length}) →
+                      {isEn ? `View More (${filteredCharacters.length}) →` : `Ver Mais (${filteredCharacters.length}) →`}
                     </button>
                   )}
                 </div>
@@ -1396,7 +1389,7 @@ const SearchPage = () => {
                             </span>
                             <button
                               onClick={() => handleAskAI(p.aiPrompt)}
-                              title="Perguntar à IA Bíblica"
+                              title={isEn ? "Ask Biblical AI" : "Perguntar à IA Bíblica"}
                               className="text-muted-foreground hover:text-accent p-1 transition-colors shrink-0"
                             >
                               <Sparkles className="h-3.5 w-3.5" />
@@ -1413,13 +1406,13 @@ const SearchPage = () => {
                             onClick={() => handleAskAI(p.aiPrompt)}
                             className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 shrink-0 whitespace-nowrap"
                           >
-                            <Bot className="h-3.5 w-3.5" /> Perguntar à IA
+                            <Bot className="h-3.5 w-3.5" /> {isEn ? "Ask AI" : "Perguntar à IA"}
                           </button>
                           <button
                             onClick={() => handleSearch(shortName)}
                             className="text-[11px] font-semibold text-accent hover:underline flex items-center gap-1 min-w-0 max-w-full truncate"
                           >
-                            <Search className="h-3 w-3 shrink-0" /> <span className="truncate">Buscar sobre {shortName}</span>
+                            <Search className="h-3 w-3 shrink-0" /> <span className="truncate">{isEn ? `Search for ${shortName}` : `Buscar sobre ${shortName}`}</span>
                           </button>
                         </div>
                       </motion.div>
@@ -1429,7 +1422,7 @@ const SearchPage = () => {
 
                 {filteredCharacters.length === 0 && activeTab === "personagens" && (
                   <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs font-medium text-muted-foreground my-2">
-                    Não há resultados para sua pesquisa tente novamente mais tarde.
+                    {isEn ? "No results found for your search. Try again later." : "Não há resultados para sua pesquisa tente novamente mais tarde."}
                   </div>
                 )}
 
@@ -1439,7 +1432,7 @@ const SearchPage = () => {
                       onClick={() => setVisibleCharactersCount(prev => prev + 16)}
                       className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-5 py-2.5 text-xs font-bold text-foreground hover:border-accent hover:text-accent transition-all shadow-sm"
                     >
-                      <ChevronDown className="h-4 w-4" /> Carregar Mais Personagens ({filteredCharacters.length - visibleCharactersCount} restantes)
+                      <ChevronDown className="h-4 w-4" /> {isEn ? `Load More Characters (${filteredCharacters.length - visibleCharactersCount} remaining)` : `Carregar Mais Personagens (${filteredCharacters.length - visibleCharactersCount} restantes)`}
                     </button>
                   </div>
                 )}
@@ -1453,7 +1446,7 @@ const SearchPage = () => {
                   <div className="flex items-start gap-2 min-w-0 flex-1">
                     <BookOpen className="h-4 w-4 text-accent shrink-0 mt-0.5" />
                     <h2 className="font-serif text-sm sm:text-base font-bold text-foreground leading-snug">
-                      Conhecimento e Temas Bíblicos{" "}
+                      {isEn ? "Biblical Knowledge and Themes" : "Conhecimento e Temas Bíblicos"}{" "}
                       <span className="text-xs font-normal text-muted-foreground font-sans whitespace-nowrap">
                         ({filteredTopics.length})
                       </span>
@@ -1464,7 +1457,7 @@ const SearchPage = () => {
                       onClick={() => setActiveTab("assuntos")}
                       className="text-xs text-accent hover:underline font-medium shrink-0 whitespace-nowrap pt-0.5"
                     >
-                      Ver Mais ({filteredTopics.length}) →
+                      {isEn ? `View More (${filteredTopics.length}) →` : `Ver Mais (${filteredTopics.length}) →`}
                     </button>
                   )}
                 </div>
@@ -1487,6 +1480,7 @@ const SearchPage = () => {
                             <button
                               onClick={() => handleAskAI(a.aiPrompt)}
                               className="text-muted-foreground hover:text-accent p-1 transition-colors shrink-0"
+                              title={isEn ? "Ask AI" : "Perguntar à IA"}
                             >
                               <Sparkles className="h-3.5 w-3.5" />
                             </button>
@@ -1502,13 +1496,13 @@ const SearchPage = () => {
                             onClick={() => handleAskAI(a.aiPrompt)}
                             className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 shrink-0 whitespace-nowrap"
                           >
-                            <Bot className="h-3.5 w-3.5" /> Perguntar à IA
+                            <Bot className="h-3.5 w-3.5" /> {isEn ? "Ask AI" : "Perguntar à IA"}
                           </button>
                           <button
                             onClick={() => handleSearch(shortName)}
                             className="text-[11px] font-semibold text-accent hover:underline flex items-center gap-1 min-w-0 max-w-full truncate"
                           >
-                            <Search className="h-3 w-3 shrink-0" /> <span className="truncate">Buscar sobre {shortName}</span>
+                            <Search className="h-3 w-3 shrink-0" /> <span className="truncate">{isEn ? `Search for ${shortName}` : `Buscar sobre ${shortName}`}</span>
                           </button>
                         </div>
                       </motion.div>
@@ -1518,7 +1512,7 @@ const SearchPage = () => {
 
                 {filteredTopics.length === 0 && activeTab === "assuntos" && (
                   <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs font-medium text-muted-foreground my-2">
-                    Não há resultados para sua pesquisa tente novamente mais tarde.
+                    {isEn ? "No results found for your search. Try again later." : "Não há resultados para sua pesquisa tente novamente mais tarde."}
                   </div>
                 )}
 
@@ -1528,7 +1522,7 @@ const SearchPage = () => {
                       onClick={() => setVisibleTopicsCount(prev => prev + 16)}
                       className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-5 py-2.5 text-xs font-bold text-foreground hover:border-accent hover:text-accent transition-all shadow-sm"
                     >
-                      <ChevronDown className="h-4 w-4" /> Carregar Mais Conhecimentos ({filteredTopics.length - visibleTopicsCount} restantes)
+                      <ChevronDown className="h-4 w-4" /> {isEn ? `Load More Knowledge (${filteredTopics.length - visibleTopicsCount} remaining)` : `Carregar Mais Conhecimentos (${filteredTopics.length - visibleTopicsCount} restantes)`}
                     </button>
                   </div>
                 )}
@@ -1542,7 +1536,7 @@ const SearchPage = () => {
                   <div className="flex items-start gap-2 min-w-0 flex-1">
                     <Flame className="h-4 w-4 text-accent shrink-0 mt-0.5" />
                     <h2 className="font-serif text-sm sm:text-base font-bold text-foreground leading-snug">
-                      Devocionais Relacionados{" "}
+                      {isEn ? "Related Devotionals" : "Devocionais Relacionados"}{" "}
                       <span className="text-xs font-normal text-muted-foreground font-sans whitespace-nowrap">
                         ({filteredDevotionals.length})
                       </span>
@@ -1553,7 +1547,7 @@ const SearchPage = () => {
                       to="/devocionais"
                       className="text-xs text-accent hover:underline font-medium shrink-0 whitespace-nowrap pt-0.5"
                     >
-                      Ir para Devocionais →
+                      {isEn ? "Go to Devotionals →" : "Ir para Devocionais →"}
                     </Link>
                   )}
                 </div>
@@ -1580,16 +1574,16 @@ const SearchPage = () => {
                       <div className="pt-2 border-t border-border/20 flex flex-wrap items-center justify-between gap-2">
                         <button
                           onClick={() => setSelectedDevotional(d)}
-                          className="text-xs font-bold text-accent hover:underline flex items-center gap-1.5"
+                          className="text-xs font-bold text-accent hover:underline flex items-center gap-1.5 cursor-pointer"
                         >
-                          <Eye className="h-3.5 w-3.5" /> Ver Devocional
+                          <Eye className="h-3.5 w-3.5" /> {isEn ? "View Devotional" : "Ver Devocional"}
                         </button>
                         <button
                           onClick={() => toggleDevotionalFavorite(d.numId)}
-                          className={`p-1 text-xs transition-colors ${
+                          className={`p-1 text-xs transition-colors cursor-pointer ${
                             devotionalFavorites.includes(d.numId) ? "text-accent" : "text-muted-foreground hover:text-accent"
                           }`}
-                          title="Favoritar Devocional"
+                          title={isEn ? "Favorite Devotional" : "Favoritar Devocional"}
                         >
                           <Heart className={`h-3.5 w-3.5 ${devotionalFavorites.includes(d.numId) ? "fill-accent" : ""}`} />
                         </button>
@@ -1600,7 +1594,7 @@ const SearchPage = () => {
 
                 {filteredDevotionals.length === 0 && activeTab === "devocionais" && (
                   <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs font-medium text-muted-foreground my-2">
-                    Não há resultados para sua pesquisa tente novamente mais tarde.
+                    {isEn ? "No results found for your search. Try again later." : "Não há resultados para sua pesquisa tente novamente mais tarde."}
                   </div>
                 )}
 
@@ -1608,9 +1602,9 @@ const SearchPage = () => {
                   <div className="text-center pt-2">
                     <button
                       onClick={() => setVisibleDevotionalsCount(prev => prev + 16)}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-5 py-2.5 text-xs font-bold text-foreground hover:border-accent hover:text-accent transition-all shadow-sm"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-5 py-2.5 text-xs font-bold text-foreground hover:border-accent hover:text-accent transition-all shadow-sm cursor-pointer"
                     >
-                      <ChevronDown className="h-4 w-4" /> Carregar Mais Devocionais ({filteredDevotionals.length - visibleDevotionalsCount} restantes)
+                      <ChevronDown className="h-4 w-4" /> {isEn ? `Load More Devotionals (${filteredDevotionals.length - visibleDevotionalsCount} remaining)` : `Carregar Mais Devocionais (${filteredDevotionals.length - visibleDevotionalsCount} restantes)`}
                     </button>
                   </div>
                 )}
@@ -1624,7 +1618,7 @@ const SearchPage = () => {
                   <div className="flex items-start gap-2 min-w-0 flex-1">
                     <Star className="h-4 w-4 text-accent shrink-0 mt-0.5" />
                     <h2 className="font-serif text-sm sm:text-base font-bold text-foreground leading-snug">
-                      Passagens Bíblicas Mais Buscadas{" "}
+                      {isEn ? "Most Searched Biblical Passages" : "Passagens Bíblicas Mais Buscadas"}{" "}
                       <span className="text-xs font-normal text-muted-foreground font-sans whitespace-nowrap">
                         ({filteredPopularVerses.length})
                       </span>
@@ -1646,15 +1640,15 @@ const SearchPage = () => {
                       <div className="pt-2 border-t border-border/20 flex flex-wrap items-center justify-between gap-2">
                         <button
                           onClick={() => handleSearch(pv.reference)}
-                          className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 shrink-0"
+                          className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 shrink-0 cursor-pointer"
                         >
-                          <Search className="h-3 w-3" /> Ler / Buscar
+                          <Search className="h-3 w-3" /> {isEn ? "Read / Search" : "Ler / Buscar"}
                         </button>
                         <button
-                          onClick={() => handleAskAI(`Me explique o contexto e o significado teológico de ${pv.reference}`)}
-                          className="text-[11px] font-medium text-muted-foreground hover:text-foreground flex items-center gap-1 shrink-0"
+                          onClick={() => handleAskAI(isEn ? `Explain the context and theological meaning of ${pv.reference}` : `Me explique o contexto e o significado teológico de ${pv.reference}`)}
+                          className="text-[11px] font-medium text-muted-foreground hover:text-foreground flex items-center gap-1 shrink-0 cursor-pointer"
                         >
-                          Explicar na IA <Sparkles className="h-3 w-3 text-accent" />
+                          {isEn ? "Explain with AI" : "Explicar na IA"} <Sparkles className="h-3 w-3 text-accent" />
                         </button>
                       </div>
                     </div>
@@ -1663,7 +1657,7 @@ const SearchPage = () => {
 
                 {filteredPopularVerses.length === 0 && activeTab === "passagens" && (
                   <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs font-medium text-muted-foreground my-2">
-                    Não há resultados para sua pesquisa tente novamente mais tarde.
+                    {isEn ? "No results found for your search. Try again later." : "Não há resultados para sua pesquisa tente novamente mais tarde."}
                   </div>
                 )}
 
@@ -1671,9 +1665,9 @@ const SearchPage = () => {
                   <div className="text-center pt-2">
                     <button
                       onClick={() => setVisibleVersesCount(prev => prev + 16)}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-5 py-2.5 text-xs font-bold text-foreground hover:border-accent hover:text-accent transition-all shadow-sm"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-5 py-2.5 text-xs font-bold text-foreground hover:border-accent hover:text-accent transition-all shadow-sm cursor-pointer"
                     >
-                      <ChevronDown className="h-4 w-4" /> Carregar Mais Passagens ({filteredPopularVerses.length - visibleVersesCount} restantes)
+                      <ChevronDown className="h-4 w-4" /> {isEn ? `Load More Passages (${filteredPopularVerses.length - visibleVersesCount} remaining)` : `Carregar Mais Passagens (${filteredPopularVerses.length - visibleVersesCount} restantes)`}
                     </button>
                   </div>
                 )}
@@ -1710,7 +1704,7 @@ const SearchPage = () => {
                 </div>
                 <button
                   onClick={() => setSelectedDevotional(null)}
-                  className="rounded-full p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-all"
+                  className="rounded-full p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-all cursor-pointer"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -1721,7 +1715,7 @@ const SearchPage = () => {
                 <div className="rounded-xl bg-accent/10 border border-accent/30 p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-accent flex items-center gap-1">
-                      <BookOpen className="h-3.5 w-3.5" /> Versículo Base
+                      <BookOpen className="h-3.5 w-3.5" /> {isEn ? "Base Verse" : "Versículo Base"}
                     </p>
                     <button
                       onClick={() => {
@@ -1729,10 +1723,10 @@ const SearchPage = () => {
                         setCopiedVerse(true);
                         setTimeout(() => setCopiedVerse(false), 2000);
                       }}
-                      className="text-[11px] text-accent hover:underline flex items-center gap-1 font-medium"
+                      className="text-[11px] text-accent hover:underline flex items-center gap-1 font-medium cursor-pointer"
                     >
                       {copiedVerse ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                      {copiedVerse ? "Copiado!" : "Copiar"}
+                      {copiedVerse ? (isEn ? "Copied!" : "Copiado!") : (isEn ? "Copy" : "Copiar")}
                     </button>
                   </div>
                   <p className="font-serif text-sm italic leading-relaxed text-foreground">
@@ -1747,7 +1741,7 @@ const SearchPage = () => {
               {/* Reflection / Meditation */}
               <div className="space-y-2">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <Sun className="h-4 w-4 text-accent" /> Reflexão para Hoje
+                  <Sun className="h-4 w-4 text-accent" /> {isEn ? "Reflection for Today" : "Reflexão para Hoje"}
                 </h3>
                 <p className="text-sm leading-relaxed text-foreground/90 whitespace-pre-line font-sans">
                   {selectedDevotional.meditation}
@@ -1758,7 +1752,7 @@ const SearchPage = () => {
               {selectedDevotional.prayer && (
                 <div className="rounded-xl border border-border/50 bg-secondary/50 p-4 space-y-2">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-accent flex items-center gap-1.5">
-                    <Heart className="h-3.5 w-3.5 text-accent" /> Oração para Hoje
+                    <Heart className="h-3.5 w-3.5 text-accent" /> {isEn ? "Prayer for Today" : "Oração para Hoje"}
                   </h3>
                   <p className="font-serif text-xs sm:text-sm italic text-foreground/90 leading-relaxed">
                     "{selectedDevotional.prayer}"
@@ -1771,38 +1765,40 @@ const SearchPage = () => {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => toggleDevotionalFavorite(selectedDevotional.numId)}
-                    className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-bold transition-all ${
+                    className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${
                       devotionalFavorites.includes(selectedDevotional.numId)
                         ? "border-accent bg-accent/20 text-accent"
                         : "border-border bg-card text-muted-foreground hover:text-foreground hover:border-accent"
                     }`}
                   >
                     <Heart className={`h-4 w-4 ${devotionalFavorites.includes(selectedDevotional.numId) ? "fill-accent text-accent" : ""}`} />
-                    {devotionalFavorites.includes(selectedDevotional.numId) ? "Favoritado" : "Favoritar"}
+                    {devotionalFavorites.includes(selectedDevotional.numId) 
+                      ? (isEn ? "Favorited" : "Favoritado") 
+                      : (isEn ? "Favorite" : "Favoritar")}
                   </button>
 
                   <button
                     onClick={() => {
-                      const fullText = `${selectedDevotional.title}\n${selectedDevotional.reference}\n\n"${selectedDevotional.verse}"\n\nREFLEXÃO:\n${selectedDevotional.meditation}\n\nORAÇÃO:\n${selectedDevotional.prayer}`;
+                      const fullText = `${selectedDevotional.title}\n${selectedDevotional.reference}\n\n"${selectedDevotional.verse}"\n\n${isEn ? "REFLECTION:" : "REFLEXÃO:"}\n${selectedDevotional.meditation}\n\n${isEn ? "PRAYER:" : "ORAÇÃO:"}\n${selectedDevotional.prayer}`;
                       navigator.clipboard.writeText(fullText);
                       setCopiedDevotional(true);
                       setTimeout(() => setCopiedDevotional(false), 2000);
                     }}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-bold text-muted-foreground hover:text-foreground hover:border-accent transition-all"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-bold text-muted-foreground hover:text-foreground hover:border-accent transition-all cursor-pointer"
                   >
                     {copiedDevotional ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
-                    {copiedDevotional ? "Copiado!" : "Copiar"}
+                    {copiedDevotional ? (isEn ? "Copied!" : "Copiado!") : (isEn ? "Copy" : "Copiar")}
                   </button>
 
                   <button
                     onClick={() => {
-                      const fullText = `📖 ${selectedDevotional.title}\n\n📜 "${selectedDevotional.verse}" (${selectedDevotional.reference})\n\n✍️ REFLEXÃO:\n${selectedDevotional.meditation}\n\n🙏 ORAÇÃO:\n${selectedDevotional.prayer}`;
-                      shareBibleText(fullText, `Devocional: ${selectedDevotional.title}`);
+                      const fullText = `📖 ${selectedDevotional.title}\n\n📜 "${selectedDevotional.verse}" (${selectedDevotional.reference})\n\n✍️ ${isEn ? "REFLECTION:" : "REFLEXÃO:"}\n${selectedDevotional.meditation}\n\n🙏 ${isEn ? "PRAYER:" : "ORAÇÃO:"}\n${selectedDevotional.prayer}`;
+                      shareBibleText(fullText, `${isEn ? "Devotional:" : "Devocional:"} ${selectedDevotional.title}`);
                     }}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-primary text-primary-foreground px-3.5 py-2 text-xs font-bold hover:opacity-90 transition-all shadow-xs"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-primary text-primary-foreground px-3.5 py-2 text-xs font-bold hover:opacity-90 transition-all shadow-xs cursor-pointer"
                   >
                     <Share2 className="h-4 w-4" />
-                    Compartilhar
+                    {isEn ? "Share" : "Compartilhar"}
                   </button>
                 </div>
 
@@ -1811,7 +1807,7 @@ const SearchPage = () => {
                   onClick={() => setSelectedDevotional(null)}
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-accent hover:underline"
                 >
-                  Ir para Devocionais Diários →
+                  {isEn ? "Go to Daily Devotionals →" : "Ir para Devocionais Diários →"}
                 </Link>
               </div>
             </motion.div>

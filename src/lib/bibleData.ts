@@ -1,5 +1,6 @@
 export interface BibleBook {
   name: string;
+  nameEn: string;
   abbrev: string;
   chapters: number;
   testament: 'old' | 'new';
@@ -7,74 +8,74 @@ export interface BibleBook {
 }
 
 export const bibleBooks: BibleBook[] = [
-  // Antigo Testamento
-  { name: 'Gênesis', abbrev: 'gn', chapters: 50, testament: 'old', usfm: 'GEN' },
-  { name: 'Êxodo', abbrev: 'ex', chapters: 40, testament: 'old', usfm: 'EXO' },
-  { name: 'Levítico', abbrev: 'lv', chapters: 27, testament: 'old', usfm: 'LEV' },
-  { name: 'Números', abbrev: 'nm', chapters: 36, testament: 'old', usfm: 'NUM' },
-  { name: 'Deuteronômio', abbrev: 'dt', chapters: 34, testament: 'old', usfm: 'DEU' },
-  { name: 'Josué', abbrev: 'js', chapters: 24, testament: 'old', usfm: 'JOS' },
-  { name: 'Juízes', abbrev: 'jz', chapters: 21, testament: 'old', usfm: 'JDG' },
-  { name: 'Rute', abbrev: 'rt', chapters: 4, testament: 'old', usfm: 'RUT' },
-  { name: '1 Samuel', abbrev: '1sm', chapters: 31, testament: 'old', usfm: '1SA' },
-  { name: '2 Samuel', abbrev: '2sm', chapters: 24, testament: 'old', usfm: '2SA' },
-  { name: '1 Reis', abbrev: '1rs', chapters: 22, testament: 'old', usfm: '1KI' },
-  { name: '2 Reis', abbrev: '2rs', chapters: 25, testament: 'old', usfm: '2KI' },
-  { name: '1 Crônicas', abbrev: '1cr', chapters: 29, testament: 'old', usfm: '1CH' },
-  { name: '2 Crônicas', abbrev: '2cr', chapters: 36, testament: 'old', usfm: '2CH' },
-  { name: 'Esdras', abbrev: 'ed', chapters: 10, testament: 'old', usfm: 'EZR' },
-  { name: 'Neemias', abbrev: 'ne', chapters: 13, testament: 'old', usfm: 'NEH' },
-  { name: 'Ester', abbrev: 'et', chapters: 10, testament: 'old', usfm: 'EST' },
-  { name: 'Jó', abbrev: 'job', chapters: 42, testament: 'old', usfm: 'JOB' },
-  { name: 'Salmos', abbrev: 'sl', chapters: 150, testament: 'old', usfm: 'PSA' },
-  { name: 'Provérbios', abbrev: 'pv', chapters: 31, testament: 'old', usfm: 'PRO' },
-  { name: 'Eclesiastes', abbrev: 'ec', chapters: 12, testament: 'old', usfm: 'ECC' },
-  { name: 'Cânticos', abbrev: 'ct', chapters: 8, testament: 'old', usfm: 'SNG' },
-  { name: 'Isaías', abbrev: 'is', chapters: 66, testament: 'old', usfm: 'ISA' },
-  { name: 'Jeremias', abbrev: 'jr', chapters: 52, testament: 'old', usfm: 'JER' },
-  { name: 'Lamentações', abbrev: 'lm', chapters: 5, testament: 'old', usfm: 'LAM' },
-  { name: 'Ezequiel', abbrev: 'ez', chapters: 48, testament: 'old', usfm: 'EZK' },
-  { name: 'Daniel', abbrev: 'dn', chapters: 12, testament: 'old', usfm: 'DAN' },
-  { name: 'Oséias', abbrev: 'os', chapters: 14, testament: 'old', usfm: 'HOS' },
-  { name: 'Joel', abbrev: 'jl', chapters: 3, testament: 'old', usfm: 'JOL' },
-  { name: 'Amós', abbrev: 'am', chapters: 9, testament: 'old', usfm: 'AMO' },
-  { name: 'Obadias', abbrev: 'ob', chapters: 1, testament: 'old', usfm: 'OBA' },
-  { name: 'Jonas', abbrev: 'jn', chapters: 4, testament: 'old', usfm: 'JON' },
-  { name: 'Miquéias', abbrev: 'mq', chapters: 7, testament: 'old', usfm: 'MIC' },
-  { name: 'Naum', abbrev: 'na', chapters: 3, testament: 'old', usfm: 'NAM' },
-  { name: 'Habacuque', abbrev: 'hc', chapters: 3, testament: 'old', usfm: 'HAB' },
-  { name: 'Sofonias', abbrev: 'sf', chapters: 3, testament: 'old', usfm: 'ZEP' },
-  { name: 'Ageu', abbrev: 'ag', chapters: 2, testament: 'old', usfm: 'HAG' },
-  { name: 'Zacarias', abbrev: 'zc', chapters: 14, testament: 'old', usfm: 'ZEC' },
-  { name: 'Malaquias', abbrev: 'ml', chapters: 4, testament: 'old', usfm: 'MAL' },
-  // Novo Testamento
-  { name: 'Mateus', abbrev: 'mt', chapters: 28, testament: 'new', usfm: 'MAT' },
-  { name: 'Marcos', abbrev: 'mc', chapters: 16, testament: 'new', usfm: 'MRK' },
-  { name: 'Lucas', abbrev: 'lc', chapters: 24, testament: 'new', usfm: 'LUK' },
-  { name: 'João', abbrev: 'jo', chapters: 21, testament: 'new', usfm: 'JHN' },
-  { name: 'Atos', abbrev: 'at', chapters: 28, testament: 'new', usfm: 'ACT' },
-  { name: 'Romanos', abbrev: 'rm', chapters: 16, testament: 'new', usfm: 'ROM' },
-  { name: '1 Coríntios', abbrev: '1co', chapters: 16, testament: 'new', usfm: '1CO' },
-  { name: '2 Coríntios', abbrev: '2co', chapters: 13, testament: 'new', usfm: '2CO' },
-  { name: 'Gálatas', abbrev: 'gl', chapters: 6, testament: 'new', usfm: 'GAL' },
-  { name: 'Efésios', abbrev: 'ef', chapters: 6, testament: 'new', usfm: 'EPH' },
-  { name: 'Filipenses', abbrev: 'fp', chapters: 4, testament: 'new', usfm: 'PHP' },
-  { name: 'Colossenses', abbrev: 'cl', chapters: 4, testament: 'new', usfm: 'COL' },
-  { name: '1 Tessalonicenses', abbrev: '1ts', chapters: 5, testament: 'new', usfm: '1TH' },
-  { name: '2 Tessalonicenses', abbrev: '2ts', chapters: 3, testament: 'new', usfm: '2TH' },
-  { name: '1 Timóteo', abbrev: '1tm', chapters: 6, testament: 'new', usfm: '1TI' },
-  { name: '2 Timóteo', abbrev: '2tm', chapters: 4, testament: 'new', usfm: '2TI' },
-  { name: 'Tito', abbrev: 'tt', chapters: 3, testament: 'new', usfm: 'TIT' },
-  { name: 'Filemom', abbrev: 'fm', chapters: 1, testament: 'new', usfm: 'PHM' },
-  { name: 'Hebreus', abbrev: 'hb', chapters: 13, testament: 'new', usfm: 'HEB' },
-  { name: 'Tiago', abbrev: 'tg', chapters: 5, testament: 'new', usfm: 'JAS' },
-  { name: '1 Pedro', abbrev: '1pe', chapters: 5, testament: 'new', usfm: '1PE' },
-  { name: '2 Pedro', abbrev: '2pe', chapters: 3, testament: 'new', usfm: '2PE' },
-  { name: '1 João', abbrev: '1jo', chapters: 5, testament: 'new', usfm: '1JN' },
-  { name: '2 João', abbrev: '2jo', chapters: 1, testament: 'new', usfm: '2JN' },
-  { name: '3 João', abbrev: '3jo', chapters: 1, testament: 'new', usfm: '3JN' },
-  { name: 'Judas', abbrev: 'jd', chapters: 1, testament: 'new', usfm: 'JUD' },
-  { name: 'Apocalipse', abbrev: 'ap', chapters: 22, testament: 'new', usfm: 'REV' },
+  // Antigo Testamento / Old Testament
+  { name: 'Gênesis', nameEn: 'Genesis', abbrev: 'gn', chapters: 50, testament: 'old', usfm: 'GEN' },
+  { name: 'Êxodo', nameEn: 'Exodus', abbrev: 'ex', chapters: 40, testament: 'old', usfm: 'EXO' },
+  { name: 'Levítico', nameEn: 'Leviticus', abbrev: 'lv', chapters: 27, testament: 'old', usfm: 'LEV' },
+  { name: 'Números', nameEn: 'Numbers', abbrev: 'nm', chapters: 36, testament: 'old', usfm: 'NUM' },
+  { name: 'Deuteronômio', nameEn: 'Deuteronomy', abbrev: 'dt', chapters: 34, testament: 'old', usfm: 'DEU' },
+  { name: 'Josué', nameEn: 'Joshua', abbrev: 'js', chapters: 24, testament: 'old', usfm: 'JOS' },
+  { name: 'Juízes', nameEn: 'Judges', abbrev: 'jz', chapters: 21, testament: 'old', usfm: 'JDG' },
+  { name: 'Rute', nameEn: 'Ruth', abbrev: 'rt', chapters: 4, testament: 'old', usfm: 'RUT' },
+  { name: '1 Samuel', nameEn: '1 Samuel', abbrev: '1sm', chapters: 31, testament: 'old', usfm: '1SA' },
+  { name: '2 Samuel', nameEn: '2 Samuel', abbrev: '2sm', chapters: 24, testament: 'old', usfm: '2SA' },
+  { name: '1 Reis', nameEn: '1 Kings', abbrev: '1rs', chapters: 22, testament: 'old', usfm: '1KI' },
+  { name: '2 Reis', nameEn: '2 Kings', abbrev: '2rs', chapters: 25, testament: 'old', usfm: '2KI' },
+  { name: '1 Crônicas', nameEn: '1 Chronicles', abbrev: '1cr', chapters: 29, testament: 'old', usfm: '1CH' },
+  { name: '2 Crônicas', nameEn: '2 Chronicles', abbrev: '2cr', chapters: 36, testament: 'old', usfm: '2CH' },
+  { name: 'Esdras', nameEn: 'Ezra', abbrev: 'ed', chapters: 10, testament: 'old', usfm: 'EZR' },
+  { name: 'Neemias', nameEn: 'Nehemiah', abbrev: 'ne', chapters: 13, testament: 'old', usfm: 'NEH' },
+  { name: 'Ester', nameEn: 'Esther', abbrev: 'et', chapters: 10, testament: 'old', usfm: 'EST' },
+  { name: 'Jó', nameEn: 'Job', abbrev: 'job', chapters: 42, testament: 'old', usfm: 'JOB' },
+  { name: 'Salmos', nameEn: 'Psalms', abbrev: 'sl', chapters: 150, testament: 'old', usfm: 'PSA' },
+  { name: 'Provérbios', nameEn: 'Proverbs', abbrev: 'pv', chapters: 31, testament: 'old', usfm: 'PRO' },
+  { name: 'Eclesiastes', nameEn: 'Ecclesiastes', abbrev: 'ec', chapters: 12, testament: 'old', usfm: 'ECC' },
+  { name: 'Cânticos', nameEn: 'Song of Solomon', abbrev: 'ct', chapters: 8, testament: 'old', usfm: 'SNG' },
+  { name: 'Isaías', nameEn: 'Isaiah', abbrev: 'is', chapters: 66, testament: 'old', usfm: 'ISA' },
+  { name: 'Jeremias', nameEn: 'Jeremiah', abbrev: 'jr', chapters: 52, testament: 'old', usfm: 'JER' },
+  { name: 'Lamentações', nameEn: 'Lamentations', abbrev: 'lm', chapters: 5, testament: 'old', usfm: 'LAM' },
+  { name: 'Ezequiel', nameEn: 'Ezekiel', abbrev: 'ez', chapters: 48, testament: 'old', usfm: 'EZK' },
+  { name: 'Daniel', nameEn: 'Daniel', abbrev: 'dn', chapters: 12, testament: 'old', usfm: 'DAN' },
+  { name: 'Oséias', nameEn: 'Hosea', abbrev: 'os', chapters: 14, testament: 'old', usfm: 'HOS' },
+  { name: 'Joel', nameEn: 'Joel', abbrev: 'jl', chapters: 3, testament: 'old', usfm: 'JOL' },
+  { name: 'Amós', nameEn: 'Amos', abbrev: 'am', chapters: 9, testament: 'old', usfm: 'AMO' },
+  { name: 'Obadias', nameEn: 'Obadiah', abbrev: 'ob', chapters: 1, testament: 'old', usfm: 'OBA' },
+  { name: 'Jonas', nameEn: 'Jonah', abbrev: 'jn', chapters: 4, testament: 'old', usfm: 'JON' },
+  { name: 'Miquéias', nameEn: 'Micah', abbrev: 'mq', chapters: 7, testament: 'old', usfm: 'MIC' },
+  { name: 'Naum', nameEn: 'Nahum', abbrev: 'na', chapters: 3, testament: 'old', usfm: 'NAM' },
+  { name: 'Habacuque', nameEn: 'Habakkuk', abbrev: 'hc', chapters: 3, testament: 'old', usfm: 'HAB' },
+  { name: 'Sofonias', nameEn: 'Zephaniah', abbrev: 'sf', chapters: 3, testament: 'old', usfm: 'ZEP' },
+  { name: 'Ageu', nameEn: 'Haggai', abbrev: 'ag', chapters: 2, testament: 'old', usfm: 'HAG' },
+  { name: 'Zacarias', nameEn: 'Zechariah', abbrev: 'zc', chapters: 14, testament: 'old', usfm: 'ZEC' },
+  { name: 'Malaquias', nameEn: 'Malachi', abbrev: 'ml', chapters: 4, testament: 'old', usfm: 'MAL' },
+  // Novo Testamento / New Testament
+  { name: 'Mateus', nameEn: 'Matthew', abbrev: 'mt', chapters: 28, testament: 'new', usfm: 'MAT' },
+  { name: 'Marcos', nameEn: 'Mark', abbrev: 'mc', chapters: 16, testament: 'new', usfm: 'MRK' },
+  { name: 'Lucas', nameEn: 'Luke', abbrev: 'lc', chapters: 24, testament: 'new', usfm: 'LUK' },
+  { name: 'João', nameEn: 'John', abbrev: 'jo', chapters: 21, testament: 'new', usfm: 'JHN' },
+  { name: 'Atos', nameEn: 'Acts', abbrev: 'at', chapters: 28, testament: 'new', usfm: 'ACT' },
+  { name: 'Romanos', nameEn: 'Romans', abbrev: 'rm', chapters: 16, testament: 'new', usfm: 'ROM' },
+  { name: '1 Coríntios', nameEn: '1 Corinthians', abbrev: '1co', chapters: 16, testament: 'new', usfm: '1CO' },
+  { name: '2 Coríntios', nameEn: '2 Corinthians', abbrev: '2co', chapters: 13, testament: 'new', usfm: '2CO' },
+  { name: 'Gálatas', nameEn: 'Galatians', abbrev: 'gl', chapters: 6, testament: 'new', usfm: 'GAL' },
+  { name: 'Efésios', nameEn: 'Ephesians', abbrev: 'ef', chapters: 6, testament: 'new', usfm: 'EPH' },
+  { name: 'Filipenses', nameEn: 'Philippians', abbrev: 'fp', chapters: 4, testament: 'new', usfm: 'PHP' },
+  { name: 'Colossenses', nameEn: 'Colossians', abbrev: 'cl', chapters: 4, testament: 'new', usfm: 'COL' },
+  { name: '1 Tessalonicenses', nameEn: '1 Thessalonians', abbrev: '1ts', chapters: 5, testament: 'new', usfm: '1TH' },
+  { name: '2 Tessalonicenses', nameEn: '2 Thessalonians', abbrev: '2ts', chapters: 3, testament: 'new', usfm: '2TH' },
+  { name: '1 Timóteo', nameEn: '1 Timothy', abbrev: '1tm', chapters: 6, testament: 'new', usfm: '1TI' },
+  { name: '2 Timóteo', nameEn: '2 Timothy', abbrev: '2tm', chapters: 4, testament: 'new', usfm: '2TI' },
+  { name: 'Tito', nameEn: 'Titus', abbrev: 'tt', chapters: 3, testament: 'new', usfm: 'TIT' },
+  { name: 'Filemom', nameEn: 'Philemon', abbrev: 'fm', chapters: 1, testament: 'new', usfm: 'PHM' },
+  { name: 'Hebreus', nameEn: 'Hebrews', abbrev: 'hb', chapters: 13, testament: 'new', usfm: 'HEB' },
+  { name: 'Tiago', nameEn: 'James', abbrev: 'tg', chapters: 5, testament: 'new', usfm: 'JAS' },
+  { name: '1 Pedro', nameEn: '1 Peter', abbrev: '1pe', chapters: 5, testament: 'new', usfm: '1PE' },
+  { name: '2 Pedro', nameEn: '2 Peter', abbrev: '2pe', chapters: 3, testament: 'new', usfm: '2PE' },
+  { name: '1 João', nameEn: '1 John', abbrev: '1jo', chapters: 5, testament: 'new', usfm: '1JN' },
+  { name: '2 João', nameEn: '2 John', abbrev: '2jo', chapters: 1, testament: 'new', usfm: '2JN' },
+  { name: '3 João', nameEn: '3 John', abbrev: '3jo', chapters: 1, testament: 'new', usfm: '3JN' },
+  { name: 'Judas', nameEn: 'Jude', abbrev: 'jd', chapters: 1, testament: 'new', usfm: 'JUD' },
+  { name: 'Apocalipse', nameEn: 'Revelation', abbrev: 'ap', chapters: 22, testament: 'new', usfm: 'REV' },
 ];
 
 export interface BibleTranslation {
@@ -84,11 +85,11 @@ export interface BibleTranslation {
 }
 
 export const translations: BibleTranslation[] = [
-  { id: 'almeida', name: 'Bíblia Sagrada de Almeida 1980', language: 'pt' },
-  { id: 'blivre', name: 'Bíblia Livre 2018', language: 'pt' },
-  { id: 'bbe', name: 'Bible in Basic English', language: 'en' },
-  { id: 'kjv', name: 'King James Version', language: 'en' },
-  { id: 'web', name: 'World English Bible', language: 'en' },
+  { id: 'almeida', name: 'Bíblia Sagrada de Almeida (ARC)', language: 'pt' },
+  { id: 'blivre', name: 'Bíblia Livre (Offline)', language: 'pt' },
+  { id: 'kjv', name: 'King James Version (KJV)', language: 'en' },
+  { id: 'web', name: 'World English Bible (WEB)', language: 'en' },
+  { id: 'bbe', name: 'Bible in Basic English (BBE)', language: 'en' },
 ];
 
 // ── Bible API book name mappings ──
@@ -359,12 +360,14 @@ async function fetchFromBibleApi(
         }
       }
 
+      const isEnglishTranslation = translation === 'kjv' || translation === 'web' || translation === 'bbe';
+      const displayName = isEnglishTranslation ? (book.nameEn || book.name) : book.name;
       const cleanHtml = (str: string) => (str || '').replace(/<[^>]*>/g, '').trim();
 
       return {
-        reference: `${book.name} ${chapter}`,
+        reference: `${displayName} ${chapter}`,
         verses: data.verses.map((v: any) => ({
-          book_name: book.name,
+          book_name: displayName,
           chapter: v.chapter ?? chapter,
           verse: v.verse,
           text: cleanHtml(v.text),
@@ -390,7 +393,8 @@ async function fetchFromBolls(
   if (!bookId) throw new Error('Livro não encontrado');
 
   const book = bibleBooks.find(b => b.abbrev === abbrev);
-  const bookName = book?.name || abbrev;
+  const isEnglishTranslation = translation === 'kjv' || translation === 'web' || translation === 'bbe';
+  const bookName = isEnglishTranslation ? (book?.nameEn || book?.name || abbrev) : (book?.name || abbrev);
 
   let bollsVersion = 'ARC09';
   if (translation === 'kjv') bollsVersion = 'KJV';
@@ -500,5 +504,23 @@ export async function fetchVerse(
 }
 
 export function getBookByAbbrev(abbrev: string): BibleBook | undefined {
-  return bibleBooks.find(b => b.abbrev === abbrev);
+  return bibleBooks.find(b => b.abbrev.toLowerCase() === abbrev.toLowerCase());
 }
+
+export function getBookDisplayName(abbrev: string, lang: 'pt' | 'en' = 'pt'): string {
+  const book = getBookByAbbrev(abbrev);
+  if (!book) return abbrev;
+  return lang === 'en' ? (book.nameEn || book.name) : book.name;
+}
+
+export function formatVerseReference(
+  abbrev: string,
+  chapter: number,
+  verse: number | number[] | string,
+  lang: 'pt' | 'en' = 'pt'
+): string {
+  const bookName = getBookDisplayName(abbrev, lang);
+  const verseStr = Array.isArray(verse) ? verse.join(',') : verse;
+  return `${bookName} ${chapter}:${verseStr}`;
+}
+

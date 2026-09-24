@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { bibleBooks, fetchChapter } from "@/lib/bibleData";
+import { bibleBooks, fetchChapter, getBookByAbbrev } from "@/lib/bibleData";
 import { getDailyVerseReference, type DailyVerseEntry } from "@/lib/dailyVerse";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
@@ -25,18 +25,31 @@ const Index = () => {
 
   useEffect(() => {
     const reference = getDailyVerseReference();
-    // Puxando da fonte original e certo: Bíblia Livre offline
-    fetchChapter(reference.abbrev, reference.chapter, 'blivre')
+    const isEn = language === "en";
+    const selectedTranslation = isEn ? "kjv" : "blivre";
+    const book = getBookByAbbrev(reference.abbrev);
+    const formattedRef = isEn
+      ? (reference.referenceEn || `${book?.nameEn || reference.reference} ${reference.chapter}:${reference.verse}`)
+      : reference.reference;
+
+    // Puxando da fonte certa: KJV para Inglês, Bíblia Livre offline para Português
+    fetchChapter(reference.abbrev, reference.chapter, selectedTranslation)
       .then((chap) => {
         const verseText = chap.verses.find(v => v.verse === reference.verse)?.text || "";
-        setDailyVerse({ ...reference, text: verseText });
-      })
-      .catch(() => {
         setDailyVerse({ 
           ...reference, 
-          text: language === "en" 
+          reference: formattedRef,
+          text: verseText || (isEn ? (reference.textEn || reference.text) : reference.text) || "" 
+        });
+      })
+      .catch(() => {
+        const fallbackText = isEn ? (reference.textEn || reference.text || "") : (reference.text || "");
+        setDailyVerse({ 
+          ...reference, 
+          reference: formattedRef,
+          text: fallbackText || (isEn 
             ? "Could not load the verse. Check your connection or offline data." 
-            : "Não foi possível carregar o versículo. Verifique sua conexão ou dados offline." 
+            : "Não foi possível carregar o versículo. Verifique sua conexão ou dados offline.")
         });
       });
   }, [language]);
@@ -295,21 +308,24 @@ const Index = () => {
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          {filteredBooks.map((book) => (
-            <Link
-              key={book.abbrev}
-              to={`/livro/${book.abbrev}/1`}
-              className="glass-card group flex items-center justify-between rounded-xl px-3 py-3 transition-colors hover:!border-accent"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground group-hover:text-accent transition-colors">
-                  {book.name}
-                </p>
-                <p className="text-[10px] text-muted-foreground">{book.chapters} {t("chapters_count")}</p>
-              </div>
-              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-accent transition-colors" />
-            </Link>
-          ))}
+          {filteredBooks.map((book) => {
+            const displayName = language === "en" ? (book.nameEn || book.name) : book.name;
+            return (
+              <Link
+                key={book.abbrev}
+                to={`/livro/${book.abbrev}/1`}
+                className="glass-card group flex items-center justify-between rounded-xl px-3 py-3 transition-colors hover:!border-accent"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground group-hover:text-accent transition-colors">
+                    {displayName}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">{book.chapters} {t("chapters_count")}</p>
+                </div>
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-accent transition-colors" />
+              </Link>
+            );
+          })}
         </div>
       </section>
 

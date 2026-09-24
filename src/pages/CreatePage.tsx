@@ -14,17 +14,13 @@ import html2canvas from "html2canvas-pro";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { downloadBibleImage, shareBibleImage } from "@/lib/downloadUtils";
 import { generateCreateModeImage } from "@/services/createModeImageService";
 import { APP_WHITE_LOGO_DATA_URL } from "@/assets/appLogoWhite";
 import { formatFriendlyErrorMessage } from "@/lib/errorUtils";
 import VoiceInputButton from "@/components/VoiceInputButton";
-
-const formats: { key: CardFormat; label: string; dim: string; icon: React.ReactNode }[] = [
-  { key: "square", label: "Quadrado", dim: "1080 × 1080 (1:1)", icon: <Square className="h-4 w-4" /> },
-  { key: "story", label: "Story", dim: "1080 × 1920 (9:16)", icon: <RectangleVertical className="h-4 w-4" /> },
-  { key: "landscape", label: "Paisagem", dim: "1920 × 1080 (16:9)", icon: <RectangleHorizontal className="h-4 w-4" /> },
-];
+import { bibleBooks, fetchChapter } from "@/lib/bibleData";
 
 const exportFormats = [
   { key: "png", label: "PNG", mime: "image/png" },
@@ -34,36 +30,55 @@ const exportFormats = [
 
 export type QualityKey = "sd" | "hd" | "4k";
 
-const qualityOptions = [
-  { key: "sd" as const, label: "720p (SD)", desc: "Envio Rápido • 150 DPI", scale: 1.5, badge: "720p SD" },
-  { key: "hd" as const, label: "1080p (Full HD)", desc: "Recomendado • 300 DPI", scale: 3, badge: "1080p Full HD" },
-  { key: "4k" as const, label: "4K (Ultra HD)", desc: "Máxima Nitidez • 600 DPI", scale: 5, badge: "4K Ultra HD" },
-] as const;
-
-const fontOptions = [
+const getFontOptions = (isEn: boolean) => [
   { key: "serif", label: "Playfair (Serif)", family: "'Playfair Display', serif", className: "font-serif italic" },
-  { key: "cursive", label: "Cursiva", family: "'Dancing Script', cursive", className: "font-cursive" },
-  { key: "cinzel", label: "Cinzel (Romana)", family: "'Cinzel', serif", className: "font-cinzel" },
-  { key: "cormorant", label: "Elegante Garamond", family: "'Cormorant Garamond', serif", className: "font-cormorant italic" },
-  { key: "caveat", label: "Manuscrita", family: "'Caveat', cursive", className: "font-caveat" },
-  { key: "lora", label: "Lora (Clássica)", family: "'Lora', serif", className: "font-lora" },
-  { key: "sans", label: "Inter (Moderna)", family: "'Inter', sans-serif", className: "font-sans" },
+  { key: "cursive", label: isEn ? "Cursive" : "Cursiva", family: "'Dancing Script', cursive", className: "font-cursive" },
+  { key: "cinzel", label: isEn ? "Cinzel (Roman)" : "Cinzel (Romana)", family: "'Cinzel', serif", className: "font-cinzel" },
+  { key: "cormorant", label: isEn ? "Garamond Serif" : "Elegante Garamond", family: "'Cormorant Garamond', serif", className: "font-cormorant italic" },
+  { key: "caveat", label: isEn ? "Handwritten" : "Manuscrita", family: "'Caveat', cursive", className: "font-caveat" },
+  { key: "lora", label: isEn ? "Lora (Classic)" : "Lora (Clássica)", family: "'Lora', serif", className: "font-lora" },
+  { key: "sans", label: isEn ? "Inter (Modern)" : "Inter (Moderna)", family: "'Inter', sans-serif", className: "font-sans" },
   { key: "montserrat", label: "Montserrat", family: "'Montserrat', sans-serif", className: "font-montserrat" },
-  { key: "mono", label: "Monespaçada", family: "'Space Mono', monospace", className: "font-mono" },
+  { key: "mono", label: isEn ? "Monospace" : "Monespaçada", family: "'Space Mono', monospace", className: "font-mono" },
 ];
 
-const imageStyles = [
-  { label: "Pôr do sol sereno", prompt: "Pôr do sol calmo no horizonte com raios dourados e luz suave" },
-  { label: "Céu estrelado", prompt: "Céu noturno estrelado e limpo com nuvens sutis e luz celestial" },
-  { label: "Montanhas ao amanhecer", prompt: "Montanhas majestosas cobertas de névoa ao amanhecer" },
-  { label: "Jardim florido", prompt: "Jardim pacífico com flores silvestres e luz da manhã" },
-  { label: "Oceano azul", prompt: "Oceano calmo em dia ensolarado com ondas suaves" },
-  { label: "Floresta ensolarada", prompt: "Floresta exuberante com raios de sol atravessando as árvores" },
+const getImageStyles = (isEn: boolean) => [
+  { 
+    label: isEn ? "Serene sunset" : "Pôr do sol sereno", 
+    prompt: isEn ? "Calm sunset on the horizon with golden rays and soft light" : "Pôr do sol calmo no horizonte com raios dourados e luz suave" 
+  },
+  { 
+    label: isEn ? "Starry night sky" : "Céu estrelado", 
+    prompt: isEn ? "Clean starry night sky with subtle clouds and celestial light" : "Céu noturno estrelado e limpo com nuvens sutis e luz celestial" 
+  },
+  { 
+    label: isEn ? "Dawn mountains" : "Montanhas ao amanhecer", 
+    prompt: isEn ? "Majestic misty mountains at dawn with morning golden glow" : "Montanhas majestosas cobertas de névoa ao amanhecer" 
+  },
+  { 
+    label: isEn ? "Blooming garden" : "Jardim florido", 
+    prompt: isEn ? "Peaceful garden with wild flowers and gentle morning light" : "Jardim pacífico com flores silvestres e luz da manhã" 
+  },
+  { 
+    label: isEn ? "Blue ocean" : "Oceano azul", 
+    prompt: isEn ? "Calm blue ocean on a sunny day with gentle peaceful waves" : "Oceano calmo em dia ensolarado com ondas suaves" 
+  },
+  { 
+    label: isEn ? "Sunlit forest" : "Floresta ensolarada", 
+    prompt: isEn ? "Lush forest with sunbeams streaming through the ancient trees" : "Floresta exuberante com raios de sol atravessando as árvores" 
+  },
 ];
 
-const verseCategorySuggestions = [
+const getVerseCategorySuggestions = (isEn: boolean) => isEn ? [
+  { topic: "Love and Faith", ref: "1 Corinthians 13:13" },
+  { topic: "Peace", ref: "Philippians 4:7" },
+  { topic: "Strength", ref: "Isaiah 40:31" },
+  { topic: "Protection", ref: "Psalm 91:1" },
+  { topic: "Hope", ref: "Jeremiah 29:11" },
+  { topic: "Salvation", ref: "John 3:16" },
+] : [
   { topic: "Amor e Fé", ref: "1 Coríntios 13:13" },
-  { topic: "Paz", ref: "Filipe 4:7" },
+  { topic: "Paz", ref: "Filipenses 4:7" },
   { topic: "Força", ref: "Isaías 40:31" },
   { topic: "Proteção", ref: "Salmos 91:1" },
   { topic: "Esperança", ref: "Jeremias 29:11" },
@@ -76,13 +91,13 @@ const presetColors = [
   "#800020", "#1a1a1a", "#003366", "#004d40", "#4a0e4e",
 ];
 
-const gradientPresets = [
+const getGradientPresets = (isEn: boolean) => [
   { name: "Aurora", style: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #2d1b69 100%)" },
-  { name: "Pôr do Sol", style: "linear-gradient(135deg, #2d120d 0%, #4a1c12 50%, #1a0f2e 100%)" },
-  { name: "Esmeralda", style: "linear-gradient(135deg, #051c14 0%, #0d382c 50%, #081a24 100%)" },
-  { name: "Real", style: "linear-gradient(135deg, #120b2e 0%, #29104d 50%, #120a1f 100%)" },
-  { name: "Oceano Profundo", style: "linear-gradient(135deg, #031329 0%, #082d4f 50%, #020b18 100%)" },
-  { name: "Dourado Noturno", style: "linear-gradient(135deg, #1c1508 0%, #382a0d 50%, #0f0d07 100%)" },
+  { name: isEn ? "Sunset" : "Pôr do Sol", style: "linear-gradient(135deg, #2d120d 0%, #4a1c12 50%, #1a0f2e 100%)" },
+  { name: isEn ? "Emerald" : "Esmeralda", style: "linear-gradient(135deg, #051c14 0%, #0d382c 50%, #081a24 100%)" },
+  { name: isEn ? "Royal" : "Real", style: "linear-gradient(135deg, #120b2e 0%, #29104d 50%, #120a1f 100%)" },
+  { name: isEn ? "Deep Ocean" : "Oceano Profundo", style: "linear-gradient(135deg, #031329 0%, #082d4f 50%, #020b18 100%)" },
+  { name: isEn ? "Golden Night" : "Dourado Noturno", style: "linear-gradient(135deg, #1c1508 0%, #382a0d 50%, #0f0d07 100%)" },
 ];
 
 type ActiveTab = "verse" | "background" | "typography" | "export";
@@ -120,6 +135,8 @@ function LiquidGlassColorPicker({
   presetColors = presetColors,
   label = "Cor de Fundo Sólida"
 }: LiquidGlassColorPickerProps) {
+  const { t, language } = useLanguage();
+  const isEn = language === "en";
   const rgb = hexToRgb(color);
 
   const handleRgbChange = (channel: "r" | "g" | "b", val: number) => {
@@ -159,11 +176,11 @@ function LiquidGlassColorPicker({
             <button
               type="button"
               onClick={handleEyeDropper}
-              title="Conta-gotas (Capturar cor da tela)"
+              title={t("create_pipette")}
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent/15 border border-accent/30 text-accent text-[11px] font-semibold hover:bg-accent/25 transition-all shadow-sm active:scale-95"
             >
               <Pipette className="h-3.5 w-3.5 text-accent animate-pulse" />
-              <span>Pipeta</span>
+              <span>{t("create_pipette")}</span>
             </button>
           )}
 
@@ -238,7 +255,7 @@ function LiquidGlassColorPicker({
       {/* Preset Swatches */}
       {presetColors && presetColors.length > 0 && (
         <div className="pt-2 border-t border-border/60 space-y-1.5 relative z-10">
-          <span className="text-[10px] font-semibold text-muted-foreground block">Paleta de Cores Sólidas</span>
+          <span className="text-[10px] font-semibold text-muted-foreground block">{t("create_color_palette")}</span>
           <div className="grid grid-cols-5 sm:grid-cols-8 gap-1.5">
             {presetColors.map((c) => (
               <button
@@ -264,7 +281,13 @@ function LiquidGlassColorPicker({
   );
 }
 
-const AI_IMAGE_PROCESSES = [
+const getAIProcesses = (isEn: boolean) => isEn ? [
+  { text: "Interpreting scripture passage and theme...", targetProgress: 25 },
+  { text: "Designing 8K photorealistic composition...", targetProgress: 50 },
+  { text: "Balancing heavenly lighting and rays...", targetProgress: 75 },
+  { text: "Refining colors, textures and details...", targetProgress: 90 },
+  { text: "Finalizing artwork in high resolution...", targetProgress: 98 },
+] : [
   { text: "Interpretando a passagem e tema bíblico...", targetProgress: 25 },
   { text: "Projetando composição fotorrealista em 8K...", targetProgress: 50 },
   { text: "Ajustando feixes de luz e iluminação...", targetProgress: 75 },
@@ -273,19 +296,22 @@ const AI_IMAGE_PROCESSES = [
 ];
 
 const AIImagePreviewLoadingOverlay = () => {
+  const { language, t } = useLanguage();
+  const isEn = language === "en";
+  const processes = getAIProcesses(isEn);
   const [stepIndex, setStepIndex] = useState(0);
   const [progress, setProgress] = useState(15);
 
   useEffect(() => {
     const stepInterval = setInterval(() => {
-      setStepIndex((prev) => (prev + 1) % AI_IMAGE_PROCESSES.length);
+      setStepIndex((prev) => (prev + 1) % processes.length);
     }, 2800);
 
     return () => clearInterval(stepInterval);
-  }, []);
+  }, [processes.length]);
 
   useEffect(() => {
-    const target = AI_IMAGE_PROCESSES[stepIndex].targetProgress;
+    const target = processes[stepIndex].targetProgress;
     const progressInterval = setInterval(() => {
       setProgress((prev) => {
         if (prev < target) return Math.min(target, prev + 1);
@@ -295,7 +321,7 @@ const AIImagePreviewLoadingOverlay = () => {
     }, 40);
 
     return () => clearInterval(progressInterval);
-  }, [stepIndex]);
+  }, [stepIndex, processes]);
 
   return (
     <motion.div
@@ -327,7 +353,7 @@ const AIImagePreviewLoadingOverlay = () => {
         {/* Título de Geração */}
         <div className="flex items-center justify-center gap-2">
           <span className="font-semibold text-sm sm:text-base text-white tracking-tight">
-            Gerando Imagem com IA
+            {t("create_generating_title")}
           </span>
           <Sparkles className="h-4 w-4 text-sky-400 animate-spin" style={{ animationDuration: '3s' }} />
         </div>
@@ -342,7 +368,7 @@ const AIImagePreviewLoadingOverlay = () => {
             />
           </div>
           <div className="flex justify-between items-center text-[10px] font-mono text-slate-400">
-            <span>Processando...</span>
+            <span>{t("create_generating_processing")}</span>
             <span className="font-bold text-sky-300">{progress}%</span>
           </div>
         </div>
@@ -358,7 +384,7 @@ const AIImagePreviewLoadingOverlay = () => {
               transition={{ duration: 0.3, ease: "easeOut" }}
               className="text-xs text-slate-300 font-medium text-center truncate block px-2 tracking-wide"
             >
-              {AI_IMAGE_PROCESSES[stepIndex].text}
+              {processes[stepIndex].text}
             </motion.span>
           </AnimatePresence>
         </div>
@@ -375,6 +401,25 @@ const CreatePage = () => {
   const initialText = searchParams.get("text") || "";
   const { toast } = useToast();
   const { user: authUser } = useAuth();
+  const { t, language } = useLanguage();
+  const isEn = language === "en";
+
+  const formats: { key: CardFormat; label: string; dim: string; icon: React.ReactNode }[] = [
+    { key: "square", label: t("create_format_square"), dim: "1080 × 1080 (1:1)", icon: <Square className="h-4 w-4" /> },
+    { key: "story", label: t("create_format_story"), dim: "1080 × 1920 (9:16)", icon: <RectangleVertical className="h-4 w-4" /> },
+    { key: "landscape", label: t("create_format_landscape"), dim: "1920 × 1080 (16:9)", icon: <RectangleHorizontal className="h-4 w-4" /> },
+  ];
+
+  const qualityOptions = [
+    { key: "sd" as const, label: t("create_quality_sd"), desc: t("create_quality_sd_desc"), scale: 1.5, badge: "720p SD" },
+    { key: "hd" as const, label: t("create_quality_hd"), desc: t("create_quality_hd_desc"), scale: 3, badge: "1080p Full HD" },
+    { key: "4k" as const, label: t("create_quality_4k"), desc: t("create_quality_4k_desc"), scale: 5, badge: "4K Ultra HD" },
+  ] as const;
+
+  const fontOptions = getFontOptions(isEn);
+  const imageStyles = getImageStyles(isEn);
+  const verseCategorySuggestions = getVerseCategorySuggestions(isEn);
+  const gradientPresets = getGradientPresets(isEn);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("verse");
   const [verseText, setVerseText] = useState(initialText || "");
@@ -652,11 +697,11 @@ const CreatePage = () => {
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/15 border border-accent/30 text-accent text-xs font-semibold mb-2">
               <Sparkles className="h-3.5 w-3.5" />
-              <span>Estúdio de Criação Bíblica</span>
+              <span>{t("create_studio_badge")}</span>
             </div>
-            <h1 className="font-serif text-2xl font-bold text-foreground">Crie Artes e Cartões Bíblicos</h1>
+            <h1 className="font-serif text-2xl font-bold text-foreground">{t("create_title")}</h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-              Personalize o texto, fontes, fundos com IA e baixe em alta resolução para compartilhar.
+              {t("create_subtitle")}
             </p>
           </div>
 
@@ -666,12 +711,12 @@ const CreatePage = () => {
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent text-accent-foreground text-xs font-bold hover:opacity-90 active:scale-95 transition-all shadow-md"
             >
               <Download className="h-4 w-4" />
-              <span>Baixar Arte</span>
+              <span>{t("create_download_art")}</span>
             </button>
             <button
               onClick={handleShareImage}
               className="flex items-center justify-center p-2.5 rounded-xl bg-secondary text-secondary-foreground hover:bg-muted active:scale-95 transition-all border border-border/50"
-              title="Compartilhar"
+              title={t("create_share")}
             >
               <Share2 className="h-4 w-4" />
             </button>
@@ -687,10 +732,10 @@ const CreatePage = () => {
             {/* Tab Navigation Pill Track */}
             <div className="grid grid-cols-4 gap-1.5 p-1.5 rounded-2xl glass-card border border-border/60 shadow-card backdrop-blur-xl relative select-none">
               {[
-                { id: "verse", label: "Versículo", icon: Quote },
-                { id: "background", label: "Fundo", icon: Palette },
-                { id: "typography", label: "Texto", icon: Type },
-                { id: "export", label: "Formato", icon: Image },
+                { id: "verse", label: t("create_tab_verse"), icon: Quote },
+                { id: "background", label: t("create_tab_bg"), icon: Palette },
+                { id: "typography", label: t("create_tab_text"), icon: Type },
+                { id: "export", label: t("create_tab_format"), icon: Image },
               ].map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -730,7 +775,7 @@ const CreatePage = () => {
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                       <Search className="h-3.5 w-3.5 text-accent" />
-                      Buscar Passagem
+                      {t("create_search_passage")}
                     </label>
                   </div>
 
@@ -740,7 +785,7 @@ const CreatePage = () => {
                         value={searchQuery}
                         maxLength={15}
                         onChange={(e) => setSearchQuery(e.target.value.slice(0, 15))}
-                        placeholder={!isOnline ? "Indisponível offline" : "Ex: Filipenses 4:13"}
+                        placeholder={!isOnline ? t("create_search_placeholder_offline") : (isEn ? "Ex: Philippians 4:13" : "Ex: Filipenses 4:13")}
                         onKeyDown={(e) => e.key === "Enter" && isOnline && handleSearchVerse()}
                         disabled={!isOnline}
                         className="w-full rounded-xl border border-input bg-secondary/50 pl-3.5 pr-8 py-2 text-xs text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
@@ -754,7 +799,7 @@ const CreatePage = () => {
                           }}
                           disabled={!isOnline}
                           size="xs"
-                          title="Falar passagem bíblica"
+                          title={isEn ? "Speak Bible passage" : "Falar passagem bíblica"}
                         />
                       </div>
                     </div>
@@ -763,12 +808,12 @@ const CreatePage = () => {
                       disabled={searchLoading || !isOnline}
                       className="rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center shrink-0 cursor-pointer"
                     >
-                      {searchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
+                      {searchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("create_search_btn")}
                     </button>
                   </div>
 
                   <div>
-                    <span className="text-[10px] font-medium text-muted-foreground block mb-1.5">Sugestões Rápidas:</span>
+                    <span className="text-[10px] font-medium text-muted-foreground block mb-1.5">{t("create_quick_suggestions")}</span>
                     <div className="flex flex-wrap gap-1.5">
                       {verseCategorySuggestions.map((item) => (
                         <button
@@ -787,12 +832,12 @@ const CreatePage = () => {
                 <div className="glass-card rounded-2xl p-4 border border-border/60 space-y-3">
                   <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                     <Quote className="h-3.5 w-3.5 text-accent" />
-                    Editar Texto Manualmente
+                    {t("create_edit_manual")}
                   </span>
 
                   <div>
                     <div className="flex justify-between items-center mb-1">
-                      <label className="text-[10px] text-muted-foreground">Texto do Versículo:</label>
+                      <label className="text-[10px] text-muted-foreground">{t("create_verse_text_label")}</label>
                       <span className="text-[10px] text-muted-foreground font-mono">{verseText.length}/1000</span>
                     </div>
                     <div className="relative">
@@ -801,7 +846,7 @@ const CreatePage = () => {
                         maxLength={1000}
                         value={verseText}
                         onChange={(e) => setVerseText(e.target.value.slice(0, 1000))}
-                        placeholder="Digite o texto aqui..."
+                        placeholder={t("create_text_placeholder")}
                         className="w-full rounded-xl border border-input bg-secondary/40 p-3 pr-8 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none custom-scrollbar"
                       />
                       <div className="absolute right-2 top-2">
@@ -813,20 +858,20 @@ const CreatePage = () => {
                             });
                           }}
                           size="xs"
-                          title="Ditar texto do versículo"
+                          title={isEn ? "Dictate verse text" : "Ditar texto do versículo"}
                         />
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-[10px] text-muted-foreground block mb-1">Referência Bíblica:</label>
+                    <label className="text-[10px] text-muted-foreground block mb-1">{t("create_ref_label")}</label>
                     <input
                       type="text"
                       maxLength={100}
                       value={reference}
                       onChange={(e) => setReference(e.target.value.slice(0, 100))}
-                      placeholder="Ex: Salmos 23:1"
+                      placeholder={isEn ? "Ex: Psalm 23:1" : "Ex: Salmos 23:1"}
                       className="w-full rounded-xl border border-input bg-secondary/40 px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                   </div>
@@ -846,7 +891,7 @@ const CreatePage = () => {
                       bgType === "theme" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    Temas
+                    {t("create_bg_themes")}
                   </button>
                   <button
                     onClick={() => setBgType("gradient")}
@@ -854,7 +899,7 @@ const CreatePage = () => {
                       bgType === "gradient" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    Gradiente
+                    {t("create_bg_gradient")}
                   </button>
                   <button
                     onClick={() => setBgType("custom_color")}
@@ -862,7 +907,7 @@ const CreatePage = () => {
                       bgType === "custom_color" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    Sólida
+                    {t("create_bg_solid")}
                   </button>
                   <button
                     onClick={() => setBgType("ai")}
@@ -871,18 +916,18 @@ const CreatePage = () => {
                     }`}
                   >
                     <Wand2 className="h-3 w-3" />
-                    IA
+                    {t("create_bg_ai")}
                   </button>
                 </div>
 
                 {/* Sub-panel 1: Preset Themes */}
                 {bgType === "theme" && (
                   <div className="glass-card rounded-2xl p-4 border border-border/60">
-                    <span className="text-xs font-semibold text-foreground block mb-3">Temas Pré-definidos</span>
+                    <span className="text-xs font-semibold text-foreground block mb-3">{t("create_preset_themes")}</span>
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                      {themes.map((t, idx) => (
+                      {themes.map((themeItem, idx) => (
                         <button
-                          key={t.name}
+                          key={themeItem.name}
                           onClick={() => { setActiveTheme(idx); }}
                           className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all ${
                             idx === activeTheme
@@ -890,10 +935,10 @@ const CreatePage = () => {
                               : "border-border/40 bg-secondary/30 text-muted-foreground hover:border-border hover:bg-secondary/60"
                           }`}
                         >
-                          <div className={`h-7 w-7 rounded-full ${t.bg} ring-2 ring-white/10 flex items-center justify-center shadow-sm`}>
-                            <div className={`h-2.5 w-2.5 rounded-full ${t.accent}`} />
+                          <div className={`h-7 w-7 rounded-full ${themeItem.bg} ring-2 ring-white/10 flex items-center justify-center shadow-sm`}>
+                            <div className={`h-2.5 w-2.5 rounded-full ${themeItem.accent}`} />
                           </div>
-                          <span className="text-[10px] font-medium truncate w-full text-center">{t.name}</span>
+                          <span className="text-[10px] font-medium truncate w-full text-center">{themeItem.name}</span>
                         </button>
                       ))}
                     </div>
@@ -903,7 +948,7 @@ const CreatePage = () => {
                 {/* Sub-panel 2: Gradient Presets */}
                 {bgType === "gradient" && (
                   <div className="glass-card rounded-2xl p-4 border border-border/60 space-y-3">
-                    <span className="text-xs font-semibold text-foreground block mb-1">Gradientes Elegantes</span>
+                    <span className="text-xs font-semibold text-foreground block mb-1">{t("create_elegant_gradients")}</span>
                     <div className="grid grid-cols-2 gap-2">
                       {gradientPresets.map((g) => (
                         <button
@@ -928,7 +973,7 @@ const CreatePage = () => {
                     color={customColor}
                     onChange={setCustomColor}
                     presetColors={presetColors}
-                    label="Cor de Fundo Sólida"
+                    label={t("create_solid_picker_label")}
                   />
                 )}
 
@@ -938,24 +983,24 @@ const CreatePage = () => {
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                         <Wand2 className="h-3.5 w-3.5 text-accent" />
-                        Fundo Inteligente com IA
+                        {t("create_ai_bg_title")}
                       </span>
                       <span className="text-[10px] font-semibold text-accent bg-accent/10 border border-accent/20 px-2 py-0.5 rounded-full">
-                        {createImageCount}/{CREATE_IMAGE_LIMIT} hoje
+                        {createImageCount}/{CREATE_IMAGE_LIMIT} {t("create_ai_today_count")}
                       </span>
                     </div>
 
                     {!isOnline ? (
                       <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-center space-y-2">
                         <WifiOff className="h-5 w-5 text-amber-500 mx-auto" />
-                        <p className="text-xs font-medium text-foreground">Conexão necessária</p>
+                        <p className="text-xs font-medium text-foreground">{t("create_connection_needed")}</p>
                         <p className="text-[10px] text-muted-foreground">
-                          A geração de imagens por IA requer internet ativa.
+                          {t("create_connection_needed_desc")}
                         </p>
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <p className="text-[11px] text-muted-foreground">Escolha o estilo estético do fundo:</p>
+                        <p className="text-[11px] text-muted-foreground">{t("create_ai_choose_style")}</p>
                         
                         <div className="grid grid-cols-2 gap-1.5">
                           {imageStyles.map((item, idx) => (
@@ -975,7 +1020,7 @@ const CreatePage = () => {
 
                         <div>
                           <div className="flex items-center justify-between mb-1">
-                            <label className="text-[10px] text-muted-foreground block">Descreva o cenário bíblico (apenas natureza, proibido pessoas e estátuas):</label>
+                            <label className="text-[10px] text-muted-foreground block">{t("create_ai_describe_scene")}</label>
                             <span className="text-[9px] text-muted-foreground font-mono">{customAiPrompt.length}/300</span>
                           </div>
                           <div className="relative flex items-center">
@@ -983,7 +1028,7 @@ const CreatePage = () => {
                               maxLength={300}
                               value={customAiPrompt}
                               onChange={(e) => setCustomAiPrompt(e.target.value.slice(0, 300))}
-                              placeholder="Ex: Montanhas de Jerusalém ao pôr do sol, Rio Jordão sereno, oliveiras..."
+                              placeholder={t("create_ai_prompt_placeholder")}
                               className="w-full rounded-xl border border-input bg-secondary/40 pl-3 pr-9 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                             />
                             <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
@@ -995,20 +1040,26 @@ const CreatePage = () => {
                                   });
                                 }}
                                 size="xs"
-                                title="Ditar cenário bíblico para IA"
+                                title={isEn ? "Dictate biblical scene for AI" : "Ditar cenário bíblico para IA"}
                               />
                             </div>
                           </div>
 
                           {/* Sugestões Rápidas */}
                           <div className="mt-1.5 flex flex-wrap gap-1">
-                            {[
+                            {(isEn ? [
+                              "Mountains of Jerusalem at sunset",
+                              "Mount of Olives in peace",
+                              "Jordan River and serene waters",
+                              "Sacred sky with golden light",
+                              "Majestic Creation landscape"
+                            ] : [
                               "Montanhas de Jerusalém ao pôr do sol",
                               "Monte das Oliveiras em paz",
                               "Rio Jordão e águas serenas",
                               "Céu sagrado com luz dourada",
                               "Cenário majestoso da Criação"
-                            ].map((suggestion) => (
+                            ]).map((suggestion) => (
                               <button
                                 key={suggestion}
                                 type="button"
@@ -1024,14 +1075,14 @@ const CreatePage = () => {
                             ))}
                           </div>
                           <p className="text-[9px] text-muted-foreground/70 mt-1">
-                            O Modo Criar gera exclusivamente paisagens e cenários bíblicos sagrados (sem pessoas ou estátuas gregas/esculturas), ideal para destacar com clareza o versículo sagrado.
+                            {t("create_ai_disclaimer")}
                           </p>
                         </div>
 
                         {/* Overlay opacity for AI Images */}
                         <div>
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-[11px] text-muted-foreground">Escurecimento de Fundo:</span>
+                            <span className="text-[11px] text-muted-foreground">{t("create_overlay_darkness")}</span>
                             <span className="text-[10px] font-mono text-muted-foreground">{overlayOpacity}%</span>
                           </div>
                           <input
@@ -1065,14 +1116,14 @@ const CreatePage = () => {
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center justify-between gap-1.5">
                                     <p className="text-xs font-bold text-rose-200 tracking-tight">
-                                      Limite Diário Atingido
+                                      {t("create_daily_limit_title")}
                                     </p>
                                     <span className="shrink-0 rounded-full bg-rose-500/25 px-2 py-0.5 text-[10px] font-bold text-rose-300 border border-rose-500/30">
-                                      {CREATE_IMAGE_LIMIT}/{CREATE_IMAGE_LIMIT} hoje
+                                      {CREATE_IMAGE_LIMIT}/{CREATE_IMAGE_LIMIT} {t("create_ai_today_count")}
                                     </span>
                                   </div>
                                   <p className="text-[11px] text-rose-300/80 leading-snug mt-0.5">
-                                    Você atingiu o limite de {CREATE_IMAGE_LIMIT} imagens por dia. Sua cota recarrega em 12 horas.
+                                    {t("create_daily_limit_desc")}
                                   </p>
                                 </div>
                               </div>
@@ -1098,10 +1149,10 @@ const CreatePage = () => {
                           )}
                           <span>
                             {createImageLimitReached
-                              ? `Limite diário atingido (${CREATE_IMAGE_LIMIT}/${CREATE_IMAGE_LIMIT})`
+                              ? `${t("create_btn_limit_reached")} (${CREATE_IMAGE_LIMIT}/${CREATE_IMAGE_LIMIT})`
                               : aiImageLoading
-                              ? "Criando imagem no servidor..."
-                              : "Gerar Imagem com IA"}
+                              ? t("create_btn_generating")
+                              : t("create_btn_generate_ai")}
                           </span>
                         </button>
                       </div>
@@ -1119,7 +1170,7 @@ const CreatePage = () => {
                 <div className="glass-card rounded-2xl p-4 border border-border/60 space-y-3">
                   <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                     <Type className="h-3.5 w-3.5 text-accent" />
-                    Família Tipográfica
+                    {t("create_font_family")}
                   </span>
 
                   <div className="grid grid-cols-3 gap-1.5">
@@ -1144,7 +1195,7 @@ const CreatePage = () => {
                 <div className="glass-card rounded-2xl p-4 border border-border/60 space-y-4">
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-semibold text-foreground">Tamanho da Fonte</span>
+                      <span className="text-xs font-semibold text-foreground">{t("create_font_size")}</span>
                       <span className="text-xs font-mono font-bold text-accent">{fontSize}px</span>
                     </div>
                     <div className="flex items-center gap-3">
@@ -1178,7 +1229,7 @@ const CreatePage = () => {
                         color={textColor}
                         onChange={setTextColor}
                         presetColors={["#ffffff", "#f8fafc", "#fef08a", "#bae6fd", "#fbcfe8", "#000000", "#ffd700", "#38bdf8"]}
-                        label="Cor do Texto (Sobre a Foto)"
+                        label={t("create_text_color")}
                       />
                     </div>
                   )}
@@ -1192,7 +1243,7 @@ const CreatePage = () => {
                 
                 {/* Canvas Aspect Ratio */}
                 <div className="glass-card rounded-2xl p-4 border border-border/60 space-y-3">
-                  <span className="text-xs font-semibold text-foreground block">Proporção da Imagem</span>
+                  <span className="text-xs font-semibold text-foreground block">{t("create_aspect_ratio")}</span>
                   <div className="grid grid-cols-3 gap-2">
                     {formats.map((f) => (
                       <button
@@ -1217,7 +1268,7 @@ const CreatePage = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                       <Sparkles className="h-3.5 w-3.5 text-accent" />
-                      Qualidade e Resolução
+                      {t("create_quality_resolution")}
                     </span>
                     <span className="text-[10px] font-mono font-medium text-accent bg-accent/15 px-2 py-0.5 rounded-full border border-accent/30">
                       {qualityOptions.find(q => q.key === exportQuality)?.badge}
@@ -1244,7 +1295,7 @@ const CreatePage = () => {
 
                 {/* Download File Format */}
                 <div className="glass-card rounded-2xl p-4 border border-border/60 space-y-3">
-                  <span className="text-xs font-semibold text-foreground block">Formato de Arquivo</span>
+                  <span className="text-xs font-semibold text-foreground block">{t("create_file_format")}</span>
                   <div className="grid grid-cols-3 gap-2">
                     {exportFormats.map((f) => (
                       <button
@@ -1268,7 +1319,7 @@ const CreatePage = () => {
                     className="w-full flex items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-bold text-accent-foreground hover:opacity-90 active:scale-95 transition-all shadow-lg"
                   >
                     <Download className="h-4 w-4" />
-                    <span>Baixar Arte ({exportFormat.label} • {qualityOptions.find(q => q.key === exportQuality)?.badge})</span>
+                    <span>{t("create_download_art")} ({exportFormat.label} • {qualityOptions.find(q => q.key === exportQuality)?.badge})</span>
                   </button>
 
                   <button
@@ -1276,7 +1327,7 @@ const CreatePage = () => {
                     className="w-full flex items-center justify-center gap-2 rounded-xl bg-secondary py-2.5 text-xs font-semibold text-secondary-foreground hover:bg-muted active:scale-95 transition-all border border-border/50"
                   >
                     <Share2 className="h-4 w-4" />
-                    <span>Compartilhar Direto</span>
+                    <span>{t("create_share_direct")}</span>
                   </button>
                 </div>
               </motion.div>
@@ -1291,14 +1342,14 @@ const CreatePage = () => {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-1">
               <div className="flex items-center gap-2 text-xs font-semibold text-foreground whitespace-nowrap">
                 <Eye className="h-4 w-4 text-accent shrink-0" />
-                <span>Pré-visualização da Arte</span>
+                <span>{t("create_preview_title")}</span>
               </div>
               <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
                 <select
                   value={exportQuality}
                   onChange={(e) => setExportQuality(e.target.value as QualityKey)}
                   className="text-[11px] font-semibold bg-secondary/90 hover:bg-secondary text-foreground border border-border/50 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer flex-1 sm:flex-initial"
-                  title="Qualidade de Exportação"
+                  title={t("create_quality_resolution")}
                 >
                   {qualityOptions.map((q) => (
                     <option key={q.key} value={q.key}>
@@ -1366,7 +1417,7 @@ const CreatePage = () => {
                         <div className="flex flex-col items-center justify-center py-6 text-center">
                           <Sparkles className="h-8 w-8 opacity-40 mb-3 animate-pulse" style={{ color: textColor }} />
                           <p className="text-sm font-sans font-medium opacity-60 tracking-normal" style={{ color: textColor }}>
-                            Busque um versículo para começar
+                            {t("create_start_searching_verse")}
                           </p>
                         </div>
                       ) : (
@@ -1422,7 +1473,7 @@ const CreatePage = () => {
                         <div className="flex flex-col items-center justify-center py-6 text-center">
                           <Sparkles className="h-8 w-8 opacity-40 mb-3 animate-pulse text-white" />
                           <p className="text-sm font-sans font-medium opacity-60 tracking-normal text-white">
-                            Busque um versículo para começar
+                            {t("create_start_searching_verse")}
                           </p>
                         </div>
                       ) : (
@@ -1464,7 +1515,7 @@ const CreatePage = () => {
                     <VerseCard 
                       text={verseText} 
                       reference={reference} 
-                      theme={bgType === "custom_color" ? { name: "Personalizado", bg: "", text: "text-white", accent: "bg-white/20" } : currentTheme} 
+                      theme={bgType === "custom_color" ? { name: isEn ? "Custom" : "Personalizado", bg: "", text: "text-white", accent: "bg-white/20" } : currentTheme} 
                       format={activeFormat} 
                       animate={false} 
                       fontSize={fontSize}
@@ -1483,8 +1534,8 @@ const CreatePage = () => {
                   <div className="flex items-center gap-2 text-destructive bg-destructive/10 border border-destructive/20 rounded-xl p-3">
                     <ImageOff className="h-4 w-4 shrink-0 text-destructive" />
                     <div className="flex flex-col">
-                      <span className="font-semibold text-destructive">Falha no carregamento</span>
-                      <span className="text-[10px] text-muted-foreground">Erro ao carregar imagem. Tente alterar o estilo ou gerar novamente.</span>
+                      <span className="font-semibold text-destructive">{t("create_load_fail")}</span>
+                      <span className="text-[10px] text-muted-foreground">{t("create_load_fail_desc")}</span>
                     </div>
                   </div>
                 </div>
@@ -1495,7 +1546,7 @@ const CreatePage = () => {
             {/* Quick Action Button below Canvas */}
             <div className="pt-1 flex items-center justify-between gap-3 px-1">
               <span className="text-[11px] text-muted-foreground">
-                Qualidade: <strong className="text-foreground">{qualityOptions.find(q => q.key === exportQuality)?.badge}</strong>
+                {isEn ? "Quality:" : "Qualidade:"} <strong className="text-foreground">{qualityOptions.find(q => q.key === exportQuality)?.badge}</strong>
               </span>
 
               <button
@@ -1503,7 +1554,7 @@ const CreatePage = () => {
                 className="flex items-center gap-1.5 text-xs font-bold text-accent hover:underline"
               >
                 <Download className="h-3.5 w-3.5" />
-                <span>Salvar ({exportFormat.label} • {qualityOptions.find(q => q.key === exportQuality)?.badge})</span>
+                <span>{t("create_save_art")} ({exportFormat.label} • {qualityOptions.find(q => q.key === exportQuality)?.badge})</span>
               </button>
             </div>
 

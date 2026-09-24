@@ -22,7 +22,8 @@ import {
   ArrowRight,
   Filter,
   Clock,
-  MapPin
+  MapPin,
+  X
 } from "lucide-react";
 import { getLocalizedDevotionals, getTodayDevotional } from "@/lib/devotionalsData";
 import { readingPlans, getLocalizedReadingPlans } from "@/lib/readingPlansData";
@@ -57,6 +58,7 @@ const DevotionalPage = () => {
   const canAccessBeta = isBeta || isAdmin || role === "beta" || role === "admin";
 
   const devotionals = useMemo(() => getLocalizedDevotionals(language), [language]);
+  const localizedReadingPlans = useMemo(() => getLocalizedReadingPlans(language), [language]);
 
   const [activeTab, setActiveTab] = useState<"hoje" | "planos" | "mapas" | "explorar" | "favoritos">("hoje");
   const [searchQuery, setSearchQuery] = useState("");
@@ -397,15 +399,27 @@ const DevotionalPage = () => {
                   <div className="space-y-4">
                   {/* Search input */}
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <input
                       type="text"
                       maxLength={200}
                       placeholder={t("search_devotionals_placeholder")}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value.slice(0, 200))}
-                      className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-4 text-xs sm:text-sm focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                      className={`w-full rounded-xl glass-card py-2.5 sm:py-3 ${searchQuery ? "pl-4" : "pl-10"} pr-10 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent transition-all duration-200 shadow-sm`}
                     />
+                    {!searchQuery && (
+                      <Search className="absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    )}
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery("")}
+                        className="absolute right-3 top-1/2 z-10 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                        title={language === "en" ? "Clear search" : "Limpar busca"}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
 
                   {/* Horizontal Scroll Categories */}
@@ -725,7 +739,7 @@ const DevotionalPage = () => {
 
                   {favoritedPlanIds.length > 0 ? (
                     <div className="grid gap-3 sm:grid-cols-2">
-                      {readingPlans
+                      {localizedReadingPlans
                         .filter((p) => favoritedPlanIds.includes(p.id))
                         .map((plan) => (
                           <div

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'biblia-online-v2.5.2';
+const CACHE_NAME = 'biblia-online-v2.5.3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -111,37 +111,52 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // Bypass Service Worker for PWA icons and apple-touch-icons
+  // 1. Skip external origins & APIs that should be handled by browser natively
+  // (Supabase storage, Google avatars, OneSignal, AI endpoints, external CDNs)
   if (
-    url.pathname.includes('/icons/') || 
-    url.pathname.includes('/icon-') || 
-    url.pathname.includes('apple-touch-icon') ||
-    url.pathname.endsWith('.png') || 
-    url.pathname.endsWith('.ico')
-  ) {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
-    );
-    return;
-  }
-
-  // Skip OneSignal, AI endpoints, external APIs, supabase database, and development websockets
-  if (
-    url.host.includes('onesignal') ||
+    url.origin !== self.location.origin ||
+    url.host.includes('supabase.co') ||
+    url.host.includes('googleusercontent.com') ||
     url.host.includes('googleapis.com') ||
     url.host.includes('gstatic.com') ||
+    url.host.includes('onesignal') ||
     url.host.includes('openrouter.ai') ||
     url.pathname.startsWith('/api/ai') ||
     url.pathname.startsWith('/api/generate-image') ||
     url.pathname.startsWith('/socket.io') ||
     url.pathname.includes('hot-update') ||
-    (url.host.includes('localhost') && url.port === '3000' && url.pathname.startsWith('/@')) ||
-    url.host.includes('supabase.co')
+    (url.host.includes('localhost') && url.port === '3000' && url.pathname.startsWith('/@'))
   ) {
     return;
   }
 
-  // If navigation request (e.g., page routes like /reader, /account), serve the cached index.html SPA shell
+  // 2. Local PWA app icons and logos - Cache first, network fallback with logo2.png safety fallback
+  if (
+    url.pathname.includes('/icons/') || 
+    url.pathname.includes('/icon-') || 
+    url.pathname.includes('apple-touch-icon') ||
+    url.pathname.endsWith('.png') || 
+    url.pathname.endsWith('.ico') ||
+    url.pathname.endsWith('.svg')
+  ) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return networkResponse;
+        }).catch(async () => {
+          return (await caches.match('/icons/logo2.png')) || (await caches.match('/favicon.ico'));
+        });
+      })
+    );
+    return;
+  }
+
+  // 3. If navigation request (e.g., page routes like /reader, /account, /conta), serve the cached index.html SPA shell
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => {

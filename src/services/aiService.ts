@@ -308,6 +308,14 @@ const trySimpleOpenRouter = async (
 
 
 
+export const getCurrentLanguage = (): "pt" | "en" => {
+  if (typeof window !== "undefined") {
+    const saved = localStorage.getItem("app-language");
+    if (saved === "en" || saved === "pt") return saved;
+  }
+  return "pt";
+};
+
 const sanitizeAIResponse = (text: string, skipBracketRemoval: boolean = true): string => {
   if (!text) return "";
   // Remove tags técnicas, caracteres de controle (\x00-\x1F exceto \n \r \t)
@@ -326,9 +334,9 @@ const sanitizeAIResponse = (text: string, skipBracketRemoval: boolean = true): s
     .trim();
 };
 
-export const BIBLE_VERSIONS_DIRECTIVE = `\n\n[INTEGRAÇÃO DAS VERSÕES BÍBLICAS DO APLICATIVO]:
+export const BIBLE_VERSIONS_DIRECTIVE_PT = `\n\n[INTEGRAÇÃO DAS VERSÕES BÍBLICAS DO APLICATIVO]:
 1. As versões e traduções da Bíblia Sagrada que estão oficialmente integradas e disponíveis no aplicativo são:
-   - Bíblia Sagrada de Almeida (Almeida / Almeida Corrigida Fiel - ARC / Almeida 1980 - Português) [Versão Principal do App]
+   - Bíblia Sagrada de Almeida (Almeida / Almeida Corrigida Fiel - ARC / Almeida 1980 - Português) [Versão Principal do App em Português]
    - Bíblia Livre (BLivre 2018 - Português)
    - King James Version (KJV - Inglês)
    - Bible in Basic English (BBE - Inglês)
@@ -341,8 +349,28 @@ export const BIBLE_VERSIONS_DIRECTIVE = `\n\n[INTEGRAÇÃO DAS VERSÕES BÍBLICA
    - NUNCA invente ou altere palavras do texto bíblico oficial nem forneça traduções que não existem no app.
    - Quando citar diretamente versículos na íntegra, informe sempre a referência com o nome do livro, capítulo, versículo e a versão utilizada entre parênteses (exemplo: "João 3:16 - Almeida" ou "Salmos 23:1 - Bíblia Livre").`;
 
-export const getSystemRule = async (specificKey?: string): Promise<string> => {
-  const christianEthicsDirective = `\n\n[DIRETIVA BÍBLICA E CRISTÃ DE COMPREENSÃO DE INTENÇÃO E CONTEXTO - REGRA MESTRA]:
+export const BIBLE_VERSIONS_DIRECTIVE_EN = `\n\n[OFFICIAL APP BIBLE VERSIONS INTEGRATION]:
+1. The official Holy Bible translations and versions integrated and available in this application are:
+   - King James Version (KJV - English) [Primary English Version]
+   - World English Bible (WEB - English)
+   - Bible in Basic English (BBE - English)
+   - Bíblia Sagrada de Almeida (Almeida - Portuguese)
+   - Bíblia Livre (BLivre - Portuguese)
+2. READING AND QUOTING VERSES ON DEMAND:
+   - You have full theological knowledge and capability to read, quote, compare, and explain verses from any of the official versions above whenever requested.
+   - When asked to read or compare verses, provide the exact faithful text of the requested version clearly and enrichingly.
+3. MANDATORY QUOTING AND RESPONSE RULES:
+   - YOU MUST RESPOND EXCLUSIVELY IN ENGLISH.
+   - When answering theological questions, explaining studies, or quoting scriptures, STRICTLY use the exact text of the integrated English versions (prioritizing KJV or WEB).
+   - NEVER invent or distort biblical text.
+   - When quoting full verses, always include the book name, chapter, verse, and version in parentheses (e.g. "John 3:16 - KJV" or "Psalm 23:1 - WEB").`;
+
+export const BIBLE_VERSIONS_DIRECTIVE = BIBLE_VERSIONS_DIRECTIVE_PT;
+
+export const getSystemRule = async (specificKey?: string, langOverride?: "pt" | "en"): Promise<string> => {
+  const lang = langOverride || getCurrentLanguage();
+
+  const christianEthicsDirectivePT = `\n\n[DIRETIVA BÍBLICA E CRISTÃ DE COMPREENSÃO DE INTENÇÃO E CONTEXTO - REGRA MESTRA]:
 1. VOCÊ É UMA INTELIGÊNCIA ARTIFICIAL E ASSISTENTE BÍBLICO ESPECIALIZADO EXCLUSIVAMENTE NA BÍBLIA SAGRADA E NA FÉ CRISTÃ.
 2. AVALIAÇÃO INTELIGENTE DE CONTEXTO E INTENÇÃO (OBRIGATÓRIO PARA EVITAR FALSOS POSITIVOS):
    - Você DEVE analisar o SENTIDO REAL e a INTENÇÃO PRINCIPAL da mensagem do usuário.
@@ -354,6 +382,25 @@ export const getSystemRule = async (specificKey?: string): Promise<string> => {
    - Se e somente se a pergunta for exclusivamente secular, responda educadamente:
    "Olá! Sou uma Inteligência Artificial dedicada exclusivamente aos estudos da Bíblia Sagrada e aos ensinamentos da fé cristã. Por este motivo, não posso responder sobre assuntos seculares ou fora do contexto bíblico. Como posso ajudar você em seus estudos da Palavra de Deus hoje?"
 5. É estritamente proibido atender a pedidos que promovam crimes, pornografia, violência, roubo, imoralidade ou ofensas.`;
+
+  const christianEthicsDirectiveEN = `\n\n[BIBLICAL AND CHRISTIAN DIRECTIVE - MASTER RULE - ENGLISH LANGUAGE MANDATE]:
+1. YOU ARE A DEVOUT BIBLICAL ARTIFICIAL INTELLIGENCE AND SCHOLARLY ASSISTANT SPECIALIZED EXCLUSIVELY IN THE HOLY BIBLE AND CHRISTIAN THEOLOGY.
+2. YOU MUST ALWAYS RESPOND IN FLUENT, NATURAL, REVERENT ENGLISH.
+3. CONTEXT AND INTENT EVALUATION (MANDATORY):
+   - Analyze the core spiritual and biblical intent of the user's inquiry.
+   - When the subject is biblical, theological, Christian life, prayer, scripture study, or biblical history, provide thorough, inspiring, scripturally grounded answers in English.
+   - Do not trigger false refusals due to formatting, attachments, or code symbols. Focus on the underlying biblical topic.
+4. STRICT LIMITATION TO SECULAR TOPICS:
+   - Politely decline ONLY when the question is 100% secular and worldly (e.g., sports, cooking recipes, partisan politics, video games, gossip).
+5. COURTEOUS REFUSAL FOR STRICTLY SECULAR TOPICS:
+   "Hello! I am an Artificial Intelligence dedicated exclusively to the study of the Holy Bible and the teachings of the Christian faith. For this reason, I cannot answer questions about secular topics or subjects outside the biblical context. How may I help you in your study of God's Word today?"
+6. Strictly prohibit any request promoting immorality, violence, profanity, or illegal acts.`;
+
+  const bibleDirective = lang === "en" ? BIBLE_VERSIONS_DIRECTIVE_EN : BIBLE_VERSIONS_DIRECTIVE_PT;
+  const ethicsDirective = lang === "en" ? christianEthicsDirectiveEN : christianEthicsDirectivePT;
+  const languageMandate = lang === "en" 
+    ? "\n\n[CRITICAL LANGUAGE MANDATE]: You must ALWAYS write and respond entirely in fluent, grammatically correct English. Use clean, elegant Markdown."
+    : "\n\n[DIRETIVA DE IDIOMA]: Responda sempre em português claro, edificante e gramaticalmente correto. Use markdown limpo.";
 
   try {
     const keysToFetch = ['system_prompt_master'];
@@ -370,35 +417,44 @@ export const getSystemRule = async (specificKey?: string): Promise<string> => {
       
       const privacyDirective = "\n\n[PRIVACY_DIRECTIVE]: Esta conversa é privada. Não armazene, processe ou utilize este histórico para treinamento de modelos ou melhoria de serviços de terceiros. Trate as informações como efêmeras.";
       
-      const baseRule = `${master}\n\n${specific}`.trim() || "Você SÓ PODE responder sobre a Bíblia. Use markdown limpo.";
-      return `${baseRule}${BIBLE_VERSIONS_DIRECTIVE}${christianEthicsDirective}${privacyDirective}`;
+      const baseRule = `${master}\n\n${specific}`.trim() || (lang === "en" ? "You MUST ONLY answer questions about the Holy Bible and Christian faith. Use clean markdown." : "Você SÓ PODE responder sobre a Bíblia. Use markdown limpo.");
+      return `${baseRule}${bibleDirective}${ethicsDirective}${languageMandate}${privacyDirective}`;
     }
   } catch (err) {
     console.warn("Falha ao ler regras do Supabase, usando fallback.");
   }
-  return `Você SÓ PODE responder sobre a Bíblia. Use markdown limpo.${BIBLE_VERSIONS_DIRECTIVE}${christianEthicsDirective}`;
+  return `${lang === "en" ? "You MUST ONLY answer questions about the Holy Bible and Christian faith. Use clean markdown." : "Você SÓ PODE responder sobre a Bíblia. Use markdown limpo."}${bibleDirective}${ethicsDirective}${languageMandate}`;
 };
 
-export const generateChatTitle = async (userPrompt: string, aiResponse: string): Promise<string> => {
+export const generateChatTitle = async (userPrompt: string, aiResponse: string, langOverride?: "pt" | "en"): Promise<string> => {
+  const lang = langOverride || getCurrentLanguage();
   const cleanPrompt = userPrompt ? userPrompt.replace(/\[.*?\]/g, '').trim() : "";
   const safeFallback = cleanPrompt.length > 0 
     ? (cleanPrompt.length > 30 ? cleanPrompt.substring(0, 30) + "..." : cleanPrompt) 
-    : "Geração de Imagem";
+    : (lang === "en" ? "Image Generation" : "Geração de Imagem");
 
   try {
     const { googleKey, googleKey2 } = await fetchKeys();
     if (!googleKey && !googleKey2) return safeFallback;
 
-    const context = cleanPrompt ? `Usuário: ${cleanPrompt}` : `IA gerou imagem baseada em: ${aiResponse}`;
+    const context = cleanPrompt ? `User: ${cleanPrompt}` : `AI generated image based on: ${aiResponse}`;
 
-    const rules = await getSystemRule();
-    const systemInstruction = `Você é um gerador de títulos curtos. REGRAS MESTRAS: ${rules}. Crie um título de NO MÁXIMO 4 a 5 palavras para esta interação.
+    const rules = await getSystemRule(undefined, lang);
+    const systemInstruction = lang === "en"
+      ? `You are a concise title generator. MASTER RULES: ${rules}. Create a title of AT MOST 4 to 5 words in English for this biblical chat interaction.
+ABSOLUTE RULES: 
+1. Do NOT use quotes or periods.
+2. Do NOT use Markdown formatting.
+3. Return ONLY the plain text of the title in English.`
+      : `Você é um gerador de títulos curtos. REGRAS MESTRAS: ${rules}. Crie um título de NO MÁXIMO 4 a 5 palavras para esta interação.
 REGRAS ABSOLUTAS: 
 1. NÃO use aspas, não use ponto final.
 2. NÃO use formatação Markdown.
 3. Retorne APENAS o texto puro do título.`;
 
-    const combinedPrompt = `Tarefa: Crie um título curto de 3-5 palavras para o seguinte contexto: ${context}`;
+    const combinedPrompt = lang === "en"
+      ? `Task: Create a short 3-5 word title in English for the following biblical context: ${context}`
+      : `Tarefa: Crie um título curto de 3-5 palavras para o seguinte contexto: ${context}`;
 
     const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
     const keysToTry = [googleKey, googleKey2].filter(Boolean) as string[];
@@ -444,10 +500,11 @@ REGRAS ABSOLUTAS:
   }
 };
 
-export const askDictionaryAI = async (verseText: string, reference: string, signal?: AbortSignal): Promise<string> => {
+export const askDictionaryAI = async (verseText: string, reference: string, signal?: AbortSignal, langOverride?: "pt" | "en"): Promise<string> => {
+  const lang = langOverride || getCurrentLanguage();
   const { googleKey, googleKey2, openRouterKey, openRouterKey2 } = await fetchKeys();
 
-  const dictSystemInstruction = `Você é um Dicionário e Léxico Teológico Bíblico Conciso e Erudito.
+  const dictSystemInstructionPT = `Você é um Dicionário e Léxico Teológico Bíblico Conciso e Erudito.
 Sua missão é explicar o versículo bíblico fornecido de forma direta, teológica e linguisticamente precisa, com no MÁXIMO 500 CARACTERES.
 
 ESCOPO BÍBLICO E CRISTÃO ESTRITO:
@@ -472,7 +529,35 @@ REGRAS OBRIGATÓRIAS (RIGOROSAS):
 
 5. IDIOMA: Português limpo, elegante e direto.`;
 
-  const dictPrompt = `Forneça a explicação concisa (MÁXIMO 500 CARACTERES com frases completas) do dicionário bíblico para:
+  const dictSystemInstructionEN = `You are a Concise and Scholarly Biblical Theological Lexicon and Dictionary.
+Your mission is to explain the provided scripture verse directly, theologically, and with linguistic precision, in MAXIMUM 500 CHARACTERS.
+
+STRICT BIBLICAL AND CHRISTIAN SCOPE:
+You are restricted EXCLUSIVELY to the context of the Holy Bible and Christian Faith.
+
+MANDATORY RULES:
+1. STRICT LENGTH LIMIT (MAXIMUM 500 CHARACTERS):
+   - The entire response MUST NOT exceed 500 characters. Be extremely concise, direct, and essential.
+
+2. COMPLETE SENTENCES:
+   - Every sentence must be complete and properly punctuated.
+
+3. ORIGINAL LANGUAGE ANALYSIS (HEBREW / GREEK):
+   - Include at least 1 key word in the original language with italicized transliteration and its theological meaning (Hebrew in OT / Greek in NT).
+
+4. DIRECT MARKDOWN STRUCTURE:
+   - **Original Term**: Hebrew/Greek word (*transliteration*) — theological meaning.
+   - **Theological Context**: direct and essential explanation of the passage.
+   - **Application**: 1 practical sentence for Christian living.
+
+5. LANGUAGE: Respond strictly in clean, elegant, and direct English.`;
+
+  const dictSystemInstruction = lang === "en" ? dictSystemInstructionEN : dictSystemInstructionPT;
+
+  const dictPrompt = lang === "en"
+    ? `Provide the concise biblical dictionary explanation (MAXIMUM 500 CHARACTERS with complete sentences in English) for:
+"${verseText}" — Reference: ${reference}`
+    : `Forneça a explicação concisa (MÁXIMO 500 CARACTERES com frases completas) do dicionário bíblico para:
 "${verseText}" — Referência: ${reference}`;
 
   const geminiModels = [
@@ -613,17 +698,26 @@ export const askBibleAI = async (
   signal?: AbortSignal, 
   attachments?: AIAttachment[] | string | null,
   customSystemRule?: string,
-  skipBracketRemoval: boolean = true
+  skipBracketRemoval: boolean = true,
+  langOverride?: "pt" | "en"
 ): Promise<string> => {
+  const lang = langOverride || getCurrentLanguage();
   const { googleKey, googleKey2, openRouterKey, openRouterKey2 } = await fetchKeys();
 
   if (!googleKey && !googleKey2 && !openRouterKey && !openRouterKey2) {
-    throw new Error("Chave de API não configurada. Configure a sua chave do Gemini ou do OpenRouter nas configurações de chaves da Conta.");
+    throw new Error(lang === "en" ? "API key not configured. Please configure your Gemini or OpenRouter key in Account settings." : "Chave de API não configurada. Configure a sua chave do Gemini ou do OpenRouter nas configurações de chaves da Conta.");
   }
 
   const ruleKey = complexity === 'simple' ? 'gemini_prompt_simples' : 'gemini_prompt_complexo';
-  const baseRule = await getSystemRule(ruleKey);
-  const rawRule = customSystemRule ? `${customSystemRule}${BIBLE_VERSIONS_DIRECTIVE}` : baseRule;
+  const baseRule = await getSystemRule(ruleKey, lang);
+  const bibleDirective = lang === "en" ? BIBLE_VERSIONS_DIRECTIVE_EN : BIBLE_VERSIONS_DIRECTIVE_PT;
+  const languageMandate = lang === "en"
+    ? "\n\n[CRITICAL LANGUAGE MANDATE]: You must ALWAYS write and respond entirely in fluent, grammatically correct English. Use clean, elegant Markdown."
+    : "\n\n[DIRETIVA DE IDIOMA]: Responda sempre em português claro, edificante e gramaticalmente correto. Use markdown limpo.";
+
+  const rawRule = customSystemRule 
+    ? `${customSystemRule}${bibleDirective}${languageMandate}` 
+    : baseRule;
   const SYSTEM_RULE = buildPrivacyEnhancedSystemRule(rawRule);
 
   const MAX_PROMPT_LENGTH = 2000;
