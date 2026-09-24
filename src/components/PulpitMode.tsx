@@ -534,7 +534,7 @@ export const PulpitMode = ({
               <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform duration-200 ${showTranslationMenu ? "rotate-180 text-primary" : ""}`} />
             </button>
 
-            {/* Menu Dropdown de Versões (Liquid Glass) */}
+            {/* Menu Dropdown de Versões (Opaco e de Alto Contraste) */}
             <AnimatePresence>
               {showTranslationMenu && (
                 <>
@@ -546,12 +546,12 @@ export const PulpitMode = ({
                     initial={{ opacity: 0, y: 6, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 6, scale: 0.95 }}
-                    className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 w-64 rounded-2xl glass-card backdrop-blur-2xl border border-white/15 p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.65)] space-y-1"
+                    className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 w-64 rounded-2xl border border-white/15 bg-[#0d1629] p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.95)] space-y-1"
                   >
-                    <div className="px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-white/10">
+                    <div className="px-2.5 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-white/10">
                       {language === "en" ? "Bible Version" : "Versão da Bíblia"}
                     </div>
-                    <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+                    <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-0.5 pr-1">
                       {translations.map((t) => {
                         const isSelected = t.id === currentTranslation;
                         return (
@@ -564,13 +564,13 @@ export const PulpitMode = ({
                             }}
                             className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-left transition-all duration-150 cursor-pointer ${
                               isSelected
-                                ? "liquid-glass-pill-active font-semibold shadow-xs"
-                                : "liquid-glass-pill text-foreground/85 hover:text-foreground"
+                                ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                                : "text-foreground/80 hover:bg-white/10 hover:text-foreground"
                             }`}
                           >
                             <div className="flex flex-col">
                               <span className="uppercase font-bold text-[11px]">{t.id}</span>
-                              <span className="text-[10px] opacity-80 truncate max-w-[180px]">{t.name}</span>
+                              <span className="text-[10px] opacity-75 truncate max-w-[180px]">{t.name}</span>
                             </div>
                             {isSelected && <Check className="h-3.5 w-3.5 flex-shrink-0" />}
                           </button>
@@ -762,7 +762,7 @@ export const PulpitMode = ({
                 <MoreHorizontal className="h-3.5 w-3.5" />
               </button>
 
-              {/* Menu Flutuante Popover das Outras Opções (Liquid Glass) */}
+              {/* Menu Flutuante Popover das Outras Opções (Opaco e de Alto Contraste) */}
               <AnimatePresence>
                 {showMoreMenu && (
                   <>
@@ -774,7 +774,7 @@ export const PulpitMode = ({
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute right-0 bottom-full mb-3 z-50 w-72 sm:w-80 rounded-2xl glass-card backdrop-blur-2xl border border-white/15 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.65)] space-y-4 text-foreground"
+                      className="absolute right-0 bottom-full mb-3 z-50 w-72 sm:w-80 rounded-2xl border border-white/15 bg-[#0d1629] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.95)] space-y-4 text-foreground"
                     >
                       <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
                         <span className="text-xs font-bold text-foreground uppercase tracking-wider">
@@ -797,14 +797,14 @@ export const PulpitMode = ({
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => setFontSize((prev) => Math.max(prev - 2, 18))}
-                            className="flex-1 py-1.5 px-2 rounded-full liquid-glass-pill hover:border-primary/40 text-muted-foreground hover:text-foreground text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-all duration-150 hover:scale-105 shadow-xs"
+                            className="flex-1 py-1.5 px-2 rounded-full bg-slate-800/90 hover:bg-slate-700 border border-white/10 hover:border-primary/40 text-muted-foreground hover:text-foreground text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-all duration-150 hover:scale-105 shadow-xs"
                           >
                             <ZoomOut className="h-3.5 w-3.5" />
                             <span>{language === "en" ? "Smaller (A-)" : "Menor (A-)"}</span>
                           </button>
                           <button
                             onClick={() => setFontSize((prev) => Math.min(prev + 2, 52))}
-                            className="flex-1 py-1.5 px-2 rounded-full liquid-glass-pill hover:border-primary/40 text-muted-foreground hover:text-foreground text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-all duration-150 hover:scale-105 shadow-xs"
+                            className="flex-1 py-1.5 px-2 rounded-full bg-slate-800/90 hover:bg-slate-700 border border-white/10 hover:border-primary/40 text-muted-foreground hover:text-foreground text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-all duration-150 hover:scale-105 shadow-xs"
                           >
                             <ZoomIn className="h-3.5 w-3.5" />
                             <span>{language === "en" ? "Larger (A+)" : "Maior (A+)"}</span>
@@ -822,8 +822,8 @@ export const PulpitMode = ({
                             onClick={() => setIsSerif(true)}
                             className={`py-1.5 px-2 rounded-full text-xs font-serif font-semibold border transition-all duration-150 hover:scale-105 cursor-pointer ${
                               isSerif
-                                ? "liquid-glass-pill-active font-bold shadow-xs"
-                                : "liquid-glass-pill text-muted-foreground hover:text-foreground"
+                                ? "bg-primary text-primary-foreground font-bold border-primary shadow-xs"
+                                : "bg-slate-800/90 hover:bg-slate-700 border-white/10 hover:border-primary/40 text-muted-foreground hover:text-foreground"
                             }`}
                           >
                             {language === "en" ? "Serif" : "Com Serifa"}
@@ -832,8 +832,8 @@ export const PulpitMode = ({
                             onClick={() => setIsSerif(false)}
                             className={`py-1.5 px-2 rounded-full text-xs font-sans font-semibold border transition-all duration-150 hover:scale-105 cursor-pointer ${
                               !isSerif
-                                ? "liquid-glass-pill-active font-bold shadow-xs"
-                                : "liquid-glass-pill text-muted-foreground hover:text-foreground"
+                                ? "bg-primary text-primary-foreground font-bold border-primary shadow-xs"
+                                : "bg-slate-800/90 hover:bg-slate-700 border-white/10 hover:border-primary/40 text-muted-foreground hover:text-foreground"
                             }`}
                           >
                             {language === "en" ? "Sans-Serif" : "Sem Serifa"}
@@ -856,10 +856,10 @@ export const PulpitMode = ({
                               <button
                                 key={tMode}
                                 onClick={() => setTheme(tMode)}
-                                className={`flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl text-xs text-center transition-all duration-150 hover:scale-105 cursor-pointer ${
+                                className={`flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl border text-xs text-center transition-all duration-150 hover:scale-105 cursor-pointer ${
                                   isSelected
-                                    ? "liquid-glass-card-active text-foreground font-semibold shadow-xs ring-1 ring-primary/50"
-                                    : "liquid-glass-card text-muted-foreground hover:text-foreground hover:border-primary/40"
+                                    ? "bg-primary/20 border-primary text-foreground font-semibold shadow-xs ring-1 ring-primary/50"
+                                    : "bg-slate-800/80 border-white/10 text-muted-foreground hover:bg-slate-700 hover:text-foreground hover:border-primary/30"
                                 }`}
                               >
                                 <span
@@ -894,8 +894,8 @@ export const PulpitMode = ({
                               }}
                               className={`py-1 rounded-full text-xs font-medium border transition-all duration-150 hover:scale-105 cursor-pointer ${
                                 autoPlayInterval === sec
-                                  ? "liquid-glass-pill-active font-bold shadow-xs"
-                                  : "liquid-glass-pill text-muted-foreground hover:text-foreground"
+                                  ? "bg-primary text-primary-foreground font-bold border-primary shadow-xs"
+                                  : "bg-slate-800/90 hover:bg-slate-700 border-white/10 hover:border-primary/40 text-muted-foreground hover:text-foreground"
                               }`}
                             >
                               {sec}s
@@ -911,14 +911,14 @@ export const PulpitMode = ({
                           <button
                             onClick={handleJumpBackward}
                             disabled={currentVerseIndex === 0}
-                            className="py-1.5 px-2 rounded-full liquid-glass-pill hover:border-primary/40 text-muted-foreground hover:text-foreground text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-30 cursor-pointer transition-all duration-150 hover:scale-105 shadow-xs"
+                            className="py-1.5 px-2 rounded-full bg-slate-800/90 hover:bg-slate-700 border border-white/10 hover:border-primary/40 text-muted-foreground hover:text-foreground text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-30 cursor-pointer transition-all duration-150 hover:scale-105 shadow-xs"
                           >
                             <ChevronFirst className="h-3.5 w-3.5" />
                             <span>{language === "en" ? "-5 Verses" : "-5 Versículos"}</span>
                           </button>
                           <button
                             onClick={handleJumpForward}
-                            className="py-1.5 px-2 rounded-full liquid-glass-pill hover:border-primary/40 text-muted-foreground hover:text-foreground text-xs font-medium flex items-center justify-center gap-1 cursor-pointer transition-all duration-150 hover:scale-105 shadow-xs"
+                            className="py-1.5 px-2 rounded-full bg-slate-800/90 hover:bg-slate-700 border border-white/10 hover:border-primary/40 text-muted-foreground hover:text-foreground text-xs font-medium flex items-center justify-center gap-1 cursor-pointer transition-all duration-150 hover:scale-105 shadow-xs"
                           >
                             <span>{language === "en" ? "+5 Verses" : "+5 Versículos"}</span>
                             <ChevronLast className="h-3.5 w-3.5" />
@@ -962,7 +962,7 @@ export const PulpitMode = ({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md rounded-2xl border border-white/15 glass-card backdrop-blur-2xl text-foreground p-6 shadow-[0_24px_60px_rgba(0,0,0,0.65)] space-y-4"
+              className="w-full max-w-md rounded-2xl border border-white/15 bg-[#0d1629] text-foreground p-6 shadow-[0_24px_60px_rgba(0,0,0,0.95)] space-y-4"
             >
               <div className="flex items-center justify-between border-b border-white/10 pb-3">
                 <div className="flex items-center gap-2">
@@ -1065,7 +1065,7 @@ export const PulpitMode = ({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg max-h-[88vh] flex flex-col rounded-2xl border border-white/15 glass-card backdrop-blur-2xl text-foreground shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-hidden"
+              className="w-full max-w-lg max-h-[88vh] flex flex-col rounded-2xl border border-white/15 bg-[#0d1629] text-foreground shadow-[0_24px_60px_rgba(0,0,0,0.95)] overflow-hidden"
             >
               {/* Header Fixo */}
               <div className="flex items-center justify-between border-b border-border/50 px-6 py-4 flex-shrink-0">

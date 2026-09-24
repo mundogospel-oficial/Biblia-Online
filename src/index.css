@@ -181,35 +181,11 @@ body::-webkit-scrollbar,
 }
 
 .safe-area-bottom {
-  padding-bottom: max(6px, env(safe-area-inset-bottom, 0px));
+  padding-bottom: max(3px, calc(env(safe-area-inset-bottom, 0px) * 0.35));
 }
 
 .safe-area-top {
   padding-top: env(safe-area-inset-top, 0);
-}
-
-/* Regras Estritas de Navegação Móvel e PWA:
- * Celulares e tablets (iOS, Android, PWA e telas touch) SEMPRE mantêm a barra de navegação no rodapé (bottom bar estilo iOS).
- * A barra de navegação de topo com links só é visível em PCs reais com mouse e tela grande.
- */
-@media (max-width: 1023px), (pointer: coarse), (hover: none) {
-  .desktop-header-nav {
-    display: none !important;
-  }
-  .mobile-top-header {
-    display: block !important;
-  }
-}
-
-html.device-android .desktop-header-nav,
-html.device-ios .desktop-header-nav,
-html[data-os="android"] .desktop-header-nav,
-html[data-os="ios"] .desktop-header-nav,
-html[data-pwa="true"] .desktop-header-nav,
-@media (display-mode: standalone) {
-  .desktop-header-nav {
-    display: none !important;
-  }
 }
 
 @layer utilities {

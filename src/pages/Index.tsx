@@ -5,7 +5,7 @@ import { getDailyVerseReference, type DailyVerseEntry } from "@/lib/dailyVerse";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
 import TermsModal from "@/components/TermsModal";
-import { ChevronRight, ChevronLeft, Sun, Instagram, Loader2, BookOpen, Sparkles, Image as ImageIcon } from "lucide-react";
+import { ChevronRight, ChevronLeft, Sun, Youtube, Loader2, BookOpen, Sparkles, Image as ImageIcon } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const Index = () => {
@@ -91,12 +91,12 @@ const Index = () => {
               {t("created_by")}
             </p>
             <a
-              href="https://www.instagram.com/mundo_gospel_original?stkn=MWZvdGpoMjRwazhqaQ%3D%3D&utm_source=qr"
+              href="https://youtube.com/@mundo_gospel_original?si=8atFNZStz1XBwXGb"
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-accent px-[37px] py-2.5 text-sm font-semibold text-accent-foreground transition-transform hover:scale-105 active:scale-95 liquid-btn shadow-sm"
+              className="mt-5 inline-flex items-center gap-2 rounded-full bg-accent px-6 py-2.5 text-sm font-semibold text-accent-foreground transition-transform hover:scale-105 active:scale-95 liquid-btn"
             >
-              <Instagram className="h-4 w-4" />
+              <Youtube className="h-4 w-4" />
               {t("subscribe")}
             </a>
           </motion.div>
