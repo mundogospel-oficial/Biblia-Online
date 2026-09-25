@@ -760,7 +760,7 @@ const Reader = () => {
                     initial={{ opacity: 0, y: 5, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                    className="absolute left-0 top-full z-50 mt-1.5 w-44 rounded-xl liquid-glass-menu p-1.5 shadow-2xl"
+                    className="absolute left-0 top-full z-50 mt-1.5 w-44 rounded-xl border border-border bg-card p-1.5 shadow-xl backdrop-blur-lg"
                   >
                     <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/40 mb-1">
                       {t("font_size_btn")}
@@ -1307,7 +1307,7 @@ const Reader = () => {
             exit={{ opacity: 0, y: 50 }}
             className="fixed bottom-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none"
           >
-            <div className="pointer-events-auto flex items-center gap-2 sm:gap-3 rounded-full liquid-glass-menu border border-accent/40 px-4 py-2.5 shadow-2xl shadow-accent/20 max-w-lg w-full justify-between">
+            <div className="pointer-events-auto flex items-center gap-2 sm:gap-3 rounded-full bg-card/95 backdrop-blur-xl border border-accent/40 px-4 py-2.5 shadow-2xl shadow-accent/20 max-w-lg w-full justify-between">
               {/* Left: Info */}
               <div className="flex items-center gap-2 min-w-0">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent">

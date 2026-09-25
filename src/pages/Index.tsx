@@ -5,7 +5,7 @@ import { getDailyVerseReference, type DailyVerseEntry } from "@/lib/dailyVerse";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
 import TermsModal from "@/components/TermsModal";
-import { ChevronRight, ChevronLeft, Sun, Instagram, Loader2, BookOpen, Sparkles, Image as ImageIcon } from "lucide-react";
+import { ChevronRight, ChevronLeft, Sun, Youtube, Loader2, BookOpen, Sparkles, Image as ImageIcon } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const Index = () => {
@@ -61,7 +61,7 @@ const Index = () => {
       <Header />
       
       {/* Hero */}
-      <section className="relative overflow-hidden border-b border-border/40 bg-background min-h-[calc(100svh-52px-52px)] md:min-h-0 px-4 py-8 sm:py-24 flex items-center justify-center">
+      <section className="relative overflow-hidden border-b border-border bg-card px-4 py-12 sm:py-24 flex items-center justify-center">
         <div className="absolute inset-0 opacity-10 pointer-events-none">
           <div className="absolute right-0 top-0 h-96 w-96 rounded-full bg-primary blur-[120px]" />
           <div className="absolute bottom-0 left-0 h-64 w-64 rounded-full bg-accent blur-[100px]" />
@@ -71,7 +71,7 @@ const Index = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="glass-card rounded-[2rem] px-6 py-10 sm:px-16 sm:py-24 mx-auto w-full max-w-[720px] text-center shadow-xl border-white/10 my-auto"
+            className="glass-card rounded-[2rem] px-6 py-16 sm:px-16 sm:py-24 mx-auto w-full max-w-[720px] text-center shadow-xl border-white/10"
           >
             <img 
               src="/icons/logo2.png" 
@@ -91,12 +91,12 @@ const Index = () => {
               {t("created_by")}
             </p>
             <a
-              href="https://www.instagram.com/mundo_gospel_original?stkn=MWZvdGpoMjRwazhqaQ%3D%3D&utm_source=qr"
+              href="https://youtube.com/@mundo_gospel_original?si=8atFNZStz1XBwXGb"
               target="_blank"
               rel="noopener noreferrer"
               className="mt-5 inline-flex items-center gap-2 rounded-full bg-accent px-6 py-2.5 text-sm font-semibold text-accent-foreground transition-transform hover:scale-105 active:scale-95 liquid-btn"
             >
-              <Instagram className="h-4 w-4" />
+              <Youtube className="h-4 w-4" />
               {t("subscribe")}
             </a>
           </motion.div>

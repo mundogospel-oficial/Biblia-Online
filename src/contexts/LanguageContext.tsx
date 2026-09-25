@@ -108,7 +108,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Home / Index
     "hero_subtitle": "Leia a Palavra, estude com a IA Bíblica e transforme versículos em arte. Tudo em um só lugar.",
     "created_by": "Criado por Mundo Gospel",
-    "subscribe": "Seguir",
+    "subscribe": "Inscreva-se",
     "verse_of_the_day": "Versículo do Dia",
     "thousands_verses": "+ de 1.000 Versículos Sagrados",
     "thousands_verses_sub": "Mais de 31.000 versículos e 66 Livros Sagrados",
@@ -535,7 +535,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Home / Index
     "hero_subtitle": "Read the Word, study with Biblical AI, and transform verses into art. All in one place.",
     "created_by": "Created by Mundo Gospel",
-    "subscribe": "Follow",
+    "subscribe": "Subscribe",
     "verse_of_the_day": "Verse of the Day",
     "thousands_verses": "+1,000 Sacred Verses",
     "thousands_verses_sub": "Over 31,000 verses and 66 Holy Books",
