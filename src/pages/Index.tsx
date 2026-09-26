@@ -5,7 +5,8 @@ import { getDailyVerseReference, type DailyVerseEntry } from "@/lib/dailyVerse";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
 import TermsModal from "@/components/TermsModal";
-import { ChevronRight, ChevronLeft, Sun, Youtube, Loader2, BookOpen, Sparkles, Image as ImageIcon } from "lucide-react";
+import SecurityCaptchaModal from "@/components/SecurityCaptchaModal";
+import { ChevronRight, ChevronLeft, Sun, Instagram, Loader2, BookOpen, Sparkles, Image as ImageIcon } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const Index = () => {
@@ -13,6 +14,7 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState<'old' | 'new'>('old');
   const [dailyVerse, setDailyVerse] = useState<DailyVerseEntry | null>(() => getDailyVerseReference());
   const [isTermsOpen, setIsTermsOpen] = useState(false);
+  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
 
   // Alterna o painel de destaques automaticamente a cada 6 segundos
@@ -90,15 +92,14 @@ const Index = () => {
             <p className="mx-auto mt-2 text-xs font-semibold text-accent">
               {t("created_by")}
             </p>
-            <a
-              href="https://youtube.com/@mundo_gospel_original?si=8atFNZStz1XBwXGb"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-5 inline-flex items-center gap-2 rounded-full bg-accent px-6 py-2.5 text-sm font-semibold text-accent-foreground transition-transform hover:scale-105 active:scale-95 liquid-btn"
+            <button
+              type="button"
+              onClick={() => setIsSecurityModalOpen(true)}
+              className="mt-5 inline-flex items-center gap-2 rounded-full bg-accent px-6 py-2.5 text-sm font-semibold text-accent-foreground transition-transform hover:scale-105 active:scale-95 liquid-btn cursor-pointer"
             >
-              <Youtube className="h-4 w-4" />
+              <Instagram className="h-4 w-4" />
               {t("subscribe")}
-            </a>
+            </button>
           </motion.div>
         </div>
       </section>
@@ -345,6 +346,7 @@ const Index = () => {
       </footer>
 
       <TermsModal isOpen={isTermsOpen} onClose={() => setIsTermsOpen(false)} />
+      <SecurityCaptchaModal isOpen={isSecurityModalOpen} onClose={() => setIsSecurityModalOpen(false)} />
     </div>
   );
 };
