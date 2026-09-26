@@ -22,6 +22,7 @@ import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import { useSentinel } from "./hooks/useSentinel";
 import { checkInactivity, updateLastVisit, checkScheduledNotifications, registerPeriodicBackgroundSync } from "@/services/notificationService";
+import { autoDownloadOfflineBible } from "@/lib/bibleData";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +61,8 @@ const App = () => {
 
   useEffect(() => {
     document.title = "Biblia Online";
+    // Dispara o download e armazenamento offline automático de todo o app e Bíblia em segundo plano
+    autoDownloadOfflineBible();
   }, []);
 
   useEffect(() => {

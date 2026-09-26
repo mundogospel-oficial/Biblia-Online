@@ -221,111 +221,143 @@ export async function deleteOfflineBibleData(): Promise<void> {
 
 export async function downloadOfflineBibleData(onProgress?: (percent: number) => void): Promise<void> {
   if (typeof window === 'undefined' || !('caches' in window)) {
-    throw new Error('Caches API não suportada neste ambiente');
+    return;
   }
 
-  const cache = await caches.open('biblia-offline-data');
-  
-  const activeScripts = Array.from(document.querySelectorAll('script')).map(s => s.getAttribute('src')).filter(Boolean) as string[];
-  const activeStyles = Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map(l => l.getAttribute('href')).filter(Boolean) as string[];
-  const activeImages = Array.from(document.querySelectorAll('img')).map(i => i.getAttribute('src')).filter(Boolean) as string[];
+  try {
+    const cache = await caches.open('biblia-offline-data');
+    
+    const activeScripts = Array.from(document.querySelectorAll('script')).map(s => s.getAttribute('src')).filter(Boolean) as string[];
+    const activeStyles = Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map(l => l.getAttribute('href')).filter(Boolean) as string[];
+    const activeImages = Array.from(document.querySelectorAll('img')).map(i => i.getAttribute('src')).filter(Boolean) as string[];
 
-  const filesToCache = Array.from(new Set([
-    '/',
-    '/index.html',
-    '/manifest.json',
-    '/manifest.v2.json',
-    '/manifest.webmanifest',
-    '/browserconfig.xml',
-    '/safari-pinned-tab.svg',
-    '/favicon.ico',
-    '/favicon-16x16.png',
-    '/favicon-32x32.png',
-    '/favicon-48x48.png',
-    '/apple-touch-icon.png',
-    '/apple-touch-icon-180x180.png',
-    '/apple-touch-icon-167x167.png',
-    '/apple-touch-icon-152x152.png',
-    '/apple-touch-icon-120x120.png',
-    '/apple-touch-icon-precomposed.png',
-    '/mstile-70x70.png',
-    '/mstile-144x144.png',
-    '/mstile-150x150.png',
-    '/mstile-310x150.png',
-    '/mstile-310x310.png',
-    '/icon-144.png',
-    '/icon-192.png',
-    '/icon-256.png',
-    '/icon-384.png',
-    '/icon-512.png',
-    '/icons/apple-touch-icon.png',
-    '/icons/icon-192.png',
-    '/icons/icon-512.png',
-    '/icons/icon-any-192.png',
-    '/icons/icon-any-512.png',
-    '/icons/icon-maskable-192.png',
-    '/icons/icon-maskable-512.png',
-    '/icons/logo2.png',
-    '/placeholder.svg',
-    '/criar',
-    '/ia',
-    '/ai',
-    '/buscar',
-    '/pesquisa',
-    '/favoritos',
-    '/reacoes',
-    '/reacao',
-    '/devocionais',
-    '/devocional',
-    '/conta',
-    '/data/biblia-livre.json',
-    'https://raw.githubusercontent.com/eversondeveloper/bibialivrejson/main/biblialivrecorrecao1.json',
-    ...activeScripts,
-    ...activeStyles,
-    ...activeImages
-  ]));
+    const filesToCache = Array.from(new Set([
+      '/',
+      '/index.html',
+      '/manifest.json',
+      '/manifest.v2.json',
+      '/manifest.webmanifest',
+      '/browserconfig.xml',
+      '/safari-pinned-tab.svg',
+      '/favicon.ico',
+      '/favicon-16x16.png',
+      '/favicon-32x32.png',
+      '/favicon-48x48.png',
+      '/apple-touch-icon.png',
+      '/apple-touch-icon-180x180.png',
+      '/apple-touch-icon-167x167.png',
+      '/apple-touch-icon-152x152.png',
+      '/apple-touch-icon-120x120.png',
+      '/apple-touch-icon-precomposed.png',
+      '/mstile-70x70.png',
+      '/mstile-144x144.png',
+      '/mstile-150x150.png',
+      '/mstile-310x150.png',
+      '/mstile-310x310.png',
+      '/icon-144.png',
+      '/icon-192.png',
+      '/icon-256.png',
+      '/icon-384.png',
+      '/icon-512.png',
+      '/icons/apple-touch-icon.png',
+      '/icons/icon-192.png',
+      '/icons/icon-512.png',
+      '/icons/icon-any-192.png',
+      '/icons/icon-any-512.png',
+      '/icons/icon-maskable-192.png',
+      '/icons/icon-maskable-512.png',
+      '/icons/logo2.png',
+      '/placeholder.svg',
+      '/criar',
+      '/ia',
+      '/ai',
+      '/buscar',
+      '/pesquisa',
+      '/favoritos',
+      '/reacoes',
+      '/reacao',
+      '/devocionais',
+      '/devocional',
+      '/conta',
+      '/data/biblia-livre.json',
+      'https://raw.githubusercontent.com/eversondeveloper/bibialivrejson/main/biblialivrecorrecao1.json',
+      ...activeScripts,
+      ...activeStyles,
+      ...activeImages
+    ]));
 
-  const CONCURRENCY = 12;
-  let completed = 0;
-  const total = filesToCache.length;
+    const CONCURRENCY = 12;
+    let completed = 0;
+    const total = filesToCache.length;
 
-  for (let i = 0; i < total; i += CONCURRENCY) {
-    const batch = filesToCache.slice(i, i + CONCURRENCY);
-    await Promise.all(
-      batch.map(async (url) => {
-        try {
-          const response = await fetch(url, { mode: 'cors' });
-          if (response.ok) {
-            await cache.put(url, response.clone());
-          }
-        } catch {
+    for (let i = 0; i < total; i += CONCURRENCY) {
+      const batch = filesToCache.slice(i, i + CONCURRENCY);
+      await Promise.all(
+        batch.map(async (url) => {
           try {
-            const response = await fetch(url);
+            const response = await fetch(url, { mode: 'cors' });
             if (response.ok) {
               await cache.put(url, response.clone());
             }
-          } catch {}
-        }
-        completed++;
-      })
-    );
-    if (onProgress) {
-      onProgress(Math.min(99, Math.round((completed / total) * 100)));
+          } catch {
+            try {
+              const response = await fetch(url);
+              if (response.ok) {
+                await cache.put(url, response.clone());
+              }
+            } catch {}
+          }
+          completed++;
+        })
+      );
+      if (onProgress) {
+        onProgress(Math.min(99, Math.round((completed / total) * 100)));
+      }
     }
+
+    // Pre-load data in memory and set flags
+    localStorage.setItem(OFFLINE_KEY, 'true');
+    localStorage.setItem(OFFLINE_DOWNLOADED_KEY, 'true');
+    
+    try {
+      await loadBibliaLivre();
+    } catch (e) {
+      console.warn("Pré-carregamento da Bíblia Livre:", e);
+    }
+
+    if (onProgress) {
+      onProgress(100);
+    }
+  } catch (err) {
+    console.warn("Erro durante o download dos dados offline:", err);
+  }
+}
+
+// Inicializador de download automático em segundo plano
+let autoDownloadStarted = false;
+export function autoDownloadOfflineBible(): void {
+  if (typeof window === 'undefined' || autoDownloadStarted) return;
+  autoDownloadStarted = true;
+
+  const trigger = async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+    try {
+      await downloadOfflineBibleData();
+      console.log('[Offline] Bíblia e recursos essenciais sincronizados para uso offline.');
+    } catch (err) {
+      console.warn('[Offline] Sincronização automática em segundo plano:', err);
+    }
+  };
+
+  if ('requestIdleCallback' in window) {
+    (window as any).requestIdleCallback(() => trigger(), { timeout: 3000 });
+  } else {
+    setTimeout(trigger, 1500);
   }
 
-  // Pre-load data in memory
-  localStorage.setItem(OFFLINE_KEY, 'true');
-  localStorage.setItem(OFFLINE_DOWNLOADED_KEY, 'true');
-  try {
-    await loadBibliaLivre();
-  } catch (e) {
-    console.warn("Pré-carregamento da Bíblia Livre:", e);
-  }
-
-  if (onProgress) {
-    onProgress(100);
-  }
+  window.addEventListener('online', () => {
+    trigger();
+  });
 }
 
 export async function loadBibliaLivre(): Promise<any[]> {
@@ -348,14 +380,20 @@ export async function loadBibliaLivre(): Promise<any[]> {
       console.warn("Aviso ao carregar /data/biblia-livre.json:", err);
     }
 
-    // 2. Se falhar, tenta os caches do navegador
+    // 2. Se falhar, tenta todos os caches do navegador (CacheStorage geral)
     if (!rawText && typeof window !== 'undefined' && 'caches' in window) {
       try {
-        const cache = await caches.open('biblia-offline-data');
-        const cached = (await cache.match(LOCAL_URL, { ignoreSearch: true })) ||
-                       (await cache.match(GITHUB_URL, { ignoreSearch: true }));
-        if (cached) {
-          rawText = await cached.text();
+        const cachedAny = (await caches.match(LOCAL_URL, { ignoreSearch: true })) ||
+                          (await caches.match(GITHUB_URL, { ignoreSearch: true }));
+        if (cachedAny) {
+          rawText = await cachedAny.text();
+        } else {
+          const cache = await caches.open('biblia-offline-data');
+          const cached = (await cache.match(LOCAL_URL, { ignoreSearch: true })) ||
+                         (await cache.match(GITHUB_URL, { ignoreSearch: true }));
+          if (cached) {
+            rawText = await cached.text();
+          }
         }
       } catch (cacheErr) {
         console.warn("Aviso ao acessar cache offline do navegador:", cacheErr);
