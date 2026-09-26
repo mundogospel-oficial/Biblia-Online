@@ -1302,91 +1302,73 @@ const Reader = () => {
       <AnimatePresence>
         {isPlayingAudio && (
           <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 50 }}
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.95 }}
             className="fixed bottom-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none"
           >
-            <div className="pointer-events-auto flex items-center gap-2 sm:gap-3 rounded-full bg-card/95 backdrop-blur-xl border border-accent/40 px-4 py-2.5 shadow-2xl shadow-accent/20 max-w-lg w-full justify-between">
-              {/* Left: Info */}
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent">
-                  {isAudioPaused ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4 animate-pulse" />}
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-foreground truncate">
-                      {book?.name} {chapterNum}:{audioVerseNum || 1}
-                    </span>
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-accent/20 text-accent">
-                      {isAudioPaused ? "Pausado" : "Ouvindo"}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground truncate">
-                    {translation.toUpperCase()} • {audioRate}x
-                  </p>
-                </div>
+            <div className="pointer-events-auto inline-flex items-center gap-1.5 sm:gap-2.5 rounded-full bg-card/95 backdrop-blur-xl border border-accent/40 px-3 sm:px-4 py-2 shadow-2xl shadow-accent/20 max-w-fit mx-auto">
+              {/* Speaker Indicator */}
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent">
+                {isAudioPaused ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4 animate-pulse" />}
               </div>
 
-              {/* Center/Right: Playback controls */}
-              <div className="flex items-center gap-1 sm:gap-2">
-                {/* Prev */}
-                <button
-                  onClick={() => handleSkipAudio("prev")}
-                  className="rounded-full p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                  title="Versículo anterior"
-                >
-                  <SkipBack className="h-4 w-4" />
-                </button>
+              {/* Prev */}
+              <button
+                onClick={() => handleSkipAudio("prev")}
+                className="rounded-full p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                title="Versículo anterior"
+              >
+                <SkipBack className="h-4 w-4" />
+              </button>
 
-                {/* Play/Pause */}
-                <button
-                  onClick={() => startAudioReading(audioVerseNum || 1)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-md transition-transform hover:scale-105 active:scale-95"
-                  title={isAudioPaused ? "Continuar" : "Pausar"}
-                >
-                  {isAudioPaused ? <Play className="h-4 w-4 fill-current ml-0.5" /> : <Pause className="h-4 w-4 fill-current" />}
-                </button>
+              {/* Play/Pause */}
+              <button
+                onClick={() => startAudioReading(audioVerseNum || 1)}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-md transition-transform hover:scale-105 active:scale-95"
+                title={isAudioPaused ? "Continuar" : "Pausar"}
+              >
+                {isAudioPaused ? <Play className="h-4 w-4 fill-current ml-0.5" /> : <Pause className="h-4 w-4 fill-current" />}
+              </button>
 
-                {/* Stop */}
-                <button
-                  onClick={stopAudioReading}
-                  className="rounded-full p-1.5 text-muted-foreground hover:bg-secondary hover:text-destructive transition-colors"
-                  title="Parar áudio"
-                >
-                  <Square className="h-4 w-4" />
-                </button>
+              {/* Stop */}
+              <button
+                onClick={stopAudioReading}
+                className="rounded-full p-2 text-muted-foreground hover:bg-secondary hover:text-destructive transition-colors"
+                title="Parar áudio"
+              >
+                <Square className="h-4 w-4" />
+              </button>
 
-                {/* Next */}
-                <button
-                  onClick={() => handleSkipAudio("next")}
-                  className="rounded-full p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                  title="Próximo versículo"
-                >
-                  <SkipForward className="h-4 w-4" />
-                </button>
+              {/* Next */}
+              <button
+                onClick={() => handleSkipAudio("next")}
+                className="rounded-full p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                title="Próximo versículo"
+              >
+                <SkipForward className="h-4 w-4" />
+              </button>
 
-                {/* Speed toggle */}
-                <button
-                  onClick={() => {
-                    const nextRate = audioRate === 0.8 ? 1.0 : audioRate === 1.0 ? 1.25 : audioRate === 1.25 ? 1.5 : 0.8;
-                    handleChangeAudioRate(nextRate);
-                  }}
-                  className="hidden sm:inline-flex items-center justify-center rounded-full bg-secondary/80 px-2 py-1 text-[11px] font-mono font-bold text-secondary-foreground hover:bg-secondary transition-colors"
-                  title="Ajustar velocidade da narração"
-                >
-                  {audioRate}x
-                </button>
+              {/* Speed toggle */}
+              <button
+                onClick={() => {
+                  const nextRate = audioRate === 0.8 ? 1.0 : audioRate === 1.0 ? 1.25 : audioRate === 1.25 ? 1.5 : 0.8;
+                  handleChangeAudioRate(nextRate);
+                }}
+                className="inline-flex items-center justify-center rounded-full bg-secondary/80 px-2 py-1 text-[11px] font-mono font-bold text-secondary-foreground hover:bg-secondary transition-colors"
+                title="Ajustar velocidade da narração"
+              >
+                {audioRate}x
+              </button>
 
-                {/* Close */}
-                <button
-                  onClick={stopAudioReading}
-                  className="rounded-full p-1 text-muted-foreground hover:text-foreground transition-colors ml-1"
-                  title="Fechar player"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
+              {/* Close */}
+              <button
+                onClick={stopAudioReading}
+                className="rounded-full p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                title="Fechar player"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
           </motion.div>
         )}
