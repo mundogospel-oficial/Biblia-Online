@@ -50,10 +50,10 @@ const formatMessageForDisplay = (text: string): string => {
   if (text.startsWith("enc:v1:") || text.includes("enc:v1:")) {
     return "";
   }
-  // Limpa as tags completas, tags cortadas no final e fragmentos de pergunta cortados
+  // Limpa apenas tags de controle interno do sistema ([Modo:...], [Arquivo:...], [Estilo:...], etc.)
+  // PRESERVA intactas as marcações de privacidade como [CPF OCULTO], [NOME OCULTO], [E-MAIL OCULTO], etc.
   return text
-    .replace(/\[.*?\]/g, '')
-    .replace(/\[[^\]]*$/, '')
+    .replace(/\[(?:Modo|Arquivo|Estilo|Estilo Artístico|Arte):.*?\]/gi, '')
     .replace(/\n*\s*\*\*Pergunta(?:\.\.\.|:?.*?)?$/i, '')
     .trim();
 };
@@ -3502,12 +3502,12 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    <span className="text-sm leading-relaxed">{formatMessageForDisplay(m.content)}</span>
+                    <span className="text-sm leading-relaxed">{maskPiiInText(formatMessageForDisplay(m.content))}</span>
                     {activeMode !== "image" && m.content && (
                       <div className="mt-2 pt-1.5 border-t border-primary-foreground/20 flex items-center justify-end gap-1.5 flex-wrap text-primary-foreground/80">
                         <button
                           type="button"
-                          onClick={() => handleCopyUserQuestion(m.content, i)}
+                          onClick={() => handleCopyUserQuestion(maskPiiInText(m.content), i)}
                           title="Copiar pergunta"
                           aria-label="Copiar pergunta"
                           className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] hover:bg-black/20 hover:text-primary-foreground transition-all duration-150"
@@ -3527,7 +3527,7 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
 
                         <button
                           type="button"
-                          onClick={() => handleEditUserQuestion(m.content)}
+                          onClick={() => handleEditUserQuestion(maskPiiInText(m.content))}
                           title="Editar pergunta e reenviar"
                           aria-label="Editar pergunta e reenviar"
                           className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] hover:bg-black/20 hover:text-primary-foreground transition-all duration-150"

@@ -31,8 +31,8 @@ export function maskPiiInText(text: string): string {
   if (!text) return text;
   let result = text;
 
-  // 1. Nomes Pessoais Declarados pelo Usuário (ex: "meu nome é Carlos Silva", "me chamo Maria Souza")
-  const selfIntroNameRegex = /\b(?:meu\s+nome\s+[eé]|me\s+chamo|chamo-me|sou\s+(?:o|a)|eu\s+sou\s+(?:o|a)?)\s+([A-ZÀ-Ú][a-zà-ú]+(?:\s+[A-ZÀ-Úa-zà-ú]+){0,4})/gi;
+  // 1. Nomes Pessoais Declarados pelo Usuário (ex: "meu nome é Carlos Silva", "me chamo João", "sou a Maria")
+  const selfIntroNameRegex = /\b(?:meu\s+nome\s+[eé]|me\s+chamo|chamo-me|sou\s+(?:o|a)|eu\s+sou\s+(?:o|a)?)\s+([A-Za-zÀ-Úà-ú]+(?:\s+[A-Za-zÀ-Úà-ú]+){0,4})\b/gi;
   result = result.replace(selfIntroNameRegex, (match, capturedName) => {
     const cleanWord = (capturedName || '').trim().toLowerCase();
     // Se for nome bíblico isolado (ex: "sou o servo de Jesus"), não mascara
@@ -43,57 +43,77 @@ export function maskPiiInText(text: string): string {
     return `${intro}[NOME OCULTO]`;
   });
 
-  // Nome precedido por rótulos (ex: "nome: Fulano de Tal", "usuário: João da Silva")
-  const labeledNameRegex = /(?:nome\s*completo|nome\s*do\s*usu[aá]rio|nome\s*:)\s*([A-ZÀ-Úa-zà-ú\s]{2,40})/gi;
+  // Nome precedido por rótulos (ex: "nome: Carlos Silva", "nome completo: Maria")
+  const labeledNameRegex = /\b(?:nome\s*completo|nome\s*do\s*usu[aá]rio|nome\s*:)\s*([A-Za-zÀ-Úà-ú\s]{2,40})/gi;
   result = result.replace(labeledNameRegex, "nome: [NOME OCULTO]");
 
   // 2. Email
   const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
   result = result.replace(emailRegex, "[E-MAIL OCULTO]");
 
-  // 3. CPF (Formatado: 000.000.000-00 ou Não-formatado com rótulo ou padrão de 11 dígitos)
-  const formattedCpfRegex = /\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g;
+  // 3. CPF (Formatado, não-formatado, com rótulo "CPF: 978933738" ou qualquer sequência numérica associada a CPF)
+  const labeledCpfRegex = /\b(?:(?:meu\s+)?cpf|c\.p\.f\.?)\s*(?:[eé]|:|n[ºo°]?|-)?\s*([0-9.\s-]{3,18})/gi;
+  result = result.replace(labeledCpfRegex, "CPF: [CPF OCULTO]");
+
+  const formattedCpfRegex = /\b\d{3}[.\s]\d{3}[.\s]\d{3}[-\s]\d{2}\b/g;
   result = result.replace(formattedCpfRegex, "[CPF OCULTO]");
 
-  const labeledCpfRegex = /(?:cpf\s*:?\s*)(\d{11}|\d{3}\s?\d{3}\s?\d{3}\s?\d{2})\b/gi;
-  result = result.replace(labeledCpfRegex, "cpf: [CPF OCULTO]");
+  const standalone11Digits = /\b\d{11}\b/g;
+  result = result.replace(standalone11Digits, "[CPF/DOCUMENTO OCULTO]");
 
   // 4. RG e Documentos de Identidade (ex: RG: 12.345.678-9, CNH, Passaporte)
-  const identityDocRegex = /(?:rg|cnh|identidade|passaporte|doc(?:umento)?)\s*:?\s*([A-Za-z0-9.-]{5,20})\b/gi;
+  const identityDocRegex = /\b(?:rg|cnh|identidade|passaporte|doc(?:umento)?)\s*(?:[eé]|:|n[ºo°]?|-)?\s*([A-Za-z0-9.\s-]{3,20})\b/gi;
   result = result.replace(identityDocRegex, (match) => {
-    const prefix = match.split(/[:\s]+/)[0];
-    return `${prefix}: [DOCUMENTO OCULTO]`;
+    const prefix = match.split(/[:\s\d]/)[0];
+    return `${prefix.toUpperCase()}: [DOCUMENTO OCULTO]`;
   });
 
-  // 5. CNPJ (Formatado: 00.000.000/0001-00 ou rotulado)
-  const cnpjRegex = /\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/g;
-  result = result.replace(cnpjRegex, "[CNPJ OCULTO]");
+  // 5. CNPJ (Formatado ou rotulado)
+  const labeledCnpjRegex = /\b(?:cnpj)\s*(?:[eé]|:|n[ºo°]?|-)?\s*([0-9.\s/-]{4,22})/gi;
+  result = result.replace(labeledCnpjRegex, "CNPJ: [CNPJ OCULTO]");
 
-  const labeledCnpjRegex = /(?:cnpj\s*:?\s*)(\d{14})\b/gi;
-  result = result.replace(labeledCnpjRegex, "cnpj: [CNPJ OCULTO]");
+  const formattedCnpjRegex = /\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/g;
+  result = result.replace(formattedCnpjRegex, "[CNPJ OCULTO]");
 
   // 6. Cartão de Crédito (13 a 19 dígitos ou 4 blocos de 4 dígitos) / Dados de Pagamento / PIX / Conta Bancária / Senhas
   const creditCardPattern = /\b(?:\d{4}[-\s]?){3}\d{4}\b/g;
   result = result.replace(creditCardPattern, "[CARTÃO DE CRÉDITO OCULTO]");
 
-  const paymentDataRegex = /(?:chave\s*pix|cart[aã]o|cvv|senha|password|pin|ag[eê]ncia|conta\s*corrente|dados\s*de\s*pagamento)\s*:?\s*[a-zA-Z0-9.\-_@+]+/gi;
+  const paymentDataRegex = /\b(?:chave\s*pix|pix|cart[aã]o|cvv|senha|password|pin|ag[eê]ncia|conta\s*corrente|dados\s*de\s*pagamento)\s*(?:[eé]|:|n[ºo°]?|-)?\s*[a-zA-Z0-9.\-_@+]{3,40}/gi;
   result = result.replace(paymentDataRegex, (match) => {
     const prefix = match.split(/[:\s]+/)[0];
     return `${prefix}: [DADOS DE PAGAMENTO OCULTOS]`;
   });
 
-  // 7. Telefone e WhatsApp (ex: +55 (11) 98765-4321, (11) 98765-4321 ou rotulado)
-  const phoneRegex = /(?:\+?55\s?)?(?:\(?\d{2}\)?\s?)(?:9\s?\d{4}|\d{4})[-.\s]?\d{4}\b|(?:tel|fone|celular|whatsapp|whats|contato)\s*:?\s*[\d\s()+-]{8,20}\b/gi;
+  // 7. Telefone e WhatsApp (formatado, com DDD, com traço ou rotulado)
+  const phoneRegex = /(?:\+?55\s?)?(?:\(?\d{2}\)?\s?)(?:9\s?\d{4}|\d{4})[-.\s]?\d{4}\b|\b(?:tel|fone|celular|whatsapp|whats|contato)\s*(?:[eé]|:|n[ºo°]?|-)?\s*[\d\s()+-]{6,20}\b/gi;
   result = result.replace(phoneRegex, "[TELEFONE OCULTO]");
 
-  // 8. Endereço e CEP (ex: CEP 01234-567, "moro na Rua...", "endereço:")
+  // Padrão de telefone com traço ou espaço (ex: 98765-4321, 3344-5566, 97893-3738)
+  const phoneLikePattern = /\b(?:\(?\d{2}\)?\s*)?(?:9\s?)?\d{4,5}[-\s]\d{4}\b/g;
+  result = result.replace(phoneLikePattern, "[TELEFONE OCULTO]");
+
+  // 8. Números sem sentido que podem ser CPFs, RGs ou Telefones sem formatação
+  // Sequências contínuas de 8 a 14 dígitos (ex: 978933738, 11999998888, 123456789)
+  const arbitraryLongDigitsRegex = /\b\d{8,14}\b/g;
+  result = result.replace(arbitraryLongDigitsRegex, "[NÚMERO/DOCUMENTO OCULTO]");
+
+  // Números em blocos de 3x3 dígitos (ex: 978 933 738 ou 978.933.738)
+  const threeChunkDigitsRegex = /\b\d{3}[.\s]\d{3}[.\s]\d{3}\b/g;
+  result = result.replace(threeChunkDigitsRegex, "[NÚMERO/DOCUMENTO OCULTO]");
+
+  // Sequências longas de 15 a 30 dígitos (códigos, cartões ou identificadores)
+  const ultraLongDigitsRegex = /\b\d{15,30}\b/g;
+  result = result.replace(ultraLongDigitsRegex, "[NÚMERO OCULTO]");
+
+  // 9. Endereço e CEP (ex: CEP 01234-567, "moro na Rua...", "endereço:")
   const cepRegex = /\b(?:cep\s*:?\s*)?\d{5}[-.\s]?\d{3}\b/gi;
   result = result.replace(cepRegex, "[CEP OCULTO]");
 
-  const addressRegex = /(?:rua|av\.?|avenida|travessa|alameda|rodovia)\s+[A-ZÀ-Úa-zà-ú0-9\s.,-]+?(?:n[ºo°]?\s*\d+|,\s*\d+)/gi;
+  const addressRegex = /(?:rua|av\.?|avenida|travessa|alameda|rodovia)\s+[A-Za-zÀ-Úà-ú0-9\s.,-]+?(?:n[ºo°]?\s*\d+|,\s*\d+)/gi;
   result = result.replace(addressRegex, "[ENDEREÇO OCULTO]");
 
-  // 9. Credenciais, Tokens e Chaves de API
+  // 10. Credenciais, Tokens e Chaves de API
   const secretsRegex = /\b(?:sk-[a-zA-Z0-9]{20,}|AIzaSy[a-zA-Z0-9_-]{33}|sbp_[a-zA-Z0-9]{20,}|bearer\s+[a-zA-Z0-9._-]{20,})\b/gi;
   result = result.replace(secretsRegex, "[CREDENCIAIS OCULTAS]");
 
@@ -121,6 +141,7 @@ export function sanitizeUserPrompt(rawPrompt: string): SanitizedPromptResult {
   if (maskedText.includes("[CNPJ OCULTO]")) detectedTypes.push("CNPJ");
   if (maskedText.includes("[CARTÃO DE CRÉDITO OCULTO]") || maskedText.includes("[DADOS DE PAGAMENTO OCULTOS]")) detectedTypes.push("Dados_Pagamento");
   if (maskedText.includes("[ENDEREÇO OCULTO]") || maskedText.includes("[CEP OCULTO]")) detectedTypes.push("Endereço");
+  if (maskedText.includes("[NÚMERO/DOCUMENTO OCULTO]") || maskedText.includes("[NÚMERO OCULTO]")) detectedTypes.push("Número_Suspeito");
 
   // Strip potential Jailbreak / System Prompt Exfiltration attempts
   const injectionRegex = /(?:ignore\s+(?:previous|all|system)?\s*(?:instructions|rules|guidelines)|system\s+prompt|revelar\s+instruç[õo]es|exibir\s+chave|mostre\s+seu\s+prompt|ignore\s+todas\s+as\s+regras|modo\s+desenvolvedor|developer_mode|jailbreak|modo\s+dan|act\s+as|finja\s+ser|mude\s+sua\s+personalidade|esque[çc]a\s+as\s+regras|desative\s+(?:os\s+)?filtros|pretend\s+to\s+be|bypass\s+restrictions|habilidade\s+especial)/gi;
