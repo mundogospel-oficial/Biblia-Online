@@ -206,8 +206,7 @@ export const OFFLINE_KEY = "bible-offline-enabled";
 export const OFFLINE_DOWNLOADED_KEY = "bible-offline-downloaded";
 
 export function isOfflineBibleAllowed(): boolean {
-  if (typeof window === 'undefined') return false;
-  return localStorage.getItem(OFFLINE_KEY) === 'true';
+  return true;
 }
 
 export function clearBibliaLivreMemoryCache(): void {
@@ -218,26 +217,6 @@ export function clearBibliaLivreMemoryCache(): void {
 
 export async function deleteOfflineBibleData(): Promise<void> {
   clearBibliaLivreMemoryCache();
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(OFFLINE_KEY, 'false');
-    localStorage.removeItem(OFFLINE_DOWNLOADED_KEY);
-    
-    if ('caches' in window) {
-      try {
-        await caches.delete('biblia-offline-data');
-        const cacheNames = await caches.keys();
-        for (const name of cacheNames) {
-          if (name.includes('biblia') || name.includes('offline') || name.includes('runtime')) {
-            const c = await caches.open(name);
-            await c.delete('/data/biblia-livre.json', { ignoreSearch: true });
-            await c.delete('https://raw.githubusercontent.com/eversondeveloper/bibialivrejson/main/biblialivrecorrecao1.json', { ignoreSearch: true });
-          }
-        }
-      } catch (err) {
-        console.warn("Aviso ao limpar cache offline:", err);
-      }
-    }
-  }
 }
 
 export async function downloadOfflineBibleData(onProgress?: (percent: number) => void): Promise<void> {
@@ -350,13 +329,6 @@ export async function downloadOfflineBibleData(onProgress?: (percent: number) =>
 }
 
 export async function loadBibliaLivre(): Promise<any[]> {
-  const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
-  const isOfflineAllowed = isOfflineBibleAllowed();
-
-  if (isOffline && !isOfflineAllowed) {
-    throw new Error('OFFLINE_DATA_MISSING: Modo offline não está ativado nas configurações.');
-  }
-
   if (bibliaLivreData) return bibliaLivreData;
   if (bibliaLivreLoadingPromise) return bibliaLivreLoadingPromise;
 
@@ -366,26 +338,18 @@ export async function loadBibliaLivre(): Promise<any[]> {
     
     let rawText = '';
 
-    // 1. Tenta carregar do arquivo local do próprio app (alta velocidade, mesmo domínio)
+    // 1. Tenta carregar do arquivo local do próprio app (alta velocidade, cache do SW)
     try {
       const localRes = await fetch(LOCAL_URL);
       if (localRes.ok) {
         rawText = await localRes.text();
-        // Garante no cache do ServiceWorker para leitura offline permanente caso a opção esteja ativa
-        if (typeof window !== 'undefined' && 'caches' in window && isOfflineBibleAllowed()) {
-          caches.open('biblia-offline-data').then(c => {
-            const resp = new Response(rawText, { headers: { 'Content-Type': 'application/json' } });
-            c.put(LOCAL_URL, resp.clone());
-            c.put(GITHUB_URL, resp);
-          }).catch(() => {});
-        }
       }
     } catch (err) {
-      console.warn("Aviso: Falha ao carregar /data/biblia-livre.json diretamente:", err);
+      console.warn("Aviso ao carregar /data/biblia-livre.json:", err);
     }
 
-    // 2. Se offline ou falha de rede, tenta os caches locais do navegador apenas se a opção offline estiver habilitada
-    if (!rawText && typeof window !== 'undefined' && 'caches' in window && isOfflineBibleAllowed()) {
+    // 2. Se falhar, tenta os caches do navegador
+    if (!rawText && typeof window !== 'undefined' && 'caches' in window) {
       try {
         const cache = await caches.open('biblia-offline-data');
         const cached = (await cache.match(LOCAL_URL, { ignoreSearch: true })) ||
@@ -406,7 +370,7 @@ export async function loadBibliaLivre(): Promise<any[]> {
           rawText = await gitRes.text();
         }
       } catch (gitErr) {
-        console.warn("Aviso: Falha ao carregar Bíblia Livre do GitHub:", gitErr);
+        console.warn("Aviso ao carregar Bíblia Livre do GitHub:", gitErr);
       }
     }
 
@@ -586,46 +550,38 @@ export async function fetchChapter(
   chapter: number,
   translation: string = 'almeida'
 ): Promise<ChapterResponse> {
-  const isOfflineAllowed = isOfflineBibleAllowed();
-  const isOnline = typeof navigator === 'undefined' || navigator.onLine;
-
-  if (!isOnline && !isOfflineAllowed) {
-    throw new Error('OFFLINE_DATA_MISSING: Sem conexão e modo offline desativado.');
-  }
-
   const cacheKey = `${abbrev}:${chapter}:${translation}`;
   const cached = chapterCache.get(cacheKey);
   if (cached) return cached;
 
-  // Se o usuário solicitou Bíblia Livre (offline first):
-  if (translation === 'blivre') {
-    if (isOfflineAllowed || isOnline) {
-      try {
-        const result = await fetchFromBibliaLivre(abbrev, chapter);
-        chapterCache.set(cacheKey, result);
-        return result;
-      } catch (e: any) {
-        console.warn(`[fetchChapter] Bíblia Livre local falhou (${e?.message}), tentando redundância online:`);
-        if (isOnline) {
+  const isOnline = typeof navigator === 'undefined' || navigator.onLine;
+
+  // Se o usuário solicitou Bíblia Livre ou estiver offline:
+  if (translation === 'blivre' || !isOnline) {
+    try {
+      const result = await fetchFromBibliaLivre(abbrev, chapter);
+      chapterCache.set(cacheKey, result);
+      return result;
+    } catch (e: any) {
+      console.warn(`[fetchChapter] Bíblia Livre local falhou (${e?.message})`);
+      if (isOnline) {
+        try {
+          const result = await fetchFromBibleApi(abbrev, chapter, 'almeida');
+          chapterCache.set(cacheKey, result);
+          return result;
+        } catch {
           try {
-            const result = await fetchFromBibleApi(abbrev, chapter, 'almeida');
+            const result = await fetchFromBolls(abbrev, chapter, 'almeida');
             chapterCache.set(cacheKey, result);
             return result;
-          } catch {
-            try {
-              const result = await fetchFromBolls(abbrev, chapter, 'almeida');
-              chapterCache.set(cacheKey, result);
-              return result;
-            } catch {}
-          }
+          } catch {}
         }
       }
     }
-    throw new Error('OFFLINE_DATA_MISSING: Sem conexão e dados offline não encontrados.');
   }
 
-  // Para outras traduções (Almeida, KJV, WEB, etc):
-  // 1ª Camada: bible-api.com com validação de livro e capítulo (apenas se online)
+  // Para outras traduções (Almeida, KJV, WEB, etc) quando online:
+  // 1ª Camada: bible-api.com
   if (isOnline) {
     try {
       const result = await fetchFromBibleApi(abbrev, chapter, translation);
@@ -635,7 +591,7 @@ export async function fetchChapter(
       // Falha na API primária
     }
 
-    // 2ª Camada: bolls.life (ARC09 para Almeida, KJV para King James, WEB para Web/BBE)
+    // 2ª Camada: bolls.life
     try {
       const result = await fetchFromBolls(abbrev, chapter, translation);
       chapterCache.set(cacheKey, result);
@@ -645,14 +601,12 @@ export async function fetchChapter(
     }
   }
 
-  // 3ª Camada: Bíblia Livre offline (Apenas se a opção de leitura offline estiver explicitamente ativa)
-  if (isOfflineAllowed) {
-    try {
-      const result = await fetchFromBibliaLivre(abbrev, chapter);
-      chapterCache.set(cacheKey, result);
-      return result;
-    } catch {}
-  }
+  // 3ª Camada: Bíblia Livre offline automática
+  try {
+    const result = await fetchFromBibliaLivre(abbrev, chapter);
+    chapterCache.set(cacheKey, result);
+    return result;
+  } catch {}
 
   throw new Error('OFFLINE_DATA_MISSING: Sem conexão e dados offline não encontrados.');
 }

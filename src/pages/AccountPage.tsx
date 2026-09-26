@@ -1574,31 +1574,6 @@ const AccountPage = () => {
                       />
                     )}
 
-                    {/* Bíblia e Mapas Offline - Exibido EXCLUSIVAMENTE para usuários que utilizam o PWA instalado */}
-                    {isPWA && (
-                      <button onClick={toggleOffline} disabled={isDownloading} className="flex w-full items-center justify-between rounded-xl bg-secondary/30 border border-white/5 p-3.5 transition-all hover:bg-secondary/50 hover:border-white/10 disabled:opacity-70 liquid-btn">
-                        <div className="flex items-center gap-3">
-                          <span className="text-muted-foreground">
-                            {offlineEnabled ? <CheckCircle className="h-4 w-4 text-accent" /> : isDownloading ? <Download className="h-4 w-4 animate-bounce text-accent" /> : <WifiOff className="h-4 w-4" />}
-                          </span>
-                          <div className="text-left">
-                            <p className="text-sm font-medium text-foreground">{t("offline_title")}</p>
-                            <p className="text-[10px] text-muted-foreground">
-                              {isDownloading ? `${t("offline_desc_downloading")} ${offlineProgress}%` : offlineEnabled ? t("offline_desc_active") : t("offline_desc_inactive")}
-                            </p>
-                            {isDownloading && (
-                              <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
-                                <div className="h-full rounded-full bg-accent transition-all duration-300" style={{ width: `${offlineProgress}%` }} />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className={`h-5 w-9 rounded-full transition-colors duration-300 ease-in-out ${offlineEnabled ? "bg-accent" : "bg-muted/60"} flex items-center px-0.5`}>
-                          <div className={`h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300 ease-in-out ${offlineEnabled ? "translate-x-4" : "translate-x-0"}`} />
-                        </div>
-                      </button>
-                    )}
-
                     <button 
                       type="button" 
                       onClick={() => setShowDeleteModal(true)} 

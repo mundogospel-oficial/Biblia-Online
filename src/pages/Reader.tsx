@@ -282,14 +282,6 @@ const Reader = () => {
     setDictLimitReached(false);
     setVisibleLimit(25); // Reseta a paginação suave ao mudar de capítulo ou livro
 
-    const isOfflineAllowed = localStorage.getItem("bible-offline-enabled") === "true";
-    if (!isOnline && !isOfflineAllowed) {
-      setVerses([]);
-      setError("OFFLINE_MODE");
-      setLoading(false);
-      return;
-    }
-
     fetchChapter(abbrev, parseInt(chapter), translation)
       .then((primary) => {
         setVerses(primary.verses);

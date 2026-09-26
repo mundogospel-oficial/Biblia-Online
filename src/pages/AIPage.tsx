@@ -8,7 +8,7 @@ import {
   History, ChevronLeft, Zap, Bot, Paperclip, AlertCircle, MessageSquarePlus, Square, Share2,
   Loader2, ImageOff, FileText, ZoomIn, ZoomOut, WifiOff, Palette, ChevronDown, Check,
   Search, Edit3, Clock, ArrowRight, ShieldAlert, Wand2,
-  ThumbsUp, ThumbsDown, RotateCcw, Copy, PanelLeft, PanelLeftClose
+  ThumbsUp, ThumbsDown, RotateCcw, RotateCw, Copy, PanelLeft, PanelLeftClose
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -2749,27 +2749,45 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
 
   if (!isOnline) {
     return (
-      <div className="flex fixed inset-0 flex-col bg-background overflow-hidden">
+      <div className="min-h-screen bg-background pb-16 md:pb-0 flex flex-col">
         <Header />
-        <div className="flex flex-1 flex-col items-center justify-center p-6 text-center container mx-auto max-w-md">
-          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-amber-500/10 text-amber-500 shadow-lg shadow-amber-500/5 border border-amber-500/20">
-            <WifiOff className="h-10 w-10 animate-pulse" />
+        <div className="flex flex-1 items-center justify-center py-20 px-4 text-center">
+          <div className="space-y-4">
+            <div className="flex justify-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/10">
+                <WifiOff className="h-8 w-8 text-accent" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-serif text-lg font-bold text-foreground">
+                {isEn ? "No internet connection" : "Sem conexão com a internet"}
+              </h3>
+              <p className="mx-auto max-w-xs text-xs text-muted-foreground">
+                {isEn 
+                  ? "Check your network to continue using the Biblical AI." 
+                  : "Verifique sua rede para continuar a usar a IA Bíblica."}
+              </p>
+            </div>
+            <div className="flex justify-center">
+              <button
+                onClick={() => {
+                  const online = navigator.onLine;
+                  setIsOnline(online);
+                  if (!online) {
+                    toast({
+                      title: isEn ? "Offline" : "Sem conexão",
+                      description: isEn ? "Please reconnect to the internet and try again." : "Conecte-se à internet para usar a IA Bíblica.",
+                      variant: "destructive"
+                    });
+                  }
+                }}
+                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-semibold text-foreground shadow-sm transition-transform hover:scale-105 active:scale-95 cursor-pointer"
+              >
+                <RotateCw className="h-4 w-4" />
+                {isEn ? "Try Again" : "Tentar Novamente"}
+              </button>
+            </div>
           </div>
-          
-          <h2 className="font-serif text-2xl font-bold text-foreground mb-3">{isEn ? "No Connection" : "Sem Conexão"}</h2>
-          
-          <p className="text-sm text-muted-foreground bg-secondary/40 border border-border/50 rounded-2xl p-5 mb-8 leading-relaxed font-medium">
-            {isEn 
-              ? "You need internet to use AI. Please check your Wi-Fi or mobile data connection and try again."
-              : "Você precisa de internet para usar IA. Por favor, verifique sua conexão Wi-Fi ou dados móveis e tente novamente."}
-          </p>
-
-          <button 
-            onClick={() => setIsOnline(navigator.onLine)} 
-            className="flex items-center justify-center gap-2 rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground px-6 py-3 text-sm font-bold transition-all shadow-md active:scale-95 liquid-btn"
-          >
-            {isEn ? "Try again" : "Tentar novamente"}
-          </button>
         </div>
       </div>
     );

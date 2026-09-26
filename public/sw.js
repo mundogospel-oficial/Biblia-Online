@@ -5,13 +5,14 @@ try {
   console.warn('[SW] OneSignal SDK import skipped or offline:', e);
 }
 
-const CACHE_NAME = 'biblia-online-v2.6.5';
+const CACHE_NAME = 'biblia-online-v2.7.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/manifest.v2.json',
   '/manifest.webmanifest',
+  '/data/biblia-livre.json',
   '/browserconfig.xml',
   '/safari-pinned-tab.svg',
   '/favicon.ico',
@@ -251,7 +252,7 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
-      console.log('[SW] Pre-caching static app shell assets...');
+      console.log('[SW] Pre-caching static app shell assets and Bible database...');
       
       for (const asset of STATIC_ASSETS) {
         try {
@@ -259,6 +260,12 @@ self.addEventListener('install', (event) => {
         } catch (err) {
           console.warn(`[SW] Static asset failed to cache: ${asset}`, err);
         }
+      }
+
+      try {
+        await cache.add(new Request(BIBLE_DATA_URL, { mode: 'cors' }));
+      } catch (e) {
+        console.warn('[SW] Remote Bible cache fallback skipped:', e);
       }
 
       return self.skipWaiting();
@@ -278,15 +285,7 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    }).then(async () => {
-      // Purge any accidental bible json from the general app cache
-      try {
-        const currentCache = await caches.open(CACHE_NAME);
-        await currentCache.delete('/data/biblia-livre.json', { ignoreSearch: true });
-        await currentCache.delete(BIBLE_DATA_URL, { ignoreSearch: true });
-      } catch {}
-      return self.clients.claim();
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
@@ -300,38 +299,37 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Se a requisição for para o banco da Bíblia:
-  // SÓ retorna do cache se estiver expressamente no cache dedicado 'biblia-offline-data' (quando o usuário ativou a opção offline)
+  // Banco de dados da Bíblia: Cache first com fallback de rede para suporte offline automático e instantâneo
   if (url.pathname.includes('biblia-livre.json') || event.request.url === BIBLE_DATA_URL) {
     event.respondWith(
-      (async () => {
-        try {
-          // 1. Tenta rede se online
-          if (navigator.onLine) {
-            const networkResp = await fetch(event.request);
-            if (networkResp && networkResp.status === 200) {
-              return networkResp;
-            }
-          }
-        } catch {}
+      caches.match(event.request, { ignoreSearch: true }).then(async (cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
 
-        // 2. Se falhar a rede ou estiver offline, SOMENTE consulta o cache explícito 'biblia-offline-data'
         try {
           const offlineCache = await caches.open('biblia-offline-data');
-          const cachedMatch = (await offlineCache.match('/data/biblia-livre.json', { ignoreSearch: true })) ||
-                              (await offlineCache.match(BIBLE_DATA_URL, { ignoreSearch: true })) ||
-                              (await offlineCache.match(event.request));
-          if (cachedMatch) {
-            return cachedMatch;
-          }
+          const altMatch = (await offlineCache.match('/data/biblia-livre.json', { ignoreSearch: true })) ||
+                           (await offlineCache.match(BIBLE_DATA_URL, { ignoreSearch: true }));
+          if (altMatch) return altMatch;
         } catch {}
 
-        // 3. Se não baixou a Bíblia offline, retorna erro 503 (não deixa carregar)
-        return new Response(JSON.stringify({ error: "OFFLINE_DATA_MISSING" }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      })()
+        try {
+          const networkResponse = await fetch(event.request);
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return networkResponse;
+        } catch (err) {
+          const fallback = (await caches.match('/data/biblia-livre.json')) || (await caches.match(BIBLE_DATA_URL));
+          if (fallback) return fallback;
+          return new Response(JSON.stringify({ error: "Offline - Dados indisponíveis" }), {
+            status: 503,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      })
     );
     return;
   }

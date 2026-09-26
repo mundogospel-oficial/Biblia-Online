@@ -27,15 +27,6 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
-    const isOnline = typeof navigator === 'undefined' || navigator.onLine;
-    const isOfflineAllowed = typeof window !== 'undefined' && localStorage.getItem('bible-offline-enabled') === 'true';
-
-    if (!isOnline && !isOfflineAllowed) {
-      setDailyVerse(null);
-      setVerseLoading(false);
-      return;
-    }
-
     setVerseLoading(true);
     const reference = getDailyVerseReference();
     const isEn = language === "en";
@@ -55,11 +46,11 @@ const Index = () => {
             text: verseText 
           });
         } else {
-          setDailyVerse(null);
+          setDailyVerse(reference);
         }
       })
       .catch(() => {
-        setDailyVerse(null);
+        setDailyVerse(reference);
       })
       .finally(() => {
         setVerseLoading(false);
