@@ -63,8 +63,8 @@ window.addEventListener("error", (event) => {
   }
 });
 
-// PWA: Register SW and guarantee instant updates to version 2.6.4
-const CURRENT_VERSION = "2.6.4";
+// PWA: Register SW and guarantee instant updates to version 2.7.2
+const CURRENT_VERSION = "2.7.2";
 const isInIframe = (() => {
   try { return window.self !== window.top; } catch { return true; }
 })();

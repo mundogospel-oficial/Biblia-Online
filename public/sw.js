@@ -164,10 +164,9 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Periodic Background Sync: acordado pelo navegador mesmo com app fechado
+// Periodic Background Sync
 self.addEventListener('periodicsync', (event) => {
   if (event.tag === 'biblia-daily-verse' || event.tag === 'biblia-notifications') {
-    console.log('[SW] Periodic Background Sync ativado:', event.tag);
     event.waitUntil(
       (async () => {
         try {
@@ -193,14 +192,14 @@ self.addEventListener('periodicsync', (event) => {
   }
 });
 
-// Push Event: Web Push remoto em segundo plano (OneSignal ou Push API padrão)
+// Push Event
 self.addEventListener('push', (event) => {
   if (!event.data) return;
 
   try {
     const rawData = event.data.text();
     if (rawData.includes('"custom"') && rawData.includes('"i"')) {
-      return; // Deixa o SDK nativo do OneSignal gerenciar
+      return;
     }
 
     let payload = null;
@@ -229,7 +228,7 @@ self.addEventListener('push', (event) => {
   }
 });
 
-// Notification Click Event: Abre ou foca a janela da Bíblia Online quando o usuário clica
+// Notification Click Event
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const targetUrl = (event.notification.data && event.notification.data.url) || '/';
@@ -248,24 +247,24 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Install Event
+// Install Event - Pre-cache all essential app assets and offline Bible database
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
-      console.log('[SW] Pre-caching static app shell assets and Bible database...');
+      console.log('[SW] Pre-caching static assets and offline Bible database...');
       
       for (const asset of STATIC_ASSETS) {
         try {
           await cache.add(asset);
         } catch (err) {
-          console.warn(`[SW] Static asset failed to cache: ${asset}`, err);
+          console.warn(`[SW] Static asset skipped/cached: ${asset}`);
         }
       }
 
       try {
         await cache.add(new Request(BIBLE_DATA_URL, { mode: 'cors' }));
-      } catch (e) {
-        console.warn('[SW] Remote Bible cache fallback skipped:', e);
+      } catch (err) {
+        console.warn('[SW] Remote Bible fallback cache skipped:', err);
       }
 
       return self.skipWaiting();
@@ -273,7 +272,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate Event
+// Activate Event - Claim clients immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -289,23 +288,35 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch Event - Intercept requests for offline loading
+// Fetch Event - Instant Offline-First Cache Strategy for PWA
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
+  // Bypass cross-origin APIs (Supabase, external avatars, Google)
   if (url.origin !== self.location.origin && event.request.url !== BIBLE_DATA_URL) {
     return;
   }
 
-  // Banco de dados da Bíblia: Cache first com fallback de rede para suporte offline automático e instantâneo
+  // Skip AI endpoints and dev server requests
+  if (
+    url.pathname.startsWith('/api/ai') ||
+    url.pathname.startsWith('/api/generate-image') ||
+    url.pathname.startsWith('/socket.io') ||
+    (url.host.includes('localhost') && url.port === '3000' && url.pathname.startsWith('/@'))
+  ) {
+    return;
+  }
+
+  // 1. Bible database: Instant cache first with network fallback
   if (url.pathname.includes('biblia-livre.json') || event.request.url === BIBLE_DATA_URL) {
     event.respondWith(
-      caches.match(event.request, { ignoreSearch: true }).then(async (cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
+      (async () => {
+        const cached = (await caches.match(event.request, { ignoreSearch: true })) ||
+                       (await caches.match('/data/biblia-livre.json', { ignoreSearch: true })) ||
+                       (await caches.match(BIBLE_DATA_URL, { ignoreSearch: true }));
+        if (cached) return cached;
 
         try {
           const offlineCache = await caches.open('biblia-offline-data');
@@ -317,71 +328,105 @@ self.addEventListener('fetch', (event) => {
         try {
           const networkResponse = await fetch(event.request);
           if (networkResponse && networkResponse.status === 200) {
-            const clone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
           }
           return networkResponse;
         } catch (err) {
-          const fallback = (await caches.match('/data/biblia-livre.json')) || (await caches.match(BIBLE_DATA_URL));
-          if (fallback) return fallback;
-          return new Response(JSON.stringify({ error: "Offline - Dados indisponíveis" }), {
+          return new Response(JSON.stringify({ error: "Offline" }), {
             status: 503,
             headers: { 'Content-Type': 'application/json' }
           });
         }
-      })
+      })()
     );
     return;
   }
 
+  // 2. Navigation requests (Opening the PWA or navigating between pages):
+  // Cache-First / Stale-While-Revalidate so it opens INSTANTLY offline with zero wait.
   if (
-    url.pathname.startsWith('/api/ai') ||
-    url.pathname.startsWith('/api/generate-image') ||
-    url.pathname.startsWith('/socket.io') ||
-    (url.host.includes('localhost') && url.port === '3000' && url.pathname.startsWith('/@'))
+    event.request.mode === 'navigate' ||
+    url.pathname === '/' ||
+    url.pathname.endsWith('.html') ||
+    event.request.headers.get('accept')?.includes('text/html')
   ) {
+    event.respondWith(
+      (async () => {
+        const cachedShell = (await caches.match(event.request, { ignoreSearch: true })) ||
+                            (await caches.match('/index.html', { ignoreSearch: true })) ||
+                            (await caches.match('/', { ignoreSearch: true }));
+
+        // Se estiver offline ou já tiver o app cacheado, devolve o shell imediatamente
+        if (cachedShell) {
+          // Atualiza em segundo plano se houver conexão
+          if (navigator.onLine) {
+            fetch(event.request).then((networkResponse) => {
+              if (networkResponse && networkResponse.status === 200) {
+                const copy = networkResponse.clone();
+                caches.open(CACHE_NAME).then((cache) => {
+                  cache.put(event.request, copy);
+                  cache.put('/index.html', copy.clone());
+                  cache.put('/', copy.clone());
+                });
+              }
+            }).catch(() => {});
+          }
+          return cachedShell;
+        }
+
+        // Se ainda não estiver em cache, tenta a rede
+        try {
+          const networkResponse = await fetch(event.request);
+          if (networkResponse && networkResponse.status === 200) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, copy);
+              cache.put('/index.html', copy.clone());
+              cache.put('/', copy.clone());
+            });
+          }
+          return networkResponse;
+        } catch (err) {
+          const fallback = (await caches.match('/index.html', { ignoreSearch: true })) ||
+                           (await caches.match('/', { ignoreSearch: true }));
+          if (fallback) return fallback;
+          return new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+        }
+      })()
+    );
     return;
   }
 
+  // 3. Static assets (JS, CSS, images, icons, fonts)
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
+    caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
       if (cachedResponse) {
-        if (
-          url.pathname.endsWith('.css') || 
-          url.pathname.endsWith('.js') || 
-          event.request.url === BIBLE_DATA_URL
-        ) {
+        // Revalidação em segundo plano quando online
+        if (navigator.onLine && (url.pathname.endsWith('.css') || url.pathname.endsWith('.js'))) {
           fetch(event.request).then((networkResponse) => {
             if (networkResponse && networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, networkResponse);
-              });
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
             }
           }).catch(() => {});
         }
         return cachedResponse;
       }
 
-      return fetch(event.request).then((response) => {
-        if (!response || response.status !== 200 || (response.type !== 'basic' && response.type !== 'cors')) {
-          return response;
+      return fetch(event.request).then((networkResponse) => {
+        if (!networkResponse || networkResponse.status !== 200 || (networkResponse.type !== 'basic' && networkResponse.type !== 'cors')) {
+          return networkResponse;
         }
 
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-
-        return response;
-      }).catch(() => {
-        if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('image')) {
-          return new Response('Imagem não encontrada', {
-            status: 404,
-            statusText: 'Not Found',
-            headers: { 'Content-Type': 'text/plain' }
-          });
+        const copy = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        return networkResponse;
+      }).catch(async () => {
+        if (event.request.headers.get('accept')?.includes('image')) {
+          const fallbackLogo = await caches.match('/icons/logo2.png');
+          if (fallbackLogo) return fallbackLogo;
         }
-        return new Response('Offline / Erro de Rede', { status: 503, statusText: 'Service Unavailable' });
+        return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
       });
     })
   );

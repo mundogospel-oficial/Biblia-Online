@@ -153,27 +153,9 @@
     </script>
 
     <script>
-      // Destravador Imediato de Cache e Service Worker para PC e Mobile
+      // Service Worker & Cache Initializer
       (function() {
         try {
-          // Limpa caches obsoletos de versões antigas que travavam o index.html
-          if ('caches' in window) {
-            caches.keys().then(function(names) {
-              names.forEach(function(name) {
-                if (
-                  name.includes('v2.5') || 
-                  name.includes('v2.6.0') || 
-                  name.includes('v2.6.1') || 
-                  name.includes('v2.6.2') || 
-                  name.includes('v2.6.3')
-                ) {
-                  caches.delete(name).catch(function() {});
-                }
-              });
-            }).catch(function() {});
-          }
-
-          // Se estiver em PC ou preview e encontrar SW antigo, força update
           if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(function(regs) {
               regs.forEach(function(reg) {
@@ -182,28 +164,6 @@
             }).catch(function() {});
           }
         } catch (e) {}
-
-        // Limpeza de caches de versões antigas do navegador
-        setTimeout(function() {
-          try {
-            if ('caches' in window) {
-              caches.keys().then(function(keys) {
-                keys.forEach(function(k) {
-                  if (
-                    k.includes('v2.5') || 
-                    k.includes('v2.6.0') || 
-                    k.includes('v2.6.1') || 
-                    k.includes('v2.6.2') || 
-                    k.includes('v2.6.3') ||
-                    k.includes('v2.6.4')
-                  ) {
-                    caches.delete(k).catch(function() {});
-                  }
-                });
-              });
-            }
-          } catch (err) {}
-        }, 3000);
       })();
     </script>
 
