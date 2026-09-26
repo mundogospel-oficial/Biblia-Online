@@ -350,13 +350,15 @@ export async function downloadOfflineBibleData(onProgress?: (percent: number) =>
 }
 
 export async function loadBibliaLivre(): Promise<any[]> {
-  if (bibliaLivreData) return bibliaLivreData;
-  if (bibliaLivreLoadingPromise) return bibliaLivreLoadingPromise;
-
   const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
-  if (isOffline && !isOfflineBibleAllowed()) {
+  const isOfflineAllowed = isOfflineBibleAllowed();
+
+  if (isOffline && !isOfflineAllowed) {
     throw new Error('OFFLINE_DATA_MISSING: Modo offline não está ativado nas configurações.');
   }
+
+  if (bibliaLivreData) return bibliaLivreData;
+  if (bibliaLivreLoadingPromise) return bibliaLivreLoadingPromise;
 
   bibliaLivreLoadingPromise = (async () => {
     const LOCAL_URL = '/data/biblia-livre.json';
@@ -584,12 +586,16 @@ export async function fetchChapter(
   chapter: number,
   translation: string = 'almeida'
 ): Promise<ChapterResponse> {
+  const isOfflineAllowed = isOfflineBibleAllowed();
+  const isOnline = typeof navigator === 'undefined' || navigator.onLine;
+
+  if (!isOnline && !isOfflineAllowed) {
+    throw new Error('OFFLINE_DATA_MISSING: Sem conexão e modo offline desativado.');
+  }
+
   const cacheKey = `${abbrev}:${chapter}:${translation}`;
   const cached = chapterCache.get(cacheKey);
   if (cached) return cached;
-
-  const isOfflineAllowed = isOfflineBibleAllowed();
-  const isOnline = typeof navigator === 'undefined' || navigator.onLine;
 
   // Se o usuário solicitou Bíblia Livre (offline first):
   if (translation === 'blivre') {
