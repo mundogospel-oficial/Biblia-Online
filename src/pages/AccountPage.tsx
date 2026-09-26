@@ -29,9 +29,9 @@ import { TwoFactorSettingsCard } from "@/components/TwoFactorSettingsCard";
 import { TwoFactorLoginModal } from "@/components/TwoFactorLoginModal";
 import { BiometricSettingsCard } from "@/components/BiometricSettingsCard";
 import { useIsPWA } from "@/hooks/useIsPWA";
+import { downloadOfflineBibleData, deleteOfflineBibleData, OFFLINE_KEY } from "@/lib/bibleData";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
-const OFFLINE_KEY = "bible-offline-enabled";
 
 // Helper to translate common auth errors for end users
 const translateAuthError = (message: string) => {
@@ -1251,11 +1251,9 @@ const AccountPage = () => {
   const toggleOffline = async () => {
     if (offlineEnabled) {
       try {
-        const cache = await caches.open('biblia-offline-data');
-        await cache.keys().then(keys => Promise.all(keys.map(k => cache.delete(k))));
+        await deleteOfflineBibleData();
         setOfflineEnabled(false);
-        localStorage.setItem(OFFLINE_KEY, "false");
-        toast({ title: "Dados offline removidos" });
+        toast({ title: "Dados offline removidos", description: "O armazenamento offline da Bíblia foi excluído." });
       } catch {
         toast({ title: "Erro ao remover dados offline", variant: "destructive" });
       }
@@ -1265,97 +1263,8 @@ const AccountPage = () => {
     setIsDownloading(true);
     setOfflineProgress(0);
     try {
-      const cache = await caches.open('biblia-offline-data');
-      
-      const activeScripts = Array.from(document.querySelectorAll('script')).map(s => s.getAttribute('src')).filter(Boolean) as string[];
-      const activeStyles = Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map(l => l.getAttribute('href')).filter(Boolean) as string[];
-      const activeImages = Array.from(document.querySelectorAll('img')).map(i => i.getAttribute('src')).filter(Boolean) as string[];
-
-      const filesToCache = Array.from(new Set([
-        '/',
-        '/index.html',
-        '/manifest.json',
-        '/manifest.v2.json',
-        '/manifest.webmanifest',
-        '/browserconfig.xml',
-        '/safari-pinned-tab.svg',
-        '/favicon.ico',
-        '/favicon-16x16.png',
-        '/favicon-32x32.png',
-        '/favicon-48x48.png',
-        '/apple-touch-icon.png',
-        '/apple-touch-icon-180x180.png',
-        '/apple-touch-icon-167x167.png',
-        '/apple-touch-icon-152x152.png',
-        '/apple-touch-icon-120x120.png',
-        '/apple-touch-icon-precomposed.png',
-        '/mstile-70x70.png',
-        '/mstile-144x144.png',
-        '/mstile-150x150.png',
-        '/mstile-310x150.png',
-        '/mstile-310x310.png',
-        '/icon-144.png',
-        '/icon-192.png',
-        '/icon-256.png',
-        '/icon-384.png',
-        '/icon-512.png',
-        '/icons/apple-touch-icon.png',
-        '/icons/icon-192.png',
-        '/icons/icon-512.png',
-        '/icons/icon-any-192.png',
-        '/icons/icon-any-512.png',
-        '/icons/icon-maskable-192.png',
-        '/icons/icon-maskable-512.png',
-        '/icons/logo2.png',
-        '/placeholder.svg',
-        '/criar',
-        '/ia',
-        '/ai',
-        '/buscar',
-        '/pesquisa',
-        '/favoritos',
-        '/reacoes',
-        '/reacao',
-        '/devocionais',
-        '/devocional',
-        '/conta',
-        '/data/biblia-livre.json',
-        'https://raw.githubusercontent.com/eversondeveloper/bibialivrejson/main/biblialivrecorrecao1.json',
-        ...activeScripts,
-        ...activeStyles,
-        ...activeImages
-      ]));
-
-      const CONCURRENCY = 12;
-      let completed = 0;
-      const total = filesToCache.length;
-
-      for (let i = 0; i < total; i += CONCURRENCY) {
-        const batch = filesToCache.slice(i, i + CONCURRENCY);
-        await Promise.all(
-          batch.map(async (url) => {
-            try {
-              const response = await fetch(url, { mode: 'cors' });
-              if (response.ok) {
-                await cache.put(url, response.clone());
-              }
-            } catch {
-              try {
-                const response = await fetch(url);
-                if (response.ok) {
-                  await cache.put(url, response.clone());
-                }
-              } catch {}
-            }
-            completed++;
-          })
-        );
-        setOfflineProgress(Math.min(99, Math.round((completed / total) * 100)));
-      }
-
-      setOfflineProgress(100);
+      await downloadOfflineBibleData(setOfflineProgress);
       setOfflineEnabled(true);
-      localStorage.setItem(OFFLINE_KEY, "true");
       toast({ title: "Bíblia baixada com sucesso", description: "Disponível para leitura 100% offline." });
     } catch {
       toast({ title: "Erro ao baixar", description: "Verifique sua conexão e tente novamente.", variant: "destructive" });

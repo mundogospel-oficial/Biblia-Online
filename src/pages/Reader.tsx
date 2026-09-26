@@ -843,52 +843,30 @@ const Reader = () => {
           </div>
         ) : error ? (
           <div className="py-20 text-center">
-            {error === "OFFLINE_MODE" ? (
-              <div className="space-y-4">
-                <div className="flex justify-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/10">
-                    <WifiOff className="h-8 w-8 text-accent" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <h3 className="font-serif text-xl font-bold text-foreground">Modo Offline</h3>
-                  <p className="mx-auto max-w-xs text-sm text-muted-foreground">
-                    {isPWA 
-                      ? "Sem conexão e sem dados offline baixados. Para ler sem internet, baixe a Bíblia."
-                      : "Sem conexão com a internet. Verifique sua rede para continuar a leitura."}
-                  </p>
-                </div>
-                <div className="flex flex-wrap justify-center gap-3">
-                  <button
-                    onClick={() => setRetryCount(c => c + 1)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-semibold text-foreground shadow-sm transition-transform hover:scale-105 active:scale-95"
-                  >
-                    <RotateCw className="h-4 w-4" />
-                    Tentar Novamente
-                  </button>
-                  {isPWA && (
-                    <button
-                      onClick={() => navigate("/conta")}
-                      className="inline-flex items-center gap-2 rounded-xl bg-accent px-6 py-2.5 text-sm font-semibold text-accent-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
-                    >
-                      <Download className="h-4 w-4" />
-                      Baixar Bíblia Offline
-                    </button>
-                  )}
+            <div className="space-y-4">
+              <div className="flex justify-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/10">
+                  <WifiOff className="h-8 w-8 text-accent" />
                 </div>
               </div>
-            ) : (
-              <div className="space-y-4">
-                <p className="text-muted-foreground">{error}</p>
+              <div className="space-y-1">
+                <h3 className="font-serif text-lg font-bold text-foreground">
+                  Sem conexão com a internet
+                </h3>
+                <p className="mx-auto max-w-xs text-xs text-muted-foreground">
+                  Verifique sua rede para continuar a leitura.
+                </p>
+              </div>
+              <div className="flex justify-center">
                 <button
                   onClick={() => setRetryCount(c => c + 1)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-semibold text-foreground shadow-sm transition-transform hover:scale-105 active:scale-95"
+                  className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-semibold text-foreground shadow-sm transition-transform hover:scale-105 active:scale-95 cursor-pointer"
                 >
                   <RotateCw className="h-4 w-4" />
                   Tentar Novamente
                 </button>
               </div>
-            )}
+            </div>
           </div>
         ) : (
           <motion.div
