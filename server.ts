@@ -8,7 +8,7 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import fs from "fs";
 import crypto from "crypto";
-import { sanitizeUserPrompt, buildPrivacyEnhancedSystemRule } from "./src/lib/security/privacyGuard.js";
+import { maskPiiInText, sanitizeUserPrompt, buildPrivacyEnhancedSystemRule } from "./src/lib/security/privacyGuard.js";
 import { resolveBiblicalSituationSubject } from "./src/data/biblicalSituations.js";
 import { resolveBiblicalBackground, buildUltraRealisticChatPrompt } from "./src/data/biblicalBackgrounds.js";
 
@@ -1053,6 +1053,17 @@ function startServer() {
 
       let lastError = "Falha ao consultar modelos OpenRouter.";
 
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+      res.setHeader('Pragma', 'no-cache');
+
+      // Sanitiza mensagens com mascaramento de nomes, CPF e dados sensíveis
+      const sanitizedMessages = Array.isArray(messages) ? messages.map((m: any) => {
+        if (typeof m?.content === 'string') {
+          return { ...m, content: maskPiiInText(m.content) };
+        }
+        return m;
+      }) : messages;
+
       for (const key of keysToTry) {
         for (const candidateModel of modelsToTry) {
           try {
@@ -1062,11 +1073,15 @@ function startServer() {
                 'Authorization': `Bearer ${key}`,
                 'Content-Type': 'application/json',
                 'HTTP-Referer': req.headers.referer || "https://biblia-online.local",
-                'X-Title': 'Biblia Online Secure Service'
+                'X-Title': 'Biblia Online Privacy Protected',
+                'X-Data-Collection': 'deny'
               },
               body: JSON.stringify({
                 model: candidateModel,
-                messages,
+                messages: sanitizedMessages,
+                provider: {
+                  data_collection: "deny"
+                },
                 temperature: typeof temperature === 'number' ? temperature : 0.3,
                 max_tokens: typeof max_tokens === 'number' ? max_tokens : 4000,
                 ...(response_format ? { response_format } : {})
@@ -1096,7 +1111,7 @@ function startServer() {
   // --- PROXY SEGURO DE GEMINI (Protege chaves GOOGLE_AI_KEY no servidor) ---
   app.post("/api/gemini/chat", async (req, res) => {
     try {
-      const { prompt, systemInstruction, model, temperature, maxTokens, attachments } = req.body || {};
+      const { prompt, systemInstruction, model, temperature, maxTokens, attachments, history } = req.body || {};
       if (!prompt && (!attachments || attachments.length === 0)) {
         return res.status(400).json({ error: "Prompt ou anexo obrigatório." });
       }
@@ -1123,21 +1138,51 @@ function startServer() {
         }
       }
 
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+      res.setHeader('Pragma', 'no-cache');
+
       const keysToTry = [gKey1, gKey2].filter(Boolean);
       if (keysToTry.length === 0) {
         return res.status(503).json({ error: "Chave Google AI não configurada no servidor." });
       }
 
       const geminiModels = model ? [model] : [
+        'gemini-3.8-flash',
         'gemini-2.5-flash',
-        'gemini-2.0-flash',
-        'gemini-2.5-pro',
         'gemini-flash-latest'
       ];
 
+      // Injeta diretiva de confidencialidade e proibição de treinamento
+      const effectiveSystemInstruction = buildPrivacyEnhancedSystemRule(systemInstruction || "");
+
+      // Construção do histórico multi-turn para memória restrita ao chat atual com anonimização
+      const contents: Array<{ role: 'user' | 'model'; parts: any[] }> = [];
+
+      if (Array.isArray(history) && history.length > 0) {
+        for (const item of history) {
+          if (!item || typeof item.content !== "string") continue;
+          const cleanText = maskPiiInText(item.content.trim());
+          if (!cleanText) continue;
+
+          const role: 'user' | 'model' = (item.role === 'assistant' || item.role === 'model') ? 'model' : 'user';
+
+          // A API Gemini exige que a primeira mensagem em contents seja do usuário
+          if (contents.length === 0 && role !== 'user') {
+            continue;
+          }
+
+          const lastTurn = contents.length > 0 ? contents[contents.length - 1] : null;
+          if (lastTurn && lastTurn.role === role) {
+            lastTurn.parts.push({ text: cleanText });
+          } else {
+            contents.push({ role, parts: [{ text: cleanText }] });
+          }
+        }
+      }
+
       const parts: any[] = [];
       if (prompt) {
-        parts.push({ text: prompt });
+        parts.push({ text: maskPiiInText(prompt) });
       }
 
       if (Array.isArray(attachments)) {
@@ -1155,6 +1200,16 @@ function startServer() {
         });
       }
 
+      // Adiciona o turno atual garantindo alternância correta
+      if (parts.length > 0) {
+        const lastTurn = contents.length > 0 ? contents[contents.length - 1] : null;
+        if (lastTurn && lastTurn.role === 'user') {
+          lastTurn.parts.push(...parts);
+        } else {
+          contents.push({ role: 'user', parts });
+        }
+      }
+
       let lastError = "Falha ao gerar resposta com modelos do Gemini.";
 
       for (const key of keysToTry) {
@@ -1165,8 +1220,8 @@ function startServer() {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                ...(systemInstruction ? { systemInstruction: { parts: [{ text: systemInstruction }] } } : {}),
-                contents: [{ parts }],
+                ...(effectiveSystemInstruction ? { systemInstruction: { parts: [{ text: effectiveSystemInstruction }] } } : {}),
+                contents,
                 generationConfig: {
                   temperature: typeof temperature === 'number' ? temperature : 0.4,
                   maxOutputTokens: typeof maxTokens === 'number' ? maxTokens : 4000

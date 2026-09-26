@@ -17,7 +17,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 import { downloadBibleImage, shareBibleImage } from "@/lib/downloadUtils";
 
-import { askBibleAI, AIAttachment } from "@/services/aiService";
+import { askBibleAI, AIAttachment, AIChatMessage } from "@/services/aiService";
 import { checkAndIncrementUsage, checkQuotaOnly, getUserUsage, refundUsage } from "@/services/usageService";
 import { saveAIHistory } from "@/services/userDataService";
 import { syncKeyToSupabase } from "@/services/userSyncService";
@@ -296,6 +296,33 @@ type Msg = {
   fileName?: string;
   files?: Array<{ name: string; size?: number; type?: string }>;
   feedback?: "like" | "dislike";
+};
+
+// Extrai o histórico recente (janela deslizante de 6 a 8 turnos) EXCLUSIVAMENTE de texto bíblico do chat ativo (ignora imagens)
+const getActiveChatRecentHistory = (msgs: Msg[]): AIChatMessage[] => {
+  if (!msgs || msgs.length === 0) return [];
+  return msgs
+    .filter(m => {
+      // Ignora completamente imagens geradas ou mensagens que são apenas imagens
+      if (m.image) return false;
+      const raw = m.content || "";
+      if (raw.startsWith("data:image")) return false;
+      if (raw.startsWith("http") && (raw.includes("pollinations.ai") || raw.match(/\.(jpg|jpeg|png|webp|gif)/i))) return false;
+      if (raw.startsWith("[Modo: Imagem]") || raw.startsWith("[Estilo:")) return false;
+      return true;
+    })
+    .slice(-8)
+    .map(m => {
+      let content = formatMessageForDisplay(cleanImageLinksFromText(m.content || ""));
+      if (content.length > 1200) {
+        content = content.slice(0, 1197) + "...";
+      }
+      return {
+        role: m.role,
+        content: maskPiiInText(content).trim()
+      };
+    })
+    .filter(m => m.content.length > 0 && !m.content.startsWith("[Imagem"));
 };
 
 const getDefaultSuggestions = (isEn: boolean) => isEn ? [
@@ -2082,6 +2109,8 @@ Estilo Pixel Art:
 
     try {
       let responseText = "";
+      const activeChatHistory = getActiveChatRecentHistory(messages);
+
       if (activeMode === 'learning') {
         const learningPrompt = isEn ? `You are a Christian teacher and theologian dedicated to biblical teaching in a highly didactic, step-by-step, and enriching way.
 
@@ -2108,12 +2137,12 @@ Seu objetivo é ensinar o tema bíblico solicitado seguindo estas diretrizes:
 4. IMPORTANTE: Conclua a explicação diretamente no resumo das lições práticas. NÃO inclua perguntas adicionais ou seções de pergunta no final.
 
 Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex: João 3:16, Efésios 2:8). NUNCA use # para títulos, use **negrito**.`;
-        responseText = await askBibleAI(finalText, aiEngine === "complexo" ? "complex" : "simple", controller.signal, attachments, learningPrompt, true);
+        responseText = await askBibleAI(finalText, aiEngine === "complexo" ? "complex" : "simple", controller.signal, attachments, learningPrompt, true, undefined, activeChatHistory);
         if (responseText && responseText.length > 2000) {
           responseText = responseText.slice(0, 1997) + "...";
         }
       } else {
-        responseText = await askBibleAI(finalText, aiEngine === "complexo" ? "complex" : "simple", controller.signal, attachments, undefined, true);
+        responseText = await askBibleAI(finalText, aiEngine === "complexo" ? "complex" : "simple", controller.signal, attachments, undefined, true, undefined, activeChatHistory);
       }
       
       const finalMessages = [...newMessages, { role: "assistant" as const, content: responseText }];

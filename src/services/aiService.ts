@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { sanitizeUserPrompt, buildPrivacyEnhancedSystemRule } from '@/lib/security/privacyGuard';
+import { maskPiiInText, sanitizeUserPrompt, buildPrivacyEnhancedSystemRule } from '@/lib/security/privacyGuard';
 
 let cachedSystemRule: string | null = null;
 let lastCacheUpdate = 0;
@@ -79,6 +79,11 @@ const normalizeAttachments = (attachments?: AIAttachment[] | string | null): AIA
   return attachments;
 };
 
+export interface AIChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 const tryComplexGemini = async (
   prompt: string,
   googleKey: string,
@@ -86,7 +91,8 @@ const tryComplexGemini = async (
   attachments?: AIAttachment[] | string | null,
   signal?: AbortSignal,
   skipBracketRemoval: boolean = false,
-  googleKey2?: string
+  googleKey2?: string,
+  history?: AIChatMessage[]
 ): Promise<string> => {
   const normalized = normalizeAttachments(attachments);
 
@@ -99,6 +105,7 @@ const tryComplexGemini = async (
         prompt,
         systemInstruction: systemRule,
         attachments: normalized,
+        history,
         temperature: 0.4,
         maxTokens: 4000
       }),
@@ -120,9 +127,8 @@ const tryComplexGemini = async (
   if (!googleKey && !googleKey2) throw new Error("Chave Gemini não disponível.");
   
   const geminiModels = [
+    'gemini-3.8-flash',
     'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-2.5-pro',
     'gemini-flash-latest'
   ];
   let lastErrorMessage = "";
@@ -134,6 +140,27 @@ const tryComplexGemini = async (
     for (const model of geminiModels) {
       try {
         if (!navigator.onLine) throw new Error("Sem conexão com a internet.");
+
+        const contents: Array<{ role: 'user' | 'model'; parts: any[] }> = [];
+
+        if (Array.isArray(history) && history.length > 0) {
+          for (const item of history) {
+            if (!item || typeof item.content !== "string") continue;
+            const cleanText = item.content.trim();
+            if (!cleanText) continue;
+
+            const role: 'user' | 'model' = (item.role === 'assistant' || item.role === 'model') ? 'model' : 'user';
+
+            if (contents.length === 0 && role !== 'user') continue;
+
+            const lastTurn = contents.length > 0 ? contents[contents.length - 1] : null;
+            if (lastTurn && lastTurn.role === role) {
+              lastTurn.parts.push({ text: cleanText });
+            } else {
+              contents.push({ role, parts: [{ text: cleanText }] });
+            }
+          }
+        }
 
         const parts: any[] = [{ text: prompt }];
         
@@ -148,12 +175,18 @@ const tryComplexGemini = async (
           });
         });
 
+        if (contents.length > 0 && contents[contents.length - 1].role === 'user') {
+          contents[contents.length - 1].parts.push(...parts);
+        } else {
+          contents.push({ role: 'user', parts });
+        }
+
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: systemRule }] },
-            contents: [{ parts }],
+            contents,
             generationConfig: { 
               temperature: 0.4, 
               maxOutputTokens: 4000 
@@ -199,28 +232,45 @@ const trySimpleOpenRouter = async (
   attachments?: AIAttachment[] | string | null,
   signal?: AbortSignal,
   skipBracketRemoval: boolean = false,
-  openRouterKey2?: string
+  openRouterKey2?: string,
+  history?: AIChatMessage[]
 ): Promise<string> => {
   const normalized = normalizeAttachments(attachments);
 
+  const historyMessages = (Array.isArray(history) ? history : [])
+    .filter(h => h && typeof h.content === 'string' && h.content.trim().length > 0)
+    .map(h => ({
+      role: (h.role === 'assistant' ? 'assistant' : 'user') as 'assistant' | 'user',
+      content: h.content.trim()
+    }));
+
+  const userContent: any[] = [{ type: "text", text: prompt }];
+  normalized.forEach(att => {
+    userContent.push({
+      type: "image_url",
+      image_url: { url: att.base64 }
+    });
+  });
+
+  const fullMessages = [
+    { role: "system", content: systemRule },
+    ...historyMessages,
+    { role: "user", content: userContent.length > 1 ? userContent : prompt }
+  ];
+
   // 1. Prioridade Segura: Envia para o proxy do servidor (chaves protegidas no backend)
   try {
-    const userContent: any[] = [{ type: "text", text: prompt }];
-    normalized.forEach(att => {
-      userContent.push({
-        type: "image_url",
-        image_url: { url: att.base64 }
-      });
-    });
-
     const proxyRes = await fetch("/api/openrouter/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "X-Data-Collection": "deny"
+      },
       body: JSON.stringify({
-        messages: [
-          { role: "system", content: systemRule },
-          { role: "user", content: userContent.length > 1 ? userContent : prompt }
-        ],
+        messages: fullMessages,
+        provider: {
+          data_collection: "deny"
+        },
         temperature: 0.5,
         max_tokens: 4000
       }),
@@ -305,7 +355,8 @@ const trySimpleOpenRouter = async (
             'Authorization': `Bearer ${key}`,
             'Content-Type': 'application/json',
             'HTTP-Referer': window.location.origin,
-            'X-Title': 'IA Bíblica'
+            'X-Title': 'IA Bíblica',
+            'X-Data-Collection': 'deny'
           },
           body: JSON.stringify({
             model: model,
@@ -313,6 +364,9 @@ const trySimpleOpenRouter = async (
               { role: "system", "content": systemRule },
               { role: "user", "content": userContent.length > 1 ? userContent : prompt }
             ],
+            provider: {
+              data_collection: "deny"
+            },
             temperature: 0.5,
             max_tokens: 4000
           }),
@@ -806,7 +860,8 @@ export const askBibleAI = async (
   attachments?: AIAttachment[] | string | null,
   customSystemRule?: string,
   skipBracketRemoval: boolean = true,
-  langOverride?: "pt" | "en"
+  langOverride?: "pt" | "en",
+  history?: AIChatMessage[]
 ): Promise<string> => {
   const lang = langOverride || getCurrentLanguage();
   const ruleKey = complexity === 'simple' ? 'gemini_prompt_simples' : 'gemini_prompt_complexo';
@@ -827,6 +882,13 @@ export const askBibleAI = async (
     : "";
 
   const { cleanPrompt } = sanitizeUserPrompt(rawClean);
+  const sanitizedHistory: AIChatMessage[] | undefined = Array.isArray(history)
+    ? history.map(item => ({
+        role: item.role,
+        content: maskPiiInText(item.content || "")
+      }))
+    : undefined;
+
   const normalized = normalizeAttachments(attachments);
   const hasImageAttachments = normalized.some(att => att.mimeType?.startsWith('image/') || att.base64?.startsWith('data:image/'));
 
@@ -835,18 +897,18 @@ export const askBibleAI = async (
   try {
     // Se houver imagens anexadas para leitura e interpretação, prioriza os modelos de visão multimodal do Gemini
     if (hasImageAttachments) {
-      return await tryComplexGemini(cleanPrompt, googleKey, SYSTEM_RULE, attachments, signal, skipBracketRemoval, googleKey2);
+      return await tryComplexGemini(cleanPrompt, googleKey, SYSTEM_RULE, attachments, signal, skipBracketRemoval, googleKey2, sanitizedHistory);
     }
 
     if (complexity === 'complex') {
-      return await tryComplexGemini(cleanPrompt, googleKey, SYSTEM_RULE, attachments, signal, skipBracketRemoval, googleKey2);
+      return await tryComplexGemini(cleanPrompt, googleKey, SYSTEM_RULE, attachments, signal, skipBracketRemoval, googleKey2, sanitizedHistory);
     } else {
       // Chat Simples
       try {
-        return await trySimpleOpenRouter(cleanPrompt, openRouterKey, SYSTEM_RULE, attachments, signal, skipBracketRemoval, openRouterKey2);
+        return await trySimpleOpenRouter(cleanPrompt, openRouterKey, SYSTEM_RULE, attachments, signal, skipBracketRemoval, openRouterKey2, sanitizedHistory);
       } catch (openRouterErr) {
         // Fallback to Gemini if OpenRouter proxy fails
-        return await tryComplexGemini(cleanPrompt, googleKey, SYSTEM_RULE, attachments, signal, skipBracketRemoval, googleKey2);
+        return await tryComplexGemini(cleanPrompt, googleKey, SYSTEM_RULE, attachments, signal, skipBracketRemoval, googleKey2, sanitizedHistory);
       }
     }
   } catch (error: any) {
