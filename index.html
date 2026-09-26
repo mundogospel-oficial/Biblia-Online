@@ -183,28 +183,27 @@
           }
         } catch (e) {}
 
-        // Watchdog de Segurança contra travamentos na tela inicial:
-        // Se após 3.5 segundos o nó #root ainda contiver a tela estática inicial,
-        // limpa o cache local e tenta forçar recarregamento limpo.
+        // Limpeza de caches de versões antigas do navegador
         setTimeout(function() {
           try {
-            var splashEl = document.querySelector('.static-splash-hero');
-            if (splashEl) {
-              console.warn('[Watchdog] Splash estático ainda ativo. Executando limpeza de emergência...');
-              if ('caches' in window) {
-                caches.keys().then(function(keys) {
-                  keys.forEach(function(k) {
-                    if (k !== 'biblia-offline-data') caches.delete(k);
-                  });
+            if ('caches' in window) {
+              caches.keys().then(function(keys) {
+                keys.forEach(function(k) {
+                  if (
+                    k.includes('v2.5') || 
+                    k.includes('v2.6.0') || 
+                    k.includes('v2.6.1') || 
+                    k.includes('v2.6.2') || 
+                    k.includes('v2.6.3') ||
+                    k.includes('v2.6.4')
+                  ) {
+                    caches.delete(k).catch(function() {});
+                  }
                 });
-              }
-              var recoveryBtn = document.getElementById('splash-recovery-btn');
-              if (recoveryBtn) {
-                recoveryBtn.style.display = 'inline-block';
-              }
+              });
             }
           } catch (err) {}
-        }, 3500);
+        }, 3000);
       })();
     </script>
 
@@ -395,22 +394,12 @@
       <main class="static-pre-render" role="main">
         <!-- 1ª Dobra (100vh): Tela de Carregamento Fluida com Logo no Centro para Usuários Humanos -->
         <section class="static-splash-hero" aria-label="Carregando Biblia Online">
-          <div class="static-splash-lockup" style="flex-direction: column; align-items: center; gap: 20px;">
-            <div style="display: inline-flex; align-items: center; gap: 16px;">
-              <img src="/icons/logo2.png" alt="Biblia Online" width="38" height="38" class="static-splash-logo" />
-              <div class="static-splash-text-group">
-                <span class="static-splash-title">Biblia Online</span>
-                <div class="static-splash-loader"></div>
-              </div>
+          <div class="static-splash-lockup">
+            <img src="/icons/logo2.png" alt="Biblia Online" width="38" height="38" class="static-splash-logo" />
+            <div class="static-splash-text-group">
+              <span class="static-splash-title">Biblia Online</span>
+              <div class="static-splash-loader"></div>
             </div>
-            <button
-              id="splash-recovery-btn"
-              type="button"
-              onclick="if('caches' in window){caches.keys().then(function(k){k.forEach(function(n){caches.delete(n)});window.location.reload(true)})}else{window.location.reload(true)}"
-              style="display: none; margin-top: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 8px 18px; border-radius: 9999px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;"
-            >
-              Atualizar para Versão Recente
-            </button>
           </div>
         </section>
 

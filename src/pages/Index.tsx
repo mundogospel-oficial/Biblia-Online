@@ -12,7 +12,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 const Index = () => {
   const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<'old' | 'new'>('old');
-  const [dailyVerse, setDailyVerse] = useState<DailyVerseEntry | null>(() => getDailyVerseReference());
+  const [dailyVerse, setDailyVerse] = useState<DailyVerseEntry | null>(null);
+  const [verseLoading, setVerseLoading] = useState(true);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
@@ -26,6 +27,16 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
+    const isOnline = typeof navigator === 'undefined' || navigator.onLine;
+    const isOfflineAllowed = typeof window !== 'undefined' && localStorage.getItem('bible-offline-enabled') === 'true';
+
+    if (!isOnline && !isOfflineAllowed) {
+      setDailyVerse(null);
+      setVerseLoading(false);
+      return;
+    }
+
+    setVerseLoading(true);
     const reference = getDailyVerseReference();
     const isEn = language === "en";
     const selectedTranslation = isEn ? "kjv" : "blivre";
@@ -34,25 +45,24 @@ const Index = () => {
       ? (reference.referenceEn || `${book?.nameEn || reference.reference} ${reference.chapter}:${reference.verse}`)
       : reference.reference;
 
-    // Puxando da fonte certa: KJV para Inglês, Bíblia Livre offline para Português
     fetchChapter(reference.abbrev, reference.chapter, selectedTranslation)
       .then((chap) => {
         const verseText = chap.verses.find(v => v.verse === reference.verse)?.text || "";
-        setDailyVerse({ 
-          ...reference, 
-          reference: formattedRef,
-          text: verseText || (isEn ? (reference.textEn || reference.text) : reference.text) || "" 
-        });
+        if (verseText) {
+          setDailyVerse({ 
+            ...reference, 
+            reference: formattedRef,
+            text: verseText 
+          });
+        } else {
+          setDailyVerse(null);
+        }
       })
       .catch(() => {
-        const fallbackText = isEn ? (reference.textEn || reference.text || "") : (reference.text || "");
-        setDailyVerse({ 
-          ...reference, 
-          reference: formattedRef,
-          text: fallbackText || (isEn 
-            ? "Could not load the verse. Check your connection or offline data." 
-            : "Não foi possível carregar o versículo. Verifique sua conexão ou dados offline.")
-        });
+        setDailyVerse(null);
+      })
+      .finally(() => {
+        setVerseLoading(false);
       });
   }, [language]);
 
@@ -186,9 +196,13 @@ const Index = () => {
                   exit={{ opacity: 0, x: -10 }}
                   transition={{ duration: 0.3 }}
                 >
-                  {!dailyVerse ? (
+                  {verseLoading ? (
                     <div className="flex items-center gap-2 text-muted-foreground py-2">
                       <Loader2 className="h-4 w-4 animate-spin" /> {language === "en" ? "Loading verse of the day..." : "Carregando versículo do dia..."}
+                    </div>
+                  ) : !dailyVerse ? (
+                    <div className="py-2 text-xs text-muted-foreground">
+                      {language === "en" ? "Internet connection required to load daily verse." : "Conecte-se à internet para carregar o versículo do dia."}
                     </div>
                   ) : (
                     <>
