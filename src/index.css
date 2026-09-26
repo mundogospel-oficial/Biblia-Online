@@ -103,6 +103,9 @@
 
 html, body, #root {
   height: 100%;
+  overscroll-behavior: none !important;
+  overscroll-behavior-y: none !important;
+  overscroll-behavior-x: none !important;
 }
 
 /* Global default: hide scrollbars everywhere for a clean native app feel */
@@ -119,6 +122,8 @@ html, body, #root {
 html, body {
   -ms-overflow-style: none !important;
   scrollbar-width: none !important;
+  overscroll-behavior: none !important;
+  overscroll-behavior-y: none !important;
 }
 html::-webkit-scrollbar,
 body::-webkit-scrollbar {
@@ -181,11 +186,20 @@ body::-webkit-scrollbar,
 }
 
 .safe-area-bottom {
-  padding-bottom: max(3px, calc(env(safe-area-inset-bottom, 0px) * 0.35));
+  padding-bottom: max(6px, calc(env(safe-area-inset-bottom, 0px) * 0.45));
 }
 
 .safe-area-top {
   padding-top: env(safe-area-inset-top, 0);
+}
+
+.ios-fixed-bar {
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  will-change: transform;
+  touch-action: pan-x pan-y;
 }
 
 @layer utilities {
