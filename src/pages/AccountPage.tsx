@@ -29,7 +29,6 @@ import { TwoFactorSettingsCard } from "@/components/TwoFactorSettingsCard";
 import { TwoFactorLoginModal } from "@/components/TwoFactorLoginModal";
 import { BiometricSettingsCard } from "@/components/BiometricSettingsCard";
 import { useIsPWA } from "@/hooks/useIsPWA";
-import { downloadOfflineBibleData, deleteOfflineBibleData, OFFLINE_KEY } from "@/lib/bibleData";
 
 const NOTIFICATIONS_KEY = "bible-notifications-enabled";
 
@@ -211,7 +210,6 @@ const AccountPage = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [offlineEnabled, setOfflineEnabled] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarImgFailed, setAvatarImgFailed] = useState(false);
   const [avatarLoaded, setAvatarLoaded] = useState(false);
@@ -373,7 +371,6 @@ const AccountPage = () => {
       loadProfile();
       const isGranted = "Notification" in window && Notification.permission === "granted";
       setNotificationsEnabled(isGranted && localStorage.getItem(NOTIFICATIONS_KEY) === "true");
-      setOfflineEnabled(localStorage.getItem(OFFLINE_KEY) === "true");
     }
   }, [authCtx, toast]);
 
