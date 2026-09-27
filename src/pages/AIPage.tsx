@@ -51,11 +51,31 @@ const formatMessageForDisplay = (text: string): string => {
     return "";
   }
   // Limpa apenas tags de controle interno do sistema ([Modo:...], [Arquivo:...], [Estilo:...], etc.)
+  // Converte qualquer cabeçalho Markdown (#, ##, ###, ####) em **negrito** limpo
   // PRESERVA intactas as marcações de privacidade como [CPF OCULTO], [NOME OCULTO], [E-MAIL OCULTO], etc.
   return text
     .replace(/\[(?:Modo|Arquivo|Estilo|Estilo Artístico|Arte):.*?\]/gi, '')
+    .replace(/^#{1,6}\s*(.+)$/gm, '**$1**')
     .replace(/\n*\s*\*\*Pergunta(?:\.\.\.|:?.*?)?$/i, '')
+    .replace(/^(?:\*\*)?(?:Resposta|Resposta do Assistente|Assistente|IA|Bible AI|Answer|Assistant)(?:\*\*)?\s*:\s*/i, '')
     .trim();
+};
+
+const enforceModeCharacterLimit = (text: string, maxChars: number = 2000): string => {
+  if (!text || text.length <= maxChars) return text;
+  const sub = text.slice(0, maxChars);
+  const lastPunctuation = Math.max(
+    sub.lastIndexOf('. '),
+    sub.lastIndexOf('.\n'),
+    sub.lastIndexOf('! '),
+    sub.lastIndexOf('!\n'),
+    sub.lastIndexOf('? '),
+    sub.lastIndexOf('?\n')
+  );
+  if (lastPunctuation > maxChars * 0.75) {
+    return sub.slice(0, lastPunctuation + 1).trim();
+  }
+  return sub.trim() + "...";
 };
 
 const cleanImageLinksFromText = (text: string): string => {
@@ -1953,9 +1973,7 @@ Estilo Pixel Art:
       }
       let responseText = await askBibleAI(cleanPrompt, "complex", controller.signal, attachments, systemPrompt, true);
 
-      if (responseText && responseText.length > 2000) {
-        responseText = responseText.slice(0, 1997) + "...";
-      }
+      responseText = enforceModeCharacterLimit(responseText, 2000);
       
       const assistantMsg: Msg = { role: "assistant", content: responseText || "Conteúdo gerado!" };
       const finalMessages = [...currentMsgs, assistantMsg];
@@ -2138,11 +2156,10 @@ Seu objetivo é ensinar o tema bíblico solicitado seguindo estas diretrizes:
 
 Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex: João 3:16, Efésios 2:8). NUNCA use # para títulos, use **negrito**.`;
         responseText = await askBibleAI(finalText, aiEngine === "complexo" ? "complex" : "simple", controller.signal, attachments, learningPrompt, true, undefined, activeChatHistory);
-        if (responseText && responseText.length > 2000) {
-          responseText = responseText.slice(0, 1997) + "...";
-        }
+        responseText = enforceModeCharacterLimit(responseText, 2000);
       } else {
         responseText = await askBibleAI(finalText, aiEngine === "complexo" ? "complex" : "simple", controller.signal, attachments, undefined, true, undefined, activeChatHistory);
+        responseText = enforceModeCharacterLimit(responseText, 3500);
       }
       
       const finalMessages = [...newMessages, { role: "assistant" as const, content: responseText }];
@@ -2678,6 +2695,16 @@ Mantenha fidelidade bíblica rigorosa, citando referências bíblicas exatas (ex
               return null;
             }
             return renderImageCard(lineImgUrl, i);
+          }
+          // Trata cabeçalhos Markdown (#, ##, ###, ####) e os renderiza como títulos limpos em negrito sem hashtags
+          const headerMatch = line.match(/^#{1,6}\s*(.*)/);
+          if (headerMatch) {
+            const headingText = headerMatch[1].trim();
+            return (
+              <p key={i} className="text-xs font-bold text-foreground mt-2 mb-0.5">
+                {parseInlineBold(headingText)}
+              </p>
+            );
           }
           if (line.startsWith("**") && line.endsWith("**")) {
             return <p key={i} className="text-xs font-bold text-foreground mt-1.5">{line.slice(2, -2)}</p>;
