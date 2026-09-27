@@ -542,12 +542,12 @@ export const PulpitMode = ({
                     className="fixed inset-0 z-40"
                     onClick={() => setShowTranslationMenu(false)}
                   />
-                  <motion.div
-                    initial={{ opacity: 0, y: 6, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 6, scale: 0.95 }}
-                    className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 w-64 rounded-2xl border border-white/15 bg-[#0d1629] p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.95)] space-y-1"
-                  >
+                    <motion.div
+                      initial={{ opacity: 0, y: 6, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                      className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 w-64 rounded-2xl backdrop-blur-2xl glass-card border border-border/50 p-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.5),0_0_24px_hsl(var(--primary)/0.1)] transition-all duration-300 hover:border-primary/40 space-y-1"
+                    >
                     <div className="px-2.5 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-white/10">
                       {language === "en" ? "Bible Version" : "Versão da Bíblia"}
                     </div>
@@ -774,7 +774,7 @@ export const PulpitMode = ({
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute right-0 bottom-full mb-3 z-50 w-72 sm:w-80 rounded-2xl border border-white/15 bg-[#0d1629] p-4 shadow-[0_24px_60px_rgba(0,0,0,0.95)] space-y-4 text-foreground"
+                      className="absolute right-0 bottom-full mb-3 z-50 w-72 sm:w-80 rounded-2xl backdrop-blur-2xl glass-card border border-border/50 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.5),0_0_24px_hsl(var(--primary)/0.1)] transition-all duration-300 hover:border-primary/40 space-y-4 text-foreground"
                     >
                       <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
                         <span className="text-xs font-bold text-foreground uppercase tracking-wider">
@@ -962,7 +962,7 @@ export const PulpitMode = ({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md rounded-2xl border border-white/15 bg-[#0d1629] text-foreground p-6 shadow-[0_24px_60px_rgba(0,0,0,0.95)] space-y-4"
+              className="w-full max-w-md rounded-2xl backdrop-blur-2xl glass-card border border-border/50 text-foreground p-6 shadow-[0_16px_40px_rgba(0,0,0,0.5),0_0_24px_hsl(var(--primary)/0.1)] transition-all duration-300 hover:border-primary/40 space-y-4"
             >
               <div className="flex items-center justify-between border-b border-white/10 pb-3">
                 <div className="flex items-center gap-2">
@@ -1065,7 +1065,7 @@ export const PulpitMode = ({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg max-h-[88vh] flex flex-col rounded-2xl border border-white/15 bg-[#0d1629] text-foreground shadow-[0_24px_60px_rgba(0,0,0,0.95)] overflow-hidden"
+              className="w-full max-w-lg max-h-[88vh] flex flex-col rounded-2xl backdrop-blur-2xl glass-card border border-border/50 text-foreground shadow-[0_16px_40px_rgba(0,0,0,0.5),0_0_24px_hsl(var(--primary)/0.1)] transition-all duration-300 hover:border-primary/40 overflow-hidden"
             >
               {/* Header Fixo */}
               <div className="flex items-center justify-between border-b border-border/50 px-6 py-4 flex-shrink-0">
