@@ -113,7 +113,10 @@ ${verses.map(v => `${v.verse}: ${v.text}`).join('\n')}`;
             'Authorization': `Bearer ${routerKey}`,
             'Content-Type': 'application/json',
             'HTTP-Referer': window.location.origin,
-            'X-Title': 'Biblia Online Translation'
+            'X-Title': 'Biblia Online Translation',
+            'X-Data-Collection': 'deny',
+            'X-No-Training': 'true',
+            'X-Data-Policy': 'no-training'
           },
           body: JSON.stringify({
             model: model,
@@ -121,6 +124,10 @@ ${verses.map(v => `${v.verse}: ${v.text}`).join('\n')}`;
               { role: "system", content: "Você é um tradutor especializado em textos bíblicos. Retorne apenas JSON." },
               { role: "user", content: prompt }
             ],
+            provider: {
+              data_collection: "deny",
+              allow_fallbacks: true
+            },
             response_format: { type: "json_object" }
           }),
           signal

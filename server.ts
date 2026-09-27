@@ -1074,13 +1074,16 @@ function startServer() {
                 'Content-Type': 'application/json',
                 'HTTP-Referer': req.headers.referer || "https://biblia-online.local",
                 'X-Title': 'Biblia Online Privacy Protected',
-                'X-Data-Collection': 'deny'
+                'X-Data-Collection': 'deny',
+                'X-No-Training': 'true',
+                'X-Data-Policy': 'no-training'
               },
               body: JSON.stringify({
                 model: candidateModel,
                 messages: sanitizedMessages,
                 provider: {
-                  data_collection: "deny"
+                  data_collection: "deny",
+                  allow_fallbacks: true
                 },
                 temperature: typeof temperature === 'number' ? temperature : 0.3,
                 max_tokens: typeof max_tokens === 'number' ? max_tokens : 4000,
@@ -1218,7 +1221,13 @@ function startServer() {
           try {
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${key}`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Data-Policy': 'no-training',
+                'X-No-Training': 'true',
+                'X-Data-Collection': 'deny',
+                'X-Goog-Api-Client': 'gl-node/privacy-opt-out'
+              },
               body: JSON.stringify({
                 ...(effectiveSystemInstruction ? { systemInstruction: { parts: [{ text: effectiveSystemInstruction }] } } : {}),
                 contents,
@@ -1354,7 +1363,10 @@ Responda EXATAMENTE E APENAS: "APROVADO".`;
               "Authorization": `Bearer ${key}`,
               "Content-Type": "application/json",
               "HTTP-Referer": "https://mundogospel.app",
-              "X-Title": "Moderador de Seguranca de Imagens"
+              "X-Title": "Moderador de Seguranca de Imagens",
+              "X-Data-Collection": "deny",
+              "X-No-Training": "true",
+              "X-Data-Policy": "no-training"
             },
             body: JSON.stringify({
               model: modelId,
@@ -1362,6 +1374,10 @@ Responda EXATAMENTE E APENAS: "APROVADO".`;
                 { role: "system", content: securitySystemPrompt },
                 { role: "user", content: `Analise este prompt para geração de imagem bíblica: "${cleanPrompt}"` }
               ],
+              provider: {
+                data_collection: "deny",
+                allow_fallbacks: true
+              },
               temperature: 0.0,
               max_tokens: 25
             }),
@@ -1486,7 +1502,8 @@ Responda EXATAMENTE E APENAS: "APROVADO".`;
         return res.json({ isAppropriate: true, reason: null });
       }
 
-      const MODERATION_VISION_PROMPT = `Você é um Moderador e Auditor de Segurança e Ética Cristã Mestre para um aplicativo da Bíblia Sagrada.
+      const MODERATION_VISION_PROMPT = `[DATA PRIVACY / NO-TRAINING POLICY]: Do not store, retain, or use this image or prompt for model training, reinforcement learning, or evaluation.
+Você é um Moderador e Auditor de Segurança e Ética Cristã Mestre para um aplicativo da Bíblia Sagrada.
 Analise a imagem enviada com Máxima Rigidez e determine se ela está em total conformidade com os princípios bíblicos, cristãos e éticos.
 
 A IMAGEM DEVE SER REJEITADA (isAppropriate: false) SE CONTIVER:
@@ -1731,7 +1748,10 @@ REGRAS DE SAÍDA:
                 "Authorization": `Bearer ${orKeyCriar}`,
                 "Content-Type": "application/json",
                 "HTTP-Referer": "https://mundogospel.app",
-                "X-Title": "Aprimorador de Prompts"
+                "X-Title": "Aprimorador de Prompts",
+                "X-Data-Collection": "deny",
+                "X-No-Training": "true",
+                "X-Data-Policy": "no-training"
               },
               body: JSON.stringify({
                 model: modelId,
@@ -1739,6 +1759,10 @@ REGRAS DE SAÍDA:
                   { role: "system", content: systemInstruction },
                   { role: "user", content: `Pedido do usuário: "${prompt}"` }
                 ],
+                provider: {
+                  data_collection: "deny",
+                  allow_fallbacks: true
+                },
                 temperature: 0.1,
                 max_tokens: 80
               }),
@@ -1853,17 +1877,22 @@ REGRAS DE SAÍDA:
       const negativeEncoded = encodeURIComponent(serverNegativePrompt);
       const keyParam = cleanKey ? `&key=${encodeURIComponent(cleanKey)}&token=${encodeURIComponent(cleanKey)}` : '';
       
-      const genApiUrl = `https://gen.pollinations.ai/image/${encodedPrompt}?width=${width}&height=${height}&seed=${seed}&model=flux&nologo=true&nofeed=true&enhance=false&negative=${negativeEncoded}${keyParam}`;
-      const imageApiUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&seed=${seed}&model=flux&nologo=true&nofeed=true&enhance=false&negative=${negativeEncoded}${keyParam}`;
+      const genApiUrl = `https://gen.pollinations.ai/image/${encodedPrompt}?width=${width}&height=${height}&seed=${seed}&model=flux&nologo=true&nofeed=true&private=true&notraining=true&enhance=false&negative=${negativeEncoded}${keyParam}`;
+      const imageApiUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&seed=${seed}&model=flux&nologo=true&nofeed=true&private=true&notraining=true&enhance=false&negative=${negativeEncoded}${keyParam}`;
 
       console.log("[Modo Criar - Pollinations Flux] Prompt:", finalPrompt);
       console.log(`[Modo Criar - Pollinations Flux] Gerando para o usuário ${userId}... POLLINATIONS_API_KEY configurada: ${Boolean(cleanKey)}`);
 
       let base64Image = "";
 
-      // Headers completos de autenticação com a chave
+      // Headers completos de autenticação com a chave e proteção total contra treinamento
       const fetchHeaders: Record<string, string> = {
-        'Accept': 'image/jpeg, image/png, image/webp, */*'
+        'Accept': 'image/jpeg, image/png, image/webp, */*',
+        'X-No-Feed': 'true',
+        'X-Private': 'true',
+        'X-No-Training': 'true',
+        'X-Data-Policy': 'no-training',
+        'X-Data-Collection': 'deny'
       };
       if (cleanKey) {
         fetchHeaders['Authorization'] = `Bearer ${cleanKey}`;
@@ -2130,7 +2159,10 @@ SUA TAREFA OBRIGATÓRIA:
               "Authorization": `Bearer ${key}`,
               "Content-Type": "application/json",
               "HTTP-Referer": "https://mundogospel.app",
-              "X-Title": "Aprimorador de Prompts"
+              "X-Title": "Aprimorador de Prompts",
+              "X-Data-Collection": "deny",
+              "X-No-Training": "true",
+              "X-Data-Policy": "no-training"
             },
             body: JSON.stringify({
               model: modelId,
@@ -2138,6 +2170,10 @@ SUA TAREFA OBRIGATÓRIA:
                 { role: "system", content: systemInstruction },
                 { role: "user", content: userPromptContent }
               ],
+              provider: {
+                data_collection: "deny",
+                allow_fallbacks: true
+              },
               temperature: 0.3,
               max_tokens: 400
             }),
@@ -2524,7 +2560,13 @@ SUA TAREFA OBRIGATÓRIA:
             
             const headers: Record<string, string> = {
               "Authorization": `Bearer ${cfApiToken}`,
-              "Content-Type": "application/json"
+              "Content-Type": "application/json",
+              "X-Data-Policy": "no-training",
+              "X-No-Training": "true",
+              "X-Data-Collection": "deny",
+              "cf-aig-skip-cache": "true",
+              "cf-aig-collect-logs": "false",
+              "cf-aig-metadata": JSON.stringify({ no_training: true, data_collection: "deny" })
             };
             if (cfUrl.includes("gateway")) {
               headers["cf-aig-authorization"] = `Bearer ${cfApiToken}`;

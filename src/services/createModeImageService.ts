@@ -180,7 +180,7 @@ export const generateCreateModeImage = async (
 
       const clientNegativePrompt = "people, humans, human, person, man, woman, child, boy, girl, baby, face, silhouette, crowd, pedestrians, figures, human body, hands, arms, legs, portraits, characters, model, photo of person, statue, statues, greek statue, greek statues, roman statue, roman statues, marble statue, marble statues, sculpture, sculptures, bust, busts, stone idol, idols, carved figure, stone carving, monument of human, classical sculpture, ancient greek statue, roman sculpture, figurine, mannequin, idol worship, pagan statue, text, words, letters, typography, font, watermark, signature, username, title, caption, subtitles, writing, label, banner, logo, watermark text, fake words, gibberish text, script, latin words, quote, nudity, naked, nude, topless, bare breasts, bare shoulders, cleavage, unclothed, sensual, revealing clothes, erotic";
       const seed = Math.floor(Math.random() * 2000000000);
-      const pollinationsUrl = `https://gen.pollinations.ai/image/${encodeURIComponent(finalPrompt)}?width=${width}&height=${height}&seed=${seed}&model=flux&nologo=true&nofeed=true&enhance=false&negative=${encodeURIComponent(clientNegativePrompt)}`;
+      const pollinationsUrl = `https://gen.pollinations.ai/image/${encodeURIComponent(finalPrompt)}?width=${width}&height=${height}&seed=${seed}&model=flux&nologo=true&nofeed=true&private=true&notraining=true&enhance=false&negative=${encodeURIComponent(clientNegativePrompt)}`;
 
       console.log("[Modo Criar - Pollinations Local URL]:", pollinationsUrl);
 

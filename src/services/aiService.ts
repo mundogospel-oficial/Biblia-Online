@@ -183,7 +183,13 @@ const tryComplexGemini = async (
 
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Data-Policy': 'no-training',
+            'X-No-Training': 'true',
+            'X-Data-Collection': 'deny',
+            'X-Goog-Api-Client': 'gl-node/privacy-opt-out'
+          },
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: systemRule }] },
             contents,
@@ -356,7 +362,9 @@ const trySimpleOpenRouter = async (
             'Content-Type': 'application/json',
             'HTTP-Referer': window.location.origin,
             'X-Title': 'IA Bíblica',
-            'X-Data-Collection': 'deny'
+            'X-Data-Collection': 'deny',
+            'X-No-Training': 'true',
+            'X-Data-Policy': 'no-training'
           },
           body: JSON.stringify({
             model: model,
@@ -365,7 +373,8 @@ const trySimpleOpenRouter = async (
               { role: "user", "content": userContent.length > 1 ? userContent : prompt }
             ],
             provider: {
-              data_collection: "deny"
+              data_collection: "deny",
+              allow_fallbacks: true
             },
             temperature: 0.5,
             max_tokens: 4000
@@ -651,7 +660,13 @@ REGRAS ABSOLUTAS:
 
           const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Data-Policy': 'no-training',
+              'X-No-Training': 'true',
+              'X-Data-Collection': 'deny',
+              'X-Goog-Api-Client': 'gl-node/privacy-opt-out'
+            },
             body: JSON.stringify({
               systemInstruction: { parts: [{ text: systemInstruction }] },
               contents: [{ role: "user", parts: [{ text: combinedPrompt }] }] 
@@ -784,7 +799,13 @@ MANDATORY RULES:
         
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Data-Policy': 'no-training',
+            'X-No-Training': 'true',
+            'X-Data-Collection': 'deny',
+            'X-Goog-Api-Client': 'gl-node/privacy-opt-out'
+          },
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: dictSystemInstruction }] },
             contents: [{ parts: [{ text: dictPrompt }] }],
@@ -869,7 +890,10 @@ MANDATORY RULES:
             'Authorization': `Bearer ${rKey}`,
             'Content-Type': 'application/json',
             'HTTP-Referer': window.location.origin,
-            'X-Title': 'Bíblia Digital Dicionário'
+            'X-Title': 'Bíblia Digital Dicionário',
+            'X-Data-Collection': 'deny',
+            'X-No-Training': 'true',
+            'X-Data-Policy': 'no-training'
           },
           body: JSON.stringify({
             model,
@@ -877,6 +901,10 @@ MANDATORY RULES:
               { role: 'system', content: dictSystemInstruction },
               { role: 'user', content: dictPrompt }
             ],
+            provider: {
+              data_collection: "deny",
+              allow_fallbacks: true
+            },
             temperature: 0.3,
             max_tokens: 4000
           }),
