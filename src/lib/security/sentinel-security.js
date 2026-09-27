@@ -178,6 +178,20 @@ class BehaviorAnalyzer {
     this.botScore = Math.min(100, mouseScore + keystrokeScore + noInteraction);
     return Math.round(this.botScore);
   }
+
+  reset() {
+    this.events = {
+      mouseMovements: [],
+      scrollEvents: [],
+      keystrokes: [],
+      clickPatterns: [],
+      touchEvents: [],
+      focusEvents: [],
+    };
+    this.sessionStart = Date.now();
+    this.interactionCount = 5;
+    this.botScore = 0;
+  }
 }
 
 // ──────────────────────────────────────────────
@@ -441,6 +455,13 @@ class TrapSystem {
 
   getTriggered() {
     return this.triggered;
+  }
+
+  reset() {
+    this.triggered = [];
+    this.traps.forEach(field => {
+      try { field.value = ''; } catch { /* ignore */ }
+    });
   }
 }
 
@@ -822,9 +843,13 @@ class SentinelCore {
     if (evaluation.level !== 'safe') {
       this.config.onThreatDetected?.(evaluation);
     }
-    if (evaluation.score >= 70 || !trapResult.valid || attackPatterns.length > 0) {
-      this.config.onBotConfirmed?.(evaluation);
+
+    // Ataques críticos de injeção ou devtools ativam a Tela Azul
+    if (attackPatterns.length > 0) {
       this._blockRequest(evaluation);
+    } else if (evaluation.score >= 70 || !trapResult.valid) {
+      // Bloqueio de BOT: Dispara verificação de bot via Cloudflare Turnstile (não ativa a tela azul)
+      this.config.onBotConfirmed?.(evaluation);
     }
 
     return evaluation;
@@ -901,6 +926,18 @@ class SentinelCore {
     this.blockInfo = blockInfo;
     this._log('🚫 Acesso bloqueado (Ativando Tela Azul BSOD):', evaluation.reasons);
     this.config.onBlocked?.(blockInfo);
+  }
+
+  /**
+   * Reseta o score de bot e dados de interação quando o usuário passa no Cloudflare Turnstile
+   */
+  resetBotScore() {
+    this.behavior?.reset?.();
+    this.trap?.reset?.();
+    this.lastEvaluation = null;
+    this.blocked = false;
+    this.blockInfo = null;
+    this._alreadyReported = false;
   }
 
   /**

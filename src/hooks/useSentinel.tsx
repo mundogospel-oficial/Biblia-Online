@@ -3,6 +3,8 @@ import SentinelCore from "../lib/security/sentinel-security.js";
 import { getLocalBan, reportBanToSupabase, checkIsBannedInSupabase, SecurityBanRecord } from "@/services/securityService";
 import { isSupabaseConfigured } from "@/integrations/supabase/client";
 import { SentinelSecurityOverlay } from "@/components/SentinelSecurityOverlay";
+import { BotChallengeModal } from "@/components/BotChallengeModal";
+import { toast } from "sonner";
 
 export function useSentinel(config: any = {}) {
   const sentinelRef = useRef<any>(null);
@@ -12,12 +14,29 @@ export function useSentinel(config: any = {}) {
     return !!localBan;
   });
 
+  const [isBotBlocked, setIsBotBlocked] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("sentinel_bot_blocked") === "true";
+    }
+    return false;
+  });
+
   const [blockInfo, setBlockInfo] = useState<SecurityBanRecord | null>(() => {
     return getLocalBan();
   });
 
   const [isExtensionDetected, setIsExtensionDetected] = useState<boolean>(false);
   const [extensionReasons, setExtensionReasons] = useState<string[]>([]);
+
+  const handleUnblockBot = useCallback((token: string) => {
+    console.log("[Sentinel] Desbloqueio de bot concluído com sucesso via Cloudflare:", token);
+    setIsBotBlocked(false);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("sentinel_bot_blocked");
+    }
+    sentinelRef.current?.resetBotScore?.();
+    toast.success("Verificação concluída! O bloqueio de bot foi removido com sucesso.");
+  }, []);
 
   const handleBlock = useCallback(async (info: any) => {
     setIsBlocked(true);
@@ -100,12 +119,24 @@ export function useSentinel(config: any = {}) {
         return "Bloqueio de segurança ativado.";
       };
       (window as any).triggerSentinelBlock = (window as any).testSentinelBlock;
+
+      (window as any).triggerBotBlock = () => {
+        setIsBotBlocked(true);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("sentinel_bot_blocked", "true");
+        }
+        return "Bloqueio de bot ativado para teste. Verifique o modal Cloudflare.";
+      };
+      (window as any).unblockBot = () => {
+        handleUnblockBot("manual_token");
+        return "Bloqueio de bot removido com sucesso.";
+      };
     }
 
     return () => {
       window.removeEventListener("sentinel-block-change", handleBlockChange);
     };
-  }, []);
+  }, [handleUnblockBot]);
 
   useEffect(() => {
     if (!sentinelRef.current) {
@@ -115,6 +146,13 @@ export function useSentinel(config: any = {}) {
         action: "block",
         onBlocked: (info: any) => {
           handleBlock(info);
+        },
+        onBotConfirmed: (info: any) => {
+          console.warn("[Sentinel] Atividade de bot detectada. Exibindo desafio Cloudflare Turnstile:", info);
+          setIsBotBlocked(true);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("sentinel_bot_blocked", "true");
+          }
         },
         onExtensionDetected: (extCheck: any) => {
           if (extCheck.detected) {
@@ -150,25 +188,35 @@ export function useSentinel(config: any = {}) {
 
   const SentinelOverlay = useCallback(() => {
     return (
-      <SentinelSecurityOverlay
-        isBlocked={isBlocked}
-        blockReason={blockInfo?.reason}
-        errorCode={blockInfo?.errorCode}
-        fingerprint={blockInfo?.fingerprint}
-        isExtensionDetected={isExtensionDetected}
-        extensionReasons={extensionReasons}
-        onReload={() => window.location.reload()}
-      />
+      <>
+        <SentinelSecurityOverlay
+          isBlocked={isBlocked}
+          blockReason={blockInfo?.reason}
+          errorCode={blockInfo?.errorCode}
+          fingerprint={blockInfo?.fingerprint}
+          isExtensionDetected={isExtensionDetected}
+          extensionReasons={extensionReasons}
+          onReload={() => window.location.reload()}
+        />
+        <BotChallengeModal
+          isOpen={!isBlocked && isBotBlocked}
+          onVerified={handleUnblockBot}
+        />
+      </>
     );
-  }, [isBlocked, blockInfo, isExtensionDetected, extensionReasons]);
+  }, [isBlocked, isBotBlocked, blockInfo, isExtensionDetected, extensionReasons, handleUnblockBot]);
 
   return {
     sentinel: sentinelRef.current,
+    isBlocked,
+    isBotBlocked,
+    handleUnblockBot,
+    blockInfo,
+    isExtensionDetected,
+    extensionReasons,
     checkRisk,
     checkRateLimit,
     getStatus,
-    isBlocked,
-    isExtensionDetected,
     SentinelOverlay,
   };
 }

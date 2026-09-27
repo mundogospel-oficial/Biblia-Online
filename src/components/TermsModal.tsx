@@ -116,8 +116,13 @@ const TermsModal = ({ isOpen, onClose }: TermsModalProps) => {
                   </section>
 
                   <section>
-                    <h3 className="font-bold text-foreground mb-1 text-sm">12. Transparência no Processamento e Treinamento de IA</h3>
-                    <p>Ao utilizar o chat da plataforma, o usuário interage com um modelo de Inteligência Artificial. Os dados das interações podem ser processados para fins de aprimoramento da experiência de uso, sendo submetidos a processos rigorosos de anonimização e pseudonimização. Nenhuma informação pessoal identificável será vinculada ao treinamento público de modelos, assegurando a conformidade com as diretrizes de privacidade dos nossos provedores de tecnologia.</p>
+                    <h3 className="font-bold text-foreground mb-1 text-sm">12. Transparência no Processamento e Treinamento de Provedores de IA</h3>
+                    <p>Ao interagir com o chat e as ferramentas de estudo da plataforma, o usuário utiliza modelos de Inteligência Artificial fornecidos por provedores terceiros (incluindo Google AI / Google Cloud e plataformas parceiras). O usuário reconhece e concorda expressamente que:</p>
+                    <ul className="mt-2 space-y-1.5 pl-4 list-disc text-muted-foreground">
+                      <li><strong className="text-foreground font-semibold">Provedores Terceirizados e Treinamento:</strong> Níveis e modalidades gratuitas de APIs de provedores externos podem reter conteúdos e interações para pesquisa, avaliação e aprimoramento contínuo de seus próprios algoritmos e modelos de machine learning, em conformidade com as políticas públicas desses terceiros.</li>
+                      <li><strong className="text-foreground font-semibold">Filtro de Anonimização Prévia (Privacy by Design):</strong> A plataforma Bíblia Online aplica tecnologia ativa de anonimização prévia no próprio cliente/servidor, ocultando automaticamente dados como CPF, números de documentos, telefones, e-mails e nomes identificáveis antes da transmissão do prompt, visando à proteção irrestrita do usuário.</li>
+                      <li><strong className="text-foreground font-semibold">Isenção de Responsabilidade sobre Conteúdo Voluntário:</strong> O Bíblia Online não solicita, não armazena e desencoraja a inserção de dados pessoais ou sigilosos nas consultas, não se responsabilizando por dados deliberadamente digitados pelo usuário que venham a ser processados pelos provedores de IA.</li>
+                    </ul>
                   </section>
 
                   <section>
@@ -156,7 +161,7 @@ const TermsModal = ({ isOpen, onClose }: TermsModalProps) => {
 
                   <section>
                     <h3 className="font-bold text-foreground mb-1 text-sm">18. Serviços de Terceiros e Processamento Terceirizado</h3>
-                    <p>Para viabilizar as funcionalidades avançadas da aplicação, o Bíblia Online integra APIs de processamento de dados e modelos de linguagem mantidos por terceiros. Os dados pessoais identificáveis são removidos das requisições enviadas à IA sempre que viável. No entanto, o usuário é ostensivamente alertado a não inserir dados sigilosos, financeiros ou sensíveis no chat. Para tratar de assuntos confidenciais, o usuário deve recorrer exclusivamente aos canais de suporte humano.</p>
+                    <p>Para viabilizar as funcionalidades avançadas da aplicação, o Bíblia Online integra APIs de processamento de dados e modelos de linguagem mantidos por parceiros terceiros (como Google e serviços de infraestrutura em nuvem). Tais fornecedores operam sob suas próprias políticas e termos de licença. A plataforma aplica filtros automatizados de descaracterização de dados antes do envio de consultas. O usuário é expressamente advertido a não inserir dados sigilosos, financeiros ou sensíveis nas conversas. Para quaisquer assuntos pessoais ou confidenciais, deve-se recorrer exclusivamente aos canais de atendimento humano.</p>
                   </section>
 
                   <section>
