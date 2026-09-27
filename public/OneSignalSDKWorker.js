@@ -304,7 +304,13 @@ self.addEventListener('fetch', (event) => {
     url.pathname.startsWith('/api/ai') ||
     url.pathname.startsWith('/api/generate-image') ||
     url.pathname.startsWith('/socket.io') ||
-    (url.host.includes('localhost') && url.port === '3000' && url.pathname.startsWith('/@'))
+    url.pathname.startsWith('/@') ||
+    url.pathname.startsWith('/src/') ||
+    url.pathname.includes('node_modules') ||
+    url.pathname.includes('vite') ||
+    url.host.includes('.run.app') ||
+    url.host.includes('localhost') ||
+    url.host.includes('127.0.0.1')
   ) {
     return;
   }
@@ -353,29 +359,6 @@ self.addEventListener('fetch', (event) => {
   ) {
     event.respondWith(
       (async () => {
-        const cachedShell = (await caches.match(event.request, { ignoreSearch: true })) ||
-                            (await caches.match('/index.html', { ignoreSearch: true })) ||
-                            (await caches.match('/', { ignoreSearch: true }));
-
-        // Se estiver offline ou já tiver o app cacheado, devolve o shell imediatamente
-        if (cachedShell) {
-          // Atualiza em segundo plano se houver conexão
-          if (navigator.onLine) {
-            fetch(event.request).then((networkResponse) => {
-              if (networkResponse && networkResponse.status === 200) {
-                const copy = networkResponse.clone();
-                caches.open(CACHE_NAME).then((cache) => {
-                  cache.put(event.request, copy);
-                  cache.put('/index.html', copy.clone());
-                  cache.put('/', copy.clone());
-                });
-              }
-            }).catch(() => {});
-          }
-          return cachedShell;
-        }
-
-        // Se ainda não estiver em cache, tenta a rede
         try {
           const networkResponse = await fetch(event.request);
           if (networkResponse && networkResponse.status === 200) {
@@ -384,18 +367,24 @@ self.addEventListener('fetch', (event) => {
               cache.put(event.request, copy);
               cache.put('/index.html', copy.clone());
               cache.put('/', copy.clone());
-            });
+            }).catch(() => {});
+            return networkResponse;
           }
-          return networkResponse;
         } catch (err) {
-          const fallback = (await caches.match('/index.html', { ignoreSearch: true })) ||
-                           (await caches.match('/', { ignoreSearch: true }));
-          if (fallback) return fallback;
-          return new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+          // Falha de rede ou offline -> Recorre ao cache imediatamente
         }
+
+        const cachedShell = (await caches.match(event.request, { ignoreSearch: true })) ||
+                            (await caches.match('/index.html', { ignoreSearch: true })) ||
+                            (await caches.match('/', { ignoreSearch: true }));
+
+        if (cachedShell) {
+          return cachedShell;
+        }
+
+        return new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
       })()
     );
-    return;
   }
 
   // 3. Static assets (JS, CSS, images, icons, fonts)

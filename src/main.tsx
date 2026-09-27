@@ -72,9 +72,12 @@ const isPreviewHost =
   window.location.hostname.includes("id-preview--") ||
   window.location.hostname.includes("lovableproject.com");
 
-// Validação e limpeza de cache antigo entre versões
+// Validação e limpeza de cache antigo entre versões e falso-positivo de bloqueio
 if (typeof window !== "undefined") {
   try {
+    // Remove qualquer bloqueio espúrio de bot salvo em sessões antigas no celular
+    localStorage.removeItem("sentinel_bot_blocked");
+
     const savedVer = localStorage.getItem("app_version");
     if (!savedVer || savedVer !== CURRENT_VERSION) {
       console.log(`[Update] Atualizando da versão ${savedVer || 'antiga'} para ${CURRENT_VERSION}...`);

@@ -486,5 +486,54 @@
     </noscript>
 
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Script de autodiagnóstico e auto-recuperação para inicialização em smartphones e PWA -->
+    <script>
+      (function() {
+        var timer = setTimeout(function() {
+          var root = document.getElementById("root");
+          if (root && root.querySelector(".static-splash-hero")) {
+            console.warn("[PWA Boot] Detectada retenção do splash em celular. Desregistrando SW antigo e liberando inicialização...");
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function(regs) {
+                regs.forEach(function(r) { r.unregister().catch(function() {}); });
+              }).catch(function() {});
+            }
+            if ('caches' in window) {
+              caches.keys().then(function(keys) {
+                keys.forEach(function(k) {
+                  if (k !== 'biblia-offline-data') caches.delete(k).catch(function() {});
+                });
+              }).catch(function() {});
+            }
+            try {
+              localStorage.removeItem("sentinel_bot_blocked");
+            } catch(e) {}
+
+            var hero = root.querySelector(".static-splash-hero");
+            if (hero && !document.getElementById("pwa-recovery-btn")) {
+              var btn = document.createElement("button");
+              btn.id = "pwa-recovery-btn";
+              btn.innerText = "Iniciar Bíblia Online";
+              btn.style.cssText = "display:block;margin:18px auto 0;background:#0284c7;color:#fff;border:none;padding:10px 22px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(2,132,199,0.35);";
+              btn.onclick = function() {
+                window.location.reload();
+              };
+              var textGroup = hero.querySelector(".static-splash-text-group");
+              if (textGroup) { textGroup.appendChild(btn); }
+            }
+          }
+        }, 5000);
+
+        window.addEventListener("load", function() {
+          setTimeout(function() {
+            var root = document.getElementById("root");
+            if (root && !root.querySelector(".static-splash-hero")) {
+              clearTimeout(timer);
+            }
+          }, 1200);
+        });
+      })();
+    </script>
   </body>
 </html>

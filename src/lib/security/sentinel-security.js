@@ -87,10 +87,17 @@ class BehaviorAnalyzer {
       });
     }, { passive: true });
 
-    // Detecção touch (garante que é dispositivo real)
-    document.addEventListener('touchstart', () => {
+    // Detecção touch (garante que é dispositivo real humano)
+    const handleTouch = () => {
       this.events.touchEvents.push(Date.now());
-    }, { passive: true });
+      this.interactionCount++;
+      if (this.events.touchEvents.length > 50) {
+        this.events.touchEvents.shift();
+      }
+    };
+    document.addEventListener('touchstart', handleTouch, { passive: true });
+    document.addEventListener('touchmove', handleTouch, { passive: true });
+    document.addEventListener('touchend', handleTouch, { passive: true });
 
     // Foco e desfoco na aba (bots raramente fazem isso)
     window.addEventListener('blur', () => {
@@ -168,12 +175,19 @@ class BehaviorAnalyzer {
    * 0-30: humano, 31-60: suspeito, 61-100: bot
    */
   getScore() {
+    // Se o usuário interagiu via touch (toque na tela do celular), é humano comprovado
+    if (this.events.touchEvents.length > 0) {
+      return 0;
+    }
+
     const mouseScore   = this._calculateMouseEntropy() * 0.4;
     const keystrokeScore = this._analyzeKeystrokeRhythm() * 0.3;
 
-    // Sem interações após 5 segundos = suspeito
+    const isTouchDevice = (typeof navigator !== 'undefined' && (navigator.maxTouchPoints > 0 || /Mobile|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '')));
+    
+    // Sem interações após 5 segundos só é suspeito em PC/desktop se não for touch
     const timeOnPage = Date.now() - this.sessionStart;
-    const noInteraction = (this.interactionCount === 0 && timeOnPage > 5000) ? 30 : 0;
+    const noInteraction = (!isTouchDevice && this.interactionCount === 0 && timeOnPage > 5000) ? 20 : 0;
 
     this.botScore = Math.min(100, mouseScore + keystrokeScore + noInteraction);
     return Math.round(this.botScore);
@@ -308,11 +322,12 @@ class FingerprintEngine {
     const c = this._components;
 
     // User agent claims mobile mas não tem touch
+    const isMobileDevice = /Mobile|Android|iPhone|iPad|iPod/i.test(c.userAgent) || (c.touchPoints && c.touchPoints > 0);
     if (/Mobile|Android|iPhone/i.test(c.userAgent) && c.touchPoints === 0) {
       anomalies.push('UA_MOBILE_NO_TOUCH');
     }
-    // Headless Chrome: não tem plugins mas tem WebGL
-    if (c.plugins === '' && typeof c.webgl === 'object' && c.webgl.renderer) {
+    // Headless Chrome: apenas em DESKTOP/PC (pois dispositivos móveis reais NUNCA possuem navigator.plugins)
+    if (!isMobileDevice && c.plugins === '' && typeof c.webgl === 'object' && c.webgl.renderer) {
       anomalies.push('HEADLESS_BROWSER_SUSPECTED');
     }
     // Puppeteer/Selenium deixa traces

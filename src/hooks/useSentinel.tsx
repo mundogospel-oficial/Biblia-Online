@@ -14,12 +14,7 @@ export function useSentinel(config: any = {}) {
     return !!localBan;
   });
 
-  const [isBotBlocked, setIsBotBlocked] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("sentinel_bot_blocked") === "true";
-    }
-    return false;
-  });
+  const [isBotBlocked, setIsBotBlocked] = useState<boolean>(false);
 
   const [blockInfo, setBlockInfo] = useState<SecurityBanRecord | null>(() => {
     return getLocalBan();
