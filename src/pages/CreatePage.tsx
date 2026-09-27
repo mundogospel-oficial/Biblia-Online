@@ -646,9 +646,37 @@ const CreatePage = () => {
         imageTimeout: 15000,
         scrollX: 0,
         scrollY: 0,
+        onclone: (_clonedDoc, clonedEl) => {
+          // Garante que a arte salva venha com bordas quadradas padrão (sem cantos arredondados ou cortados)
+          clonedEl.style.borderRadius = "0px";
+          clonedEl.style.border = "none";
+          clonedEl.style.boxShadow = "none";
+          clonedEl.classList.remove("rounded-2xl", "rounded-xl", "rounded-lg", "rounded-3xl", "border");
+
+          const allElements = clonedEl.querySelectorAll("*");
+          allElements.forEach((node) => {
+            const htmlNode = node as HTMLElement;
+            if (htmlNode.style) {
+              if (
+                htmlNode.classList?.contains("rounded-2xl") ||
+                htmlNode.classList?.contains("rounded-xl") ||
+                htmlNode.classList?.contains("rounded-lg") ||
+                htmlNode.classList?.contains("rounded-3xl")
+              ) {
+                htmlNode.style.borderRadius = "0px";
+              }
+              if (htmlNode.classList?.contains("shadow-2xl") || htmlNode.classList?.contains("shadow-verse") || htmlNode.classList?.contains("shadow-lg")) {
+                htmlNode.style.boxShadow = "none";
+              }
+              if (htmlNode.classList?.contains("border") || htmlNode.classList?.contains("border-border/40")) {
+                htmlNode.style.border = "none";
+              }
+            }
+          });
+        }
       });
 
-      const dataUrl = canvas.toDataURL(exportFormat.mime, 0.95);
+      const dataUrl = canvas.toDataURL(exportFormat.mime, 0.98);
       await downloadBibleImage(dataUrl, "Biblia-Online-Arte");
     } catch (err) {
       console.error("Erro ao gerar imagem:", err);
@@ -672,9 +700,37 @@ const CreatePage = () => {
         imageTimeout: 15000,
         scrollX: 0,
         scrollY: 0,
+        onclone: (_clonedDoc, clonedEl) => {
+          // Garante que a arte compartilhada venha com bordas quadradas padrão (sem cantos arredondados ou cortados)
+          clonedEl.style.borderRadius = "0px";
+          clonedEl.style.border = "none";
+          clonedEl.style.boxShadow = "none";
+          clonedEl.classList.remove("rounded-2xl", "rounded-xl", "rounded-lg", "rounded-3xl", "border");
+
+          const allElements = clonedEl.querySelectorAll("*");
+          allElements.forEach((node) => {
+            const htmlNode = node as HTMLElement;
+            if (htmlNode.style) {
+              if (
+                htmlNode.classList?.contains("rounded-2xl") ||
+                htmlNode.classList?.contains("rounded-xl") ||
+                htmlNode.classList?.contains("rounded-lg") ||
+                htmlNode.classList?.contains("rounded-3xl")
+              ) {
+                htmlNode.style.borderRadius = "0px";
+              }
+              if (htmlNode.classList?.contains("shadow-2xl") || htmlNode.classList?.contains("shadow-verse") || htmlNode.classList?.contains("shadow-lg")) {
+                htmlNode.style.boxShadow = "none";
+              }
+              if (htmlNode.classList?.contains("border") || htmlNode.classList?.contains("border-border/40")) {
+                htmlNode.style.border = "none";
+              }
+            }
+          });
+        }
       });
 
-      const dataUrl = canvas.toDataURL("image/png", 0.95);
+      const dataUrl = canvas.toDataURL("image/png", 0.98);
       await shareBibleImage(dataUrl, "Biblia-Online-Arte");
     } catch (err) {
       console.error("Share error:", err);
@@ -1396,7 +1452,7 @@ const CreatePage = () => {
                           key={aiImageUrl}
                           src={aiImageUrl}
                           alt="Background com IA"
-                          className="absolute inset-0 w-full h-[106%] -top-[1%] object-cover object-center"
+                          className="absolute inset-0 w-full h-[105%] -top-[0.5%] object-cover object-center"
                           referrerPolicy="no-referrer"
                           onError={() => setAiImageError(true)}
                           onLoad={() => setAiImageError(false)}

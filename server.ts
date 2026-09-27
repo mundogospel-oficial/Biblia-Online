@@ -1844,21 +1844,20 @@ REGRAS DE SAÍDA:
         cleanSubject = "majestic tranquil sacred biblical landscape, holy nature and celestial light";
       }
 
-      let finalPrompt = `${cleanSubject}, majestic biblical landscape, sacred natural scenery, peaceful empty environment, solitary landscape view, untouched nature, no people, no humans, no man, no woman, no child, no human figures, no silhouettes, no faces, no hands, no statues, no greek statues, no roman statues, no sculptures, no marble statues, no busts, no stone idols, no carved figures, completely devoid of humans and statues, unpopulated scenic view, completely textless, clean image, no text, no words, no letters, no logos, no watermark, no typography, no writing, no labels, no title, no subtitles`;
+      let finalPrompt = `${cleanSubject}, majestic biblical landscape, sacred natural scenery, peaceful empty environment, solitary landscape view, untouched nature, no people, no humans, no man, no woman, no child, no human figures, no silhouettes, no faces, no hands, no statues, no greek statues, no roman statues, no sculptures, no marble statues, no busts, no stone idols, no carved figures, completely devoid of humans and statues, unpopulated scenic view, completely textless, clean image, no text, no words, no letters, no logos, no watermark, no typography, no writing, no labels, no title, no subtitles, ultra high definition, 8k resolution, tack-sharp focus, crystalline clarity, intricate natural textures, photorealistic sacred landscape, cinematic illumination, masterpiece photography`;
 
       if (extractedStyle) {
         finalPrompt += `, ${extractedStyle}`;
       }
 
       finalPrompt = finalPrompt
-        .replace(/\b(ultra-high definition|ultra high definition|tack-sharp focus|tack-sharp|extreme zoom clarity|zoom clarity|intricate textures|8k uhd resolution|8k resolution|8k|uhd|full bleed edge-to-edge shot|full bleed|no black bars|no letterbox|masterwork quality|altíssima definição e atmosfera grandiosa)\b/gi, '')
         .replace(/,\s*,+/g, ',')
         .replace(/^\s*,\s*|\s*,\s*$/g, '')
         .trim();
 
       // Dimensões do Modo Criar
-      let width = 1440;
-      let height = 1440;
+      let width = 1024;
+      let height = 1024;
       if (aspectRatio === 'story') {
         width = 1080;
         height = 1920;
@@ -1868,7 +1867,7 @@ REGRAS DE SAÍDA:
       }
 
       const seed = Math.floor(Math.random() * 2000000000);
-      const serverNegativePrompt = "people, humans, human, person, man, woman, child, boy, girl, baby, face, silhouette, crowd, pedestrians, figures, human body, hands, arms, legs, portraits, characters, model, photo of person, statue, statues, greek statue, greek statues, roman statue, roman statues, marble statue, marble statues, sculpture, sculptures, bust, busts, stone idol, idols, carved figure, stone carving, monument of human, classical sculpture, ancient greek statue, roman sculpture, figurine, mannequin, idol worship, pagan statue, text, words, letters, typography, font, watermark, signature, username, title, caption, subtitles, writing, label, banner, logo, watermark text, fake words, gibberish text, script, latin words, quote, nudity, naked, nude, topless, bare breasts, bare shoulders, cleavage, unclothed, sensual, revealing clothes, erotic";
+      const serverNegativePrompt = "blurry, blur, out of focus, soft focus, motion blur, haze, smudged, low resolution, low quality, pixelated, compression artifacts, grainy, noisy, amateur, bad photography, bad textures, people, humans, human, person, man, woman, child, boy, girl, baby, face, silhouette, crowd, pedestrians, figures, human body, hands, arms, legs, portraits, characters, model, photo of person, statue, statues, greek statue, greek statues, roman statue, roman statues, marble statue, marble statues, sculpture, sculptures, bust, busts, stone idol, idols, carved figure, stone carving, monument of human, classical sculpture, ancient greek statue, roman sculpture, figurine, mannequin, idol worship, pagan statue, text, words, letters, typography, font, watermark, signature, username, title, caption, subtitles, writing, label, banner, logo, watermark text, fake words, gibberish text, script, latin words, quote, nudity, naked, nude, topless, bare breasts, bare shoulders, cleavage, unclothed, sensual, revealing clothes, erotic";
       const rawKey = (process.env.POLLINATIONS_API_KEY || "").trim();
       const cleanKey = rawKey.replace(/^Bearer\s+/i, '').replace(/^["']|["']$/g, '').trim();
 

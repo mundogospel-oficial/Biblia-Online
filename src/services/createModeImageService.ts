@@ -25,6 +25,63 @@ export interface CreateModeImageOptions {
 }
 
 /**
+ * Corta os 4% inferiores da imagem (preservando 96% da altura superior),
+ * removendo com precisão cirúrgica a marca d'água da Pollinations sem alterar a nitidez.
+ */
+export const cropPollinationsWatermark = async (imageSrc: string): Promise<string> => {
+  if (!imageSrc || typeof imageSrc !== 'string') return imageSrc;
+
+  const isDataUrl = imageSrc.startsWith('data:');
+
+  return new Promise<string>((resolve) => {
+    const img = new Image();
+    // Apenas define crossOrigin para URLs remotas HTTP/HTTPS; para data: URLs não deve ser usado
+    if (!isDataUrl) {
+      img.crossOrigin = "anonymous";
+    }
+    const timer = setTimeout(() => {
+      resolve(imageSrc);
+    }, 15000);
+
+    img.onload = () => {
+      clearTimeout(timer);
+      try {
+        const rawW = img.naturalWidth || img.width;
+        const rawH = img.naturalHeight || img.height;
+        if (!rawW || !rawH) {
+          resolve(imageSrc);
+          return;
+        }
+
+        // Corte exato de 96% da altura: preserva os 96% superiores e remove a faixa inferior onde fica a marca d'água
+        const cleanH = Math.round(rawH * 0.96);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = rawW;
+        canvas.height = cleanH;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(imageSrc);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, rawW, cleanH, 0, 0, rawW, cleanH);
+        resolve(canvas.toDataURL("image/jpeg", 0.98));
+      } catch (err) {
+        console.warn("[Modo Criar] Aviso no corte da marca d'água:", err);
+        resolve(imageSrc);
+      }
+    };
+
+    img.onerror = () => {
+      clearTimeout(timer);
+      resolve(imageSrc);
+    };
+
+    img.src = imageSrc;
+  });
+};
+
+/**
  * Gera imagem bíblica exclusivamente para o Modo Criar usando Pollinations IA (Flux).
  * Totalmente isolada de qualquer outro motor de imagens.
  */
@@ -156,20 +213,19 @@ export const generateCreateModeImage = async (
         cleanSubject = "majestic tranquil sacred biblical landscape, holy nature and celestial light";
       }
 
-      let finalPrompt = `${cleanSubject}, majestic biblical landscape, sacred natural scenery, peaceful empty environment, solitary landscape view, untouched nature, no people, no humans, no man, no woman, no child, no human figures, no silhouettes, no faces, no hands, no statues, no greek statues, no roman statues, no sculptures, no marble statues, no busts, no stone idols, no carved figures, completely devoid of humans and statues, unpopulated scenic view, completely textless, clean image, no text, no words, no letters, no logos, no watermark, no typography, no writing, no labels, no title, no subtitles`;
+      let finalPrompt = `${cleanSubject}, majestic biblical landscape, sacred natural scenery, peaceful empty environment, solitary landscape view, untouched nature, no people, no humans, no man, no woman, no child, no human figures, no silhouettes, no faces, no hands, no statues, no greek statues, no roman statues, no sculptures, no marble statues, no busts, no stone idols, no carved figures, completely devoid of humans and statues, unpopulated scenic view, completely textless, clean image, no text, no words, no letters, no logos, no watermark, no typography, no writing, no labels, no title, no subtitles, ultra high definition, 8k resolution, tack-sharp focus, crystalline clarity, intricate natural textures, photorealistic sacred landscape, cinematic illumination, masterpiece photography`;
 
       if (extractedStyle) {
         finalPrompt += `, ${extractedStyle}`;
       }
 
       finalPrompt = finalPrompt
-        .replace(/\b(ultra-high definition|ultra high definition|tack-sharp focus|tack-sharp|extreme zoom clarity|zoom clarity|intricate textures|8k uhd resolution|8k resolution|8k|uhd|full bleed edge-to-edge shot|full bleed|no black bars|no letterbox|masterwork quality)\b/gi, '')
         .replace(/,\s*,+/g, ',')
         .replace(/^\s*,\s*|\s*,\s*$/g, '')
         .trim();
 
-      let width = 1440;
-      let height = 1440;
+      let width = 1024;
+      let height = 1024;
       if (aspectRatio === 'story') {
         width = 1080;
         height = 1920;
@@ -178,7 +234,7 @@ export const generateCreateModeImage = async (
         height = 1080;
       }
 
-      const clientNegativePrompt = "people, humans, human, person, man, woman, child, boy, girl, baby, face, silhouette, crowd, pedestrians, figures, human body, hands, arms, legs, portraits, characters, model, photo of person, statue, statues, greek statue, greek statues, roman statue, roman statues, marble statue, marble statues, sculpture, sculptures, bust, busts, stone idol, idols, carved figure, stone carving, monument of human, classical sculpture, ancient greek statue, roman sculpture, figurine, mannequin, idol worship, pagan statue, text, words, letters, typography, font, watermark, signature, username, title, caption, subtitles, writing, label, banner, logo, watermark text, fake words, gibberish text, script, latin words, quote, nudity, naked, nude, topless, bare breasts, bare shoulders, cleavage, unclothed, sensual, revealing clothes, erotic";
+      const clientNegativePrompt = "blurry, blur, out of focus, soft focus, motion blur, haze, smudged, low resolution, low quality, pixelated, compression artifacts, grainy, noisy, amateur, bad photography, bad textures, people, humans, human, person, man, woman, child, boy, girl, baby, face, silhouette, crowd, pedestrians, figures, human body, hands, arms, legs, portraits, characters, model, photo of person, statue, statues, greek statue, greek statues, roman statue, roman statues, marble statue, marble statues, sculpture, sculptures, bust, busts, stone idol, idols, carved figure, stone carving, monument of human, classical sculpture, ancient greek statue, roman sculpture, figurine, mannequin, idol worship, pagan statue, text, words, letters, typography, font, watermark, signature, username, title, caption, subtitles, writing, label, banner, logo, watermark text, fake words, gibberish text, script, latin words, quote, nudity, naked, nude, topless, bare breasts, bare shoulders, cleavage, unclothed, sensual, revealing clothes, erotic";
       const seed = Math.floor(Math.random() * 2000000000);
       const pollinationsUrl = `https://gen.pollinations.ai/image/${encodeURIComponent(finalPrompt)}?width=${width}&height=${height}&seed=${seed}&model=flux&nologo=true&nofeed=true&private=true&notraining=true&enhance=false&negative=${encodeURIComponent(clientNegativePrompt)}`;
 
@@ -197,50 +253,10 @@ export const generateCreateModeImage = async (
         console.warn("[Modo Criar] Erro ao gravar uso local no Supabase:", insertErr);
       }
 
-      // Converter para Base64 no cliente
+      // Converter para Base64 e aplicar o corte cirúrgico de 96% no cliente
       try {
-        const base64Bytes = await new Promise<string>((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          const timer = setTimeout(() => {
-            img.src = "";
-            reject(new Error("O tempo limite para gerar e carregar a imagem expirou."));
-          }, 50000);
-
-          img.onload = () => {
-            clearTimeout(timer);
-            try {
-              const rawW = img.naturalWidth || img.width;
-              const rawH = img.naturalHeight || img.height;
-              // Remove a faixa inferior onde o Pollinations insere sua marca d'água (últimos 4% da altura)
-              const cropBottomPixels = Math.round(rawH * 0.045);
-              const cleanH = rawH - cropBottomPixels;
-
-              const canvas = document.createElement("canvas");
-              canvas.width = rawW;
-              canvas.height = cleanH;
-              const ctx = canvas.getContext("2d");
-              if (!ctx) {
-                reject(new Error("Falha ao obter contexto de renderização."));
-                return;
-              }
-              // Desenha cortando os pixels da marca d'água do rodapé
-              ctx.drawImage(img, 0, 0, rawW, cleanH, 0, 0, rawW, cleanH);
-              resolve(canvas.toDataURL("image/jpeg", 0.95));
-            } catch (canvasErr) {
-              reject(canvasErr);
-            }
-          };
-
-          img.onerror = () => {
-            clearTimeout(timer);
-            reject(new Error("Falha ao baixar os bytes da imagem do Pollinations."));
-          };
-
-          img.src = pollinationsUrl;
-        });
-
-        return base64Bytes;
+        const cleanBase64 = await cropPollinationsWatermark(pollinationsUrl);
+        return cleanBase64;
       } catch (convErr) {
         console.warn("[Modo Criar] Retornando URL direta do Pollinations:", convErr);
         return pollinationsUrl;
@@ -256,65 +272,22 @@ export const generateCreateModeImage = async (
       throw new Error("Não foi possível processar a resposta do servidor de imagens.");
     }
     const pollinationsUrl = data.pollinationsUrl;
-    const base64Image = data.base64Image || data.imageUrl;
+    const rawImage = data.base64Image || data.imageUrl || pollinationsUrl;
 
-    if (base64Image) {
-      if (returnRawUrl) return base64Image;
-      return `![${displayPrompt}](${base64Image})`;
+    if (rawImage) {
+      // Aplica o corte de 96% para eliminar a marca d'água da Pollinations da imagem do servidor
+      const cleanImage = await cropPollinationsWatermark(rawImage);
+      if (returnRawUrl) return cleanImage;
+      return `![${displayPrompt}](${cleanImage})`;
     }
 
     if (!pollinationsUrl) {
       throw new Error("O servidor do Modo Criar não retornou uma imagem válida.");
     }
 
-    // Baixar e converter a URL do Pollinations em base64 no canvas do navegador
-    try {
-      const base64Bytes = await new Promise<string>((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        const timer = setTimeout(() => {
-          img.src = "";
-          reject(new Error("O tempo limite para carregar a imagem expirou."));
-        }, 50000);
-
-        img.onload = () => {
-          clearTimeout(timer);
-          try {
-            const rawW = img.naturalWidth || img.width;
-            const rawH = img.naturalHeight || img.height;
-            // Remove a faixa inferior onde o Pollinations insere sua marca d'água (últimos 4.5% da altura)
-            const cropBottomPixels = Math.round(rawH * 0.045);
-            const cleanH = rawH - cropBottomPixels;
-
-            const canvas = document.createElement("canvas");
-            canvas.width = rawW;
-            canvas.height = cleanH;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) {
-              reject(new Error("Erro ao criar canvas"));
-              return;
-            }
-            ctx.drawImage(img, 0, 0, rawW, cleanH, 0, 0, rawW, cleanH);
-            resolve(canvas.toDataURL("image/jpeg", 0.95));
-          } catch (canvasErr: any) {
-            reject(canvasErr);
-          }
-        };
-
-        img.onerror = () => {
-          clearTimeout(timer);
-          reject(new Error("Falha ao baixar os bytes da imagem. O serviço pode estar temporariamente congestionado."));
-        };
-
-        img.src = pollinationsUrl;
-      });
-
-      if (returnRawUrl) return base64Bytes;
-      return `![${displayPrompt}](${base64Bytes})`;
-    } catch {
-      if (returnRawUrl) return pollinationsUrl;
-      return `![${displayPrompt}](${pollinationsUrl})`;
-    }
+    const cleanFallback = await cropPollinationsWatermark(pollinationsUrl);
+    if (returnRawUrl) return cleanFallback;
+    return `![${displayPrompt}](${cleanFallback})`;
   } catch (error: any) {
     const isAbort = error?.name === 'AbortError' || signal?.aborted || error?.message?.toLowerCase().includes('abort');
     if (isAbort) {
