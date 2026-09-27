@@ -210,9 +210,24 @@ const AccountPage = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("bible-google-user");
+        if (raw) {
+          const u = JSON.parse(raw);
+          if (u?.sub) {
+            const localStored = localStorage.getItem(`local_avatar_${u.sub}`);
+            if (localStored) return localStored;
+          }
+          if (u?.picture) return u.picture;
+        }
+      } catch {}
+    }
+    return null;
+  });
   const [avatarImgFailed, setAvatarImgFailed] = useState(false);
-  const [avatarLoaded, setAvatarLoaded] = useState(false);
+  const [avatarLoaded, setAvatarLoaded] = useState(true);
   const googleAvatarRef = useRef<string>("");
   const [deleting, setDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -282,15 +297,18 @@ const AccountPage = () => {
           const googleAvatar = su ? extractAvatarUrl(su) : (authCtx.user?.picture || "");
           googleAvatarRef.current = googleAvatar;
 
+          const localAvatar = userId ? localStorage.getItem(`local_avatar_${userId}`) : null;
+
           // Se o avatar salvo no perfil for um link do Google, prioriza a URL fresca da sessão ativa para prevenir links expirados
-          let effectiveAvatar = profile?.avatar_url || googleAvatar || null;
+          let effectiveAvatar = profile?.avatar_url || localAvatar || googleAvatar || null;
           if (profile?.avatar_url && (profile.avatar_url.includes("googleusercontent.com") || profile.avatar_url.includes("google.com")) && googleAvatar) {
             effectiveAvatar = googleAvatar;
           }
 
-          setAvatarUrl(effectiveAvatar);
-          setAvatarImgFailed(false);
-          setAvatarLoaded(false);
+          if (effectiveAvatar) {
+            setAvatarUrl(prev => (prev === effectiveAvatar ? prev : effectiveAvatar));
+            setAvatarImgFailed(false);
+          }
 
           // Se o perfil no banco ainda não tem o avatar salvo do Google, ou se tinha um link do Google desatualizado
           if (userId && googleAvatar && (!profile?.avatar_url || (profile.avatar_url.includes("googleusercontent.com") && profile.avatar_url !== googleAvatar))) {
@@ -361,18 +379,19 @@ const AccountPage = () => {
           console.error("Error loading profile:", err);
           const fallbackName = !isInvalidName(authCtx.user.name) ? authCtx.user.name : "";
           setDisplayName(fallbackName);
-          setAvatarUrl(authCtx.user.picture || null);
+          if (authCtx.user.picture) setAvatarUrl(authCtx.user.picture);
           setUsername(generateDefaultUsername(fallbackName || authCtx.user.email));
         }
       }
     };
 
-    if (!authCtx.loading) {
+    if (!authCtx.loading && authCtx.user?.sub) {
       loadProfile();
       const isGranted = "Notification" in window && Notification.permission === "granted";
       setNotificationsEnabled(isGranted && localStorage.getItem(NOTIFICATIONS_KEY) === "true");
     }
-  }, [authCtx, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authCtx.user?.sub, authCtx.loading]);
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -501,38 +520,20 @@ const AccountPage = () => {
     }
   };
 
-  const handleAvatarError = async () => {
+  const handleAvatarError = () => {
     console.warn("Avatar image failed to load:", avatarUrl);
     const googleFallback = googleAvatarRef.current;
 
-    // Se o avatar que falhou era diferente do avatar fresco do Google da sessão ativa, tenta ele
+    // Se o avatar que falhou era diferente do avatar do Google da sessão ativa, tenta ele
     if (googleFallback && avatarUrl !== googleFallback) {
       console.log("Tentando avatar do Google da sessão ativa como alternativa...");
       setAvatarUrl(googleFallback);
       setAvatarImgFailed(false);
-      setAvatarLoaded(false);
       return;
     }
 
-    // Se falhou definitivamente:
+    // Se falhou e não há fallback funcional, marca como falha visual na sessão sem deletar do banco
     setAvatarImgFailed(true);
-    setAvatarLoaded(false);
-
-    // Limpa a logo/foto antiga ou inexistente do perfil no Supabase para não persistir o erro no servidor
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const currentUserId = session?.user?.id || authCtx.user?.sub;
-      if (currentUserId) {
-        await supabase.from('profiles').update({
-          avatar_url: null,
-          updated_at: new Date().toISOString()
-        }).eq('id', currentUserId);
-        localStorage.removeItem(`local_avatar_${currentUserId}`);
-        console.log("Logo antiga/inválida limpa do perfil no servidor.");
-      }
-    } catch (e) {
-      console.warn("Aviso ao limpar logo antiga do servidor:", e);
-    }
   };
 
   const saveName = async () => {
@@ -1304,18 +1305,19 @@ const AccountPage = () => {
                       <User className="h-12 w-12 text-white/90 shrink-0 drop-shadow-sm" />
                     </div>
 
-                    {/* Foto/Logo do usuário: exibida suavemente no topo assim que carregada */}
+                    {/* Foto/Logo do usuário: renderizada de forma limpa e nativa sem interferência de CORS */}
                     {avatarUrl && !avatarImgFailed && (
                       <img 
                         key={avatarUrl}
                         src={avatarUrl} 
                         alt={displayName || "Perfil"} 
-                        referrerPolicy="no-referrer"
-                        crossOrigin="anonymous"
                         decoding="async"
-                        className={`absolute inset-0 h-full w-full rounded-full object-cover select-none pointer-events-none transition-opacity duration-300 ${avatarLoaded ? 'opacity-100' : 'opacity-0'}`}
+                        className="absolute inset-0 h-full w-full rounded-full object-cover select-none pointer-events-none"
                         loading="eager"
-                        onLoad={() => setAvatarLoaded(true)}
+                        onLoad={() => {
+                          setAvatarLoaded(true);
+                          setAvatarImgFailed(false);
+                        }}
                         onError={handleAvatarError}
                       />
                     )}
