@@ -972,8 +972,10 @@ export function detectSemanticConcepts(query: string): {
           score += 120;
         } else {
           for (const qToken of queryTokens) {
-            if (qToken.length >= 3 && normTrigger.includes(qToken)) {
-              score += 45;
+            if (qToken.length >= 3 && triggerTokens.includes(qToken)) {
+              score += 50;
+            } else if (qToken.length >= 5 && triggerTokens.some(t => t.startsWith(qToken))) {
+              score += 35;
             }
           }
         }
@@ -985,12 +987,15 @@ export function detectSemanticConcepts(query: string): {
       const normSyn = normalizeSemanticStr(syn);
       if (!normSyn) continue;
 
-      if (normQuery.includes(normSyn)) {
+      if (normQuery === normSyn) {
+        score += 100;
+      } else if (normQuery.includes(normSyn) && normSyn.length >= 4) {
         score += 70;
       } else {
+        const synTokens = normSyn.split(/\s+/);
         for (const qToken of queryTokens) {
-          if (qToken.length >= 4 && normSyn.includes(qToken)) {
-            score += 25;
+          if (qToken.length >= 4 && synTokens.includes(qToken)) {
+            score += 30;
           }
         }
       }
@@ -998,11 +1003,13 @@ export function detectSemanticConcepts(query: string): {
 
     // Checagem de nome do conceito
     const normName = normalizeSemanticStr(concept.name);
-    if (normQuery.includes(normName)) {
+    if (normQuery === normName) {
+      score += 200;
+    } else if (normQuery.includes(normName) && normName.length >= 5) {
       score += 140;
     }
 
-    if (score >= 40) {
+    if (score >= 50) {
       scoredList.push({ concept, score });
     }
   }

@@ -702,22 +702,40 @@ const SearchPage = () => {
   // Rank Momentos da Vida e Emoções
   const filteredMoments = useMemo(() => {
     if (!searchQuery.trim()) return SEMANTIC_CONCEPTS;
+
+    const detectedIds = new Set<string>();
+    if (detectedConcept) detectedIds.add(detectedConcept.id);
+    matchedConcepts.forEach(m => detectedIds.add(m.id));
+
     const qNorm = normalizeSemanticStr(searchQuery);
+    const qTokens = qNorm.split(/\s+/).filter(t => t.length >= 3);
+
     return SEMANTIC_CONCEPTS.filter((c) => {
+      if (detectedIds.has(c.id)) return true;
+
       const nameNorm = normalizeSemanticStr(c.name);
       const badgeNorm = normalizeSemanticStr(c.badge);
       const descNorm = normalizeSemanticStr(c.description);
+
       const trigMatch = c.triggers.some((t) => {
         const tNorm = normalizeSemanticStr(t);
-        return tNorm.includes(qNorm) || qNorm.includes(tNorm);
+        return tNorm === qNorm || qNorm.includes(tNorm) || (qTokens.length > 0 && qTokens.some(qt => tNorm.split(/\s+/).includes(qt)));
       });
       const synMatch = c.synonyms.some((s) => {
         const sNorm = normalizeSemanticStr(s);
-        return sNorm.includes(qNorm) || qNorm.includes(sNorm);
+        return sNorm === qNorm || qNorm.includes(sNorm);
       });
+
       return nameNorm.includes(qNorm) || badgeNorm.includes(qNorm) || descNorm.includes(qNorm) || trigMatch || synMatch;
+    }).sort((a, b) => {
+      // Prioritize the detected concept and matched concepts
+      const aDetected = detectedIds.has(a.id);
+      const bDetected = detectedIds.has(b.id);
+      if (aDetected && !bDetected) return -1;
+      if (!aDetected && bDetected) return 1;
+      return 0;
     });
-  }, [searchQuery]);
+  }, [searchQuery, detectedConcept, matchedConcepts]);
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
@@ -826,71 +844,6 @@ const SearchPage = () => {
               )}
             </form>
           </div>
-
-          {/* CARD DE DESTAQUE QUANDO MOMENTO DA VIDA É IDENTIFICADO */}
-          {searched && detectedConcept && (() => {
-            const visual = getMomentVisual(detectedConcept.id);
-            const MomentIcon = visual.icon;
-            return (
-              <motion.div
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`rounded-2xl border ${visual.iconBorder} bg-gradient-to-r from-card via-card to-accent/10 p-4 sm:p-5 shadow-sm space-y-3`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3.5 min-w-0">
-                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${visual.iconBg} border ${visual.iconBorder} shadow-2xs`}>
-                      <MomentIcon className={`h-6 w-6 ${visual.iconColor}`} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${visual.badgeBg} ${visual.badgeText}`}>
-                          {isEn ? `Life Moment • ${detectedConcept.badge}` : `Momento da Vida • ${detectedConcept.badge}`}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground font-medium">
-                          {isEn ? `${results.length} verses found` : `${results.length} versículos encontrados`}
-                        </span>
-                      </div>
-                      <h2 className="font-serif text-base sm:text-lg font-bold text-foreground mt-0.5">
-                        {detectedConcept.name}
-                      </h2>
-                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                        {detectedConcept.description}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {matchedConcepts.length > 1 && (
-                  <div className="pt-2 border-t border-border/30 flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[11px] font-medium text-muted-foreground">{isEn ? "Other related themes:" : "Outros temas relacionados:"}</span>
-                    {matchedConcepts.map((c) => {
-                      const isCurrent = c.id === detectedConcept.id;
-                      const cVisual = getMomentVisual(c.id);
-                      const CIcon = cVisual.icon;
-                      return (
-                        <button
-                          key={c.id}
-                          onClick={() => {
-                            setDetectedConcept(c);
-                            handleSearch(c.name);
-                          }}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                            isCurrent
-                              ? "bg-accent text-accent-foreground shadow-2xs"
-                              : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80"
-                          }`}
-                        >
-                          <CIcon className="h-3 w-3 shrink-0" />
-                          <span>{c.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </motion.div>
-            );
-          })()}
 
           {/* Quick Category Tabs with Counts */}
           <div className="flex gap-1.5 overflow-x-auto pb-2.5 scroll-smooth themed-scrollbar border-b border-border/30 relative [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-1 px-1">
@@ -1163,7 +1116,7 @@ const SearchPage = () => {
                     <Heart className="h-4 w-4 text-accent shrink-0 mt-0.5" />
                     <h2 className="font-serif text-sm sm:text-base font-bold text-foreground leading-snug">
                       {activeTab === "momentos" 
-                        ? (isEn ? "All Categories" : "Todas as Categorias") 
+                        ? (isEn ? "Life Moments and Feelings" : "Momentos da Vida e Sentimentos") 
                         : (isEn ? "Life Moments and Feelings" : "Momentos da Vida e Sentimentos")}{" "}
                       <span className="text-xs font-normal text-muted-foreground font-sans whitespace-nowrap">
                         ({filteredMoments.length})
@@ -1820,4 +1773,3 @@ const SearchPage = () => {
 };
 
 export default SearchPage;
-
