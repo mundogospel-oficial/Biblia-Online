@@ -7,8 +7,8 @@
     <meta name="strix-verification" content="strix-verify-7fcee00fcad39055acbe8d7d72531d22">
     <meta name="env-http-allowed" content="true" data-dev-http="allowed" data-prod-https="mandatory" />
     
-    <meta name="theme-color" content="#080e1a" />
-    <meta name="background-color" content="#080e1a" />
+    <meta name="theme-color" content="#030b18" />
+    <meta name="background-color" content="#030b18" />
     
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -22,8 +22,9 @@
     <link rel="icon" type="image/png" sizes="512x512" href="/icons/logo3.png?v=3" />
     <link rel="apple-touch-icon" href="/logo3.png?v=4" />
 
-    <title>Aviso | Bíblia Online</title>
+    <title>Site fora do ar | Bíblia Online</title>
 
+    <!-- Bloqueio de redirecionamentos SPA e desativação do cache do Service Worker -->
     <script>
       (function() {
         try {
@@ -55,173 +56,166 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background-color: #080e1a;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        color: #f8fafc;
+        background-color: #030b18;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        color: #ffffff;
         -webkit-font-smoothing: antialiased;
       }
-      .maintenance-viewport {
+
+      .notice-viewport {
         position: fixed;
         inset: 0;
+        width: 100vw;
+        height: 100vh;
+        background: radial-gradient(circle at 50% 50%, #081d3d 0%, #030b18 80%);
         display: flex;
         align-items: center;
         justify-content: center;
         padding: 24px;
-        background: radial-gradient(circle at 50% 30%, rgba(14, 165, 233, 0.08) 0%, rgba(8, 14, 26, 0.98) 75%);
         z-index: 2147483647;
       }
-      .card {
-        background: rgba(15, 23, 42, 0.85);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border: 1px solid rgba(56, 189, 248, 0.15);
-        border-radius: 24px;
-        padding: 40px 28px 32px;
-        max-width: 420px;
+
+      .notice-card {
         width: 100%;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.65), 0 0 40px rgba(56, 189, 248, 0.05);
+        max-width: 420px;
+        background: rgba(7, 18, 36, 0.7);
+        border: 1px solid rgba(0, 194, 255, 0.2);
+        border-radius: 28px;
+        padding: 44px 28px 36px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 194, 255, 0.08);
         display: flex;
         flex-direction: column;
         align-items: center;
         text-align: center;
       }
-      .logo-wrap {
-        position: relative;
-        margin-bottom: 20px;
-      }
-      .logo-glow {
-        position: absolute;
-        inset: -8px;
-        background: radial-gradient(circle, rgba(56, 189, 248, 0.35) 0%, transparent 70%);
-        border-radius: 50%;
-        filter: blur(8px);
-        z-index: 0;
-      }
-      .logo {
-        position: relative;
-        z-index: 1;
-        width: 54px;
-        height: 54px;
-        object-fit: contain;
-      }
-      .status-pill {
+
+      /* Logótipo Bíblia Online */
+      .brand-header {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
-        background: rgba(56, 189, 248, 0.08);
-        border: 1px solid rgba(56, 189, 248, 0.22);
-        padding: 5px 12px;
-        border-radius: 100px;
-        font-size: 11.5px;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: #38bdf8;
-        margin-bottom: 18px;
+        gap: 12px;
+        margin-bottom: 28px;
       }
-      .status-pulse {
-        width: 7px;
-        height: 7px;
-        background-color: #38bdf8;
-        border-radius: 50%;
-        box-shadow: 0 0 10px #38bdf8;
-        animation: pulse 2s infinite ease-in-out;
-      }
-      @keyframes pulse {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.4; transform: scale(0.85); }
-      }
-      .title {
-        font-size: 20px;
-        font-weight: 700;
-        line-height: 1.35;
-        color: #ffffff;
-        margin-bottom: 22px;
-        letter-spacing: -0.01em;
-      }
-      .notices-group {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        width: 100%;
-        margin-bottom: 24px;
-      }
-      .notice-card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.06);
+      .brand-icon-box {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #00c2ff;
         border-radius: 12px;
-        padding: 12px 14px;
         display: flex;
         align-items: center;
-        gap: 10px;
+        justify-content: center;
+        box-shadow: 0 0 16px rgba(0, 194, 255, 0.35);
+      }
+      .brand-icon-inner {
+        width: 68%;
+        height: 46%;
+        border-bottom: 4px solid #00c2ff;
+        border-radius: 0 0 5px 5px;
+      }
+      .brand-text {
         text-align: left;
+        line-height: 1.05;
       }
-      .notice-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background-color: #38bdf8;
-        flex-shrink: 0;
+      .brand-text-biblia {
+        font-size: 26px;
+        font-weight: 800;
+        color: #ffffff;
+        letter-spacing: -0.02em;
+        display: block;
       }
-      .notice-card p {
-        font-size: 13.5px;
-        color: #94a3b8;
-        line-height: 1.4;
+      .brand-text-online {
+        font-size: 21px;
+        font-weight: 500;
+        color: #00c2ff;
+        letter-spacing: -0.01em;
+        display: block;
       }
-      .notice-card p strong {
-        color: #e2e8f0;
+
+      /* Título e Barra */
+      .main-title {
+        font-size: 34px;
+        font-weight: 900;
+        color: #ffffff;
+        letter-spacing: -0.02em;
+        line-height: 1.15;
+        margin-bottom: 12px;
+      }
+      .main-title span {
+        color: #00c2ff;
+      }
+      .cyan-bar {
+        width: 52px;
+        height: 4px;
+        background-color: #00c2ff;
+        border-radius: 9999px;
+        box-shadow: 0 0 12px rgba(0, 194, 255, 0.6);
+        margin-bottom: 20px;
+      }
+
+      /* Mensagem principal */
+      .notice-message {
+        font-size: 18px;
         font-weight: 600;
+        line-height: 1.45;
+        color: #f1f5f9;
+        margin-bottom: 28px;
       }
+
+      /* Divisória subtil */
       .divider {
         width: 100%;
         height: 1px;
-        background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.15), transparent);
-        margin-bottom: 18px;
+        background: linear-gradient(90deg, transparent, rgba(0, 194, 255, 0.25), transparent);
+        margin-bottom: 24px;
       }
-      .meta-footer {
-        font-size: 12.5px;
-        color: #64748b;
-        display: flex;
-        align-items: center;
-        gap: 6px;
+
+      /* Rodapé */
+      .footer-text {
+        font-size: 15px;
+        font-weight: 600;
+        color: #cbd5e1;
+        margin-bottom: 10px;
       }
-      .meta-footer span {
-        color: #38bdf8;
-        font-weight: 500;
+      .footer-bar {
+        width: 36px;
+        height: 3px;
+        background-color: #00c2ff;
+        border-radius: 9999px;
+        box-shadow: 0 0 8px rgba(0, 194, 255, 0.5);
       }
     </style>
   </head>
   <body>
-    <div class="maintenance-viewport" role="dialog" aria-modal="true">
-      <div class="card">
-        <div class="logo-wrap">
-          <div class="logo-glow"></div>
-          <img src="/icons/logo2.png" alt="Bíblia Online" class="logo" onerror="this.style.display='none'" />
-        </div>
-
-        <div class="status-pill">
-          <span class="status-pulse"></span>
-          Aviso
-        </div>
-
-        <h1 class="title">Site Temporariamente Indisponível</h1>
-
-        <div class="notices-group">
-          <div class="notice-card">
-            <span class="notice-dot"></span>
-            <p><strong>Acesso suspenso:</strong> A plataforma está fora do ar no momento.</p>
+    <div class="notice-viewport" role="dialog" aria-modal="true">
+      <div class="notice-card">
+        
+        <!-- Logótipo -->
+        <header class="brand-header">
+          <div class="brand-icon-box">
+            <div class="brand-icon-inner"></div>
           </div>
-          <div class="notice-card">
-            <span class="notice-dot"></span>
-            <p><strong>Previsão:</strong> Em breve todos os serviços voltarão ao ar.</p>
+          <div class="brand-text">
+            <span class="brand-text-biblia">Biblia</span>
+            <span class="brand-text-online">Online</span>
           </div>
-        </div>
+        </header>
+
+        <!-- Título do aviso -->
+        <h1 class="main-title">Site <span>fora do ar</span></h1>
+        
+        <div class="cyan-bar"></div>
+
+        <!-- Descrição -->
+        <p class="notice-message">
+          O site foi tirado do ar<br>e em breve voltará.
+        </p>
 
         <div class="divider"></div>
 
-        <div class="meta-footer">
-          Status: <span>Temporariamente fora do ar</span>
-        </div>
+        <!-- Rodapé de agradecimento -->
+        <p class="footer-text">Agradecemos a sua compreensão!</p>
+        <div class="footer-bar"></div>
+
       </div>
     </div>
 
