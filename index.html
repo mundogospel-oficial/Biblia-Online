@@ -22,7 +22,7 @@
     <link rel="icon" type="image/png" sizes="512x512" href="/icons/logo3.png?v=3" />
     <link rel="apple-touch-icon" href="/logo3.png?v=4" />
 
-    <title>Manutenção Técnica | Bíblia Online</title>
+    <title>Aviso | Bíblia Online</title>
 
     <script>
       (function() {
@@ -76,8 +76,8 @@
         -webkit-backdrop-filter: blur(16px);
         border: 1px solid rgba(56, 189, 248, 0.15);
         border-radius: 24px;
-        padding: 44px 32px 36px;
-        max-width: 440px;
+        padding: 40px 28px 32px;
+        max-width: 420px;
         width: 100%;
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.65), 0 0 40px rgba(56, 189, 248, 0.05);
         display: flex;
@@ -87,7 +87,7 @@
       }
       .logo-wrap {
         position: relative;
-        margin-bottom: 24px;
+        margin-bottom: 20px;
       }
       .logo-glow {
         position: absolute;
@@ -100,8 +100,8 @@
       .logo {
         position: relative;
         z-index: 1;
-        width: 58px;
-        height: 58px;
+        width: 54px;
+        height: 54px;
         object-fit: contain;
       }
       .status-pill {
@@ -110,14 +110,14 @@
         gap: 8px;
         background: rgba(56, 189, 248, 0.08);
         border: 1px solid rgba(56, 189, 248, 0.22);
-        padding: 6px 14px;
+        padding: 5px 12px;
         border-radius: 100px;
-        font-size: 12px;
+        font-size: 11.5px;
         font-weight: 600;
         letter-spacing: 0.04em;
         text-transform: uppercase;
         color: #38bdf8;
-        margin-bottom: 20px;
+        margin-bottom: 18px;
       }
       .status-pulse {
         width: 7px;
@@ -134,22 +134,49 @@
       .title {
         font-size: 20px;
         font-weight: 700;
-        line-height: 1.4;
+        line-height: 1.35;
         color: #ffffff;
-        margin-bottom: 12px;
+        margin-bottom: 22px;
         letter-spacing: -0.01em;
       }
-      .description {
-        font-size: 14.5px;
-        line-height: 1.6;
+      .notices-group {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+        margin-bottom: 24px;
+      }
+      .notice-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+        padding: 12px 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        text-align: left;
+      }
+      .notice-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: #38bdf8;
+        flex-shrink: 0;
+      }
+      .notice-card p {
+        font-size: 13.5px;
         color: #94a3b8;
-        margin-bottom: 28px;
+        line-height: 1.4;
+      }
+      .notice-card p strong {
+        color: #e2e8f0;
+        font-weight: 600;
       }
       .divider {
         width: 100%;
         height: 1px;
         background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.15), transparent);
-        margin-bottom: 20px;
+        margin-bottom: 18px;
       }
       .meta-footer {
         font-size: 12.5px;
@@ -159,7 +186,7 @@
         gap: 6px;
       }
       .meta-footer span {
-        color: #cbd5e1;
+        color: #38bdf8;
         font-weight: 500;
       }
     </style>
@@ -174,19 +201,26 @@
 
         <div class="status-pill">
           <span class="status-pulse"></span>
-          Manutenção Programada
+          Aviso
         </div>
 
-        <h1 class="title">Aprimoramento da Plataforma em Curso</h1>
-        
-        <p class="description">
-          Estamos a implementar melhorias estruturais e atualizações de estabilidade na Bíblia Online. O acesso será restabelecido com a brevidade possível.
-        </p>
+        <h1 class="title">Site Temporariamente Indisponível</h1>
+
+        <div class="notices-group">
+          <div class="notice-card">
+            <span class="notice-dot"></span>
+            <p><strong>Acesso suspenso:</strong> A plataforma está fora do ar no momento.</p>
+          </div>
+          <div class="notice-card">
+            <span class="notice-dot"></span>
+            <p><strong>Previsão:</strong> Em breve todos os serviços voltarão ao ar.</p>
+          </div>
+        </div>
 
         <div class="divider"></div>
 
         <div class="meta-footer">
-          Estado dos serviços: <span>Em atualização técnica</span>
+          Status: <span>Temporariamente fora do ar</span>
         </div>
       </div>
     </div>
