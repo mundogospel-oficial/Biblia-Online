@@ -89,42 +89,32 @@
         text-align: center;
       }
 
-      /* Logótipo Bíblia Online */
+      /* Logótipo Oficial com Imagem */
       .brand-header {
         display: inline-flex;
         align-items: center;
-        gap: 12px;
+        gap: 14px;
         margin-bottom: 28px;
       }
-      .brand-icon-box {
-        width: 48px;
-        height: 48px;
-        border: 4px solid #00c2ff;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 0 16px rgba(0, 194, 255, 0.35);
-      }
-      .brand-icon-inner {
-        width: 68%;
-        height: 46%;
-        border-bottom: 4px solid #00c2ff;
-        border-radius: 0 0 5px 5px;
+      .brand-logo-img {
+        width: 50px;
+        height: 50px;
+        object-fit: contain;
+        filter: drop-shadow(0 0 14px rgba(0, 194, 255, 0.45));
       }
       .brand-text {
         text-align: left;
         line-height: 1.05;
       }
       .brand-text-biblia {
-        font-size: 26px;
+        font-size: 27px;
         font-weight: 800;
         color: #ffffff;
         letter-spacing: -0.02em;
         display: block;
       }
       .brand-text-online {
-        font-size: 21px;
+        font-size: 22px;
         font-weight: 500;
         color: #00c2ff;
         letter-spacing: -0.01em;
@@ -189,11 +179,9 @@
     <div class="notice-viewport" role="dialog" aria-modal="true">
       <div class="notice-card">
         
-        <!-- Logótipo -->
+        <!-- Logótipo Oficial da aplicação -->
         <header class="brand-header">
-          <div class="brand-icon-box">
-            <div class="brand-icon-inner"></div>
-          </div>
+          <img src="/icons/logo2.png" alt="Bíblia Online" class="brand-logo-img" />
           <div class="brand-text">
             <span class="brand-text-biblia">Biblia</span>
             <span class="brand-text-online">Online</span>
